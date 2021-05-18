@@ -1,0 +1,8 @@
+name: RiveExt
+
+platforms:
+    common:
+        context:
+            symbols: ["ResourceTypeRiveScene", "ResourceTypeRiveModel", "ComponentTypeRive"]
+
+
