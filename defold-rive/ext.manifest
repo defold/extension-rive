@@ -3,6 +3,6 @@ name: RiveExt
 platforms:
     common:
         context:
-            symbols: ["ResourceTypeRiveScene", "ResourceTypeRiveModel", "ComponentTypeRive"]
+            symbols: ["ResourceTypeRiveScene", "ResourceTypeRiveModel", "ResourceTypeRiveData", "ComponentTypeRive"]
 
 

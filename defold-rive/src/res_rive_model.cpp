@@ -1,4 +1,4 @@
-// Copyright 2020 The Defold Foundation
+// Copyright 2021 The Defold Foundation
 // Licensed under the Defold License version 1.0 (the "License"); you may not use
 // this file except in compliance with the License.
 //
@@ -22,11 +22,11 @@ namespace dmRive
         dmResource::Result result = dmResource::Get(factory, resource->m_DDF->m_Scene, (void**) &resource->m_Scene);
         if (result != dmResource::RESULT_OK)
             return result;
-        // result = dmResource::Get(factory, resource->m_DDF->m_Material, (void**) &resource->m_Material);
-        // if (result != dmResource::RESULT_OK)
-        // {
-        //     return result;
-        // }
+        result = dmResource::Get(factory, resource->m_DDF->m_Material, (void**) &resource->m_Material);
+        if (result != dmResource::RESULT_OK)
+        {
+            return result;
+        }
         return dmResource::RESULT_OK;
     }
 
