@@ -12,6 +12,7 @@
 
 #include <assert.h>
 
+#include <dmsdk/sdk.h>
 #include <dmsdk/dlib/hash.h>
 #include <dmsdk/dlib/message.h>
 #include <dmsdk/gameobject/script.h>
@@ -22,13 +23,6 @@
 //#include "rive_ddf.h"
 
 #include "comp_rive.h"
-
-extern "C"
-{
-#include <lua/lauxlib.h>
-#include <lua/lualib.h>
-}
-
 
 namespace dmRive
 {
