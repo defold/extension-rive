@@ -14,17 +14,27 @@
 #include <dmsdk/dlib/log.h>
 #include <dmsdk/resource/resource.h>
 
+// Rive includes
+// #include <artboard.hpp>
+#include <file.hpp>
+
 namespace dmRive
 {
     static dmResource::Result ResourceType_RiveData_Create(const dmResource::ResourceCreateParams& params)
     {
-        // TODO: Load rive data and store it as the resource
-        // You can either use a type from rive-cpp directly, or create a RiveDataResource in the header file
-        // Also note that the RiveSceneResource points to this resource (with a void*), you should update that type
-        // to make it usable in comp_rive.cpp
+        rive::File* file          = 0;
+        rive::BinaryReader reader = rive::BinaryReader((uint8_t*) params.m_Buffer, params.m_BufferSize);
+        rive::ImportResult result = rive::File::import(reader, &file);
 
-        params.m_Resource->m_Resource = (void*)params.m_Buffer;
-        params.m_Resource->m_ResourceSize = params.m_BufferSize;
+        if (result != rive::ImportResult::success)
+        {
+            params.m_Resource->m_Resource = 0;
+            return  dmResource::RESULT_INVALID_DATA;
+        }
+
+        params.m_Resource->m_Resource     = (void*) file;
+        params.m_Resource->m_ResourceSize = 0;
+
         return dmResource::RESULT_OK;
     }
 
@@ -38,12 +48,23 @@ namespace dmRive
 
     static dmResource::Result ResourceType_RiveData_Recreate(const dmResource::ResourceRecreateParams& params)
     {
-        // TODO: Reload the data
-        void* prev_data = params.m_Resource->m_Resource;
+        if (params.m_Resource->m_Resource != 0)
+        {
+            delete params.m_Resource->m_Resource;
+            params.m_Resource->m_Resource = 0;
+        }
 
-        // Setup new data
-        params.m_Resource->m_Resource = (void*)params.m_Buffer;
-        params.m_Resource->m_ResourceSize = params.m_BufferSize;
+        rive::File* file          = 0;
+        rive::BinaryReader reader = rive::BinaryReader((uint8_t*) params.m_Buffer, params.m_BufferSize);
+        rive::ImportResult result = rive::File::import(reader, &file);
+
+        if (result != rive::ImportResult::success)
+        {
+            return  dmResource::RESULT_INVALID_DATA;
+        }
+
+        params.m_Resource->m_Resource     = (void*) file;
+        params.m_Resource->m_ResourceSize = 0;
 
         return dmResource::RESULT_OK;
     }

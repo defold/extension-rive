@@ -30,7 +30,7 @@ namespace dmRive
         dmGameObject::HInstance                 m_Instance;
         dmTransform::Transform                  m_Transform;
         dmVMath::Matrix4                        m_World;
-        RiveModelResource*                   m_Resource;
+        RiveModelResource*                      m_Resource;
         //dmMessage::URL                          m_Listener;
         dmGameSystem::HComponentRenderConstants m_RenderConstants;
         dmRender::HMaterial                     m_Material;

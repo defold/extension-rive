@@ -43,6 +43,10 @@
 #include <dmsdk/render/render.h>
 #include <gameobject/gameobject_ddf.h>
 
+#include <file.hpp>
+#include <renderer.hpp>
+#include <rive_render_api.h>
+
 namespace dmRive
 {
     using namespace dmVMath;
@@ -56,14 +60,13 @@ namespace dmRive
     static void ResourceReloadedCallback(const dmResource::ResourceReloadedParams& params);
     static void DestroyComponent(struct RiveWorld* world, uint32_t index);
 
+    static rive::HBuffer AppRequestBufferCallback(rive::HBuffer buffer, rive::BufferType type, void* data, unsigned int dataSize);
+    static void          AppDestroyBufferCallback(rive::HBuffer buffer);
 
     struct RiveVertex
     {
         float x;
         float y;
-        float z;
-        float u;
-        float v;
     };
 
     // struct SpriteWorld
@@ -91,6 +94,10 @@ namespace dmRive
         dmGraphics::HVertexDeclaration      m_VertexDeclaration;
         dmGraphics::HVertexBuffer           m_VertexBuffer;
         dmArray<RiveVertex>                 m_VertexBufferData;
+
+        dmGraphics::HIndexBuffer            m_IndexBuffer;
+
+        rive::HRenderer                     m_Renderer;
     };
 
     // For the entire app's life cycle
@@ -116,15 +123,19 @@ namespace dmRive
 
         dmGraphics::VertexElement ve[] =
         {
-                {"position", 0, 3, dmGraphics::TYPE_FLOAT, false},
-                {"texcoord0", 1, 2, dmGraphics::TYPE_FLOAT, true},
+                {"position", 0, 2, dmGraphics::TYPE_FLOAT, false}
         };
 
         world->m_VertexDeclaration = dmGraphics::NewVertexDeclaration(context->m_GraphicsContext, ve, sizeof(ve) / sizeof(dmGraphics::VertexElement));
         world->m_VertexBuffer = dmGraphics::NewVertexBuffer(context->m_GraphicsContext, 0, 0x0, dmGraphics::BUFFER_USAGE_DYNAMIC_DRAW);
+        world->m_IndexBuffer = dmGraphics::NewIndexBuffer(context->m_GraphicsContext, 0, 0x0, dmGraphics::BUFFER_USAGE_DYNAMIC_DRAW);
 
         // TODO: Make this count configurable and/or grow accordingly
         world->m_VertexBufferData.SetCapacity(context->m_MaxInstanceCount * 512);
+
+        rive::setRenderMode(rive::MODE_TESSELLATION);
+        rive::setBufferCallbacks(AppRequestBufferCallback, AppDestroyBufferCallback);
+        world->m_Renderer = rive::createRenderer();
 
         *params.m_World = world;
 
@@ -138,9 +149,11 @@ namespace dmRive
         RiveWorld* world = (RiveWorld*)params.m_World;
         dmGraphics::DeleteVertexDeclaration(world->m_VertexDeclaration);
         dmGraphics::DeleteVertexBuffer(world->m_VertexBuffer);
+        dmGraphics::DeleteIndexBuffer(world->m_IndexBuffer);
 
         dmResource::UnregisterResourceReloadedCallback(((CompRiveContext*)params.m_Context)->m_Factory, ResourceReloadedCallback, world);
 
+        delete world->m_Renderer;
         delete world;
         return dmGameObject::CREATE_RESULT_OK;
     }
@@ -284,6 +297,9 @@ namespace dmRive
         ro.m_Textures[0] = resource->m_Scene->m_Texture;
         ro.m_Material = GetMaterial(first, resource);
 
+        ro.m_IndexBuffer = world->m_IndexBuffer;
+        ro.m_IndexType = dmGraphics::TYPE_UNSIGNED_INT;
+
         if (first->m_RenderConstants)
             dmGameSystem::EnableRenderObjectConstants(&ro, first->m_RenderConstants);
 
@@ -360,8 +376,14 @@ namespace dmRive
     {
         RiveWorld* world = (RiveWorld*)params.m_World;
 
+        rive::newFrame(world->m_Renderer);
+        rive::Renderer* rive_renderer = (rive::Renderer*) world->m_Renderer;
+        float dt = params.m_UpdateContext->m_DT;
+
         dmArray<RiveComponent*>& components = world->m_Components.m_Objects;
         const uint32_t count = components.Size();
+
+        // dmLogInfo("New frame");
 
         for (uint32_t i = 0; i < count; ++i)
         {
@@ -371,7 +393,42 @@ namespace dmRive
             if (!component.m_Enabled || !component.m_AddedToUpdate)
                 continue;
 
-            // Update the Rive scenes
+            // RIVE UPDATE
+            uint32_t start_event_count = rive::getDrawEventCount(world->m_Renderer);
+            rive::File* f              = (rive::File*) component.m_Resource->m_Scene->m_Scene;
+            rive::Artboard* artboard   = f->artboard();
+            rive::AABB artboard_bounds = artboard->bounds();
+
+            rive_renderer->save();
+            artboard->advance(dt);
+            artboard->draw(rive_renderer);
+            rive_renderer->restore();
+
+            // dmLogInfo("Component %i", i);
+
+            for (int i = start_event_count; i < (int) rive::getDrawEventCount(world->m_Renderer); ++i)
+            {
+                const rive::PathDrawEvent evt = rive::getDrawEvent(world->m_Renderer, i);
+                switch(evt.m_Type)
+                {
+                    case rive::EVENT_SET_PAINT:
+                        // dmLogInfo("EVENT_SET_PAINT");
+                        break;
+                    case rive::EVENT_DRAW:
+                        // dmLogInfo("EVENT_DRAW");
+                        break;
+                    case rive::EVENT_CLIPPING_BEGIN:
+                        // dmLogInfo("EVENT_CLIPPING_BEGIN");
+                        break;
+                    case rive::EVENT_CLIPPING_END:
+                        // dmLogInfo("EVENT_CLIPPING_END");
+                        break;
+                    case rive::EVENT_CLIPPING_DISABLE:
+                        // dmLogInfo("EVENT_CLIPPING_DISABLE");
+                        break;
+                    default:break;
+                }
+            }
 
             if (component.m_ReHash || (component.m_RenderConstants && dmGameSystem::AreRenderConstantsUpdated(component.m_RenderConstants)))
             {
@@ -396,9 +453,16 @@ namespace dmRive
             case dmRender::RENDER_LIST_OPERATION_BEGIN:
             {
                 dmGraphics::SetVertexBufferData(world->m_VertexBuffer, 0, 0, dmGraphics::BUFFER_USAGE_STATIC_DRAW);
+                dmGraphics::SetIndexBufferData(world->m_IndexBuffer, 0, 0, dmGraphics::BUFFER_USAGE_STATIC_DRAW);
+
                 world->m_RenderObjects.SetSize(0);
                 dmArray<RiveVertex>& vertex_buffer = world->m_VertexBufferData;
                 vertex_buffer.SetSize(0);
+
+                /*
+                dmArray<RiveVertex>& index_buffer = world->m_IndexBufferData;
+                index_buffer.SetSize(0);
+                */
                 break;
             }
             case dmRender::RENDER_LIST_OPERATION_BATCH:
@@ -662,6 +726,18 @@ namespace dmRive
         ComponentTypeSetGetFn(type, CompRiveGetComponent);
 
         return dmGameObject::RESULT_OK;
+    }
+
+    static rive::HBuffer AppRequestBufferCallback(rive::HBuffer buffer, rive::BufferType type, void* data, unsigned int dataSize)
+    {
+        dmLogError("AppRequestBufferCallback: %d", dataSize);
+
+        return 0;
+    }
+
+    static void AppDestroyBufferCallback(rive::HBuffer buffer)
+    {
+        dmLogError("AppDestroyBufferCallback");
     }
 
     // ******************************************************************************
