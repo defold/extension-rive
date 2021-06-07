@@ -1,0 +1,83 @@
+package dmRiveDDF;
+
+import "ddf/ddf_extensions.proto";
+import "ddf/ddf_math.proto";
+import "script/ddf_script.proto";
+
+option java_package = "com.dynamo.rive.proto";
+option java_outer_classname = "Rive";
+
+message RiveSceneDesc
+{
+    required string scene         = 1 [(resource)=true];
+    required string atlas         = 2 [(resource)=true];
+    //optional float sample_rate    = 3 [default = 30.0];
+}
+
+message RiveModelDesc
+{
+    enum BlendMode
+    {
+        BLEND_MODE_ALPHA     = 0 [(displayName) = "Alpha"];
+        BLEND_MODE_ADD       = 1 [(displayName) = "Add"];
+        BLEND_MODE_MULT      = 3 [(displayName) = "Multiply"];
+        BLEND_MODE_SCREEN    = 4 [(displayName) = "Screen"];
+    }
+
+    required string scene               = 1 [(resource)=true];
+    required string default_animation   = 2;
+    optional string material            = 3 [(resource)=true, default="/builtins/materials/rive.material"];
+    optional BlendMode blend_mode     = 4 [default = BLEND_MODE_ALPHA];
+
+    // E.g. various per-instance tesselation options
+    //optional float tesselation_option1    = 4 [default = 0.0];
+}
+
+
+/*
+message RivePlayAnimation
+{
+    required uint64 animation_id = 1;
+    // matches dmGameObject::Playback in gameobject.h
+    required uint32 playback = 2;
+    optional float blend_duration = 3 [default = 0.0];
+    optional float offset = 4 [default = 0.0];
+    optional float playback_rate = 5 [default = 1.0];
+}
+
+message RiveAnimationDone
+{
+    required uint64 animation_id = 1;
+    // matches dmGameObject::Playback in gameobject.h
+    required uint32 playback = 2;
+}
+
+message RiveCancelAnimation
+{
+}
+
+message RiveEvent
+{
+    required uint64 event_id = 1;
+    required uint64 animation_id = 2;
+    required float t = 3;
+    required float blend_weight = 4;
+    optional int32 integer = 5 [default = 0];
+    optional float float = 6 [default = 0.0];
+    optional uint64 string = 7 [default = 0];
+    optional dmScriptDDF.LuaRef node = 8;
+}
+*/
+
+// Function wrapper documented in gamesys_script.cpp
+message SetConstantRiveModel
+{
+    required uint64         name_hash   = 1;
+    required dmMath.Vector4 value       = 2;
+}
+
+// Function wrapper documented in gamesys_script.cpp
+message ResetConstantRiveModel
+{
+    required uint64         name_hash   = 1;
+}

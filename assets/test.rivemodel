@@ -1,0 +1,4 @@
+scene: "/assets/test.rivescene"
+default_animation: "idle"
+blend_mode: BLEND_MODE_ALPHA
+material: "/builtins/materials/sprite.material"
