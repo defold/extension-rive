@@ -1,0 +1,7 @@
+uniform highp mat4 view_proj;
+attribute highp vec4 position;
+
+void main()
+{
+    gl_Position = view_proj * vec4(position.xyz, 1.0);
+}
