@@ -24,6 +24,7 @@
 namespace dmRive
 {
     struct RiveModelResource;
+    struct RiveBuffer;
 
     struct RiveComponent
     {
@@ -35,6 +36,8 @@ namespace dmRive
         dmGameSystem::HComponentRenderConstants m_RenderConstants;
         dmRender::HMaterial                     m_Material;
         //dmArray<dmGameObject::HInstance>        m_NodeInstances; // Node instances corresponding to the bones
+        uint32_t                                m_VertexCount;
+        uint32_t                                m_IndexCount;
         uint32_t                                m_MixedHash;
         uint16_t                                m_ComponentIndex;
         uint8_t                                 m_Enabled : 1;

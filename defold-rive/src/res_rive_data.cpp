@@ -50,7 +50,7 @@ namespace dmRive
     {
         if (params.m_Resource->m_Resource != 0)
         {
-            delete params.m_Resource->m_Resource;
+            delete (rive::File*) params.m_Resource->m_Resource;
             params.m_Resource->m_Resource = 0;
         }
 
