@@ -290,15 +290,6 @@ namespace dmRive
         int* ix_begin = index_buffer.End();
         int* ix_end   = ix_begin;
 
-        // Fill in vertex buffer
-
-        // dmRig::HRigContext rig_context = world->m_RigContext;
-        // for (uint32_t *i=begin;i!=end;i++)
-        // {
-        //     const RiveComponent* c = (RiveComponent*) buf[*i].m_UserData;
-        //     vb_end = (RiveVertex*)dmRig::GenerateVertexData(rig_context, c->m_RigInstance, c->m_World, Matrix4::identity(), Vector4(1.0), dmRig::RIG_VERTEX_FORMAT_SPINE, (void*)vb_end);
-        // }
-
         for (int i = 0; i < world->m_DrawBuffers.Size(); ++i)
         {
             RiveBuffer* vxData = (RiveBuffer*) world->m_DrawBuffers[i].m_Tessellation.m_VertexBuffer;
@@ -436,8 +427,6 @@ namespace dmRive
             uint32_t vertex_count = 0;
             uint32_t index_count  = 0;
             bool is_clipping      = false;
-
-            // component.m_DrawBuffers.SetSize(0);
 
             for (int i = start_event_count; i < (int) rive::getDrawEventCount(world->m_Renderer); ++i)
             {
