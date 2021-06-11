@@ -47,6 +47,10 @@
 #include <renderer.hpp>
 #include <rive/rive_render_api.h>
 
+// LLDB debugging:
+// image lookup -vn dmRive::CompRiveNewWorld
+// settings set -- target.source-map /tmp/job8507823396163336943/upload/ /Users/jhonny/dev/extension-rive
+
 namespace dmRive
 {
     using namespace dmVMath;
@@ -74,23 +78,6 @@ namespace dmRive
         void*        m_Data;
         unsigned int m_Size;
     };
-
-    // struct SpriteWorld
-    // {
-    //     dmObjectPool<SpriteComponent>   m_Components;
-    //     dmArray<dmRender::RenderObject> m_RenderObjects;
-    //     dmGraphics::HVertexDeclaration  m_VertexDeclaration;
-    //     dmGraphics::HVertexBuffer       m_VertexBuffer;
-    //     SpriteVertex*                   m_VertexBufferData;
-    //     SpriteVertex*                   m_VertexBufferWritePtr;
-    //     dmGraphics::HIndexBuffer        m_IndexBuffer;
-    //     uint8_t*                        m_IndexBufferData;
-    //     uint8_t*                        m_IndexBufferWritePtr;
-    //     uint8_t                         m_Is16BitIndex : 1;
-    //     uint8_t                         m_UseGeometries : 1;
-    //     uint8_t                         m_ReallocBuffers : 1;
-    // };
-
 
     // One per collection
     struct RiveWorld
@@ -778,10 +765,18 @@ namespace dmRive
         if (buf == 0)
         {
             buf = new RiveBuffer;
+            buf->m_Data = malloc(dataSize);
+            buf->m_Size = dataSize;
         }
 
-        buf->m_Data = data;
-        buf->m_Size = dataSize;
+        if (buf->m_Data != 0 && buf->m_Size != dataSize)
+        {
+            free(buf->m_Data);
+            buf->m_Data = malloc(dataSize);
+            buf->m_Size = dataSize;
+        }
+
+        memcpy(buf->m_Data, data, dataSize);
 
         return (rive::HBuffer) buf;
     }
@@ -791,6 +786,11 @@ namespace dmRive
         RiveBuffer* buf = (RiveBuffer*) buffer;
         if (buf != 0)
         {
+            if (buf->m_Data != 0)
+            {
+                free(buf->m_Data);
+            }
+
             delete buf;
         }
     }
