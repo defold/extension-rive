@@ -12,12 +12,10 @@ namespace rive
 	class StateMachineNumber;
 	class StateMachineTrigger;
 	class TransitionTriggerCondition;
-	class StateMachineLayerInstance;
 
 	class SMIInput
 	{
 		friend class StateMachineInstance;
-		friend class StateMachineLayerInstance;
 
 	private:
 		StateMachineInstance* m_MachineInstance;
@@ -34,7 +32,7 @@ namespace rive
 	public:
 		virtual ~SMIInput() {}
 		const StateMachineInput* input() const { return m_Input; }
-
+		
 		const std::string& name() const;
 		uint16_t inputCoreType() const;
 	};

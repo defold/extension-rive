@@ -6,6 +6,10 @@ namespace rive
 	class RadialGradient : public RadialGradientBase
 	{
 	public:
+		StatusCode onAddedClean(CoreContext* context) override
+		{
+			return StatusCode::Ok;
+		}
 		void makeGradient(const Vec2D& start, const Vec2D& end) override;
 	};
 } // namespace rive

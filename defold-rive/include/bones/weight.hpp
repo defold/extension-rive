@@ -14,6 +14,10 @@ namespace rive
 	public:
 		Vec2D& translation() { return m_Translation; }
 
+		StatusCode onAddedClean(CoreContext* context) override
+		{
+			return StatusCode::Ok;
+		}
 		StatusCode onAddedDirty(CoreContext* context) override;
 
 		static void deform(float x,

@@ -34,7 +34,6 @@ namespace rive
 		CommandPath* m_BackgroundPath = nullptr;
 		CommandPath* m_ClipPath = nullptr;
 		Drawable* m_FirstDrawable = nullptr;
-		bool m_IsInstance = false;
 
 		void sortDependencies();
 		void sortDrawOrder();
@@ -52,6 +51,10 @@ namespace rive
 
 		Core* resolve(int id) const override;
 
+		StatusCode onAddedClean(CoreContext* context) override
+		{
+			return StatusCode::Ok;
+		}
 		void onComponentDirty(Component* component);
 
 		/// Update components that depend on each other in DAG order.
@@ -91,10 +94,6 @@ namespace rive
 		StateMachine* stateMachine(std::string name) const;
 		StateMachine* stateMachine(size_t index) const;
 		size_t stateMachineCount() const { return m_StateMachines.size(); }
-
-		/// Make an instance of this artboard, must be explictly deleted when no
-		/// longer needed.
-		Artboard* instance() const;
 	};
 } // namespace rive
 

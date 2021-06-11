@@ -45,13 +45,6 @@ namespace rive
 			drawTargetIdChanged();
 		}
 
-		Core* clone() const override;
-		void copy(const DrawRulesBase& object)
-		{
-			m_DrawTargetId = object.m_DrawTargetId;
-			ContainerComponent::copy(object);
-		}
-
 		bool deserialize(uint16_t propertyKey, BinaryReader& reader) override
 		{
 			switch (propertyKey)

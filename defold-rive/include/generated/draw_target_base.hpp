@@ -57,14 +57,6 @@ namespace rive
 			placementValueChanged();
 		}
 
-		Core* clone() const override;
-		void copy(const DrawTargetBase& object)
-		{
-			m_DrawableId = object.m_DrawableId;
-			m_PlacementValue = object.m_PlacementValue;
-			Component::copy(object);
-		}
-
 		bool deserialize(uint16_t propertyKey, BinaryReader& reader) override
 		{
 			switch (propertyKey)

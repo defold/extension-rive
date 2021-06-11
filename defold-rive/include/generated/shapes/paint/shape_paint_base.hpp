@@ -45,12 +45,6 @@ namespace rive
 			isVisibleChanged();
 		}
 
-		void copy(const ShapePaintBase& object)
-		{
-			m_IsVisible = object.m_IsVisible;
-			ContainerComponent::copy(object);
-		}
-
 		bool deserialize(uint16_t propertyKey, BinaryReader& reader) override
 		{
 			switch (propertyKey)

@@ -16,7 +16,6 @@ namespace rive
 		float m_SpilledTime;
 		int m_Direction;
 		bool m_DidLoop;
-		int m_LoopValue = -1;
 
 	public:
 		LinearAnimationInstance(const LinearAnimation* animation);
@@ -31,23 +30,6 @@ namespace rive
 		// Returns the current point in time at which this instance has advance
 		// to
 		float time() const { return m_Time; }
-
-		// Returns the direction that we are currently playing in
-		float direction() const { return m_Direction; }
-
-		// Update the direction of the animation instance, positive value for
-		// forwards Negative for backwards
-		void direction(int direction)
-		{
-			if (direction > 0)
-			{
-				m_Direction = 1;
-			}
-			else
-			{
-				m_Direction = -1;
-			}
-		}
 
 		// Sets the animation's point in time.
 		void time(float value);
@@ -67,12 +49,6 @@ namespace rive
 		float totalTime() const { return m_TotalTime; }
 		float lastTotalTime() const { return m_LastTotalTime; }
 		float spilledTime() const { return m_SpilledTime; }
-
-		// Returns either the animation's default or overridden loop values
-		Loop loop() { return (Loop)loopValue(); }
-		int loopValue();
-		// Override the animation's default loop
-		void loopValue(int value);
 	};
 } // namespace rive
 #endif

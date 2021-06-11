@@ -45,7 +45,7 @@
 
 #include <file.hpp>
 #include <renderer.hpp>
-#include <rive_render_api.h>
+#include <rive/rive_render_api.h>
 
 namespace dmRive
 {

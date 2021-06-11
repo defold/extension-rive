@@ -1,6 +1,5 @@
 #ifndef _RIVE_RECTANGLE_BASE_HPP_
 #define _RIVE_RECTANGLE_BASE_HPP_
-#include "core/field_types/core_bool_type.hpp"
 #include "core/field_types/core_double_type.hpp"
 #include "shapes/parametric_path.hpp"
 namespace rive
@@ -34,114 +33,35 @@ namespace rive
 
 		uint16_t coreType() const override { return typeKey; }
 
-		static const uint16_t linkCornerRadiusPropertyKey = 164;
-		static const uint16_t cornerRadiusTLPropertyKey = 31;
-		static const uint16_t cornerRadiusTRPropertyKey = 161;
-		static const uint16_t cornerRadiusBLPropertyKey = 162;
-		static const uint16_t cornerRadiusBRPropertyKey = 163;
+		static const uint16_t cornerRadiusPropertyKey = 31;
 
 	private:
-		bool m_LinkCornerRadius = true;
-		float m_CornerRadiusTL = 0.0f;
-		float m_CornerRadiusTR = 0.0f;
-		float m_CornerRadiusBL = 0.0f;
-		float m_CornerRadiusBR = 0.0f;
+		float m_CornerRadius = 0.0f;
 	public:
-		inline bool linkCornerRadius() const { return m_LinkCornerRadius; }
-		void linkCornerRadius(bool value)
+		inline float cornerRadius() const { return m_CornerRadius; }
+		void cornerRadius(float value)
 		{
-			if (m_LinkCornerRadius == value)
+			if (m_CornerRadius == value)
 			{
 				return;
 			}
-			m_LinkCornerRadius = value;
-			linkCornerRadiusChanged();
-		}
-
-		inline float cornerRadiusTL() const { return m_CornerRadiusTL; }
-		void cornerRadiusTL(float value)
-		{
-			if (m_CornerRadiusTL == value)
-			{
-				return;
-			}
-			m_CornerRadiusTL = value;
-			cornerRadiusTLChanged();
-		}
-
-		inline float cornerRadiusTR() const { return m_CornerRadiusTR; }
-		void cornerRadiusTR(float value)
-		{
-			if (m_CornerRadiusTR == value)
-			{
-				return;
-			}
-			m_CornerRadiusTR = value;
-			cornerRadiusTRChanged();
-		}
-
-		inline float cornerRadiusBL() const { return m_CornerRadiusBL; }
-		void cornerRadiusBL(float value)
-		{
-			if (m_CornerRadiusBL == value)
-			{
-				return;
-			}
-			m_CornerRadiusBL = value;
-			cornerRadiusBLChanged();
-		}
-
-		inline float cornerRadiusBR() const { return m_CornerRadiusBR; }
-		void cornerRadiusBR(float value)
-		{
-			if (m_CornerRadiusBR == value)
-			{
-				return;
-			}
-			m_CornerRadiusBR = value;
-			cornerRadiusBRChanged();
-		}
-
-		Core* clone() const override;
-		void copy(const RectangleBase& object)
-		{
-			m_LinkCornerRadius = object.m_LinkCornerRadius;
-			m_CornerRadiusTL = object.m_CornerRadiusTL;
-			m_CornerRadiusTR = object.m_CornerRadiusTR;
-			m_CornerRadiusBL = object.m_CornerRadiusBL;
-			m_CornerRadiusBR = object.m_CornerRadiusBR;
-			ParametricPath::copy(object);
+			m_CornerRadius = value;
+			cornerRadiusChanged();
 		}
 
 		bool deserialize(uint16_t propertyKey, BinaryReader& reader) override
 		{
 			switch (propertyKey)
 			{
-				case linkCornerRadiusPropertyKey:
-					m_LinkCornerRadius = CoreBoolType::deserialize(reader);
-					return true;
-				case cornerRadiusTLPropertyKey:
-					m_CornerRadiusTL = CoreDoubleType::deserialize(reader);
-					return true;
-				case cornerRadiusTRPropertyKey:
-					m_CornerRadiusTR = CoreDoubleType::deserialize(reader);
-					return true;
-				case cornerRadiusBLPropertyKey:
-					m_CornerRadiusBL = CoreDoubleType::deserialize(reader);
-					return true;
-				case cornerRadiusBRPropertyKey:
-					m_CornerRadiusBR = CoreDoubleType::deserialize(reader);
+				case cornerRadiusPropertyKey:
+					m_CornerRadius = CoreDoubleType::deserialize(reader);
 					return true;
 			}
 			return ParametricPath::deserialize(propertyKey, reader);
 		}
 
 	protected:
-		virtual void linkCornerRadiusChanged() {}
-		virtual void cornerRadiusTLChanged() {}
-		virtual void cornerRadiusTRChanged() {}
-		virtual void cornerRadiusBLChanged() {}
-		virtual void cornerRadiusBRChanged() {}
+		virtual void cornerRadiusChanged() {}
 	};
 } // namespace rive
 

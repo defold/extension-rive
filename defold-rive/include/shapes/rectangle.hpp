@@ -14,10 +14,7 @@ namespace rive
 		void update(ComponentDirt value) override;
 
 	protected:
-		void cornerRadiusTLChanged() override;
-		void cornerRadiusTRChanged() override;
-		void cornerRadiusBLChanged() override;
-		void cornerRadiusBRChanged() override;
+		void cornerRadiusChanged() override;
 	};
 } // namespace rive
 

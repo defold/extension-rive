@@ -50,13 +50,6 @@ namespace rive
 			innerRadiusChanged();
 		}
 
-		Core* clone() const override;
-		void copy(const StarBase& object)
-		{
-			m_InnerRadius = object.m_InnerRadius;
-			Polygon::copy(object);
-		}
-
 		bool deserialize(uint16_t propertyKey, BinaryReader& reader) override
 		{
 			switch (propertyKey)

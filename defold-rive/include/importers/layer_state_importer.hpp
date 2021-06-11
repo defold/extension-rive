@@ -7,7 +7,6 @@ namespace rive
 {
 	class LayerState;
 	class StateTransition;
-	class BlendAnimation;
 
 	class LayerStateImporter : public ImportStackObject
 	{
@@ -17,7 +16,6 @@ namespace rive
 	public:
 		LayerStateImporter(LayerState* state);
 		void addTransition(StateTransition* transition);
-		bool addBlendAnimation(BlendAnimation* animation);
 		StatusCode resolve() override;
 	};
 } // namespace rive

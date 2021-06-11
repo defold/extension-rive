@@ -86,16 +86,6 @@ namespace rive
 			outDistanceChanged();
 		}
 
-		Core* clone() const override;
-		void copy(const CubicDetachedVertexBase& object)
-		{
-			m_InRotation = object.m_InRotation;
-			m_InDistance = object.m_InDistance;
-			m_OutRotation = object.m_OutRotation;
-			m_OutDistance = object.m_OutDistance;
-			CubicVertex::copy(object);
-		}
-
 		bool deserialize(uint16_t propertyKey, BinaryReader& reader) override
 		{
 			switch (propertyKey)

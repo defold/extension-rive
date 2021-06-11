@@ -26,8 +26,6 @@ namespace rive
 
 		uint16_t coreType() const override { return typeKey; }
 
-		void copy(const StateMachineLayerComponentBase& object) {}
-
 		bool deserialize(uint16_t propertyKey, BinaryReader& reader) override
 		{
 			switch (propertyKey)

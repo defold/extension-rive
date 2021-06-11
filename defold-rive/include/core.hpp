@@ -19,20 +19,14 @@ namespace rive
 		virtual bool deserialize(uint16_t propertyKey,
 		                         BinaryReader& reader) = 0;
 
-		template <typename T> inline bool is() const
-		{
-			return isTypeOf(T::typeKey);
-		}
-		template <typename T> inline T* as()
+		template <typename T> bool is() const { return isTypeOf(T::typeKey); }
+		template <typename T> T* as()
 		{
 			assert(is<T>());
 			return reinterpret_cast<T*>(this);
 		}
 
-		/// Make a shallow copy of the object.
-		virtual Core* clone() const { return nullptr; }
-
-		template <typename T> inline const T* as() const
+		template <typename T> const T* as() const
 		{
 			assert(is<T>());
 			return reinterpret_cast<const T*>(this);
@@ -43,19 +37,13 @@ namespace rive
 		/// to look up objects referenced by id, but not assume that they in
 		/// turn have resolved their references yet. Called during
 		/// load/instance.
-		virtual StatusCode onAddedDirty(CoreContext* context)
-		{
-			return StatusCode::Ok;
-		}
+		virtual StatusCode onAddedDirty(CoreContext* context) = 0;
 
 		/// Called when all the objects in the context have had onAddedDirty
 		/// called. This is an opportunity to reference things referenced by
 		/// dependencies. (A path should be able to find a Shape somewhere in
 		/// its hierarchy, which may be multiple levels up).
-		virtual StatusCode onAddedClean(CoreContext* context)
-		{
-			return StatusCode::Ok;
-		}
+		virtual StatusCode onAddedClean(CoreContext* context) = 0;
 
 		virtual StatusCode import(ImportStack& importStack)
 		{

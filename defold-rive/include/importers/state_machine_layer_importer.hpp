@@ -7,17 +7,17 @@ namespace rive
 {
 	class StateMachineLayer;
 	class LayerState;
-	class Artboard;
+	class ArtboardImporter;
 
 	class StateMachineLayerImporter : public ImportStackObject
 	{
 	private:
 		StateMachineLayer* m_Layer;
-		const Artboard* m_Artboard;
+		ArtboardImporter* m_ArtboardImporter;
 
 	public:
 		StateMachineLayerImporter(StateMachineLayer* layer,
-		                          const Artboard* artboard);
+		                          ArtboardImporter* artboardImporter);
 		void addState(LayerState* state);
 		StatusCode resolve() override;
 		bool readNullObject() override;

@@ -43,12 +43,6 @@ namespace rive
 			propertyKeyChanged();
 		}
 
-		Core* clone() const override;
-		void copy(const KeyedPropertyBase& object)
-		{
-			m_PropertyKey = object.m_PropertyKey;
-		}
-
 		bool deserialize(uint16_t propertyKey, BinaryReader& reader) override
 		{
 			switch (propertyKey)

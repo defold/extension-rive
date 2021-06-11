@@ -48,13 +48,6 @@ namespace rive
 			isClosedChanged();
 		}
 
-		Core* clone() const override;
-		void copy(const PointsPathBase& object)
-		{
-			m_IsClosed = object.m_IsClosed;
-			Path::copy(object);
-		}
-
 		bool deserialize(uint16_t propertyKey, BinaryReader& reader) override
 		{
 			switch (propertyKey)

@@ -47,13 +47,6 @@ namespace rive
 			lengthChanged();
 		}
 
-		Core* clone() const override;
-		void copy(const BoneBase& object)
-		{
-			m_Length = object.m_Length;
-			SkeletalComponent::copy(object);
-		}
-
 		bool deserialize(uint16_t propertyKey, BinaryReader& reader) override
 		{
 			switch (propertyKey)

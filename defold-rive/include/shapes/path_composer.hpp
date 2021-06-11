@@ -17,6 +17,10 @@ namespace rive
 		PathComposer(Shape* shape);
 		~PathComposer();
 		Shape* shape() const { return m_Shape; }
+		StatusCode onAddedClean(CoreContext* context) override
+		{
+			return StatusCode::Ok;
+		}
 		void buildDependencies() override;
 		void update(ComponentDirt value) override;
 

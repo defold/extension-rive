@@ -46,13 +46,6 @@ namespace rive
 			fillRuleChanged();
 		}
 
-		Core* clone() const override;
-		void copy(const FillBase& object)
-		{
-			m_FillRule = object.m_FillRule;
-			ShapePaint::copy(object);
-		}
-
 		bool deserialize(uint16_t propertyKey, BinaryReader& reader) override
 		{
 			switch (propertyKey)

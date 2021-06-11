@@ -10,13 +10,11 @@ namespace rive
 	private:
 		float m_RenderOpacity = 1.0f;
 		RenderPaint* m_RenderPaint = nullptr;
-		/// The Component providing this ShapePaintMutator interface.
-		Component* m_Component = nullptr;
 
 	protected:
 		/// Hook up this paint mutator as the mutator for the shape paint
 		/// expected to be the parent.
-		bool initPaintMutator(Component* component);
+		bool initPaintMutator(Component* parent);
 		virtual void renderOpacityChanged() = 0;
 
 		RenderPaint* renderPaint() const { return m_RenderPaint; }
@@ -24,8 +22,6 @@ namespace rive
 	public:
 		float renderOpacity() const { return m_RenderOpacity; }
 		void renderOpacity(float value);
-
-		Component* component() const { return m_Component; }
 	};
 } // namespace rive
 #endif
