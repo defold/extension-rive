@@ -60,6 +60,7 @@ namespace dmRive
     static const dmhash_t PROP_PLAYBACK_RATE = dmHashString64("playback_rate");
     static const dmhash_t PROP_MATERIAL = dmHashString64("material");
     static const dmhash_t MATERIAL_EXT_HASH = dmHashString64("materialc");
+    static const dmhash_t UNIFORM_COLOR = dmHashString64("color");
 
     static void ResourceReloadedCallback(const dmResource::ResourceReloadedParams& params);
     static void DestroyComponent(struct RiveWorld* world, uint32_t index);
@@ -79,6 +80,13 @@ namespace dmRive
         unsigned int m_Size;
     };
 
+    struct RiveDrawEntry
+    {
+        rive::DrawBuffers  m_Buffers;
+        rive::HRenderPaint m_Paint;
+        Matrix4            m_WorldTransform;
+    };
+
     // One per collection
     struct RiveWorld
     {
@@ -90,7 +98,7 @@ namespace dmRive
         dmGraphics::HIndexBuffer            m_IndexBuffer;
         dmArray<int>                        m_IndexBufferData;
 
-        dmArray<rive::DrawBuffers>          m_DrawBuffers;
+        dmArray<RiveDrawEntry>              m_DrawEntries;
 
         rive::HRenderer                     m_Renderer; // move to context instead
     };
@@ -108,6 +116,29 @@ namespace dmRive
         uint32_t                 m_MaxInstanceCount;
     };
 
+    static inline void Mat2DToMat4(const rive::Mat2D m2, Matrix4& m4)
+    {
+        m4[0][0] = m2[0];
+        m4[0][1] = m2[1];
+        m4[0][2] = 0.0;
+        m4[0][3] = 0.0;
+
+        m4[1][0] = m2[2];
+        m4[1][1] = m2[3];
+        m4[1][2] = 0.0;
+        m4[1][3] = 0.0;
+
+        m4[2][0] = 0.0;
+        m4[2][1] = 0.0;
+        m4[2][2] = 1.0;
+        m4[2][3] = 0.0;
+
+        m4[3][0] = m2[4];
+        m4[3][1] = m2[5];
+        m4[3][2] = 0.0;
+        m4[3][3] = 1.0;
+    }
+
     dmGameObject::CreateResult CompRiveNewWorld(const dmGameObject::ComponentNewWorldParams& params)
     {
         CompRiveContext* context = (CompRiveContext*)params.m_Context;
@@ -115,7 +146,7 @@ namespace dmRive
 
         world->m_Components.SetCapacity(context->m_MaxInstanceCount);
         world->m_RenderObjects.SetCapacity(context->m_MaxInstanceCount);
-        world->m_DrawBuffers.SetCapacity(context->m_MaxInstanceCount);
+        world->m_DrawEntries.SetCapacity(context->m_MaxInstanceCount);
 
         dmGraphics::VertexElement ve[] =
         {
@@ -248,10 +279,8 @@ namespace dmRive
 
     static void RenderBatch(RiveWorld* world, dmRender::HRenderContext render_context, dmRender::RenderListEntry *buf, uint32_t* begin, uint32_t* end)
     {
-        //DM_PROFILE(Rive, "RenderBatch");
-
-        const RiveComponent* first = (RiveComponent*) buf[*begin].m_UserData;
-        const RiveModelResource* resource = first->m_Resource;
+        RiveComponent* first        = (RiveComponent*) buf[*begin].m_UserData;
+        RiveModelResource* resource = first->m_Resource;
 
         uint32_t vertex_count = 0;
         uint32_t index_count = 0;
@@ -277,71 +306,101 @@ namespace dmRive
         int* ix_begin = index_buffer.End();
         int* ix_end   = ix_begin;
 
-        for (int i = 0; i < world->m_DrawBuffers.Size(); ++i)
+        uint32_t last_ix = 0;
+        for (int i = 0; i < world->m_DrawEntries.Size(); ++i)
         {
-            RiveBuffer* vxData = (RiveBuffer*) world->m_DrawBuffers[i].m_Tessellation.m_VertexBuffer;
-            RiveBuffer* ixData = (RiveBuffer*) world->m_DrawBuffers[i].m_Tessellation.m_IndexBuffer;
+            const RiveDrawEntry& entry = world->m_DrawEntries[i];
+            RiveBuffer* vxData         = (RiveBuffer*) entry.m_Buffers.m_Tessellation.m_VertexBuffer;
+            RiveBuffer* ixData         = (RiveBuffer*) entry.m_Buffers.m_Tessellation.m_IndexBuffer;
+
+            int* ix_data_ptr  = (int*) ixData->m_Data;
+            uint32_t ix_count = ixData->m_Size / sizeof(int);
+            uint32_t vx_count = vxData->m_Size / sizeof(RiveVertex);
+
+            for (int j = 0; j < ix_count; ++j)
+            {
+                ix_end[j] = ix_data_ptr[j] + last_ix;
+            }
 
             memcpy(vb_end, vxData->m_Data, vxData->m_Size);
-            memcpy(ix_end, ixData->m_Data, ixData->m_Size);
+            // memcpy(ix_end, ixData->m_Data, ixData->m_Size);
 
-            vb_end += vxData->m_Size;
-            ix_end += ixData->m_Size;
+            vb_end  += vx_count;
+            ix_end  += ix_count;
+            last_ix += vx_count;
         }
 
         // update the size
         vertex_buffer.SetSize(vb_end - vertex_buffer.Begin());
         index_buffer.SetSize(ix_end - index_buffer.Begin());
 
-        dmRender::RenderObject& ro = *world->m_RenderObjects.End();
-        world->m_RenderObjects.SetSize(world->m_RenderObjects.Size()+1);
+        uint32_t ro_start = world->m_RenderObjects.Size();
+        world->m_RenderObjects.SetSize(world->m_RenderObjects.Size() + world->m_DrawEntries.Size());
 
-        ro.Init();
-        ro.m_VertexDeclaration = world->m_VertexDeclaration;
-        ro.m_VertexBuffer      = world->m_VertexBuffer;
-        ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
-        ro.m_VertexStart       = ix_begin - index_buffer.Begin();
-        ro.m_VertexCount       = ix_end - ix_begin;
-        //ro.m_Textures[0]       = resource->m_Scene->m_Texture;
-        ro.m_Material          = GetMaterial(first, resource);
-        ro.m_IndexBuffer       = world->m_IndexBuffer;
-        ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_INT;
+        last_ix = 0;
+        for (int i = 0; i < world->m_DrawEntries.Size(); ++i)
+        {
+            const RiveDrawEntry& entry = world->m_DrawEntries[i];
+            dmRender::RenderObject& ro = world->m_RenderObjects[ro_start + i];
+            RiveBuffer* ixBuffer      = (RiveBuffer*) entry.m_Buffers.m_Tessellation.m_IndexBuffer;
 
-        if (first->m_RenderConstants)
+            ro.Init();
+            ro.m_VertexDeclaration = world->m_VertexDeclaration;
+            ro.m_VertexBuffer      = world->m_VertexBuffer;
+            ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
+            ro.m_VertexStart       = last_ix;//ix_begin - index_buffer.Begin();
+            ro.m_VertexCount       = ixBuffer->m_Size / sizeof(int); //ix_end - ix_begin;
+            ro.m_Material          = GetMaterial(first, resource);
+            ro.m_IndexBuffer       = world->m_IndexBuffer;
+            ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_INT;
+            ro.m_WorldTransform    = entry.m_WorldTransform;
+
+            last_ix += ixBuffer->m_Size;
+
+            if (!first->m_RenderConstants)
+            {
+                first->m_RenderConstants = dmGameSystem::CreateRenderConstants();
+            }
+
+            const rive::PaintData draw_entry_paint = rive::getPaintData(entry.m_Paint);
+            const float* color = &draw_entry_paint.m_Colors[0];
+            dmGameObject::PropertyVar colorVar(Vectormath::Aos::Vector4(color[0], color[1], color[2], color[3]));
+            dmGameSystem::SetRenderConstant(first->m_RenderConstants, ro.m_Material, UNIFORM_COLOR, 0, colorVar);
             dmGameSystem::EnableRenderObjectConstants(&ro, first->m_RenderConstants);
 
-        dmRiveDDF::RiveModelDesc::BlendMode blend_mode = resource->m_DDF->m_BlendMode;
-        switch (blend_mode)
-        {
-            case dmRiveDDF::RiveModelDesc::BLEND_MODE_ALPHA:
-                ro.m_SourceBlendFactor = dmGraphics::BLEND_FACTOR_ONE;
-                ro.m_DestinationBlendFactor = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-            break;
+            dmRiveDDF::RiveModelDesc::BlendMode blend_mode = resource->m_DDF->m_BlendMode;
+            switch (blend_mode)
+            {
+                case dmRiveDDF::RiveModelDesc::BLEND_MODE_ALPHA:
+                    ro.m_SourceBlendFactor = dmGraphics::BLEND_FACTOR_ONE;
+                    ro.m_DestinationBlendFactor = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+                break;
 
-            case dmRiveDDF::RiveModelDesc::BLEND_MODE_ADD:
-                ro.m_SourceBlendFactor = dmGraphics::BLEND_FACTOR_ONE;
-                ro.m_DestinationBlendFactor = dmGraphics::BLEND_FACTOR_ONE;
-            break;
+                case dmRiveDDF::RiveModelDesc::BLEND_MODE_ADD:
+                    ro.m_SourceBlendFactor = dmGraphics::BLEND_FACTOR_ONE;
+                    ro.m_DestinationBlendFactor = dmGraphics::BLEND_FACTOR_ONE;
+                break;
 
-            case dmRiveDDF::RiveModelDesc::BLEND_MODE_MULT:
-                ro.m_SourceBlendFactor = dmGraphics::BLEND_FACTOR_DST_COLOR;
-                ro.m_DestinationBlendFactor = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-            break;
+                case dmRiveDDF::RiveModelDesc::BLEND_MODE_MULT:
+                    ro.m_SourceBlendFactor = dmGraphics::BLEND_FACTOR_DST_COLOR;
+                    ro.m_DestinationBlendFactor = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+                break;
 
-            case dmRiveDDF::RiveModelDesc::BLEND_MODE_SCREEN:
-                ro.m_SourceBlendFactor = dmGraphics::BLEND_FACTOR_ONE_MINUS_DST_COLOR;
-                ro.m_DestinationBlendFactor = dmGraphics::BLEND_FACTOR_ONE;
-            break;
+                case dmRiveDDF::RiveModelDesc::BLEND_MODE_SCREEN:
+                    ro.m_SourceBlendFactor = dmGraphics::BLEND_FACTOR_ONE_MINUS_DST_COLOR;
+                    ro.m_DestinationBlendFactor = dmGraphics::BLEND_FACTOR_ONE;
+                break;
 
-            default:
-                dmLogError("Unknown blend mode: %d\n", blend_mode);
-                assert(0);
-            break;
+                default:
+                    dmLogError("Unknown blend mode: %d\n", blend_mode);
+                    assert(0);
+                break;
+            }
+
+            ro.m_SetBlendFactors = 1;
+
+            dmRender::AddToRender(render_context, &ro);
         }
-
-        ro.m_SetBlendFactors = 1;
-
-        dmRender::AddToRender(render_context, &ro);
     }
 
     void UpdateTransforms(RiveWorld* world)
@@ -390,7 +449,7 @@ namespace dmRive
         dmArray<RiveComponent*>& components = world->m_Components.m_Objects;
         const uint32_t count = components.Size();
 
-        world->m_DrawBuffers.SetSize(0);
+        world->m_DrawEntries.SetSize(0);
 
         for (uint32_t i = 0; i < count; ++i)
         {
@@ -415,12 +474,15 @@ namespace dmRive
             uint32_t index_count  = 0;
             bool is_clipping      = false;
 
+            rive::HRenderPaint paint = 0;
+
             for (int i = start_event_count; i < (int) rive::getDrawEventCount(world->m_Renderer); ++i)
             {
                 const rive::PathDrawEvent evt = rive::getDrawEvent(world->m_Renderer, i);
                 switch(evt.m_Type)
                 {
                     case rive::EVENT_SET_PAINT:
+                        paint = evt.m_Paint;
                         break;
                     case rive::EVENT_DRAW:
                     {
@@ -435,12 +497,17 @@ namespace dmRive
                                 vertex_count += vxBuffer->m_Size / (2 * sizeof(float));
                                 index_count  += ixBuffer->m_Size / sizeof(int);
 
-                                if (world->m_DrawBuffers.Full())
+                                if (world->m_DrawEntries.Full())
                                 {
-                                    world->m_DrawBuffers.OffsetCapacity(16);
+                                    world->m_DrawEntries.OffsetCapacity(16);
                                 }
 
-                                world->m_DrawBuffers.Push(buffers);
+                                RiveDrawEntry entry;
+                                entry.m_Buffers = buffers;
+                                entry.m_Paint   = paint;
+                                Mat2DToMat4(evt.m_TransformWorld, entry.m_WorldTransform);
+
+                                world->m_DrawEntries.Push(entry);
                             }
                         }
                     } break;

@@ -4,12 +4,22 @@ vertex_program: "/assets/test.vp"
 fragment_program: "/assets/test.fp"
 vertex_space: VERTEX_SPACE_WORLD
 vertex_constants {
-  name: "view_proj"
-  type: CONSTANT_TYPE_VIEWPROJ
+  name: "world_view_proj"
+  type: CONSTANT_TYPE_WORLDVIEWPROJ
   value {
     x: 0.0
     y: 0.0
     z: 0.0
     w: 0.0
+  }
+}
+fragment_constants {
+  name: "color"
+  type: CONSTANT_TYPE_USER
+  value {
+    x: 0.25
+    y: 0.25
+    z: 0.25
+    w: 1.00
   }
 }
