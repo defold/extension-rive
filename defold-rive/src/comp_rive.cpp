@@ -47,10 +47,6 @@
 #include <renderer.hpp>
 #include <rive/rive_render_api.h>
 
-// LLDB debugging:
-// image lookup -vn dmRive::CompRiveNewWorld
-// settings set -- target.source-map /tmp/job8507823396163336943/upload/ /Users/jhonny/dev/extension-rive
-
 namespace dmRive
 {
     using namespace dmVMath;
@@ -80,6 +76,7 @@ namespace dmRive
         unsigned int m_Size;
     };
 
+    // JG: Do we need this or can we loop through events in render batch instead?
     struct RiveDrawEntry
     {
         rive::DrawBuffers  m_Buffers;
@@ -99,7 +96,7 @@ namespace dmRive
         dmArray<int>                        m_IndexBufferData;
         dmArray<RiveDrawEntry>              m_DrawEntries;
 
-        rive::HRenderer                     m_Renderer; // move to context instead
+        rive::HRenderer                     m_Renderer; // JG: move to context instead?
     };
 
     // For the entire app's life cycle
@@ -306,6 +303,8 @@ namespace dmRive
                 assert(0);
             break;
         }
+
+        ro.m_SetBlendFactors = 1;
     }
 
     static void RenderBatchStencilToCover(RiveWorld* world, dmRender::HRenderContext render_context, dmRender::RenderListEntry *buf, uint32_t* begin, uint32_t* end)
@@ -407,8 +406,6 @@ namespace dmRive
             dmGameSystem::EnableRenderObjectConstants(&ro, first->m_RenderConstants);
 
             SetBlendMode(ro, resource->m_DDF->m_BlendMode);
-
-            ro.m_SetBlendFactors = 1;
 
             dmRender::AddToRender(render_context, &ro);
         }
