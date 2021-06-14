@@ -277,7 +277,43 @@ namespace dmRive
         return dmGameObject::CREATE_RESULT_OK;
     }
 
-    static void RenderBatch(RiveWorld* world, dmRender::HRenderContext render_context, dmRender::RenderListEntry *buf, uint32_t* begin, uint32_t* end)
+    static void SetBlendMode(dmRender::RenderObject& ro, dmRiveDDF::RiveModelDesc::BlendMode blend_mode)
+    {
+        switch (blend_mode)
+        {
+            case dmRiveDDF::RiveModelDesc::BLEND_MODE_ALPHA:
+                ro.m_SourceBlendFactor = dmGraphics::BLEND_FACTOR_ONE;
+                ro.m_DestinationBlendFactor = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            break;
+
+            case dmRiveDDF::RiveModelDesc::BLEND_MODE_ADD:
+                ro.m_SourceBlendFactor = dmGraphics::BLEND_FACTOR_ONE;
+                ro.m_DestinationBlendFactor = dmGraphics::BLEND_FACTOR_ONE;
+            break;
+
+            case dmRiveDDF::RiveModelDesc::BLEND_MODE_MULT:
+                ro.m_SourceBlendFactor = dmGraphics::BLEND_FACTOR_DST_COLOR;
+                ro.m_DestinationBlendFactor = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            break;
+
+            case dmRiveDDF::RiveModelDesc::BLEND_MODE_SCREEN:
+                ro.m_SourceBlendFactor = dmGraphics::BLEND_FACTOR_ONE_MINUS_DST_COLOR;
+                ro.m_DestinationBlendFactor = dmGraphics::BLEND_FACTOR_ONE;
+            break;
+
+            default:
+                dmLogError("Unknown blend mode: %d\n", blend_mode);
+                assert(0);
+            break;
+        }
+    }
+
+    static void RenderBatchStencilToCover(RiveWorld* world, dmRender::HRenderContext render_context, dmRender::RenderListEntry *buf, uint32_t* begin, uint32_t* end)
+    {
+
+    }
+
+    static void RenderBatchTessellation(RiveWorld* world, dmRender::HRenderContext render_context, dmRender::RenderListEntry *buf, uint32_t* begin, uint32_t* end)
     {
         RiveComponent* first        = (RiveComponent*) buf[*begin].m_UserData;
         RiveModelResource* resource = first->m_Resource;
@@ -317,7 +353,9 @@ namespace dmRive
             uint32_t ix_count = ixData->m_Size / sizeof(int);
             uint32_t vx_count = vxData->m_Size / sizeof(RiveVertex);
 
-            // Note: We offset the indices per path
+            // Note: We offset the indices per path so that we can use the same
+            //       vertex buffer for all paths. As all path indices are generated
+            //       by libtess we have to offset them manually.
             for (int j = 0; j < ix_count; ++j)
             {
                 ix_end[j] = ix_data_ptr[j] + last_ix;
@@ -368,34 +406,7 @@ namespace dmRive
             dmGameSystem::SetRenderConstant(first->m_RenderConstants, ro.m_Material, UNIFORM_COLOR, 0, colorVar);
             dmGameSystem::EnableRenderObjectConstants(&ro, first->m_RenderConstants);
 
-            dmRiveDDF::RiveModelDesc::BlendMode blend_mode = resource->m_DDF->m_BlendMode;
-            switch (blend_mode)
-            {
-                case dmRiveDDF::RiveModelDesc::BLEND_MODE_ALPHA:
-                    ro.m_SourceBlendFactor = dmGraphics::BLEND_FACTOR_ONE;
-                    ro.m_DestinationBlendFactor = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-                break;
-
-                case dmRiveDDF::RiveModelDesc::BLEND_MODE_ADD:
-                    ro.m_SourceBlendFactor = dmGraphics::BLEND_FACTOR_ONE;
-                    ro.m_DestinationBlendFactor = dmGraphics::BLEND_FACTOR_ONE;
-                break;
-
-                case dmRiveDDF::RiveModelDesc::BLEND_MODE_MULT:
-                    ro.m_SourceBlendFactor = dmGraphics::BLEND_FACTOR_DST_COLOR;
-                    ro.m_DestinationBlendFactor = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-                break;
-
-                case dmRiveDDF::RiveModelDesc::BLEND_MODE_SCREEN:
-                    ro.m_SourceBlendFactor = dmGraphics::BLEND_FACTOR_ONE_MINUS_DST_COLOR;
-                    ro.m_DestinationBlendFactor = dmGraphics::BLEND_FACTOR_ONE;
-                break;
-
-                default:
-                    dmLogError("Unknown blend mode: %d\n", blend_mode);
-                    assert(0);
-                break;
-            }
+            SetBlendMode(ro, resource->m_DDF->m_BlendMode);
 
             ro.m_SetBlendFactors = 1;
 
@@ -438,6 +449,37 @@ namespace dmRive
         return dmGameObject::CREATE_RESULT_OK;
     }
 
+    static void HandleDrawEventsStencilToCover(RiveWorld* world, RiveComponent& component, int start_index, int end_index)
+    {
+        bool is_clipping         = false;
+        rive::HRenderPaint paint = 0;
+        for (int i = start_index; i < end_index; ++i)
+        {
+            const rive::PathDrawEvent evt = rive::getDrawEvent(world->m_Renderer, i);
+            switch(evt.m_Type)
+            {
+                case rive::EVENT_SET_PAINT:
+                    paint = evt.m_Paint;
+                    break;
+                case rive::EVENT_DRAW_STENCIL:
+                {
+                    // TODO
+                } break;
+                case rive::EVENT_DRAW_COVER:
+                {
+                    // TODO
+                } break;
+                case rive::EVENT_CLIPPING_BEGIN:
+                    is_clipping = true;
+                    break;
+                case rive::EVENT_CLIPPING_END:
+                    is_clipping = false;
+                    break;
+                default:break;
+            }
+        }
+    }
+
     static void HandleDrawEventsTessellation(RiveWorld* world, RiveComponent& component, int start_index, int end_index)
     {
         uint32_t vertex_count    = 0;
@@ -474,7 +516,12 @@ namespace dmRive
                             RiveDrawEntry entry;
                             entry.m_Buffers = buffers;
                             entry.m_Paint   = paint;
+
                             Mat2DToMat4(evt.m_TransformWorld, entry.m_WorldTransform);
+                            if (i == 0)
+                            {
+                                entry.m_WorldTransform = component.m_World * entry.m_WorldTransform;
+                            }
 
                             world->m_DrawEntries.Push(entry);
                         }
@@ -510,6 +557,8 @@ namespace dmRive
 
         world->m_DrawEntries.SetSize(0);
 
+        const rive::RenderMode render_mode = rive::getRenderMode();
+
         for (uint32_t i = 0; i < count; ++i)
         {
             RiveComponent& component = *components[i];
@@ -532,9 +581,13 @@ namespace dmRive
             rive_renderer->restore();
 
             // Handle draw events
-            if (rive::getRenderMode() == rive::MODE_TESSELLATION)
+            if (render_mode == rive::MODE_TESSELLATION)
             {
                 HandleDrawEventsTessellation(world, component, start_event_count, rive::getDrawEventCount(world->m_Renderer));
+            }
+            else if (render_mode == rive::MODE_STENCIL_TO_COVER)
+            {
+                HandleDrawEventsStencilToCover(world, component, start_event_count, rive::getDrawEventCount(world->m_Renderer));
             }
 
             if (component.m_ReHash || (component.m_RenderConstants && dmGameSystem::AreRenderConstantsUpdated(component.m_RenderConstants)))
@@ -554,6 +607,7 @@ namespace dmRive
     static void RenderListDispatch(dmRender::RenderListDispatchParams const &params)
     {
         RiveWorld *world = (RiveWorld *) params.m_UserData;
+        rive::RenderMode renderMode = rive::getRenderMode();
 
         switch (params.m_Operation)
         {
@@ -572,7 +626,14 @@ namespace dmRive
             }
             case dmRender::RENDER_LIST_OPERATION_BATCH:
             {
-                RenderBatch(world, params.m_Context, params.m_Buf, params.m_Begin, params.m_End);
+                if (renderMode == rive::MODE_TESSELLATION)
+                {
+                    RenderBatchTessellation(world, params.m_Context, params.m_Buf, params.m_Begin, params.m_End);
+                }
+                else if (renderMode == rive::MODE_STENCIL_TO_COVER)
+                {
+                    RenderBatchStencilToCover(world, params.m_Context, params.m_Buf, params.m_Begin, params.m_End);
+                }
                 break;
             }
             case dmRender::RENDER_LIST_OPERATION_END:
