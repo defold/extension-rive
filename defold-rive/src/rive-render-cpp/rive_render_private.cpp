@@ -463,6 +463,12 @@ namespace rive
         r->m_IsClippingSupported = state;
     }
 
+    void setTransform(HRenderer renderer, const Mat2D& transform)
+    {
+        SharedRenderer* r = (SharedRenderer*) renderer;
+        r->m_Transform = transform;
+    }
+
     RenderMode getRenderMode()
     {
         return g_RiveRenderMode;

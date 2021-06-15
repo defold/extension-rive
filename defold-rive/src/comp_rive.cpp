@@ -112,6 +112,18 @@ namespace dmRive
         uint32_t                 m_MaxInstanceCount;
     };
 
+    static inline void Mat4ToMat2D(const Matrix4 m4, rive::Mat2D& m2)
+    {
+        m2[0] = m4[0][0];
+        m2[1] = m4[0][1];
+
+        m2[2] = m4[1][0];
+        m2[3] = m4[1][1];
+
+        m2[4] = m4[3][0];
+        m2[5] = m4[3][1];
+    }
+
     static inline void Mat2DToMat4(const rive::Mat2D m2, Matrix4& m4)
     {
         m4[0][0] = m2[0];
@@ -197,7 +209,6 @@ namespace dmRive
         dmRender::HMaterial material = GetMaterial(component, resource);
         dmHashInit32(&state, reverse);
         dmHashUpdateBuffer32(&state, &material, sizeof(material));
-        // dmHashUpdateBuffer32(&state, &resource->m_Scene->m_Texture, sizeof(dmGraphics::HTexture));
         dmHashUpdateBuffer32(&state, &ddf->m_BlendMode, sizeof(ddf->m_BlendMode));
         if (component->m_RenderConstants)
             dmGameSystem::HashRenderConstants(component->m_RenderConstants, &state);
@@ -392,6 +403,8 @@ namespace dmRive
             ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_INT;
             ro.m_WorldTransform    = entry.m_WorldTransform;
 
+            Vector3 tr = entry.m_WorldTransform.getTranslation();
+
             last_ix += ixBuffer->m_Size;
 
             if (!first->m_RenderConstants)
@@ -515,11 +528,6 @@ namespace dmRive
                             entry.m_Paint   = paint;
 
                             Mat2DToMat4(evt.m_TransformWorld, entry.m_WorldTransform);
-                            if (i == 0)
-                            {
-                                entry.m_WorldTransform = component.m_World * entry.m_WorldTransform;
-                            }
-
                             world->m_DrawEntries.Push(entry);
                         }
                     }
@@ -571,6 +579,10 @@ namespace dmRive
             rive::File* f              = (rive::File*) component.m_Resource->m_Scene->m_Scene;
             rive::Artboard* artboard   = f->artboard();
             rive::AABB artboard_bounds = artboard->bounds();
+
+            rive::Mat2D transform;
+            Mat4ToMat2D(component.m_World, transform);
+            rive::setTransform(world->m_Renderer, transform);
 
             rive_renderer->save();
             artboard->advance(dt);
