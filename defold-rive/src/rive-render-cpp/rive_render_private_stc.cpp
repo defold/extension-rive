@@ -280,6 +280,11 @@ namespace rive
 
     void StencilToCoverRenderPath::updateBuffers()
     {
+        if (m_ContourVertexCount == 0 || m_ContourIndexCount == 0)
+        {
+            return;
+        }
+
         const float coverVertexData[] = {
             m_Limits.m_MinX, m_Limits.m_MinY, m_Limits.m_MaxX, m_Limits.m_MinY,
             m_Limits.m_MaxX, m_Limits.m_MaxY, m_Limits.m_MinX, m_Limits.m_MaxY,

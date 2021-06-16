@@ -174,6 +174,7 @@ namespace dmRive
         rive::setBufferCallbacks(AppRequestBufferCallback, AppDestroyBufferCallback, (void*) world);
         world->m_Renderer = rive::createRenderer();
         rive::setContourQuality(world->m_Renderer, 0.8888888888888889f);
+        setClippingSupport(world->m_Renderer, false);
 
         *params.m_World = world;
 
@@ -430,23 +431,9 @@ namespace dmRive
 
                         if (vxBuffer != 0 && ixBuffer != 0)
                         {
-                            dmRender::RenderObject& ro = world->m_RenderObjects[ro_index];
-
                             int* ix_data_ptr  = (int*) ixBuffer->m_Data;
                             uint32_t ix_count = ixBuffer->m_Size / sizeof(int);
                             uint32_t vx_count = vxBuffer->m_Size / sizeof(RiveVertex);
-
-                            ro.Init();
-                            ro.m_VertexDeclaration = world->m_VertexDeclaration;
-                            ro.m_VertexBuffer      = world->m_VertexBuffer;
-                            ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
-                            ro.m_VertexStart       = last_ix; // byte offset
-                            ro.m_VertexCount       = ix_count;
-                            ro.m_Material          = GetMaterial(first, resource);
-                            ro.m_IndexBuffer       = world->m_IndexBuffer;
-                            ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_INT;
-
-                            Mat2DToMat4(evt.m_TransformWorld, ro.m_WorldTransform);
 
                             // Note: We offset the indices per path so that we can use the same
                             //       vertex buffer for all paths. As all path indices are generated
@@ -458,12 +445,22 @@ namespace dmRive
 
                             memcpy(vb_end, vxBuffer->m_Data, vxBuffer->m_Size);
 
+                            dmRender::RenderObject& ro = world->m_RenderObjects[ro_index];
+                            ro.Init();
+                            ro.m_VertexDeclaration = world->m_VertexDeclaration;
+                            ro.m_VertexBuffer      = world->m_VertexBuffer;
+                            ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
+                            ro.m_VertexStart       = last_ix; // byte offset
+                            ro.m_VertexCount       = ix_count;
+                            ro.m_Material          = GetMaterial(first, resource);
+                            ro.m_IndexBuffer       = world->m_IndexBuffer;
+                            ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_INT;
+                            Mat2DToMat4(evt.m_TransformWorld, ro.m_WorldTransform);
+                            dmRender::AddToRender(render_context, &ro);
+
                             vb_end  += vx_count;
                             ix_end  += ix_count;
                             last_ix += ixBuffer->m_Size;
-
-                            dmRender::AddToRender(render_context, &ro);
-
                             ro_index++;
                         }
                     }
@@ -478,6 +475,37 @@ namespace dmRive
 
                         if (vxBuffer != 0 && ixBuffer != 0)
                         {
+                            int* ix_data_ptr  = (int*) ixBuffer->m_Data;
+                            uint32_t ix_count = ixBuffer->m_Size / sizeof(int);
+                            uint32_t vx_count = vxBuffer->m_Size / sizeof(RiveVertex);
+
+                            // Note: We offset the indices per path so that we can use the same
+                            //       vertex buffer for all paths. As all path indices are generated
+                            //       by libtess we have to offset them manually.
+                            for (int j = 0; j < ix_count; ++j)
+                            {
+                                ix_end[j] = ix_data_ptr[j] + last_ix / sizeof(int);
+                            }
+
+                            memcpy(vb_end, vxBuffer->m_Data, vxBuffer->m_Size);
+
+                            dmRender::RenderObject& ro = world->m_RenderObjects[ro_index];
+                            ro.Init();
+                            ro.m_VertexDeclaration = world->m_VertexDeclaration;
+                            ro.m_VertexBuffer      = world->m_VertexBuffer;
+                            ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
+                            ro.m_VertexStart       = last_ix; // byte offset
+                            ro.m_VertexCount       = ix_count;
+                            ro.m_Material          = GetMaterial(first, resource);
+                            ro.m_IndexBuffer       = world->m_IndexBuffer;
+                            ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_INT;
+                            Mat2DToMat4(evt.m_TransformWorld, ro.m_WorldTransform);
+                            dmRender::AddToRender(render_context, &ro);
+
+                            vb_end  += vx_count;
+                            ix_end  += ix_count;
+                            last_ix += ixBuffer->m_Size;
+                            ro_index++;
                         }
                     }
                 } break;
@@ -493,7 +521,7 @@ namespace dmRive
                 default:break;
             }
         }
-        
+
         vertex_buffer.SetSize(vb_end - vertex_buffer.Begin());
         index_buffer.SetSize(ix_end - index_buffer.Begin());
     }
