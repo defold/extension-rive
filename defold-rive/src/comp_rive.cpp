@@ -169,7 +169,8 @@ namespace dmRive
         world->m_VertexBufferData.SetCapacity(context->m_MaxInstanceCount * 512);
         world->m_IndexBufferData.SetCapacity(context->m_MaxInstanceCount * 512);
 
-        rive::setRenderMode(rive::MODE_TESSELLATION);
+        // rive::setRenderMode(rive::MODE_TESSELLATION);
+        rive::setRenderMode(rive::MODE_STENCIL_TO_COVER);
         rive::setBufferCallbacks(AppRequestBufferCallback, AppDestroyBufferCallback, (void*) world);
         world->m_Renderer = rive::createRenderer();
         rive::setContourQuality(world->m_Renderer, 0.8888888888888889f);
@@ -320,7 +321,181 @@ namespace dmRive
 
     static void RenderBatchStencilToCover(RiveWorld* world, dmRender::HRenderContext render_context, dmRender::RenderListEntry *buf, uint32_t* begin, uint32_t* end)
     {
+        RiveComponent* first        = (RiveComponent*) buf[*begin].m_UserData;
+        RiveModelResource* resource = first->m_Resource;
 
+        uint32_t ro_count     = 0;
+        uint32_t vertex_count = 0;
+        uint32_t index_count  = 0;
+        bool is_clipping      = false;
+
+        for (int i = 0; i < rive::getDrawEventCount(world->m_Renderer); ++i)
+        {
+            const rive::PathDrawEvent evt = rive::getDrawEvent(world->m_Renderer, i);
+
+            switch(evt.m_Type)
+            {
+                case rive::EVENT_DRAW_STENCIL:
+                {
+                    if (!is_clipping)
+                    {
+                        rive::DrawBuffers buffers = rive::getDrawBuffers(evt.m_Path);
+                        RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_ContourVertexBuffer;
+                        RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_ContourIndexBuffer;
+
+                        if (vxBuffer != 0 && ixBuffer != 0)
+                        {
+                            vertex_count += vxBuffer->m_Size / (2 * sizeof(float));
+                            index_count  += ixBuffer->m_Size / sizeof(int);
+                            ro_count++;
+                        }
+                    }
+                } break;
+                case rive::EVENT_DRAW_COVER:
+                {
+                    if (!is_clipping)
+                    {
+                        rive::DrawBuffers buffers = rive::getDrawBuffers(evt.m_Path);
+                        RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_CoverVertexBuffer;
+                        RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_CoverIndexBuffer;
+
+                        if (vxBuffer != 0 && ixBuffer != 0)
+                        {
+                            vertex_count += vxBuffer->m_Size / (2 * sizeof(float));
+                            index_count  += ixBuffer->m_Size / sizeof(int);
+                            ro_count++;
+                        }
+                    }
+                } break;
+                case rive::EVENT_CLIPPING_BEGIN:
+                    is_clipping = true;
+                    break;
+                case rive::EVENT_CLIPPING_END:
+                    is_clipping = false;
+                    break;
+                case rive::EVENT_CLIPPING_DISABLE:
+                    is_clipping = false;
+                    break;
+                default:break;
+            }
+        }
+
+        uint32_t ro_index = world->m_RenderObjects.Size();
+        uint32_t ro_size  = ro_index + ro_count;
+
+        if (world->m_RenderObjects.Remaining() < ro_size)
+        {
+            world->m_RenderObjects.OffsetCapacity(ro_size - world->m_RenderObjects.Remaining());
+        }
+
+        world->m_RenderObjects.SetSize(world->m_RenderObjects.Size() + ro_count);
+
+        dmArray<RiveVertex> &vertex_buffer = world->m_VertexBufferData;
+        if (vertex_buffer.Remaining() < vertex_count)
+        {
+            vertex_buffer.OffsetCapacity(vertex_count - vertex_buffer.Remaining());
+        }
+
+        dmArray<int> &index_buffer = world->m_IndexBufferData;
+        if (index_buffer.Remaining() < index_count)
+        {
+            index_buffer.OffsetCapacity(index_count - index_buffer.Remaining());
+        }
+
+        RiveVertex* vb_begin = vertex_buffer.End();
+        RiveVertex* vb_end = vb_begin;
+
+        int* ix_begin = index_buffer.End();
+        int* ix_end   = ix_begin;
+
+        rive::HRenderPaint paint = 0;
+        uint32_t last_ix = 0;
+
+        for (int i = 0; i < rive::getDrawEventCount(world->m_Renderer); ++i)
+        {
+            const rive::PathDrawEvent evt = rive::getDrawEvent(world->m_Renderer, i);
+
+            switch(evt.m_Type)
+            {
+                case rive::EVENT_SET_PAINT:
+                    paint = evt.m_Paint;
+                    break;
+                case rive::EVENT_DRAW_STENCIL:
+                {
+                    if (!is_clipping)
+                    {
+                        rive::DrawBuffers buffers = rive::getDrawBuffers(evt.m_Path);
+                        RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_ContourVertexBuffer;
+                        RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_ContourIndexBuffer;
+
+                        if (vxBuffer != 0 && ixBuffer != 0)
+                        {
+                            dmRender::RenderObject& ro = world->m_RenderObjects[ro_index];
+
+                            int* ix_data_ptr  = (int*) ixBuffer->m_Data;
+                            uint32_t ix_count = ixBuffer->m_Size / sizeof(int);
+                            uint32_t vx_count = vxBuffer->m_Size / sizeof(RiveVertex);
+
+                            ro.Init();
+                            ro.m_VertexDeclaration = world->m_VertexDeclaration;
+                            ro.m_VertexBuffer      = world->m_VertexBuffer;
+                            ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
+                            ro.m_VertexStart       = last_ix; // byte offset
+                            ro.m_VertexCount       = ix_count;
+                            ro.m_Material          = GetMaterial(first, resource);
+                            ro.m_IndexBuffer       = world->m_IndexBuffer;
+                            ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_INT;
+
+                            Mat2DToMat4(evt.m_TransformWorld, ro.m_WorldTransform);
+
+                            // Note: We offset the indices per path so that we can use the same
+                            //       vertex buffer for all paths. As all path indices are generated
+                            //       by libtess we have to offset them manually.
+                            for (int j = 0; j < ix_count; ++j)
+                            {
+                                ix_end[j] = ix_data_ptr[j] + last_ix / sizeof(int);
+                            }
+
+                            memcpy(vb_end, vxBuffer->m_Data, vxBuffer->m_Size);
+
+                            vb_end  += vx_count;
+                            ix_end  += ix_count;
+                            last_ix += ixBuffer->m_Size;
+
+                            dmRender::AddToRender(render_context, &ro);
+
+                            ro_index++;
+                        }
+                    }
+                } break;
+                case rive::EVENT_DRAW_COVER:
+                {
+                    if (!is_clipping)
+                    {
+                        rive::DrawBuffers buffers = rive::getDrawBuffers(evt.m_Path);
+                        RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_CoverVertexBuffer;
+                        RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_CoverIndexBuffer;
+
+                        if (vxBuffer != 0 && ixBuffer != 0)
+                        {
+                        }
+                    }
+                } break;
+                case rive::EVENT_CLIPPING_BEGIN:
+                    is_clipping = true;
+                    break;
+                case rive::EVENT_CLIPPING_END:
+                    is_clipping = false;
+                    break;
+                case rive::EVENT_CLIPPING_DISABLE:
+                    is_clipping = false;
+                    break;
+                default:break;
+            }
+        }
+        
+        vertex_buffer.SetSize(vb_end - vertex_buffer.Begin());
+        index_buffer.SetSize(ix_end - index_buffer.Begin());
     }
 
     static void RenderBatchTessellation(RiveWorld* world, dmRender::HRenderContext render_context, dmRender::RenderListEntry *buf, uint32_t* begin, uint32_t* end)
@@ -403,8 +578,6 @@ namespace dmRive
             ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_INT;
             ro.m_WorldTransform    = entry.m_WorldTransform;
 
-            Vector3 tr = entry.m_WorldTransform.getTranslation();
-
             last_ix += ixBuffer->m_Size;
 
             if (!first->m_RenderConstants)
@@ -457,37 +630,6 @@ namespace dmRive
         RiveComponent* component = world->m_Components.Get(index);
         component->m_AddedToUpdate = true;
         return dmGameObject::CREATE_RESULT_OK;
-    }
-
-    static void HandleDrawEventsStencilToCover(RiveWorld* world, RiveComponent& component, int start_index, int end_index)
-    {
-        bool is_clipping         = false;
-        rive::HRenderPaint paint = 0;
-        for (int i = start_index; i < end_index; ++i)
-        {
-            const rive::PathDrawEvent evt = rive::getDrawEvent(world->m_Renderer, i);
-            switch(evt.m_Type)
-            {
-                case rive::EVENT_SET_PAINT:
-                    paint = evt.m_Paint;
-                    break;
-                case rive::EVENT_DRAW_STENCIL:
-                {
-                    // TODO
-                } break;
-                case rive::EVENT_DRAW_COVER:
-                {
-                    // TODO
-                } break;
-                case rive::EVENT_CLIPPING_BEGIN:
-                    is_clipping = true;
-                    break;
-                case rive::EVENT_CLIPPING_END:
-                    is_clipping = false;
-                    break;
-                default:break;
-            }
-        }
     }
 
     static void HandleDrawEventsTessellation(RiveWorld* world, RiveComponent& component, int start_index, int end_index)
@@ -589,14 +731,12 @@ namespace dmRive
             artboard->draw(rive_renderer);
             rive_renderer->restore();
 
-            // Handle draw events
+            component.m_DrawEventStart = start_event_count;
+            component.m_DrawEventEnd   = rive::getDrawEventCount(world->m_Renderer);
+
             if (render_mode == rive::MODE_TESSELLATION)
             {
                 HandleDrawEventsTessellation(world, component, start_event_count, rive::getDrawEventCount(world->m_Renderer));
-            }
-            else if (render_mode == rive::MODE_STENCIL_TO_COVER)
-            {
-                HandleDrawEventsStencilToCover(world, component, start_event_count, rive::getDrawEventCount(world->m_Renderer));
             }
 
             if (component.m_ReHash || (component.m_RenderConstants && dmGameSystem::AreRenderConstantsUpdated(component.m_RenderConstants)))
@@ -908,6 +1048,11 @@ namespace dmRive
     {
         RiveWorld* world = (RiveWorld*) userData;
         RiveBuffer* buf = (RiveBuffer*) buffer;
+
+        if (dataSize == 0)
+        {
+            return 0;
+        }
 
         if (buf == 0)
         {

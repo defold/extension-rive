@@ -39,6 +39,8 @@ namespace dmRive
         uint32_t                                m_VertexCount;
         uint32_t                                m_IndexCount;
         uint32_t                                m_MixedHash;
+        uint32_t                                m_DrawEventStart;
+        uint32_t                                m_DrawEventEnd;
         uint16_t                                m_ComponentIndex;
         uint8_t                                 m_Enabled : 1;
         uint8_t                                 m_DoRender : 1;
