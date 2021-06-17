@@ -3,6 +3,7 @@
 
 namespace rive
 {
+    typedef uintptr_t    HContext;
     typedef uintptr_t    HBuffer;
     typedef RenderPaint* HRenderPaint;
     typedef RenderPath*  HRenderPath;
@@ -86,21 +87,27 @@ namespace rive
         float        m_GradientLimits[4];
     };
 
-    void                setBufferCallbacks(RequestBufferCb rcb, DestroyBufferCb dcb, void* userData = 0);
-    void                setRenderMode(RenderMode mode);
+    HContext            createContext();
+    void                destroyContext(HContext ctx);
+    RenderMode          getRenderMode(HContext ctx);
+    void                setBufferCallbacks(HContext ctx, RequestBufferCb rcb, DestroyBufferCb dcb, void* userData = 0);
+    void                setRenderMode(HContext ctx, RenderMode mode);
+    const DrawBuffers   getDrawBuffers(HContext ctx, HRenderPath path);
+    RenderPath*         createRenderPath(HContext ctx);
+    RenderPaint*        createRenderPaint(HContext ctx);
+
+    HRenderer           createRenderer(HContext ctx);
+    void                destroyRenderer(HRenderer renderer);
+    void                newFrame(HRenderer renderer);
     void                setContourQuality(HRenderer renderer, float quality);
     void                setClippingSupport(HRenderer renderer, bool state);
     void                setTransform(HRenderer renderer, const Mat2D& transform);
     bool                getClippingSupport(HRenderer renderer);
     float               getContourError(HRenderer renderer);
-    const PaintData     getPaintData(HRenderPaint paint);
-    RenderMode          getRenderMode();
-    HRenderer           createRenderer();
-    void                destroyRenderer(HRenderer renderer);
-    void                newFrame(HRenderer renderer);
     uint32_t            getDrawEventCount(HRenderer renderer);
     const PathDrawEvent getDrawEvent(HRenderer renderer, uint32_t i);
-    const DrawBuffers   getDrawBuffers(HRenderPath path);
+
+    const PaintData     getPaintData(HRenderPaint paint);
 }
 
 #endif /* _RIVE_RENDER_API_H_ */

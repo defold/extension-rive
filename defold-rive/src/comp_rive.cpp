@@ -47,6 +47,22 @@
 #include <renderer.hpp>
 #include <rive/rive_render_api.h>
 
+namespace rive
+{
+    // JG: Hmmm should we do it like this? Rive needs these two functions that
+    //     are externally linked, but our API is built around a context structure.
+    static HContext g_Ctx = 0;
+    RenderPath* makeRenderPath()
+    {
+        return createRenderPath(g_Ctx);
+    }
+
+    RenderPaint* makeRenderPaint()
+    {
+        return createRenderPaint(g_Ctx);
+    }
+}
+
 namespace dmRive
 {
     using namespace dmVMath;
@@ -61,8 +77,8 @@ namespace dmRive
     static void ResourceReloadedCallback(const dmResource::ResourceReloadedParams& params);
     static void DestroyComponent(struct RiveWorld* world, uint32_t index);
 
-    static rive::HBuffer AppRequestBufferCallback(rive::HBuffer buffer, rive::BufferType type, void* data, unsigned int dataSize, void* userData);
-    static void          AppDestroyBufferCallback(rive::HBuffer buffer, void* userData);
+    static rive::HBuffer RiveRequestBufferCallback(rive::HBuffer buffer, rive::BufferType type, void* data, unsigned int dataSize, void* userData);
+    static void          RiveDestroyBufferCallback(rive::HBuffer buffer, void* userData);
 
     struct RiveVertex
     {
@@ -84,9 +100,25 @@ namespace dmRive
         Matrix4            m_WorldTransform;
     };
 
+    // For the entire app's life cycle
+    struct CompRiveContext
+    {
+        CompRiveContext()
+        {
+            memset(this, 0, sizeof(*this));
+        }
+        rive::HRenderer          m_RiveRenderer;
+        rive::HContext           m_RiveContext;
+        dmResource::HFactory     m_Factory;
+        dmRender::HRenderContext m_RenderContext;
+        dmGraphics::HContext     m_GraphicsContext;
+        uint32_t                 m_MaxInstanceCount;
+    };
+
     // One per collection
     struct RiveWorld
     {
+        CompRiveContext*                    m_Ctx; // JG: Is this a bad idea?
         dmObjectPool<RiveComponent*>        m_Components;
         dmArray<dmRender::RenderObject>     m_RenderObjects;
         dmGraphics::HVertexDeclaration      m_VertexDeclaration;
@@ -95,21 +127,6 @@ namespace dmRive
         dmGraphics::HIndexBuffer            m_IndexBuffer;
         dmArray<int>                        m_IndexBufferData;
         dmArray<RiveDrawEntry>              m_DrawEntries;
-
-        rive::HRenderer                     m_Renderer; // JG: move to context instead?
-    };
-
-    // For the entire app's life cycle
-    struct CompRiveContext
-    {
-        CompRiveContext()
-        {
-            memset(this, 0, sizeof(*this));
-        }
-        dmResource::HFactory     m_Factory;
-        dmRender::HRenderContext m_RenderContext;
-        dmGraphics::HContext     m_GraphicsContext;
-        uint32_t                 m_MaxInstanceCount;
     };
 
     static inline void Mat4ToMat2D(const Matrix4 m4, rive::Mat2D& m2)
@@ -152,6 +169,7 @@ namespace dmRive
         CompRiveContext* context = (CompRiveContext*)params.m_Context;
         RiveWorld* world         = new RiveWorld();
 
+        world->m_Ctx = context;
         world->m_Components.SetCapacity(context->m_MaxInstanceCount);
         world->m_RenderObjects.SetCapacity(context->m_MaxInstanceCount);
         world->m_DrawEntries.SetCapacity(context->m_MaxInstanceCount);
@@ -169,13 +187,6 @@ namespace dmRive
         world->m_VertexBufferData.SetCapacity(context->m_MaxInstanceCount * 512);
         world->m_IndexBufferData.SetCapacity(context->m_MaxInstanceCount * 512);
 
-        // rive::setRenderMode(rive::MODE_TESSELLATION);
-        rive::setRenderMode(rive::MODE_STENCIL_TO_COVER);
-        rive::setBufferCallbacks(AppRequestBufferCallback, AppDestroyBufferCallback, (void*) world);
-        world->m_Renderer = rive::createRenderer();
-        rive::setContourQuality(world->m_Renderer, 0.8888888888888889f);
-        setClippingSupport(world->m_Renderer, false);
-
         *params.m_World = world;
 
         dmResource::RegisterResourceReloadedCallback(context->m_Factory, ResourceReloadedCallback, world);
@@ -192,7 +203,6 @@ namespace dmRive
 
         dmResource::UnregisterResourceReloadedCallback(((CompRiveContext*)params.m_Context)->m_Factory, ResourceReloadedCallback, world);
 
-        delete world->m_Renderer;
         delete world;
         return dmGameObject::CREATE_RESULT_OK;
     }
@@ -324,15 +334,17 @@ namespace dmRive
     {
         RiveComponent* first        = (RiveComponent*) buf[*begin].m_UserData;
         RiveModelResource* resource = first->m_Resource;
+        rive::HContext ctx          = world->m_Ctx->m_RiveContext;
+        rive::HRenderer renderer    = world->m_Ctx->m_RiveRenderer;
 
         uint32_t ro_count     = 0;
         uint32_t vertex_count = 0;
         uint32_t index_count  = 0;
         bool is_clipping      = false;
 
-        for (int i = 0; i < rive::getDrawEventCount(world->m_Renderer); ++i)
+        for (int i = 0; i < rive::getDrawEventCount(renderer); ++i)
         {
-            const rive::PathDrawEvent evt = rive::getDrawEvent(world->m_Renderer, i);
+            const rive::PathDrawEvent evt = rive::getDrawEvent(renderer, i);
 
             switch(evt.m_Type)
             {
@@ -340,7 +352,7 @@ namespace dmRive
                 {
                     if (!is_clipping)
                     {
-                        rive::DrawBuffers buffers = rive::getDrawBuffers(evt.m_Path);
+                        rive::DrawBuffers buffers = rive::getDrawBuffers(ctx, evt.m_Path);
                         RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_ContourVertexBuffer;
                         RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_ContourIndexBuffer;
 
@@ -356,7 +368,7 @@ namespace dmRive
                 {
                     if (!is_clipping)
                     {
-                        rive::DrawBuffers buffers = rive::getDrawBuffers(evt.m_Path);
+                        rive::DrawBuffers buffers = rive::getDrawBuffers(ctx, evt.m_Path);
                         RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_CoverVertexBuffer;
                         RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_CoverIndexBuffer;
 
@@ -412,9 +424,9 @@ namespace dmRive
         rive::HRenderPaint paint = 0;
         uint32_t last_ix = 0;
 
-        for (int i = 0; i < rive::getDrawEventCount(world->m_Renderer); ++i)
+        for (int i = 0; i < rive::getDrawEventCount(renderer); ++i)
         {
-            const rive::PathDrawEvent evt = rive::getDrawEvent(world->m_Renderer, i);
+            const rive::PathDrawEvent evt = rive::getDrawEvent(renderer, i);
 
             switch(evt.m_Type)
             {
@@ -425,7 +437,7 @@ namespace dmRive
                 {
                     if (!is_clipping)
                     {
-                        rive::DrawBuffers buffers = rive::getDrawBuffers(evt.m_Path);
+                        rive::DrawBuffers buffers = rive::getDrawBuffers(ctx, evt.m_Path);
                         RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_ContourVertexBuffer;
                         RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_ContourIndexBuffer;
 
@@ -469,7 +481,7 @@ namespace dmRive
                 {
                     if (!is_clipping)
                     {
-                        rive::DrawBuffers buffers = rive::getDrawBuffers(evt.m_Path);
+                        rive::DrawBuffers buffers = rive::getDrawBuffers(ctx, evt.m_Path);
                         RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_CoverVertexBuffer;
                         RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_CoverIndexBuffer;
 
@@ -666,10 +678,12 @@ namespace dmRive
         uint32_t index_count     = 0;
         bool is_clipping         = false;
         rive::HRenderPaint paint = 0;
+        rive::HContext ctx       = world->m_Ctx->m_RiveContext;
+        rive::HRenderer renderer = world->m_Ctx->m_RiveRenderer;
 
         for (int i = start_index; i < end_index; ++i)
         {
-            const rive::PathDrawEvent evt = rive::getDrawEvent(world->m_Renderer, i);
+            const rive::PathDrawEvent evt = rive::getDrawEvent(renderer, i);
             switch(evt.m_Type)
             {
                 case rive::EVENT_SET_PAINT:
@@ -679,7 +693,7 @@ namespace dmRive
                 {
                     if (!is_clipping)
                     {
-                        rive::DrawBuffers buffers = rive::getDrawBuffers(evt.m_Path);
+                        rive::DrawBuffers buffers = rive::getDrawBuffers(ctx, evt.m_Path);
                         RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_Tessellation.m_VertexBuffer;
                         RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_Tessellation.m_IndexBuffer;
 
@@ -721,10 +735,12 @@ namespace dmRive
 
     dmGameObject::UpdateResult CompRiveUpdate(const dmGameObject::ComponentsUpdateParams& params, dmGameObject::ComponentsUpdateResult& update_result)
     {
-        RiveWorld* world = (RiveWorld*)params.m_World;
+        RiveWorld* world         = (RiveWorld*)params.m_World;
+        rive::HContext ctx       = world->m_Ctx->m_RiveContext;
+        rive::HRenderer renderer = world->m_Ctx->m_RiveRenderer;
 
-        rive::newFrame(world->m_Renderer);
-        rive::Renderer* rive_renderer = (rive::Renderer*) world->m_Renderer;
+        rive::newFrame(renderer);
+        rive::Renderer* rive_renderer = (rive::Renderer*) renderer;
         float dt = params.m_UpdateContext->m_DT;
 
         dmArray<RiveComponent*>& components = world->m_Components.m_Objects;
@@ -732,7 +748,7 @@ namespace dmRive
 
         world->m_DrawEntries.SetSize(0);
 
-        const rive::RenderMode render_mode = rive::getRenderMode();
+        const rive::RenderMode render_mode = rive::getRenderMode(ctx);
 
         for (uint32_t i = 0; i < count; ++i)
         {
@@ -745,14 +761,14 @@ namespace dmRive
             }
 
             // RIVE UPDATE
-            uint32_t start_event_count = rive::getDrawEventCount(world->m_Renderer);
+            uint32_t start_event_count = rive::getDrawEventCount(renderer);
             rive::File* f              = (rive::File*) component.m_Resource->m_Scene->m_Scene;
             rive::Artboard* artboard   = f->artboard();
             rive::AABB artboard_bounds = artboard->bounds();
 
             rive::Mat2D transform;
             Mat4ToMat2D(component.m_World, transform);
-            rive::setTransform(world->m_Renderer, transform);
+            rive::setTransform(renderer, transform);
 
             rive_renderer->save();
             artboard->advance(dt);
@@ -760,11 +776,11 @@ namespace dmRive
             rive_renderer->restore();
 
             component.m_DrawEventStart = start_event_count;
-            component.m_DrawEventEnd   = rive::getDrawEventCount(world->m_Renderer);
+            component.m_DrawEventEnd   = rive::getDrawEventCount(renderer);
 
             if (render_mode == rive::MODE_TESSELLATION)
             {
-                HandleDrawEventsTessellation(world, component, start_event_count, rive::getDrawEventCount(world->m_Renderer));
+                HandleDrawEventsTessellation(world, component, start_event_count, rive::getDrawEventCount(renderer));
             }
 
             if (component.m_ReHash || (component.m_RenderConstants && dmGameSystem::AreRenderConstantsUpdated(component.m_RenderConstants)))
@@ -783,8 +799,8 @@ namespace dmRive
 
     static void RenderListDispatch(dmRender::RenderListDispatchParams const &params)
     {
-        RiveWorld *world = (RiveWorld *) params.m_UserData;
-        rive::RenderMode renderMode = rive::getRenderMode();
+        RiveWorld *world            = (RiveWorld *) params.m_UserData;
+        rive::RenderMode renderMode = rive::getRenderMode(world->m_Ctx->m_RiveContext);
 
         switch (params.m_Operation)
         {
@@ -841,21 +857,23 @@ namespace dmRive
         // Prepare list submit
         dmRender::RenderListEntry* render_list = dmRender::RenderListAlloc(render_context, count);
         dmRender::HRenderListDispatch dispatch = dmRender::RenderListMakeDispatch(render_context, &RenderListDispatch, world);
-        dmRender::RenderListEntry* write_ptr = render_list;
+        dmRender::RenderListEntry* write_ptr   = render_list;
 
         for (uint32_t i = 0; i < count; ++i)
         {
             RiveComponent& component = *components[i];
             if (!component.m_DoRender || !component.m_Enabled)
+            {
                 continue;
-            const Vector4 trans = component.m_World.getCol(3);
+            }
+            const Vector4 trans        = component.m_World.getCol(3);
             write_ptr->m_WorldPosition = Point3(trans.getX(), trans.getY(), trans.getZ());
-            write_ptr->m_UserData = (uintptr_t) &component;
-            write_ptr->m_BatchKey = component.m_MixedHash;
-            write_ptr->m_TagListKey = dmRender::GetMaterialTagListKey(GetMaterial(&component, component.m_Resource));
-            write_ptr->m_Dispatch = dispatch;
-            write_ptr->m_MinorOrder = 0;
-            write_ptr->m_MajorOrder = dmRender::RENDER_ORDER_WORLD;
+            write_ptr->m_UserData      = (uintptr_t) &component;
+            write_ptr->m_BatchKey      = component.m_MixedHash;
+            write_ptr->m_TagListKey    = dmRender::GetMaterialTagListKey(GetMaterial(&component, component.m_Resource));
+            write_ptr->m_Dispatch      = dispatch;
+            write_ptr->m_MinorOrder    = 0;
+            write_ptr->m_MajorOrder    = dmRender::RENDER_ORDER_WORLD;
             ++write_ptr;
         }
 
@@ -1040,11 +1058,20 @@ namespace dmRive
 
     static dmGameObject::Result CompRiveRegister(const dmGameObject::ComponentTypeCreateCtx* ctx, dmGameObject::ComponentType* type)
     {
-        CompRiveContext* rivectx = new CompRiveContext;
-        rivectx->m_Factory = ctx->m_Factory;
-        rivectx->m_GraphicsContext = *(dmGraphics::HContext*)ctx->m_Contexts.Get(dmHashString64("graphics"));
-        rivectx->m_RenderContext = *(dmRender::HRenderContext*)ctx->m_Contexts.Get(dmHashString64("render"));
+        CompRiveContext* rivectx    = new CompRiveContext;
+        rivectx->m_Factory          = ctx->m_Factory;
+        rivectx->m_GraphicsContext  = *(dmGraphics::HContext*)ctx->m_Contexts.Get(dmHashString64("graphics"));
+        rivectx->m_RenderContext    = *(dmRender::HRenderContext*)ctx->m_Contexts.Get(dmHashString64("render"));
         rivectx->m_MaxInstanceCount = dmConfigFile::GetInt(ctx->m_Config, "rive.max_instance_count", 128);
+        rivectx->m_RiveContext      = rive::createContext();
+
+        rive::g_Ctx = rivectx->m_RiveContext;
+        rive::setRenderMode(rivectx->m_RiveContext, rive::MODE_STENCIL_TO_COVER);
+        rive::setBufferCallbacks(rivectx->m_RiveContext, RiveRequestBufferCallback, RiveDestroyBufferCallback, 0x0);
+
+        rivectx->m_RiveRenderer = rive::createRenderer(rivectx->m_RiveContext);
+        rive::setContourQuality(rivectx->m_RiveRenderer, 0.8888888888888889f);
+        rive::setClippingSupport(rivectx->m_RiveRenderer, false);
 
         // after script/anim/gui, before collisionobject
         // the idea is to let the scripts/animations update the game object instance,
@@ -1072,11 +1099,9 @@ namespace dmRive
         return dmGameObject::RESULT_OK;
     }
 
-    static rive::HBuffer AppRequestBufferCallback(rive::HBuffer buffer, rive::BufferType type, void* data, unsigned int dataSize, void* userData)
+    static rive::HBuffer RiveRequestBufferCallback(rive::HBuffer buffer, rive::BufferType type, void* data, unsigned int dataSize, void* userData)
     {
-        RiveWorld* world = (RiveWorld*) userData;
         RiveBuffer* buf = (RiveBuffer*) buffer;
-
         if (dataSize == 0)
         {
             return 0;
@@ -1084,24 +1109,17 @@ namespace dmRive
 
         if (buf == 0)
         {
-            buf = new RiveBuffer;
-            buf->m_Data = malloc(dataSize);
-            buf->m_Size = dataSize;
+            buf = new RiveBuffer();
         }
 
-        if (buf->m_Data != 0 && buf->m_Size != dataSize)
-        {
-            free(buf->m_Data);
-            buf->m_Data = malloc(dataSize);
-            buf->m_Size = dataSize;
-        }
-
+        buf->m_Data = realloc(buf->m_Data, dataSize);
+        buf->m_Size = dataSize;
         memcpy(buf->m_Data, data, dataSize);
 
         return (rive::HBuffer) buf;
     }
 
-    static void AppDestroyBufferCallback(rive::HBuffer buffer, void* userData)
+    static void RiveDestroyBufferCallback(rive::HBuffer buffer, void* userData)
     {
         RiveBuffer* buf = (RiveBuffer*) buffer;
         if (buf != 0)

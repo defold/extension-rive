@@ -53,6 +53,14 @@ namespace rive
         float                   m_EndY;
     };
 
+    struct Context
+    {
+        RenderMode      m_RenderMode;
+        RequestBufferCb m_RequestBufferCb;
+        DestroyBufferCb m_DestroyBufferCb;
+        void*           m_BufferCbUserData;
+    };
+
     class SharedRenderPaint : public RenderPaint
     {
     public:
@@ -82,6 +90,7 @@ namespace rive
         // TODO: use a global buffer or something else
         static const uint32_t COUNTOUR_BUFFER_ELEMENT_COUNT = 512;
 
+        Context*                  m_Context;
         jc::Array<PathCommand>    m_PathCommands;
         jc::Array<PathDescriptor> m_Paths;
         float                     m_ContourVertexData[COUNTOUR_BUFFER_ELEMENT_COUNT * 2];
@@ -90,7 +99,7 @@ namespace rive
         bool                      m_IsDirty;
         bool                      m_IsShapeDirty;
 
-        SharedRenderPath();
+        SharedRenderPath(Context* ctx);
         void            reset()                                                           override;
         void            addRenderPath(RenderPath* path, const Mat2D& transform)           override;
         void            fillRule(FillRule value)                                          override;
@@ -113,7 +122,7 @@ namespace rive
             uint8_t        m_ClipPathsCount;
         };
 
-        RenderMode                m_RenderMode;
+        Context*                  m_Context;
         jc::Array<StackEntry>     m_ClipPathStack;
         jc::Array<PathDescriptor> m_ClipPaths;
         jc::Array<PathDescriptor> m_AppliedClips;
@@ -144,7 +153,7 @@ namespace rive
     public:
         StencilToCoverRenderPath* m_FullscreenPath;
 
-        StencilToCoverRenderer();
+        StencilToCoverRenderer(Context* ctx);
         ~StencilToCoverRenderer();
         void drawPath(RenderPath* path, RenderPaint* paint) override;
         void applyClipping();
@@ -165,7 +174,7 @@ namespace rive
         float             m_ContourError;
         PathLimits        m_Limits;
 
-        StencilToCoverRenderPath();
+        StencilToCoverRenderPath(Context* ctx);
         ~StencilToCoverRenderPath();
 
         void stencil(SharedRenderer* renderer, const Mat2D& transform, unsigned int idx, bool isEvenOdd, bool isClipping);
@@ -181,6 +190,7 @@ namespace rive
     class TessellationRenderer : public SharedRenderer
     {
     public:
+        TessellationRenderer(Context* ctx);
         void drawPath(RenderPath* path, RenderPaint* paint) override;
         void applyClipping();
     };
@@ -197,7 +207,7 @@ namespace rive
         void updateContour(float contourError);
         void updateTesselation(float contourError);
 
-        TessellationRenderPath();
+        TessellationRenderPath(Context* ctx);
         ~TessellationRenderPath();
         void drawMesh(SharedRenderer* renderer, const Mat2D& transform);
     };
@@ -216,9 +226,6 @@ namespace rive
                       float* vertices,
                       uint32_t& verticesCount,
                       PathLimits* pathLimits);
-
-    HBuffer requestBuffer(HBuffer buffer, BufferType bufferType, void* data, unsigned int dataSize);
-    void    destroyBuffer(HBuffer buffer);
 }
 
 #endif

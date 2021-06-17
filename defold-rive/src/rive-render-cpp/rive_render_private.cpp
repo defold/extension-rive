@@ -9,11 +9,6 @@
 
 namespace rive
 {
-    static RenderMode      g_RiveRenderMode       = MODE_STENCIL_TO_COVER;
-    static RequestBufferCb g_RiveRequestBufferCb  = 0;
-    static DestroyBufferCb g_RiveDestroyBufferCb  = 0;
-    static void*           g_RiveBufferCbUserData = 0;
-
     static void getColorArrayFromUint(unsigned int colorIn, float* rgbaOut)
     {
         rgbaOut[0] = (float)((0x00ff0000 & colorIn) >> 16) / 255.0f;
@@ -303,8 +298,9 @@ namespace rive
         });
     }
 
-    SharedRenderPath::SharedRenderPath()
-    : m_ContourVertexCount(0)
+    SharedRenderPath::SharedRenderPath(Context* ctx)
+    : m_Context(ctx)
+    , m_ContourVertexCount(0)
     , m_IsDirty(true)
     , m_IsShapeDirty(true)
     {
@@ -433,16 +429,18 @@ namespace rive
         return r->m_IsClippingSupported;
     }
 
-    void setBufferCallbacks(RequestBufferCb rcb, DestroyBufferCb dcb, void* userData)
+    void setBufferCallbacks(HContext ctx, RequestBufferCb rcb, DestroyBufferCb dcb, void* userData)
     {
-        g_RiveRequestBufferCb  = rcb;
-        g_RiveDestroyBufferCb  = dcb;
-        g_RiveBufferCbUserData = userData;
+        Context* c            = (Context*) ctx;
+        c->m_RequestBufferCb  = rcb;
+        c->m_DestroyBufferCb  = dcb;
+        c->m_BufferCbUserData = userData;
     }
 
-    void setRenderMode(RenderMode mode)
+    void setRenderMode(HContext ctx, RenderMode mode)
     {
-        g_RiveRenderMode = mode;
+        Context* c      = (Context*) ctx;
+        c->m_RenderMode = mode;
     }
 
     const PaintData getPaintData(HRenderPaint paint)
@@ -469,43 +467,36 @@ namespace rive
         r->m_Transform = transform;
     }
 
-    RenderMode getRenderMode()
+    RenderMode getRenderMode(HContext ctx)
     {
-        return g_RiveRenderMode;
+        Context* c = (Context*) ctx;
+        return c->m_RenderMode;
     }
 
-    RenderPaint* makeRenderPaint()
+    RenderPaint* createRenderPaint(HContext ctx)
     {
         return new SharedRenderPaint;
     }
 
-    RenderPath* makeRenderPath()
+    RenderPath* createRenderPath(HContext ctx)
     {
-        switch(g_RiveRenderMode)
+        Context* c = (Context*) ctx;
+        switch(c->m_RenderMode)
         {
-            case MODE_TESSELLATION:     return new TessellationRenderPath;
-            case MODE_STENCIL_TO_COVER: return new StencilToCoverRenderPath;
+            case MODE_TESSELLATION:     return new TessellationRenderPath(c);
+            case MODE_STENCIL_TO_COVER: return new StencilToCoverRenderPath(c);
             default:break;
         }
         return 0;
     }
 
-    HRenderer createRenderer()
+    HRenderer createRenderer(HContext ctx)
     {
-        switch(g_RiveRenderMode)
+        Context* c = (Context*) ctx;
+        switch(c->m_RenderMode)
         {
-            case MODE_TESSELLATION:
-            {
-                TessellationRenderer* r = new TessellationRenderer;
-                r->m_RenderMode         = MODE_TESSELLATION;
-                return (HRenderer) r;
-            }
-            case MODE_STENCIL_TO_COVER:
-            {
-                StencilToCoverRenderer* r = new StencilToCoverRenderer;
-                r->m_RenderMode           = MODE_STENCIL_TO_COVER;
-                return (HRenderer) r;
-            }
+            case MODE_TESSELLATION:     return (HRenderer) new TessellationRenderer(c);
+            case MODE_STENCIL_TO_COVER: return (HRenderer) new StencilToCoverRenderer(c);
             default:break;
         }
         return 0;
@@ -539,17 +530,18 @@ namespace rive
         return r->m_DrawEvents[i];
     }
 
-    const DrawBuffers getDrawBuffers(HRenderPath path)
+    const DrawBuffers getDrawBuffers(HContext ctx, HRenderPath path)
     {
+        Context* c          = (Context*) ctx;
         DrawBuffers buffers = {};
 
-        if (g_RiveRenderMode == MODE_TESSELLATION)
+        if (c->m_RenderMode == MODE_TESSELLATION)
         {
             TessellationRenderPath* r             = (TessellationRenderPath*) path;
             buffers.m_Tessellation.m_VertexBuffer = r->m_VertexBuffer;
             buffers.m_Tessellation.m_IndexBuffer  = r->m_IndexBuffer;
         }
-        else if (g_RiveRenderMode == MODE_STENCIL_TO_COVER)
+        else if (c->m_RenderMode == MODE_STENCIL_TO_COVER)
         {
             StencilToCoverRenderPath* r                    = (StencilToCoverRenderPath*) path;
             buffers.m_StencilToCover.m_ContourVertexBuffer = r->m_ContourVertexBuffer;
@@ -561,6 +553,7 @@ namespace rive
         return buffers;
     }
 
+    /*
     HBuffer requestBuffer(HBuffer buffer, BufferType bufferType, void* data, unsigned int dataSize)
     {
         return g_RiveRequestBufferCb(buffer, bufferType, data, dataSize, g_RiveBufferCbUserData);
@@ -569,5 +562,18 @@ namespace rive
     void destroyBuffer(HBuffer buffer)
     {
         g_RiveDestroyBufferCb(buffer, g_RiveBufferCbUserData);
+    }
+    */
+
+    void destroyContext(HContext ctx)
+    {
+        assert(ctx);
+        delete (Context*) ctx;
+    }
+
+    HContext createContext()
+    {
+        Context* ctx = new Context;
+        return (HContext) ctx;
     }
 }

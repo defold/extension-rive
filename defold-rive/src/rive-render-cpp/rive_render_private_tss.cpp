@@ -15,15 +15,16 @@
 namespace rive
 {
 	/* TessellationRenderPath Impl */
-    TessellationRenderPath::TessellationRenderPath()
-    : m_VertexBuffer(0)
+    TessellationRenderPath::TessellationRenderPath(Context* ctx)
+    : SharedRenderPath(ctx)
+    , m_VertexBuffer(0)
     , m_IndexBuffer(0)
     {}
 
     TessellationRenderPath::~TessellationRenderPath()
     {
-        destroyBuffer(m_VertexBuffer);
-        destroyBuffer(m_IndexBuffer);
+        m_Context->m_DestroyBufferCb(m_VertexBuffer, m_Context->m_BufferCbUserData);
+        m_Context->m_DestroyBufferCb(m_IndexBuffer, m_Context->m_BufferCbUserData);
     }
 
     void TessellationRenderPath::addContours(void* tess, const Mat2D& m)
@@ -196,8 +197,9 @@ namespace rive
             const TESSreal*  tessVertices      = tessGetVertices(tess);
             const TESSindex* tessElements      = tessGetElements(tess);
 
-            m_VertexBuffer = requestBuffer(m_VertexBuffer, BUFFER_TYPE_VERTEX_BUFFER, (void*) tessVertices, tessVerticesCount * sizeof(float) * vertexSize);
-            m_IndexBuffer  = requestBuffer(m_IndexBuffer, BUFFER_TYPE_INDEX_BUFFER, (void*) tessElements, tessElementsCount * sizeof(int) * polySize);
+            void* requestUserData = m_Context->m_BufferCbUserData;
+            m_VertexBuffer = m_Context->m_RequestBufferCb(m_VertexBuffer, BUFFER_TYPE_VERTEX_BUFFER, (void*) tessVertices, tessVerticesCount * sizeof(float) * vertexSize, requestUserData);
+            m_IndexBuffer  = m_Context->m_RequestBufferCb(m_IndexBuffer, BUFFER_TYPE_INDEX_BUFFER, (void*) tessElements, tessElementsCount * sizeof(int) * polySize, requestUserData);
         }
         else
         {
@@ -213,6 +215,11 @@ namespace rive
     }
 
     /* Renderer impl */
+    TessellationRenderer::TessellationRenderer(Context* ctx)
+    {
+        m_Context = ctx;
+    }
+
     void TessellationRenderer::applyClipping()
     {
         bool same = true;
