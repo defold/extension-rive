@@ -423,6 +423,8 @@ namespace dmRive
 
         rive::HRenderPaint paint = 0;
         uint32_t last_ix = 0;
+        uint32_t vx_offset = 0;
+        dmGraphics::FaceWinding last_face_winding = dmGraphics::FACE_WINDING_CCW;
 
         for (int i = 0; i < rive::getDrawEventCount(renderer); ++i)
         {
@@ -447,12 +449,19 @@ namespace dmRive
                             uint32_t ix_count = ixBuffer->m_Size / sizeof(int);
                             uint32_t vx_count = vxBuffer->m_Size / sizeof(RiveVertex);
 
-                            // Note: We offset the indices per path so that we can use the same
-                            //       vertex buffer for all paths. As all path indices are generated
-                            //       by libtess we have to offset them manually.
-                            for (int j = 0; j < ix_count; ++j)
+                            if (vx_offset > 0)
                             {
-                                ix_end[j] = ix_data_ptr[j] + last_ix / sizeof(int);
+                                // Note: We offset the indices per path so that we can use the same
+                                //       vertex buffer for all paths. As all path indices are generated
+                                //       by libtess we have to offset them manually.
+                                for (int j = 0; j < ix_count; ++j)
+                                {
+                                    ix_end[j] = ix_data_ptr[j] + vx_offset;
+                                }
+                            }
+                            else
+                            {
+                                memcpy(ix_end, ixBuffer->m_Data, ixBuffer->m_Size);
                             }
 
                             memcpy(vb_end, vxBuffer->m_Data, vxBuffer->m_Size);
@@ -467,12 +476,58 @@ namespace dmRive
                             ro.m_Material          = GetMaterial(first, resource);
                             ro.m_IndexBuffer       = world->m_IndexBuffer;
                             ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_INT;
+                            ro.m_SetStencilTest    = 1;
+                            ro.m_SetFaceWinding    = 1;
+
+                            dmRender::StencilTestParams& stencil_state = ro.m_StencilTestParams;
+
+                            if (evt.m_IsClipping)
+                            {
+                                // NOP for now
+                            }
+                            else
+                            {
+                                stencil_state.m_Front = {
+                                    .m_Func     = dmGraphics::COMPARE_FUNC_ALWAYS,
+                                    .m_OpSFail  = dmGraphics::STENCIL_OP_KEEP,
+                                    .m_OpDPFail = dmGraphics::STENCIL_OP_KEEP,
+                                    .m_OpDPPass = dmGraphics::STENCIL_OP_INCR_WRAP,
+                                };
+
+                                stencil_state.m_Back = {
+                                    .m_Func     = dmGraphics::COMPARE_FUNC_ALWAYS,
+                                    .m_OpSFail  = dmGraphics::STENCIL_OP_KEEP,
+                                    .m_OpDPFail = dmGraphics::STENCIL_OP_KEEP,
+                                    .m_OpDPPass = dmGraphics::STENCIL_OP_DECR_WRAP,
+                                };
+
+                                stencil_state.m_Ref                = 0x00;
+                                stencil_state.m_RefMask            = 0xFF;
+                                stencil_state.m_BufferMask         = 0xFF;
+                                stencil_state.m_ColorBufferMask    = 0x00;
+                                stencil_state.m_ClearBuffer        = 0;
+                                stencil_state.m_SeparateFaceStates = 1;
+
+                                if (evt.m_IsEvenOdd && (evt.m_Idx % 2) != 0)
+                                {
+                                    // CW
+                                    ro.m_FaceWinding = dmGraphics::FACE_WINDING_CW;
+                                }
+                                else
+                                {
+                                    // CCW
+                                    ro.m_FaceWinding = dmGraphics::FACE_WINDING_CCW;
+                                }
+                            }
+
                             Mat2DToMat4(evt.m_TransformWorld, ro.m_WorldTransform);
                             dmRender::AddToRender(render_context, &ro);
 
-                            vb_end  += vx_count;
-                            ix_end  += ix_count;
-                            last_ix += ixBuffer->m_Size;
+                            last_face_winding  = ro.m_FaceWinding;
+                            vb_end            += vx_count;
+                            ix_end            += ix_count;
+                            last_ix           += ixBuffer->m_Size;
+                            vx_offset         += vx_count;
                             ro_index++;
                         }
                     }
@@ -491,12 +546,19 @@ namespace dmRive
                             uint32_t ix_count = ixBuffer->m_Size / sizeof(int);
                             uint32_t vx_count = vxBuffer->m_Size / sizeof(RiveVertex);
 
-                            // Note: We offset the indices per path so that we can use the same
-                            //       vertex buffer for all paths. As all path indices are generated
-                            //       by libtess we have to offset them manually.
-                            for (int j = 0; j < ix_count; ++j)
+                            if (vx_offset > 0)
                             {
-                                ix_end[j] = ix_data_ptr[j] + last_ix / sizeof(int);
+                                // Note: We offset the indices per path so that we can use the same
+                                //       vertex buffer for all paths. As all path indices are generated
+                                //       by libtess we have to offset them manually.
+                                for (int j = 0; j < ix_count; ++j)
+                                {
+                                    ix_end[j] = ix_data_ptr[j] + vx_offset;
+                                }
+                            }
+                            else
+                            {
+                                memcpy(ix_end, ixBuffer->m_Data, ixBuffer->m_Size);
                             }
 
                             memcpy(vb_end, vxBuffer->m_Data, vxBuffer->m_Size);
@@ -511,12 +573,36 @@ namespace dmRive
                             ro.m_Material          = GetMaterial(first, resource);
                             ro.m_IndexBuffer       = world->m_IndexBuffer;
                             ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_INT;
+                            ro.m_SetStencilTest    = 1;
+                            ro.m_SetFaceWinding    = 1;
+
+                            dmRender::StencilTestParams& stencil_state = ro.m_StencilTestParams;
+                            stencil_state.m_Front = {
+                                .m_Func     = dmGraphics::COMPARE_FUNC_NOTEQUAL,
+                                .m_OpSFail  = dmGraphics::STENCIL_OP_ZERO,
+                                .m_OpDPFail = dmGraphics::STENCIL_OP_ZERO,
+                                .m_OpDPPass = dmGraphics::STENCIL_OP_ZERO,
+                            };
+
+                            stencil_state.m_Ref             = 0x00;
+                            stencil_state.m_RefMask         = 0xFF;
+                            stencil_state.m_BufferMask      = 0xFF;
+                            stencil_state.m_ColorBufferMask = 0xFF;
+                            stencil_state.m_ClearBuffer     = 0;
+
+                            if (last_face_winding != dmGraphics::FACE_WINDING_CCW)
+                            {
+                                ro.m_FaceWinding    = dmGraphics::FACE_WINDING_CCW;
+                                ro.m_SetFaceWinding = 1;
+                            }
+
                             Mat2DToMat4(evt.m_TransformWorld, ro.m_WorldTransform);
                             dmRender::AddToRender(render_context, &ro);
 
-                            vb_end  += vx_count;
-                            ix_end  += ix_count;
-                            last_ix += ixBuffer->m_Size;
+                            vb_end    += vx_count;
+                            ix_end    += ix_count;
+                            last_ix   += ixBuffer->m_Size;
+                            vx_offset += vx_count;
                             ro_index++;
                         }
                     }
