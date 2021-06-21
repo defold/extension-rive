@@ -7,6 +7,6 @@ function update(self, dt)
 
 	local p = go.get_position()
 	p.x = p.x + math.sin(self.v) * 4
-	go.set_position(p)
+	-- go.set_position(p)
 end
 

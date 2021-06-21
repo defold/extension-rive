@@ -73,6 +73,7 @@ namespace dmRive
     static const dmhash_t PROP_MATERIAL = dmHashString64("material");
     static const dmhash_t MATERIAL_EXT_HASH = dmHashString64("materialc");
     static const dmhash_t UNIFORM_COLOR = dmHashString64("color");
+    static const dmhash_t UNIFORM_COVER = dmHashString64("cover");
 
     static void ResourceReloadedCallback(const dmResource::ResourceReloadedParams& params);
     static void DestroyComponent(struct RiveWorld* world, uint32_t index);
@@ -337,10 +338,15 @@ namespace dmRive
         rive::HContext ctx          = world->m_Ctx->m_RiveContext;
         rive::HRenderer renderer    = world->m_Ctx->m_RiveRenderer;
 
-        uint32_t ro_count     = 0;
-        uint32_t vertex_count = 0;
-        uint32_t index_count  = 0;
-        bool is_clipping      = false;
+        if (!first->m_RenderConstants)
+        {
+            first->m_RenderConstants = dmGameSystem::CreateRenderConstants();
+        }
+
+        uint32_t ro_count         = 0;
+        uint32_t vertex_count     = 0;
+        uint32_t index_count      = 0;
+        bool is_applying_clipping = false;
 
         for (int i = 0; i < rive::getDrawEventCount(renderer); ++i)
         {
@@ -350,44 +356,38 @@ namespace dmRive
             {
                 case rive::EVENT_DRAW_STENCIL:
                 {
-                    if (!is_clipping)
-                    {
-                        rive::DrawBuffers buffers = rive::getDrawBuffers(ctx, evt.m_Path);
-                        RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_ContourVertexBuffer;
-                        RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_ContourIndexBuffer;
+                    rive::DrawBuffers buffers = rive::getDrawBuffers(ctx, evt.m_Path);
+                    RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_ContourVertexBuffer;
+                    RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_ContourIndexBuffer;
 
-                        if (vxBuffer != 0 && ixBuffer != 0)
-                        {
-                            vertex_count += vxBuffer->m_Size / (2 * sizeof(float));
-                            index_count  += ixBuffer->m_Size / sizeof(int);
-                            ro_count++;
-                        }
+                    if (vxBuffer != 0 && ixBuffer != 0)
+                    {
+                        vertex_count += vxBuffer->m_Size / (2 * sizeof(float));
+                        index_count  += ixBuffer->m_Size / sizeof(int);
+                        ro_count++;
                     }
                 } break;
                 case rive::EVENT_DRAW_COVER:
                 {
-                    if (!is_clipping)
-                    {
-                        rive::DrawBuffers buffers = rive::getDrawBuffers(ctx, evt.m_Path);
-                        RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_CoverVertexBuffer;
-                        RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_CoverIndexBuffer;
+                    rive::DrawBuffers buffers = rive::getDrawBuffers(ctx, evt.m_Path);
+                    RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_CoverVertexBuffer;
+                    RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_CoverIndexBuffer;
 
-                        if (vxBuffer != 0 && ixBuffer != 0)
-                        {
-                            vertex_count += vxBuffer->m_Size / (2 * sizeof(float));
-                            index_count  += ixBuffer->m_Size / sizeof(int);
-                            ro_count++;
-                        }
+                    if (vxBuffer != 0 && ixBuffer != 0)
+                    {
+                        vertex_count += vxBuffer->m_Size / (2 * sizeof(float));
+                        index_count  += ixBuffer->m_Size / sizeof(int);
+                        ro_count++;
                     }
                 } break;
                 case rive::EVENT_CLIPPING_BEGIN:
-                    is_clipping = true;
+                    is_applying_clipping = true;
                     break;
                 case rive::EVENT_CLIPPING_END:
-                    is_clipping = false;
+                    is_applying_clipping = false;
                     break;
                 case rive::EVENT_CLIPPING_DISABLE:
-                    is_clipping = false;
+                    is_applying_clipping = false;
                     break;
                 default:break;
             }
@@ -425,6 +425,7 @@ namespace dmRive
         uint32_t last_ix = 0;
         uint32_t vx_offset = 0;
         dmGraphics::FaceWinding last_face_winding = dmGraphics::FACE_WINDING_CCW;
+        uint8_t clear_clipping_flag = 0;
 
         for (int i = 0; i < rive::getDrawEventCount(renderer); ++i)
         {
@@ -437,146 +438,168 @@ namespace dmRive
                     break;
                 case rive::EVENT_DRAW_STENCIL:
                 {
-                    if (!is_clipping)
+                    rive::DrawBuffers buffers = rive::getDrawBuffers(ctx, evt.m_Path);
+                    RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_ContourVertexBuffer;
+                    RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_ContourIndexBuffer;
+
+                    if (vxBuffer != 0 && ixBuffer != 0)
                     {
-                        rive::DrawBuffers buffers = rive::getDrawBuffers(ctx, evt.m_Path);
-                        RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_ContourVertexBuffer;
-                        RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_ContourIndexBuffer;
+                        int* ix_data_ptr  = (int*) ixBuffer->m_Data;
+                        uint32_t ix_count = ixBuffer->m_Size / sizeof(int);
+                        uint32_t vx_count = vxBuffer->m_Size / sizeof(RiveVertex);
 
-                        if (vxBuffer != 0 && ixBuffer != 0)
+                        if (vx_offset > 0)
                         {
-                            int* ix_data_ptr  = (int*) ixBuffer->m_Data;
-                            uint32_t ix_count = ixBuffer->m_Size / sizeof(int);
-                            uint32_t vx_count = vxBuffer->m_Size / sizeof(RiveVertex);
-
-                            if (vx_offset > 0)
+                            // Note: We offset the indices per path so that we can use the same
+                            //       vertex buffer for all paths. As all path indices are generated
+                            //       by libtess we have to offset them manually.
+                            for (int j = 0; j < ix_count; ++j)
                             {
-                                // Note: We offset the indices per path so that we can use the same
-                                //       vertex buffer for all paths. As all path indices are generated
-                                //       by libtess we have to offset them manually.
-                                for (int j = 0; j < ix_count; ++j)
-                                {
-                                    ix_end[j] = ix_data_ptr[j] + vx_offset;
-                                }
+                                ix_end[j] = ix_data_ptr[j] + vx_offset;
                             }
-                            else
-                            {
-                                memcpy(ix_end, ixBuffer->m_Data, ixBuffer->m_Size);
-                            }
-
-                            memcpy(vb_end, vxBuffer->m_Data, vxBuffer->m_Size);
-
-                            dmRender::RenderObject& ro = world->m_RenderObjects[ro_index];
-                            ro.Init();
-                            ro.m_VertexDeclaration = world->m_VertexDeclaration;
-                            ro.m_VertexBuffer      = world->m_VertexBuffer;
-                            ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
-                            ro.m_VertexStart       = last_ix; // byte offset
-                            ro.m_VertexCount       = ix_count;
-                            ro.m_Material          = GetMaterial(first, resource);
-                            ro.m_IndexBuffer       = world->m_IndexBuffer;
-                            ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_INT;
-                            ro.m_SetStencilTest    = 1;
-                            ro.m_SetFaceWinding    = 1;
-
-                            dmRender::StencilTestParams& stencil_state = ro.m_StencilTestParams;
-
-                            if (evt.m_IsClipping)
-                            {
-                                // NOP for now
-                            }
-                            else
-                            {
-                                stencil_state.m_Front = {
-                                    .m_Func     = dmGraphics::COMPARE_FUNC_ALWAYS,
-                                    .m_OpSFail  = dmGraphics::STENCIL_OP_KEEP,
-                                    .m_OpDPFail = dmGraphics::STENCIL_OP_KEEP,
-                                    .m_OpDPPass = dmGraphics::STENCIL_OP_INCR_WRAP,
-                                };
-
-                                stencil_state.m_Back = {
-                                    .m_Func     = dmGraphics::COMPARE_FUNC_ALWAYS,
-                                    .m_OpSFail  = dmGraphics::STENCIL_OP_KEEP,
-                                    .m_OpDPFail = dmGraphics::STENCIL_OP_KEEP,
-                                    .m_OpDPPass = dmGraphics::STENCIL_OP_DECR_WRAP,
-                                };
-
-                                stencil_state.m_Ref                = 0x00;
-                                stencil_state.m_RefMask            = 0xFF;
-                                stencil_state.m_BufferMask         = 0xFF;
-                                stencil_state.m_ColorBufferMask    = 0x00;
-                                stencil_state.m_ClearBuffer        = 0;
-                                stencil_state.m_SeparateFaceStates = 1;
-
-                                if (evt.m_IsEvenOdd && (evt.m_Idx % 2) != 0)
-                                {
-                                    // CW
-                                    ro.m_FaceWinding = dmGraphics::FACE_WINDING_CW;
-                                }
-                                else
-                                {
-                                    // CCW
-                                    ro.m_FaceWinding = dmGraphics::FACE_WINDING_CCW;
-                                }
-                            }
-
-                            Mat2DToMat4(evt.m_TransformWorld, ro.m_WorldTransform);
-                            dmRender::AddToRender(render_context, &ro);
-
-                            last_face_winding  = ro.m_FaceWinding;
-                            vb_end            += vx_count;
-                            ix_end            += ix_count;
-                            last_ix           += ixBuffer->m_Size;
-                            vx_offset         += vx_count;
-                            ro_index++;
                         }
+                        else
+                        {
+                            memcpy(ix_end, ixBuffer->m_Data, ixBuffer->m_Size);
+                        }
+
+                        memcpy(vb_end, vxBuffer->m_Data, vxBuffer->m_Size);
+
+                        dmRender::RenderObject& ro = world->m_RenderObjects[ro_index];
+                        ro.Init();
+                        ro.m_VertexDeclaration = world->m_VertexDeclaration;
+                        ro.m_VertexBuffer      = world->m_VertexBuffer;
+                        ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
+                        ro.m_VertexStart       = last_ix; // byte offset
+                        ro.m_VertexCount       = ix_count;
+                        ro.m_Material          = GetMaterial(first, resource);
+                        ro.m_IndexBuffer       = world->m_IndexBuffer;
+                        ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_INT;
+                        ro.m_SetStencilTest    = 1;
+                        ro.m_SetFaceWinding    = 1;
+
+                        dmRender::StencilTestParams& stencil_state = ro.m_StencilTestParams;
+
+                        stencil_state.m_Front = {
+                            .m_Func     = dmGraphics::COMPARE_FUNC_ALWAYS,
+                            .m_OpSFail  = dmGraphics::STENCIL_OP_KEEP,
+                            .m_OpDPFail = dmGraphics::STENCIL_OP_KEEP,
+                            .m_OpDPPass = dmGraphics::STENCIL_OP_INCR_WRAP,
+                        };
+
+                        stencil_state.m_Back = {
+                            .m_Func     = dmGraphics::COMPARE_FUNC_ALWAYS,
+                            .m_OpSFail  = dmGraphics::STENCIL_OP_KEEP,
+                            .m_OpDPFail = dmGraphics::STENCIL_OP_KEEP,
+                            .m_OpDPPass = dmGraphics::STENCIL_OP_DECR_WRAP,
+                        };
+
+                        stencil_state.m_Ref                = 0x00;
+                        stencil_state.m_RefMask            = 0xFF;
+                        stencil_state.m_BufferMask         = 0xFF;
+                        stencil_state.m_ColorBufferMask    = 0x00;
+                        stencil_state.m_ClearBuffer        = 0;
+                        stencil_state.m_SeparateFaceStates = 1;
+
+                        if (evt.m_IsClipping)
+                        {
+                            stencil_state.m_Front.m_Func = dmGraphics::COMPARE_FUNC_EQUAL;
+                            stencil_state.m_Back.m_Func  = dmGraphics::COMPARE_FUNC_EQUAL;
+                            stencil_state.m_Ref          = 0x80;
+                            stencil_state.m_RefMask      = 0x80;
+                            stencil_state.m_BufferMask   = 0x7F;
+                        }
+
+                        if (clear_clipping_flag)
+                        {
+                            stencil_state.m_ClearBuffer = 1;
+                            clear_clipping_flag = 0;
+                        }
+
+                        if (evt.m_IsEvenOdd && (evt.m_Idx % 2) != 0)
+                        {
+                            ro.m_FaceWinding = dmGraphics::FACE_WINDING_CW;
+                        }
+                        else
+                        {
+                            ro.m_FaceWinding = dmGraphics::FACE_WINDING_CCW;
+                        }
+
+                        dmGameObject::PropertyVar apply_clipping_var(Vectormath::Aos::Vector4(0.0f, 0.0f, 0.0f, 0.0f));
+                        dmGameSystem::SetRenderConstant(first->m_RenderConstants, ro.m_Material, UNIFORM_COVER, 0, apply_clipping_var);
+                        dmGameSystem::EnableRenderObjectConstants(&ro, first->m_RenderConstants);
+
+                        Mat2DToMat4(evt.m_TransformWorld, ro.m_WorldTransform);
+                        dmRender::AddToRender(render_context, &ro);
+
+                        last_face_winding  = ro.m_FaceWinding;
+                        vb_end            += vx_count;
+                        ix_end            += ix_count;
+                        last_ix           += ixBuffer->m_Size;
+                        vx_offset         += vx_count;
+                        ro_index++;
                     }
                 } break;
                 case rive::EVENT_DRAW_COVER:
                 {
-                    if (!is_clipping)
+                    rive::DrawBuffers buffers = rive::getDrawBuffers(ctx, evt.m_Path);
+                    RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_CoverVertexBuffer;
+                    RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_CoverIndexBuffer;
+
+                    if (vxBuffer != 0 && ixBuffer != 0)
                     {
-                        rive::DrawBuffers buffers = rive::getDrawBuffers(ctx, evt.m_Path);
-                        RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_CoverVertexBuffer;
-                        RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_CoverIndexBuffer;
+                        int* ix_data_ptr  = (int*) ixBuffer->m_Data;
+                        uint32_t ix_count = ixBuffer->m_Size / sizeof(int);
+                        uint32_t vx_count = vxBuffer->m_Size / sizeof(RiveVertex);
 
-                        if (vxBuffer != 0 && ixBuffer != 0)
+                        if (vx_offset > 0)
                         {
-                            int* ix_data_ptr  = (int*) ixBuffer->m_Data;
-                            uint32_t ix_count = ixBuffer->m_Size / sizeof(int);
-                            uint32_t vx_count = vxBuffer->m_Size / sizeof(RiveVertex);
-
-                            if (vx_offset > 0)
+                            // Note: We offset the indices per path so that we can use the same
+                            //       vertex buffer for all paths. As all path indices are generated
+                            //       by libtess we have to offset them manually.
+                            for (int j = 0; j < ix_count; ++j)
                             {
-                                // Note: We offset the indices per path so that we can use the same
-                                //       vertex buffer for all paths. As all path indices are generated
-                                //       by libtess we have to offset them manually.
-                                for (int j = 0; j < ix_count; ++j)
-                                {
-                                    ix_end[j] = ix_data_ptr[j] + vx_offset;
-                                }
+                                ix_end[j] = ix_data_ptr[j] + vx_offset;
                             }
-                            else
-                            {
-                                memcpy(ix_end, ixBuffer->m_Data, ixBuffer->m_Size);
-                            }
+                        }
+                        else
+                        {
+                            memcpy(ix_end, ixBuffer->m_Data, ixBuffer->m_Size);
+                        }
 
-                            memcpy(vb_end, vxBuffer->m_Data, vxBuffer->m_Size);
+                        memcpy(vb_end, vxBuffer->m_Data, vxBuffer->m_Size);
 
-                            dmRender::RenderObject& ro = world->m_RenderObjects[ro_index];
-                            ro.Init();
-                            ro.m_VertexDeclaration = world->m_VertexDeclaration;
-                            ro.m_VertexBuffer      = world->m_VertexBuffer;
-                            ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
-                            ro.m_VertexStart       = last_ix; // byte offset
-                            ro.m_VertexCount       = ix_count;
-                            ro.m_Material          = GetMaterial(first, resource);
-                            ro.m_IndexBuffer       = world->m_IndexBuffer;
-                            ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_INT;
-                            ro.m_SetStencilTest    = 1;
-                            ro.m_SetFaceWinding    = 1;
+                        dmRender::RenderObject& ro = world->m_RenderObjects[ro_index];
+                        ro.Init();
+                        ro.m_VertexDeclaration = world->m_VertexDeclaration;
+                        ro.m_VertexBuffer      = world->m_VertexBuffer;
+                        ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
+                        ro.m_VertexStart       = last_ix; // byte offset
+                        ro.m_VertexCount       = ix_count;
+                        ro.m_Material          = GetMaterial(first, resource);
+                        ro.m_IndexBuffer       = world->m_IndexBuffer;
+                        ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_INT;
+                        ro.m_SetStencilTest    = 1;
 
-                            dmRender::StencilTestParams& stencil_state = ro.m_StencilTestParams;
+                        dmRender::StencilTestParams& stencil_state = ro.m_StencilTestParams;
+                        stencil_state.m_ClearBuffer = 0;
+
+                        if (is_applying_clipping)
+                        {
+                            stencil_state.m_Front = {
+                                .m_Func     = dmGraphics::COMPARE_FUNC_NOTEQUAL,
+                                .m_OpSFail  = dmGraphics::STENCIL_OP_ZERO,
+                                .m_OpDPFail = dmGraphics::STENCIL_OP_ZERO,
+                                .m_OpDPPass = dmGraphics::STENCIL_OP_REPLACE,
+                            };
+
+                            stencil_state.m_Ref             = 0x80;
+                            stencil_state.m_RefMask         = 0x7F;
+                            stencil_state.m_BufferMask      = 0xFF;
+                            stencil_state.m_ColorBufferMask = 0x00;
+                        }
+                        else
+                        {
                             stencil_state.m_Front = {
                                 .m_Func     = dmGraphics::COMPARE_FUNC_NOTEQUAL,
                                 .m_OpSFail  = dmGraphics::STENCIL_OP_ZERO,
@@ -588,33 +611,52 @@ namespace dmRive
                             stencil_state.m_RefMask         = 0xFF;
                             stencil_state.m_BufferMask      = 0xFF;
                             stencil_state.m_ColorBufferMask = 0xFF;
-                            stencil_state.m_ClearBuffer     = 0;
 
-                            if (last_face_winding != dmGraphics::FACE_WINDING_CCW)
+                            if (evt.m_IsClipping)
                             {
-                                ro.m_FaceWinding    = dmGraphics::FACE_WINDING_CCW;
-                                ro.m_SetFaceWinding = 1;
+                                stencil_state.m_RefMask    = 0x7F;
+                                stencil_state.m_BufferMask = 0x7F;
                             }
 
-                            Mat2DToMat4(evt.m_TransformWorld, ro.m_WorldTransform);
-                            dmRender::AddToRender(render_context, &ro);
+                            SetBlendMode(ro, resource->m_DDF->m_BlendMode);
 
-                            vb_end    += vx_count;
-                            ix_end    += ix_count;
-                            last_ix   += ixBuffer->m_Size;
-                            vx_offset += vx_count;
-                            ro_index++;
+                            const rive::PaintData draw_entry_paint = rive::getPaintData(paint);
+                            const float* color                     = &draw_entry_paint.m_Colors[0];
+                            dmGameObject::PropertyVar colorVar(Vectormath::Aos::Vector4(color[0], color[1], color[2], color[3]));
+                            dmGameSystem::SetRenderConstant(first->m_RenderConstants, ro.m_Material, UNIFORM_COLOR, 0, colorVar);
                         }
+
+                        // If we are fullscreen-covering, we don't transform the vertices
+                        float no_projection = (float) evt.m_IsClipping && is_applying_clipping;
+                        dmGameObject::PropertyVar apply_clipping_var(Vectormath::Aos::Vector4(no_projection, 0.0f, 0.0f, 0.0f));
+                        dmGameSystem::SetRenderConstant(first->m_RenderConstants, ro.m_Material, UNIFORM_COVER, 0, apply_clipping_var);
+                        dmGameSystem::EnableRenderObjectConstants(&ro, first->m_RenderConstants);
+
+                        if (last_face_winding != dmGraphics::FACE_WINDING_CCW)
+                        {
+                            ro.m_FaceWinding    = dmGraphics::FACE_WINDING_CCW;
+                            ro.m_SetFaceWinding = 1;
+                        }
+
+                        Mat2DToMat4(evt.m_TransformWorld, ro.m_WorldTransform);
+                        dmRender::AddToRender(render_context, &ro);
+
+                        vb_end    += vx_count;
+                        ix_end    += ix_count;
+                        last_ix   += ixBuffer->m_Size;
+                        vx_offset += vx_count;
+                        ro_index++;
                     }
                 } break;
                 case rive::EVENT_CLIPPING_BEGIN:
-                    is_clipping = true;
+                    is_applying_clipping = true;
+                    clear_clipping_flag = 1;
                     break;
                 case rive::EVENT_CLIPPING_END:
-                    is_clipping = false;
+                    is_applying_clipping = false;
                     break;
                 case rive::EVENT_CLIPPING_DISABLE:
-                    is_clipping = false;
+                    is_applying_clipping = false;
                     break;
                 default:break;
             }
@@ -1157,7 +1199,7 @@ namespace dmRive
 
         rivectx->m_RiveRenderer = rive::createRenderer(rivectx->m_RiveContext);
         rive::setContourQuality(rivectx->m_RiveRenderer, 0.8888888888888889f);
-        rive::setClippingSupport(rivectx->m_RiveRenderer, false);
+        rive::setClippingSupport(rivectx->m_RiveRenderer, true);
 
         // after script/anim/gui, before collisionobject
         // the idea is to let the scripts/animations update the game object instance,

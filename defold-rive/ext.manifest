@@ -4,7 +4,7 @@ platforms:
     common:
         context:
             symbols:   ["ResourceTypeRiveScene", "ResourceTypeRiveModel", "ResourceTypeRiveData", "ComponentTypeRive"]
-            flags:     ["-std=c++17"]
+            flags:     ["-std=c++17", "-O0"]
             linkFlags: ["-std=c++17"]
 
 
