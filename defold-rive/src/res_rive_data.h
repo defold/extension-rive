@@ -13,6 +13,9 @@
 #ifndef DM_RES_RIVE_DATA_H
 #define DM_RES_RIVE_DATA_H
 
-// The data is an instance from rive-cpp
+namespace dmRive
+{
+	
+}
 
 #endif // DM_RES_RIVE_DATA_H

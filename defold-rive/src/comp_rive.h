@@ -24,18 +24,23 @@
 namespace dmRive
 {
     struct RiveModelResource;
+    struct RiveBuffer;
 
     struct RiveComponent
     {
         dmGameObject::HInstance                 m_Instance;
         dmTransform::Transform                  m_Transform;
         dmVMath::Matrix4                        m_World;
-        RiveModelResource*                   m_Resource;
+        RiveModelResource*                      m_Resource;
         //dmMessage::URL                          m_Listener;
         dmGameSystem::HComponentRenderConstants m_RenderConstants;
         dmRender::HMaterial                     m_Material;
         //dmArray<dmGameObject::HInstance>        m_NodeInstances; // Node instances corresponding to the bones
+        uint32_t                                m_VertexCount;
+        uint32_t                                m_IndexCount;
         uint32_t                                m_MixedHash;
+        uint32_t                                m_DrawEventStart;
+        uint32_t                                m_DrawEventEnd;
         uint16_t                                m_ComponentIndex;
         uint8_t                                 m_Enabled : 1;
         uint8_t                                 m_DoRender : 1;

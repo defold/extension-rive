@@ -1,0 +1,12 @@
+function init(self)
+	self.v = 0
+end
+
+function update(self, dt)
+	self.v = self.v + dt
+
+	local p = go.get_position()
+	p.x = p.x + math.sin(self.v) * 4
+	-- go.set_position(p)
+end
+

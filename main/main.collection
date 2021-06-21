@@ -6,8 +6,8 @@ embedded_instances {
   "  id: \"test\"\n"
   "  component: \"/assets/test.rivemodel\"\n"
   "  position {\n"
-  "    x: 0.0\n"
-  "    y: 0.0\n"
+  "    x: 128.0\n"
+  "    y: 128.0\n"
   "    z: 0.0\n"
   "  }\n"
   "  rotation {\n"
@@ -17,14 +17,9 @@ embedded_instances {
   "    w: 1.0\n"
   "  }\n"
   "}\n"
-  "embedded_components {\n"
-  "  id: \"sprite\"\n"
-  "  type: \"sprite\"\n"
-  "  data: \"tile_set: \\\"/builtins/graphics/particle_blob.tilesource\\\"\\n"
-  "default_animation: \\\"anim\\\"\\n"
-  "material: \\\"/builtins/materials/sprite.material\\\"\\n"
-  "blend_mode: BLEND_MODE_ALPHA\\n"
-  "\"\n"
+  "components {\n"
+  "  id: \"main\"\n"
+  "  component: \"/main/main.script\"\n"
   "  position {\n"
   "    x: 0.0\n"
   "    y: 0.0\n"
@@ -39,7 +34,7 @@ embedded_instances {
   "}\n"
   ""
   position {
-    x: 229.0
+    x: 0.0
     y: 0.0
     z: 0.0
   }
@@ -50,8 +45,8 @@ embedded_instances {
     w: 1.0
   }
   scale3 {
-    x: 1.0
-    y: 1.0
+    x: 0.5
+    y: 0.5
     z: 1.0
   }
 }
