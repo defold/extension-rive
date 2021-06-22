@@ -64,15 +64,14 @@
   [class-loader class-name]
   (Class/forName class-name true class-loader))
 
-
 (set! *warn-on-reflection* true)
 
-(def spine-scene-icon "icons/32/Icons_16-Spine-scene.png")
-(def spine-model-icon "icons/32/Icons_15-Spine-model.png")
-(def spine-bone-icon "icons/32/Icons_S_13_radiocircle.png")
+(def rive-scene-icon "icons/32/Icons_16-Rive-scene.png")
+(def rive-model-icon "icons/32/Icons_15-Rive-model.png")
+(def rive-bone-icon "icons/32/Icons_S_13_radiocircle.png")
 
-(def spine-scene-ext "spinescene")
-(def spine-model-ext "spinemodel")
+(def rive-scene-ext "rivescene")
+(def rive-model-ext "rivemodel")
 
 (def slot-signal-unchanged 0x10CCED)
 
@@ -1313,13 +1312,13 @@
 (json/register-json-loader ::spine-scene accept-spine-scene-json accept-resource-json load-spine-scene-json)
 
 ; The plugin
-(defn load-plugin-spine [workspace]
-  (prn "MAWE" "workspace" workspace)
+(defn load-plugin-rive [workspace]
+  (prn "JG" "workspace" workspace)
   (g/transact (concat (register-resource-types workspace)))
   )
 
 (defn return-plugin []
-  (fn [x] (load-plugin-spine x)))
+  (fn [x] (load-plugin-rive x)))
 (return-plugin)
 
 
