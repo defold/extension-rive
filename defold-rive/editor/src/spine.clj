@@ -10,9 +10,9 @@
 ;; CONDITIONS OF ANY KIND, either express or implied. See the License for the
 ;; specific language governing permissions and limitations under the License.
 
-(prn "SPINE EXTENSION PLUGIN!")
+(prn "RIVE EXTENSION PLUGIN!")
 
-(ns editor.spine
+(ns editor.rive
   (:require [clojure.java.io :as io]
             [editor.protobuf :as protobuf]
             [dynamo.graph :as g]
@@ -56,7 +56,7 @@
 ; TODO: Centralize this code so it can be updated when plugins are added or rebuilt
 (def dcl
   (let [loader (clojure.lang.DynamicClassLoader. (.getContextClassLoader (Thread/currentThread)))
-        url (URL. (format "file://%s/shared/java/fmt-spine.jar" (system/defold-unpack-path)))]
+        url (URL. (format "file://%s/shared/java/rive.jar" (system/defold-unpack-path)))]
     (.addURL loader url)
     loader))
 
