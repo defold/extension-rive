@@ -23,7 +23,7 @@ end
 -- projection that stretches content
 --
 local function stretch_projection(near, far)
-    return vmath.matrix4_orthographic(0, render.get_width(), render.get_height(), 0, near, far)
+    return vmath.matrix4_orthographic(0, render.get_width(), 0, render.get_height(), near, far)
 end
 
 local function get_projection(self)
