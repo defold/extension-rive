@@ -746,15 +746,15 @@ namespace dmRive
             rive::Artboard* artboard   = f->artboard();
             rive::AABB artboard_bounds = artboard->bounds();
 
-            rive_renderer->align(rive::Fit::none,
-               rive::Alignment::center,
-               rive::AABB(0, 0,
-               artboard_bounds.width(), artboard_bounds.height()),
-               artboard_bounds);
-
             rive::Mat2D transform;
             Mat4ToMat2D(component.m_World, transform);
             rive::setTransform(renderer, transform);
+
+            rive_renderer->align(rive::Fit::none,
+               rive::Alignment::center,
+               rive::AABB(-artboard_bounds.width(), -artboard_bounds.height(),
+               artboard_bounds.width(), artboard_bounds.height()),
+               artboard_bounds);
 
             rive_renderer->save();
             artboard->advance(dt);
