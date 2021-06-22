@@ -47,7 +47,7 @@
         &atlas, &collection, &collisionobject,
         &cubemap, &dae, &font, &go,
         &gui, &label, &model, &particlefx,
-        &spinemodel, &spinescene, &sprite,
+        &rivemodel, &rivescene, &sprite,
         &tilemap, &tilesource {
             @include extension-template($element, -df-design-file, -df-design-file-active);
         }

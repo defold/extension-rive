@@ -929,7 +929,7 @@
                        [skin-name skin-meshes-aabb])))))
           skin-names)))
 
-(g/defnode SpineSceneNode
+(g/defnode RiveSceneNode
   (inherits resource-node/ResourceNode)
 
   (property spine-json resource/Resource
@@ -1056,7 +1056,7 @@
                       :dep-resources dep-resources}
           :deps dep-build-targets})])))
 
-(g/defnode SpineModelNode
+(g/defnode RiveModelNode
   (inherits resource-node/ResourceNode)
 
   (property spine-scene resource/Resource
@@ -1153,25 +1153,25 @@
         (g/set-property self k v)))))
 
 (defn register-resource-types [workspace]
-  (prn "SPINE register resource types")
+  (prn "RIVE register resource types")
   (concat
     (resource-node/register-ddf-resource-type workspace
-      :ext spine-scene-ext
-      :build-ext "rigscenec"
-      :label "Spine Scene plugin"
-      :node-type SpineSceneNode
-      :ddf-type (dynamically-load-class! dcl "com.dynamo.spine.proto.Spine$SpineSceneDesc")
+      :ext rive-scene-ext
+      :build-ext "rivescenec"
+      :label "Rive Scene plugin"
+      :node-type RiveSceneNode
+      :ddf-type (dynamically-load-class! dcl "com.dynamo.rive.proto.Rive$RiveSceneDesc")
       :load-fn load-spine-scene
-      :icon spine-scene-icon
+      :icon rive-scene-icon
       :view-types [:scene :text]
       :view-opts {:scene {:grid true}})
     (resource-node/register-ddf-resource-type workspace
-      :ext spine-model-ext
-      :label "Spine Model plugin!"
-      :node-type SpineModelNode
-      :ddf-type (dynamically-load-class! dcl "com.dynamo.spine.proto.Spine$SpineModelDesc")
+      :ext rive-model-ext
+      :label "Rive Model plugin"
+      :node-type RiveModelNode
+      :ddf-type (dynamically-load-class! dcl "com.dynamo.rive.proto.Rive$RiveModelDesc")
       :load-fn load-spine-model
-      :icon spine-model-icon
+      :icon rive-model-icon
       :view-types [:scene :text]
       :view-opts {:scene {:grid true}}
       :tags #{:component}
