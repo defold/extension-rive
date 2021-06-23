@@ -33,7 +33,6 @@ message RiveModelDesc
     //optional float tesselation_option1    = 4 [default = 0.0];
 }
 
-
 /*
 message RivePlayAnimation
 {

@@ -56,7 +56,7 @@
 ; TODO: Centralize this code so it can be updated when plugins are added or rebuilt
 (def dcl
   (let [loader (clojure.lang.DynamicClassLoader. (.getContextClassLoader (Thread/currentThread)))
-        url (URL. (format "file://%s/shared/java/rive.jar" (system/defold-unpack-path)))]
+        url (URL. "file://Users/jhonny/dev/extension-rive/build/x86_64-osx/defold-rive/pluginRiveExt.jar")]
     (.addURL loader url)
     loader))
 
@@ -83,8 +83,8 @@
 
 ; Node defs
 
-(g/defnk produce-save-value [spine-json-resource atlas-resource sample-rate]
-  {:spine-json (resource/resource->proj-path spine-json-resource)
+(g/defnk produce-save-value [rive-json-resource atlas-resource sample-rate]
+  {:rive-json (resource/resource->proj-path rive-json-resource)
    :atlas (resource/resource->proj-path atlas-resource)
    :sample-rate sample-rate})
 
@@ -523,26 +523,26 @@
 (defn- validate-scene-atlas [_node-id atlas]
   (prop-resource-error :fatal _node-id :atlas atlas "Atlas"))
 
-(defn- validate-scene-spine-json [_node-id spine-json]
-  (prop-resource-error :fatal _node-id :spine-json spine-json "Spine Json"))
+(defn- validate-scene-rive-json [_node-id rive-json]
+  (prop-resource-error :fatal _node-id :rive-json rive-json "Spine Json"))
 
-(g/defnk produce-scene-own-build-errors [_node-id atlas spine-json]
+(g/defnk produce-scene-own-build-errors [_node-id atlas rive-json]
   (g/package-errors _node-id
                     (validate-scene-atlas _node-id atlas)
-                    (validate-scene-spine-json _node-id spine-json)))
+                    (validate-scene-rive-json _node-id rive-json)))
 
 (g/defnk produce-scene-build-targets
-  [_node-id own-build-errors resource spine-scene-pb atlas dep-build-targets]
+  [_node-id own-build-errors resource rive-scene-pb atlas dep-build-targets]
   (g/precluding-errors own-build-errors
     (rig/make-rig-scene-build-targets _node-id
                                       resource
-                                      (assoc spine-scene-pb
+                                      (assoc rive-scene-pb
                                         :texture-set atlas)
                                       dep-build-targets
                                       [:texture-set])))
 
 (defn- read-bones
-  [spine-scene]
+  [rive-scene]
   (mapv (fn [b]
           {:id (murmur/hash64 (get b "name"))
            :name (get b "name")
@@ -552,10 +552,10 @@
            :scale [(get b "scaleX" 1) (get b "scaleY" 1) 1]
            :inherit-scale (get b "inheritScale" true)
            :length (get b "length")})
-        (get spine-scene "bones")))
+        (get rive-scene "bones")))
 
 (defn- read-iks
-  [spine-scene bone-id->index]
+  [rive-scene bone-id->index]
   (mapv (fn [ik]
           (let [bones (get ik "bones")
                 [parent child] (if (= 1 (count bones))
@@ -567,7 +567,7 @@
              :target (some-> (get ik "target") murmur/hash64 bone-id->index)
              :positive (get ik "bendPositive" true)
              :mix (get ik "mix" 1.0)}))
-        (get spine-scene "ik")))
+        (get rive-scene "ik")))
 
 (defn- read-base-slots
   [skins-json slots-json bone-id->index bone-index->world-transform]
@@ -663,10 +663,10 @@
         (recur (rest bones) (conj wt world-t)))
       wt)))
 
-(defn skins-json [spine-scene]
+(defn skins-json [rive-scene]
   ;; The file format changed in Spine 3.8. This returns the skins in a pre-3.8
   ;; format, which is a map of skin names to their attachments.
-  (let [skins (get spine-scene "skins")]
+  (let [skins (get rive-scene "skins")]
     (if (map? skins)
       skins
       (into {}
@@ -675,10 +675,10 @@
                     (get entry "attachments")]))
             skins))))
 
-(g/defnk produce-spine-scene-pb [_node-id spine-json spine-scene anim-data sample-rate]
+(g/defnk produce-rive-scene-pb [_node-id rive-json rive-scene anim-data sample-rate]
   (let [spf (/ 1.0 sample-rate)
         ;; Bone data
-        bones (read-bones spine-scene)
+        bones (read-bones rive-scene)
         indexed-bone-children (reduce (fn [m [i b]] (update-in m [(:parent b)] conj [i b])) {} (map-indexed (fn [i b] [i b]) bones))
         root (first (get indexed-bone-children nil))
         ordered-bones (if root
@@ -691,12 +691,12 @@
         bone-index->world-transform (bone-world-transforms bones)
 
         ;; IK data
-        iks (read-iks spine-scene bone-id->index)
+        iks (read-iks rive-scene bone-id->index)
         ik-id->index (zipmap (map :id iks) (range))
 
         ;; Slot data
-        skins-json (skins-json spine-scene)
-        slots-json (get spine-scene "slots")
+        skins-json (skins-json rive-scene)
+        slots-json (get rive-scene "slots")
         base-slots (read-base-slots skins-json slots-json bone-id->index bone-index->world-transform)
         slot-count (count slots-json)
 
@@ -710,7 +710,7 @@
         pb (try
              {:skeleton {:bones bones
                          :iks   iks}
-              :animation-set (let [event-name->event-props (get spine-scene "events" {})
+              :animation-set (let [event-name->event-props (get rive-scene "events" {})
                                    animations (mapv (fn [[name a]]
                                                       (let [duration (anim-duration a)]
                                                         {:id (murmur/hash64 name)
@@ -720,7 +720,7 @@
                                                          :mesh-tracks (build-mesh-tracks (get a "slots") (get a "drawOrder") duration sample-rate spf base-slots)
                                                          :event-tracks (build-event-tracks (get a "events") event-name->event-props)
                                                          :ik-tracks (build-ik-tracks (get a "ik") duration sample-rate spf ik-id->index)}))
-                                                    (get spine-scene "animations"))]
+                                                    (get rive-scene "animations"))]
                                {:animations animations})
               :mesh-set {:slot-count slot-count
                          :mesh-attachments (mapv (fn [mesh]
@@ -742,7 +742,7 @@
                                              all-skins)}}
              (catch Exception e
                (log/error :exception e)
-               (g/->error _node-id :spine-json :fatal spine-json (str "Incompatible data found in spine json " (resource/resource->proj-path spine-json)))))]
+               (g/->error _node-id :rive-json :fatal rive-json (str "Incompatible data found in spine json " (resource/resource->proj-path rive-json)))))]
     pb))
 
 (defn- transform-positions [^Matrix4d transform mesh]
@@ -756,8 +756,8 @@
                                           [(.x p) (.y p) (.z p)])))))))
 
 (defn- renderable->meshes [renderable]
-  (let [meshes (get-in renderable [:user-data :spine-scene-pb :mesh-set :mesh-attachments])
-        skins (get-in renderable [:user-data :spine-scene-pb :mesh-set :mesh-entries])
+  (let [meshes (get-in renderable [:user-data :rive-scene-pb :mesh-set :mesh-attachments])
+        skins (get-in renderable [:user-data :rive-scene-pb :mesh-set :mesh-entries])
         skin-id (some-> renderable :user-data :skin murmur/hash64)
         skin (or (first (filter #(= (:id %) skin-id) skins))
                  (first skins))]
@@ -810,7 +810,7 @@
       (let [vb (render/->vtx-pos-col vcount)]
         (persistent! (reduce conj! vb vs))))))
 
-(shader/defshader spine-id-vertex-shader
+(shader/defshader rive-id-vertex-shader
   (attribute vec4 position)
   (attribute vec2 texcoord0)
   (varying vec2 var_texcoord0)
@@ -818,7 +818,7 @@
     (setq gl_Position (* gl_ModelViewProjectionMatrix position))
     (setq var_texcoord0 texcoord0)))
 
-(shader/defshader spine-id-fragment-shader
+(shader/defshader rive-id-fragment-shader
   (varying vec2 var_texcoord0)
   (uniform sampler2D texture_sampler)
   (uniform vec4 id)
@@ -828,9 +828,9 @@
       (setq gl_FragColor id)
       (discard))))
 
-(def spine-id-shader (shader/make-shader ::id-shader spine-id-vertex-shader spine-id-fragment-shader {"id" :id}))
+(def rive-id-shader (shader/make-shader ::id-shader rive-id-vertex-shader rive-id-fragment-shader {"id" :id}))
 
-(defn- render-spine-scenes [^GL2 gl render-args renderables rcount]
+(defn- render-rive-scenes [^GL2 gl render-args renderables rcount]
   (let [pass (:pass render-args)]
     (condp = pass
       pass/transparent
@@ -839,7 +839,7 @@
               blend-mode (:blend-mode user-data)
               gpu-texture (:gpu-texture user-data)
               shader (get user-data :shader render/shader-tex-tint)
-              vertex-binding (vtx/use-with ::spine-trans vb shader)]
+              vertex-binding (vtx/use-with ::rive-trans vb shader)]
           (gl/with-gl-bindings gl render-args [gpu-texture shader vertex-binding]
             (gl/set-blend-mode gl blend-mode)
             (gl/gl-draw-arrays gl GL/GL_TRIANGLES 0 (count vb))
@@ -848,51 +848,51 @@
       pass/selection
       (when-let [vb (gen-vb renderables)]
         (let [gpu-texture (:gpu-texture (:user-data (first renderables)))
-              vertex-binding (vtx/use-with ::spine-selection vb spine-id-shader)]
-          (gl/with-gl-bindings gl (assoc render-args :id (scene-picking/renderable-picking-id-uniform (first renderables))) [gpu-texture spine-id-shader vertex-binding]
+              vertex-binding (vtx/use-with ::rive-selection vb rive-id-shader)]
+          (gl/with-gl-bindings gl (assoc render-args :id (scene-picking/renderable-picking-id-uniform (first renderables))) [gpu-texture rive-id-shader vertex-binding]
             (gl/gl-draw-arrays gl GL/GL_TRIANGLES 0 (count vb))))))))
 
-(defn- render-spine-skeletons [^GL2 gl render-args renderables rcount]
+(defn- render-rive-skeletons [^GL2 gl render-args renderables rcount]
   (assert (= (:pass render-args) pass/transparent))
   (when-let [vb (gen-skeleton-vb renderables)]
-    (let [vertex-binding (vtx/use-with ::spine-skeleton vb render/shader-outline)]
+    (let [vertex-binding (vtx/use-with ::rive-skeleton vb render/shader-outline)]
       (gl/with-gl-bindings gl render-args [render/shader-outline vertex-binding]
         (gl/gl-draw-arrays gl GL/GL_LINES 0 (count vb))))))
 
-(defn- render-spine-outlines [^GL2 gl render-args renderables rcount]
+(defn- render-rive-outlines [^GL2 gl render-args renderables rcount]
   (assert (= (:pass render-args) pass/outline))
-  (render/render-aabb-outline gl render-args ::spine-outline renderables rcount))
+  (render/render-aabb-outline gl render-args ::rive-outline renderables rcount))
 
-(g/defnk produce-main-scene [_node-id aabb gpu-texture default-tex-params spine-scene-pb scene-structure]
+(g/defnk produce-main-scene [_node-id aabb gpu-texture default-tex-params rive-scene-pb scene-structure]
   (when (and gpu-texture scene-structure)
     (let [blend-mode :blend-mode-alpha]
       (assoc {:node-id _node-id :aabb aabb}
-             :renderable {:render-fn render-spine-scenes
+             :renderable {:render-fn render-rive-scenes
                           :tags #{:spine}
                           :batch-key gpu-texture
                           :select-batch-key _node-id
-                          :user-data {:spine-scene-pb spine-scene-pb
+                          :user-data {:rive-scene-pb rive-scene-pb
                                       :scene-structure scene-structure
                                       :gpu-texture gpu-texture
                                       :tex-params default-tex-params
                                       :blend-mode blend-mode}
                           :passes [pass/transparent pass/selection]}))))
 
-(defn- make-spine-outline-scene [_node-id aabb]
+(defn- make-rive-outline-scene [_node-id aabb]
   {:aabb aabb
    :node-id _node-id
-   :renderable {:render-fn render-spine-outlines
+   :renderable {:render-fn render-rive-outlines
                 :tags #{:spine :outline}
                 :batch-key ::outline
                 :passes [pass/outline]}})
 
-(defn- make-spine-skeleton-scene [_node-id aabb gpu-texture scene-structure]
+(defn- make-rive-skeleton-scene [_node-id aabb gpu-texture scene-structure]
   (let [scene {:node-id _node-id :aabb aabb}]
     (if (and gpu-texture scene-structure)
       (let [blend-mode :blend-mode-alpha]
         {:aabb aabb
          :node-id _node-id
-         :renderable {:render-fn render-spine-skeletons
+         :renderable {:render-fn render-rive-skeletons
                       :tags #{:spine :skeleton :outline}
                       :batch-key gpu-texture
                       :user-data {:scene-structure scene-structure}
@@ -901,18 +901,18 @@
 
 (g/defnk produce-scene [_node-id aabb main-scene gpu-texture scene-structure]
   (if (some? main-scene)
-    (assoc main-scene :children [(make-spine-skeleton-scene _node-id aabb gpu-texture scene-structure)
-                                 (make-spine-outline-scene _node-id aabb)])
+    (assoc main-scene :children [(make-rive-skeleton-scene _node-id aabb gpu-texture scene-structure)
+                                 (make-rive-outline-scene _node-id aabb)])
     {:node-id _node-id :aabb geom/empty-bounding-box}))
 
 (defn- mesh->aabb [aabb mesh]
   (let [positions (partition 3 (:positions mesh))]
     (reduce (fn [aabb pos] (apply geom/aabb-incorporate aabb pos)) aabb positions)))
 
-(g/defnk produce-skin-aabbs [scene-structure spine-scene-pb]
+(g/defnk produce-skin-aabbs [scene-structure rive-scene-pb]
   (let [skin-names (:skins scene-structure)
-        skins (get-in spine-scene-pb [:mesh-set :mesh-entries])
-        meshes (get-in spine-scene-pb [:mesh-set :mesh-attachments])]
+        skins (get-in rive-scene-pb [:mesh-set :mesh-entries])
+        meshes (get-in rive-scene-pb [:mesh-set :mesh-attachments])]
     (into {}
           (map (fn [skin-name]
                  (let [skin-id (murmur/hash64 skin-name)
@@ -932,17 +932,17 @@
 (g/defnode RiveSceneNode
   (inherits resource-node/ResourceNode)
 
-  (property spine-json resource/Resource
-            (value (gu/passthrough spine-json-resource))
+  (property rive-json resource/Resource
+            (value (gu/passthrough rive-json-resource))
             (set (fn [evaluation-context self old-value new-value]
                    (project/resource-setter evaluation-context self old-value new-value
-                                            [:resource :spine-json-resource]
-                                            [:content :spine-scene]
+                                            [:resource :rive-json-resource]
+                                            [:content :rive-scene]
                                             [:consumer-passthrough :scene-structure]
                                             [:node-outline :source-outline])))
             (dynamic edit-type (g/constantly {:type resource/Resource :ext "json"}))
-            (dynamic error (g/fnk [_node-id spine-json]
-                             (validate-scene-spine-json _node-id spine-json))))
+            (dynamic error (g/fnk [_node-id rive-json]
+                             (validate-scene-rive-json _node-id rive-json))))
 
   (property atlas resource/Resource
             (value (gu/passthrough atlas-resource))
@@ -958,100 +958,100 @@
 
   (property sample-rate g/Num)
 
-  (input spine-json-resource resource/Resource)
+  (input rive-json-resource resource/Resource)
   (input atlas-resource resource/Resource)
 
   (input anim-data g/Any)
   (input default-tex-params g/Any)
   (input gpu-texture g/Any)
   (input dep-build-targets g/Any :array)
-  (input spine-scene g/Any)
+  (input rive-scene g/Any)
   (input scene-structure g/Any)
 
   (output save-value g/Any produce-save-value)
   (output own-build-errors g/Any produce-scene-own-build-errors)
   (output build-targets g/Any :cached produce-scene-build-targets)
-  (output spine-scene-pb g/Any :cached produce-spine-scene-pb)
+  (output rive-scene-pb g/Any :cached produce-rive-scene-pb)
   (output main-scene g/Any :cached produce-main-scene)
   (output scene g/Any :cached produce-scene)
-  (output aabb AABB :cached (g/fnk [spine-scene-pb] (reduce mesh->aabb geom/null-aabb (get-in spine-scene-pb [:mesh-set :mesh-attachments]))))
+  (output aabb AABB :cached (g/fnk [rive-scene-pb] (reduce mesh->aabb geom/null-aabb (get-in rive-scene-pb [:mesh-set :mesh-attachments]))))
   (output skin-aabbs g/Any :cached produce-skin-aabbs)
   (output anim-data g/Any (gu/passthrough anim-data))
   (output scene-structure g/Any (gu/passthrough scene-structure))
-  (output spine-anim-ids g/Any (g/fnk [scene-structure] (:animations scene-structure))))
+  (output rive-anim-ids g/Any (g/fnk [scene-structure] (:animations scene-structure))))
 
-(defn load-spine-scene [project self resource spine]
-  (let [spine-resource (workspace/resolve-resource resource (:spine-json spine))
+(defn load-rive-scene [project self resource spine]
+  (let [rive-resource (workspace/resolve-resource resource (:rive-json spine))
         atlas          (workspace/resolve-resource resource (:atlas spine))]
     (concat
       (g/connect project :default-tex-params self :default-tex-params)
       (g/set-property self
-                      :spine-json spine-resource
+                      :rive-json rive-resource
                       :atlas atlas
                       :sample-rate (:sample-rate spine)))))
 
-(g/defnk produce-model-pb [spine-scene-resource default-animation skin material-resource blend-mode]
-  {:spine-scene (resource/resource->proj-path spine-scene-resource)
+(g/defnk produce-model-pb [rive-scene-resource default-animation skin material-resource blend-mode]
+  {:rive-scene (resource/resource->proj-path rive-scene-resource)
    :default-animation default-animation
    :skin skin
    :material (resource/resource->proj-path material-resource)
    :blend-mode blend-mode})
 
-(defn ->skin-choicebox [spine-skins]
-  (properties/->choicebox (cons "" (remove (partial = "default") spine-skins))))
+(defn ->skin-choicebox [rive-skins]
+  (properties/->choicebox (cons "" (remove (partial = "default") rive-skins))))
 
-(defn validate-skin [node-id prop-kw spine-skins spine-skin]
-  (when-not (empty? spine-skin)
+(defn validate-skin [node-id prop-kw rive-skins rive-skin]
+  (when-not (empty? rive-skin)
     (validation/prop-error :fatal node-id prop-kw
                            (fn [skin skins]
                              (when-not (contains? skins skin)
                                (format "skin '%s' could not be found in the specified spine scene" skin)))
-                           spine-skin
-                           (disj (set spine-skins) "default"))))
+                           rive-skin
+                           (disj (set rive-skins) "default"))))
 
-(defn- validate-model-default-animation [node-id spine-scene spine-anim-ids default-animation]
-  (when (and spine-scene (not-empty default-animation))
+(defn- validate-model-default-animation [node-id rive-scene rive-anim-ids default-animation]
+  (when (and rive-scene (not-empty default-animation))
     (validation/prop-error :fatal node-id :default-animation
                            (fn [anim ids]
                              (when-not (contains? ids anim)
                                (format "animation '%s' could not be found in the specified spine scene" anim)))
                            default-animation
-                           (set spine-anim-ids))))
+                           (set rive-anim-ids))))
 
 (defn- validate-model-material [node-id material]
   (prop-resource-error :fatal node-id :material material "Material"))
 
-(defn- validate-model-skin [node-id spine-scene scene-structure skin]
-  (when spine-scene
+(defn- validate-model-skin [node-id rive-scene scene-structure skin]
+  (when rive-scene
     (validate-skin node-id :skin (:skins scene-structure) skin)))
 
-(defn- validate-model-spine-scene [node-id spine-scene]
-  (prop-resource-error :fatal node-id :spine-scene spine-scene "Spine Scene"))
+(defn- validate-model-rive-scene [node-id rive-scene]
+  (prop-resource-error :fatal node-id :rive-scene rive-scene "Rive Scene"))
 
-(g/defnk produce-model-own-build-errors [_node-id default-animation material spine-anim-ids spine-scene scene-structure skin]
+(g/defnk produce-model-own-build-errors [_node-id default-animation material rive-anim-ids rive-scene scene-structure skin]
   (g/package-errors _node-id
                     (validate-model-material _node-id material)
-                    (validate-model-spine-scene _node-id spine-scene)
-                    (validate-model-skin _node-id spine-scene scene-structure skin)
-                    (validate-model-default-animation _node-id spine-scene spine-anim-ids default-animation)))
+                    (validate-model-rive-scene _node-id rive-scene)
+                    (validate-model-skin _node-id rive-scene scene-structure skin)
+                    (validate-model-default-animation _node-id rive-scene rive-anim-ids default-animation)))
 
-(defn- build-spine-model [resource dep-resources user-data]
-  (prn "SPINE EXTENSION PLUGIN!" "build-spine-model")
+(defn- build-rive-model [resource dep-resources user-data]
+  (prn "SPINE EXTENSION PLUGIN!" "build-rive-model")
   (let [pb (:proto-msg user-data)
         pb (reduce #(assoc %1 (first %2) (second %2)) pb (map (fn [[label res]] [label (resource/proj-path (get dep-resources res))]) (:dep-resources user-data)))]
-    {:resource resource :content (protobuf/map->bytes (dynamically-load-class! dcl "com.dynamo.spine.proto.Spine$SpineModelDesc") pb)}))
+    {:resource resource :content (protobuf/map->bytes (dynamically-load-class! dcl "com.dynamo.rive.proto.Rive$RiveModelDesc") pb)}))
 
-(g/defnk produce-model-build-targets [_node-id own-build-errors resource model-pb spine-scene-resource material-resource dep-build-targets]
+(g/defnk produce-model-build-targets [_node-id own-build-errors resource model-pb rive-scene-resource material-resource dep-build-targets]
   (prn "SPINE EXTENSION PLUGIN!" "produce-model-build-targets")
   (g/precluding-errors own-build-errors
     (let [dep-build-targets (flatten dep-build-targets)
           deps-by-source (into {} (map #(let [res (:resource %)] [(:resource res) res]) dep-build-targets))
-          dep-resources (map (fn [[label resource]] [label (get deps-by-source resource)]) [[:spine-scene spine-scene-resource] [:material material-resource]])
+          dep-resources (map (fn [[label resource]] [label (get deps-by-source resource)]) [[:rive-scene rive-scene-resource] [:material material-resource]])
           model-pb (update model-pb :skin (fn [skin] (or skin "")))]
       [(bt/with-content-hash
          {:node-id _node-id
           :resource (workspace/make-build-resource resource)
-          :build-fn build-spine-model
+          :build-fn build-rive-model
           :user-data {:proto-msg model-pb
                       :dep-resources dep-resources}
           :deps dep-build-targets})])))
@@ -1059,23 +1059,23 @@
 (g/defnode RiveModelNode
   (inherits resource-node/ResourceNode)
 
-  (property spine-scene resource/Resource
-            (value (gu/passthrough spine-scene-resource))
+  (property rive-scene resource/Resource
+            (value (gu/passthrough rive-scene-resource))
             (set (fn [evaluation-context self old-value new-value]
                    (project/resource-setter evaluation-context self old-value new-value
-                                            [:resource :spine-scene-resource]
-                                            [:main-scene :spine-main-scene]
-                                            [:skin-aabbs :spine-scene-skin-aabbs]
-                                            [:spine-anim-ids :spine-anim-ids]
+                                            [:resource :rive-scene-resource]
+                                            [:main-scene :rive-main-scene]
+                                            [:skin-aabbs :rive-scene-skin-aabbs]
+                                            [:rive-anim-ids :rive-anim-ids]
                                             [:build-targets :dep-build-targets]
                                             [:anim-data :anim-data]
                                             [:scene-structure :scene-structure])))
-            (dynamic edit-type (g/constantly {:type resource/Resource :ext spine-scene-ext}))
-            (dynamic error (g/fnk [_node-id spine-scene]
-                             (validate-model-spine-scene _node-id spine-scene))))
+            (dynamic edit-type (g/constantly {:type resource/Resource :ext rive-scene-ext}))
+            (dynamic error (g/fnk [_node-id rive-scene]
+                             (validate-model-rive-scene _node-id rive-scene))))
   (property blend-mode g/Any (default :blend-mode-alpha)
-            (dynamic tip (validation/blend-mode-tip blend-mode (dynamically-load-class! dcl "com.dynamo.spine.proto.Spine$SpineModelDesc$BlendMode")))
-            (dynamic edit-type (g/constantly (properties/->pb-choicebox (dynamically-load-class! dcl "com.dynamo.spine.proto.Spine$SpineModelDesc$BlendMode")))))
+            (dynamic tip (validation/blend-mode-tip blend-mode (dynamically-load-class! dcl "com.dynamo.rive.proto.Rive$RiveModelDesc$BlendMode")))
+            (dynamic edit-type (g/constantly (properties/->pb-choicebox (dynamically-load-class! dcl "com.dynamo.rive.proto.Rive$RiveModelDesc$BlendMode")))))
   (property material resource/Resource
             (value (gu/passthrough material-resource))
             (set (fn [evaluation-context self old-value new-value]
@@ -1088,20 +1088,20 @@
             (dynamic error (g/fnk [_node-id material]
                              (validate-model-material _node-id material))))
   (property default-animation g/Str
-            (dynamic error (g/fnk [_node-id spine-anim-ids default-animation spine-scene]
-                             (validate-model-default-animation _node-id spine-scene spine-anim-ids default-animation)))
-            (dynamic edit-type (g/fnk [spine-anim-ids] (properties/->choicebox spine-anim-ids))))
+            (dynamic error (g/fnk [_node-id rive-anim-ids default-animation rive-scene]
+                             (validate-model-default-animation _node-id rive-scene rive-anim-ids default-animation)))
+            (dynamic edit-type (g/fnk [rive-anim-ids] (properties/->choicebox rive-anim-ids))))
   (property skin g/Str
-            (dynamic error (g/fnk [_node-id skin scene-structure spine-scene]
-                             (validate-model-skin _node-id spine-scene scene-structure skin)))
+            (dynamic error (g/fnk [_node-id skin scene-structure rive-scene]
+                             (validate-model-skin _node-id rive-scene scene-structure skin)))
             (dynamic edit-type (g/fnk [scene-structure] (->skin-choicebox (:skins scene-structure)))))
 
   (input dep-build-targets g/Any :array)
-  (input spine-scene-resource resource/Resource)
-  (input spine-main-scene g/Any)
-  (input spine-scene-skin-aabbs g/Any)
+  (input rive-scene-resource resource/Resource)
+  (input rive-main-scene g/Any)
+  (input rive-scene-skin-aabbs g/Any)
   (input scene-structure g/Any)
-  (input spine-anim-ids g/Any)
+  (input rive-anim-ids g/Any)
   (input material-resource resource/Resource)
   (input material-shader ShaderLifecycle)
   (input material-samplers g/Any)
@@ -1113,43 +1113,43 @@
                                  default-tex-params)))
   (output anim-ids g/Any :cached (g/fnk [anim-data] (vec (sort (keys anim-data)))))
   (output material-shader ShaderLifecycle (gu/passthrough material-shader))
-  (output scene g/Any :cached (g/fnk [_node-id spine-main-scene spine-scene-skin-aabbs material-shader tex-params skin]
-                                (if (and (some? material-shader) (some? (:renderable spine-main-scene)))
-                                  (let [aabb (get spine-scene-skin-aabbs (if (= "" skin) "default" skin) geom/empty-bounding-box)
-                                        spine-scene-node-id (:node-id spine-main-scene)]
-                                    (-> spine-main-scene
+  (output scene g/Any :cached (g/fnk [_node-id rive-main-scene rive-scene-skin-aabbs material-shader tex-params skin]
+                                (if (and (some? material-shader) (some? (:renderable rive-main-scene)))
+                                  (let [aabb (get rive-scene-skin-aabbs (if (= "" skin) "default" skin) geom/empty-bounding-box)
+                                        rive-scene-node-id (:node-id rive-main-scene)]
+                                    (-> rive-main-scene
                                         (assoc-in [:renderable :user-data :shader] material-shader)
                                         (update-in [:renderable :user-data :gpu-texture] texture/set-params tex-params)
                                         (assoc-in [:renderable :user-data :skin] skin)
                                         (assoc :aabb aabb)
-                                        (assoc :children [(make-spine-outline-scene spine-scene-node-id aabb)])))
+                                        (assoc :children [(make-rive-outline-scene rive-scene-node-id aabb)])))
                                   (merge {:node-id _node-id
                                           :renderable {:passes [pass/selection]}
                                           :aabb geom/empty-bounding-box}
-                                         spine-main-scene))))
-  (output node-outline outline/OutlineData :cached (g/fnk [_node-id own-build-errors spine-scene]
+                                         rive-main-scene))))
+  (output node-outline outline/OutlineData :cached (g/fnk [_node-id own-build-errors rive-scene]
                                                      (cond-> {:node-id _node-id
-                                                              :node-outline-key "Spine Model"
-                                                              :label "Spine Model"
-                                                              :icon spine-model-icon
+                                                              :node-outline-key "Rive Model"
+                                                              :label "Rive Model"
+                                                              :icon rive-model-icon
                                                               :outline-error? (g/error-fatal? own-build-errors)}
 
-                                                             (resource/openable-resource? spine-scene)
-                                                             (assoc :link spine-scene :outline-reference? false))))
+                                                             (resource/openable-resource? rive-scene)
+                                                             (assoc :link rive-scene :outline-reference? false))))
   (output model-pb g/Any produce-model-pb)
   (output save-value g/Any (gu/passthrough model-pb))
   (output own-build-errors g/Any produce-model-own-build-errors)
   (output build-targets g/Any :cached produce-model-build-targets))
 
 
-(defn load-spine-model [project self resource spine]
+(defn load-rive-model [project self resource rive]
   (let [resolve-fn (partial workspace/resolve-resource resource)
-        spine (-> spine
-                (update :spine-scene resolve-fn)
+        rive (-> rive
+                (update :rive-scene resolve-fn)
                 (update :material resolve-fn))]
     (concat
       (g/connect project :default-tex-params self :default-tex-params)
-      (for [[k v] spine]
+      (for [[k v] rive]
         (g/set-property self k v)))))
 
 (defn register-resource-types [workspace]
@@ -1161,7 +1161,7 @@
       :label "Rive Scene plugin"
       :node-type RiveSceneNode
       :ddf-type (dynamically-load-class! dcl "com.dynamo.rive.proto.Rive$RiveSceneDesc")
-      :load-fn load-spine-scene
+      :load-fn load-rive-scene
       :icon rive-scene-icon
       :view-types [:scene :text]
       :view-opts {:scene {:grid true}})
@@ -1170,7 +1170,7 @@
       :label "Rive Model plugin"
       :node-type RiveModelNode
       :ddf-type (dynamically-load-class! dcl "com.dynamo.rive.proto.Rive$RiveModelDesc")
-      :load-fn load-spine-model
+      :load-fn load-rive-model
       :icon rive-model-icon
       :view-types [:scene :text]
       :view-opts {:scene {:grid true}}
@@ -1206,7 +1206,7 @@
                                                   {:node-id _node-id
                                                    :node-outline-key name
                                                    :label name
-                                                   :icon spine-bone-icon
+                                                   :icon rive-bone-icon
                                                    :children child-outlines
                                                    :read-only true})))
 
@@ -1229,7 +1229,7 @@
                                           :skins (vec (sort (keys (skins-json content))))
                                           :animations (keys (get content "animations"))})))
 
-(defn accept-spine-scene-json [content]
+(defn accept-rive-scene-json [content]
   (when (or (get-in content ["skeleton" "spine"])
             (and (get content "bones") (get content "animations")))
     content))
@@ -1273,7 +1273,7 @@
 (defn- tx-first-created [tx-data]
   (get-in (first tx-data) [:node :_node-id]))
 
-(defn load-spine-scene-json [node-id content]
+(defn load-rive-scene-json [node-id content]
   (let [bones (get content "bones")
         graph (g/node-id->graph-id node-id)
         scene-tx-data (g/make-nodes graph [scene SpineSceneJson]
@@ -1309,7 +1309,7 @@
             (recur (rest bones) (conj tx-data bone-tx-data) (assoc bone-ids name bone-id)))
           tx-data)))))
 
-(json/register-json-loader ::spine-scene accept-spine-scene-json accept-resource-json load-spine-scene-json)
+(json/register-json-loader ::rive-scene accept-rive-scene-json accept-resource-json load-rive-scene-json)
 
 ; The plugin
 (defn load-plugin-rive [workspace]
