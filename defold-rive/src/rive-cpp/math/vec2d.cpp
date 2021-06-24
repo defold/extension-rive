@@ -1,6 +1,5 @@
 #include "math/vec2d.hpp"
 #include "math/mat2d.hpp"
-#define _USE_MATH_DEFINES
 #include <cmath>
 
 using namespace rive;

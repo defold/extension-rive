@@ -345,9 +345,9 @@ namespace dmRive
             {
                 case rive::EVENT_DRAW_STENCIL:
                 {
-                    rive::DrawBuffers buffers = rive::getDrawBuffers(ctx, evt.m_Path);
-                    RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_ContourVertexBuffer;
-                    RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_ContourIndexBuffer;
+                    rive::DrawBuffers buffers = rive::getDrawBuffers(ctx, renderer, evt.m_Path);
+                    RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_VertexBuffer;
+                    RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_IndexBuffer;
 
                     if (vxBuffer != 0 && ixBuffer != 0)
                     {
@@ -358,9 +358,9 @@ namespace dmRive
                 } break;
                 case rive::EVENT_DRAW_COVER:
                 {
-                    rive::DrawBuffers buffers = rive::getDrawBuffers(ctx, evt.m_Path);
-                    RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_CoverVertexBuffer;
-                    RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_CoverIndexBuffer;
+                    rive::DrawBuffers buffers = rive::getDrawBuffers(ctx, renderer, evt.m_Path);
+                    RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_VertexBuffer;
+                    RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_IndexBuffer;
 
                     if (vxBuffer != 0 && ixBuffer != 0)
                     {
@@ -404,9 +404,9 @@ namespace dmRive
                     break;
                 case rive::EVENT_DRAW_STENCIL:
                 {
-                    rive::DrawBuffers buffers = rive::getDrawBuffers(rive_ctx, evt.m_Path);
-                    RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_ContourVertexBuffer;
-                    RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_ContourIndexBuffer;
+                    rive::DrawBuffers buffers = rive::getDrawBuffers(rive_ctx, renderer, evt.m_Path);
+                    RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_VertexBuffer;
+                    RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_IndexBuffer;
 
                     if (vxBuffer != 0 && ixBuffer != 0)
                     {
@@ -507,9 +507,9 @@ namespace dmRive
                 } break;
                 case rive::EVENT_DRAW_COVER:
                 {
-                    rive::DrawBuffers buffers = rive::getDrawBuffers(rive_ctx, evt.m_Path);
-                    RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_CoverVertexBuffer;
-                    RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_CoverIndexBuffer;
+                    rive::DrawBuffers buffers = rive::getDrawBuffers(rive_ctx, renderer, evt.m_Path);
+                    RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_VertexBuffer;
+                    RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_IndexBuffer;
 
                     if (vxBuffer != 0 && ixBuffer != 0)
                     {

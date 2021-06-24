@@ -2,8 +2,6 @@
 #include "artboard.hpp"
 #include "importers/artboard_importer.hpp"
 #include "importers/import_stack.hpp"
-
-#define _USE_MATH_DEFINES
 #include <cmath>
 
 using namespace rive;
