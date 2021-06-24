@@ -748,6 +748,12 @@ namespace dmRive
 
             rive::Mat2D transform;
             Mat4ToMat2D(component.m_World, transform);
+
+            // JG: Rive is using a different coordinate system that defold,
+            //     in their examples they flip the projection but that isn't
+            //     really compatible with our setup I don't think?
+            rive::Vec2D yflip(1.0f,-1.0f);
+            rive::Mat2D::scale(transform, transform, yflip);
             rive::setTransform(renderer, transform);
 
             rive_renderer->align(rive::Fit::none,
