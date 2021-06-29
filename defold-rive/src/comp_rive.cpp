@@ -395,10 +395,6 @@ namespace dmRive
         rive::DrawBuffers buffers_renderer = rive::getDrawBuffers(rive_ctx, renderer, 0);
         RiveBuffer* ixBuffer               = (RiveBuffer*) buffers_renderer.m_IndexBuffer;
         int* ix_data_ptr                   = (int*) ixBuffer->m_Data;
-        /*
-        memcpy(ix_ptr, ixBuffer->m_Data, ixBuffer->m_Size);
-        ix_ptr += ixBuffer->m_Size / sizeof(int);
-        */
 
         for (int i = 0; i < rive::getDrawEventCount(renderer); ++i)
         {
@@ -413,12 +409,9 @@ namespace dmRive
                 {
                     rive::DrawBuffers buffers = rive::getDrawBuffers(rive_ctx, renderer, evt.m_Path);
                     RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_VertexBuffer;
-                    //RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_IndexBuffer;
 
-                    //if (vxBuffer != 0 && ixBuffer != 0)
                     if (vxBuffer != 0)
                     {
-                        // uint32_t ix_count = ixBuffer->m_Size / sizeof(int);
                         uint32_t vx_count = vxBuffer->m_Size / sizeof(RiveVertex);
 
                         int triangle_count = vx_count - 5;
@@ -433,22 +426,6 @@ namespace dmRive
                         {
                             ix_ptr[j] = ix_data_ptr[j + 6] + vx_offset;
                         }
-
-                        /*
-                        if (vx_offset > 0)
-                        {
-                            // Note: We offset the indices per path so that we can use the same
-                            //       vertex buffer for all paths.
-                            for (int j = 0; j < ix_count; ++j)
-                            {
-                                ix_ptr[j] = ix_data_ptr[j] + vx_offset;
-                            }
-                        }
-                        else
-                        {
-                            memcpy(ix_ptr, ixBuffer->m_Data, ixBuffer->m_Size);
-                        }
-                        */
 
                         memcpy(vx_ptr, vxBuffer->m_Data, vxBuffer->m_Size);
 
@@ -522,7 +499,7 @@ namespace dmRive
                         last_face_winding  = ro.m_FaceWinding;
                         vx_ptr            += vx_count;
                         ix_ptr            += ix_count;
-                        last_ix           += ix_count * sizeof(int); //ixBuffer->m_Size;
+                        last_ix           += ix_count * sizeof(int);
                         vx_offset         += vx_count;
                         ro_index++;
                     }
@@ -531,37 +508,17 @@ namespace dmRive
                 {
                     rive::DrawBuffers buffers = rive::getDrawBuffers(rive_ctx, renderer, evt.m_Path);
                     RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_VertexBuffer;
-                    //RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_IndexBuffer;
 
                     if (vxBuffer != 0 && ixBuffer != 0)
                     {
                         int* ix_data_ptr  = (int*) ixBuffer->m_Data;
-                        //uint32_t ix_count = ixBuffer->m_Size / sizeof(int);
-                        uint32_t vx_count = 4; // vxBuffer->m_Size / sizeof(RiveVertex);
+                        uint32_t vx_count = 4;
                         uint32_t ix_count = 2 * 3;
 
                         for (int j = 0; j < ix_count; ++j)
                         {
                             ix_ptr[j] = ix_data_ptr[j] + vx_offset;
                         }
-
-                        // memcpy(ix_ptr, ix_data_ptr, ix_count * sizeof(int));
-
-                        /*
-                        if (vx_offset > 0)
-                        {
-                            // Note: We offset the indices per path so that we can use the same
-                            //       vertex buffer for all paths.
-                            for (int j = 0; j < ix_count; ++j)
-                            {
-                                ix_ptr[j] = ix_data_ptr[j] + vx_offset;
-                            }
-                        }
-                        else
-                        {
-                            memcpy(ix_ptr, ixBuffer->m_Data, ixBuffer->m_Size);
-                        }
-                        */
 
                         memcpy(vx_ptr, vxBuffer->m_Data, vxBuffer->m_Size);
 
@@ -639,7 +596,7 @@ namespace dmRive
 
                         vx_ptr    += vx_count;
                         ix_ptr    += ix_count;
-                        last_ix   += ix_count * sizeof(int); //ixBuffer->m_Size;
+                        last_ix   += ix_count * sizeof(int);
                         vx_offset += vx_count;
                         ro_index++;
                     }
@@ -1080,7 +1037,7 @@ namespace dmRive
 
         rivectx->m_RiveRenderer = rive::createRenderer(rivectx->m_RiveContext);
         rive::setContourQuality(rivectx->m_RiveRenderer, 0.8888888888888889f);
-        rive::setClippingSupport(rivectx->m_RiveRenderer, false);
+        rive::setClippingSupport(rivectx->m_RiveRenderer, true);
 
         // after script/anim/gui, before collisionobject
         // the idea is to let the scripts/animations update the game object instance,
