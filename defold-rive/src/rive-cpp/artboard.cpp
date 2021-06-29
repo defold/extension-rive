@@ -23,14 +23,22 @@ Artboard::~Artboard()
 		}
 		delete object;
 	}
-	for (auto object : m_Animations)
+
+	// Instances reference back to the original artboard's animations and state
+	// machines, so don't delete them here, they'll get cleaned up when the
+	// source is deleted.
+	if (!m_IsInstance)
 	{
-		delete object;
+		for (auto object : m_Animations)
+		{
+			delete object;
+		}
+		for (auto object : m_StateMachines)
+		{
+			delete object;
+		}
 	}
-	for (auto object : m_StateMachines)
-	{
-		delete object;
-	}
+
 	delete m_ClipPath;
 	delete m_BackgroundPath;
 }
@@ -429,6 +437,10 @@ void Artboard::draw(Renderer* renderer)
 	for (auto drawable = m_FirstDrawable; drawable != nullptr;
 	     drawable = drawable->prev)
 	{
+		if (drawable->isHidden())
+		{
+			continue;
+		}
 		drawable->draw(renderer);
 	}
 
@@ -495,4 +507,40 @@ StateMachine* Artboard::stateMachine(size_t index) const
 		return nullptr;
 	}
 	return m_StateMachines[index];
+}
+
+Artboard* Artboard::instance() const
+{
+	auto artboardClone = clone()->as<Artboard>();
+
+	artboardClone->m_Objects.push_back(artboardClone);
+
+	// Skip first object (artboard).
+	auto itr = m_Objects.begin();
+	while (++itr != m_Objects.end())
+	{
+		auto object = *itr;
+
+		artboardClone->m_Objects.push_back(object == nullptr ? nullptr
+		                                                     : object->clone());
+	}
+
+	for (auto animation : m_Animations)
+	{
+		artboardClone->m_Animations.push_back(animation);
+	}
+	for (auto stateMachine : m_StateMachines)
+	{
+		artboardClone->m_StateMachines.push_back(stateMachine);
+	}
+
+	if (artboardClone->initialize() != StatusCode::Ok)
+	{
+		delete artboardClone;
+		artboardClone = nullptr;
+	}
+
+	artboardClone->m_IsInstance = true;
+
+	return artboardClone;
 }

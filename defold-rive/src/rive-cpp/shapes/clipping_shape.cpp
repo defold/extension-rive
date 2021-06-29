@@ -97,7 +97,13 @@ void ClippingShape::update(ComponentDirt value)
 		m_RenderPath->fillRule((FillRule)fillRule());
 		for (auto shape : m_Shapes)
 		{
-			m_RenderPath->addPath(shape->pathComposer()->worldPath(), identity);
+			if (!shape->isHidden())
+			{
+				m_RenderPath->addPath(shape->pathComposer()->worldPath(),
+				                      identity);
+			}
 		}
 	}
 }
+
+ClippingShape::~ClippingShape() { delete m_RenderPath; }

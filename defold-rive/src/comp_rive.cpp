@@ -345,27 +345,26 @@ namespace dmRive
             {
                 case rive::EVENT_DRAW_STENCIL:
                 {
-                    rive::DrawBuffers buffers = rive::getDrawBuffers(ctx, evt.m_Path);
-                    RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_ContourVertexBuffer;
-                    RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_ContourIndexBuffer;
+                    rive::DrawBuffers buffers = rive::getDrawBuffers(ctx, renderer, evt.m_Path);
+                    RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_VertexBuffer;
 
-                    if (vxBuffer != 0 && ixBuffer != 0)
+                    if (vxBuffer != 0)
                     {
-                        vertex_count += vxBuffer->m_Size / (2 * sizeof(float));
-                        index_count  += ixBuffer->m_Size / sizeof(int);
+                        uint32_t vx_count = vxBuffer->m_Size / sizeof(RiveVertex);
+                        index_count += (vx_count - 5) * 3;
+                        vertex_count += vx_count;
                         render_object_count++;
                     }
                 } break;
                 case rive::EVENT_DRAW_COVER:
                 {
-                    rive::DrawBuffers buffers = rive::getDrawBuffers(ctx, evt.m_Path);
-                    RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_CoverVertexBuffer;
-                    RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_CoverIndexBuffer;
+                    rive::DrawBuffers buffers = rive::getDrawBuffers(ctx, renderer, evt.m_Path);
+                    RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_VertexBuffer;
 
-                    if (vxBuffer != 0 && ixBuffer != 0)
+                    if (vxBuffer != 0)
                     {
-                        vertex_count += vxBuffer->m_Size / (2 * sizeof(float));
-                        index_count  += ixBuffer->m_Size / sizeof(int);
+                        index_count += 3 * 2;
+                        vertex_count += vxBuffer->m_Size / sizeof(RiveVertex);
                         render_object_count++;
                     }
                 } break;
@@ -393,6 +392,10 @@ namespace dmRive
         bool is_applying_clipping                 = false;
         uint32_t ro_index                         = ro_start;
 
+        rive::DrawBuffers buffers_renderer = rive::getDrawBuffers(rive_ctx, renderer, 0);
+        RiveBuffer* ixBuffer               = (RiveBuffer*) buffers_renderer.m_IndexBuffer;
+        int* ix_data_ptr                   = (int*) ixBuffer->m_Data;
+
         for (int i = 0; i < rive::getDrawEventCount(renderer); ++i)
         {
             const rive::PathDrawEvent evt = rive::getDrawEvent(renderer, i);
@@ -404,28 +407,24 @@ namespace dmRive
                     break;
                 case rive::EVENT_DRAW_STENCIL:
                 {
-                    rive::DrawBuffers buffers = rive::getDrawBuffers(rive_ctx, evt.m_Path);
-                    RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_ContourVertexBuffer;
-                    RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_ContourIndexBuffer;
+                    rive::DrawBuffers buffers = rive::getDrawBuffers(rive_ctx, renderer, evt.m_Path);
+                    RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_VertexBuffer;
 
-                    if (vxBuffer != 0 && ixBuffer != 0)
+                    if (vxBuffer != 0)
                     {
-                        int* ix_data_ptr  = (int*) ixBuffer->m_Data;
-                        uint32_t ix_count = ixBuffer->m_Size / sizeof(int);
                         uint32_t vx_count = vxBuffer->m_Size / sizeof(RiveVertex);
 
-                        if (vx_offset > 0)
+                        int triangle_count = vx_count - 5;
+                        if (vx_count < 5)
                         {
-                            // Note: We offset the indices per path so that we can use the same
-                            //       vertex buffer for all paths.
-                            for (int j = 0; j < ix_count; ++j)
-                            {
-                                ix_ptr[j] = ix_data_ptr[j] + vx_offset;
-                            }
+                            continue;
                         }
-                        else
+
+                        uint32_t ix_count = triangle_count * 3;
+
+                        for (int j = 0; j < ix_count; ++j)
                         {
-                            memcpy(ix_ptr, ixBuffer->m_Data, ixBuffer->m_Size);
+                            ix_ptr[j] = ix_data_ptr[j + 6] + vx_offset;
                         }
 
                         memcpy(vx_ptr, vxBuffer->m_Data, vxBuffer->m_Size);
@@ -500,35 +499,25 @@ namespace dmRive
                         last_face_winding  = ro.m_FaceWinding;
                         vx_ptr            += vx_count;
                         ix_ptr            += ix_count;
-                        last_ix           += ixBuffer->m_Size;
+                        last_ix           += ix_count * sizeof(int);
                         vx_offset         += vx_count;
                         ro_index++;
                     }
                 } break;
                 case rive::EVENT_DRAW_COVER:
                 {
-                    rive::DrawBuffers buffers = rive::getDrawBuffers(rive_ctx, evt.m_Path);
-                    RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_CoverVertexBuffer;
-                    RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_StencilToCover.m_CoverIndexBuffer;
+                    rive::DrawBuffers buffers = rive::getDrawBuffers(rive_ctx, renderer, evt.m_Path);
+                    RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_VertexBuffer;
 
                     if (vxBuffer != 0 && ixBuffer != 0)
                     {
                         int* ix_data_ptr  = (int*) ixBuffer->m_Data;
-                        uint32_t ix_count = ixBuffer->m_Size / sizeof(int);
-                        uint32_t vx_count = vxBuffer->m_Size / sizeof(RiveVertex);
+                        uint32_t vx_count = 4;
+                        uint32_t ix_count = 2 * 3;
 
-                        if (vx_offset > 0)
+                        for (int j = 0; j < ix_count; ++j)
                         {
-                            // Note: We offset the indices per path so that we can use the same
-                            //       vertex buffer for all paths.
-                            for (int j = 0; j < ix_count; ++j)
-                            {
-                                ix_ptr[j] = ix_data_ptr[j] + vx_offset;
-                            }
-                        }
-                        else
-                        {
-                            memcpy(ix_ptr, ixBuffer->m_Data, ixBuffer->m_Size);
+                            ix_ptr[j] = ix_data_ptr[j] + vx_offset;
                         }
 
                         memcpy(vx_ptr, vxBuffer->m_Data, vxBuffer->m_Size);
@@ -607,7 +596,7 @@ namespace dmRive
 
                         vx_ptr    += vx_count;
                         ix_ptr    += ix_count;
-                        last_ix   += ixBuffer->m_Size;
+                        last_ix   += ix_count * sizeof(int);
                         vx_offset += vx_count;
                         ro_index++;
                     }

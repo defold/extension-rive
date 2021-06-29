@@ -59,22 +59,8 @@ namespace rive
 
     struct DrawBuffers
     {
-        union
-        {
-            struct
-            {
-                HBuffer m_ContourVertexBuffer;
-                HBuffer m_ContourIndexBuffer;
-                HBuffer m_CoverVertexBuffer;
-                HBuffer m_CoverIndexBuffer;
-            } m_StencilToCover;
-
-            struct
-            {
-                HBuffer m_VertexBuffer;
-                HBuffer m_IndexBuffer;
-            } m_Tessellation;
-        };
+        HBuffer m_VertexBuffer;
+        HBuffer m_IndexBuffer;
     };
 
     struct PaintData
@@ -92,7 +78,6 @@ namespace rive
     RenderMode          getRenderMode(HContext ctx);
     void                setBufferCallbacks(HContext ctx, RequestBufferCb rcb, DestroyBufferCb dcb, void* userData = 0);
     void                setRenderMode(HContext ctx, RenderMode mode);
-    const DrawBuffers   getDrawBuffers(HContext ctx, HRenderPath path);
     RenderPath*         createRenderPath(HContext ctx);
     RenderPaint*        createRenderPaint(HContext ctx);
 
@@ -105,8 +90,8 @@ namespace rive
     bool                getClippingSupport(HRenderer renderer);
     float               getContourError(HRenderer renderer);
     uint32_t            getDrawEventCount(HRenderer renderer);
+    const DrawBuffers   getDrawBuffers(HContext ctx, HRenderer renderer, HRenderPath path);
     const PathDrawEvent getDrawEvent(HRenderer renderer, uint32_t i);
-
     const PaintData     getPaintData(HRenderPaint paint);
 }
 

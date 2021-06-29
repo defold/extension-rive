@@ -6,6 +6,7 @@
 
 #include <artboard.hpp>
 #include <renderer.hpp>
+#include <contour_render_path.hpp>
 
 #include "rive/rive_render_api.h"
 #include "rive/rive_render_private.h"
@@ -27,19 +28,19 @@ namespace rive
         m_Context->m_DestroyBufferCb(m_IndexBuffer, m_Context->m_BufferCbUserData);
     }
 
+    void TessellationRenderPath::fillRule(FillRule value)
+    {
+        m_FillRule = value;
+    }
+
     void TessellationRenderPath::addContours(void* tess, const Mat2D& m)
     {
-        m_IsShapeDirty = false;
-
-        if (m_Paths.Size() > 0)
+        if (isContainer())
         {
-            for (int i = 0; i < (int) m_Paths.Size(); ++i)
+            for (int i = 0; i < m_SubPaths.size(); ++i)
             {
-                TessellationRenderPath* tessellationPath = (TessellationRenderPath*) m_Paths[i].m_Path;
-                if (tessellationPath)
-                {
-                    tessellationPath->addContours(tess, m_Paths[i].m_Transform);
-                }
+                TessellationRenderPath* sharedPath = (TessellationRenderPath*) m_SubPaths[i].path();
+                sharedPath->addContours(tess, m_SubPaths[i].transform());
             }
             return;
         }
@@ -50,7 +51,7 @@ namespace rive
         Mat2D identity;
         if (identity == m)
         {
-            tessAddContour((TESStesselator*)tess, numComponents, m_ContourVertexData, stride, m_ContourVertexCount);
+            tessAddContour((TESStesselator*)tess, numComponents, &m_ContourVertices[4][0], stride, m_ContourVertices.size());
         }
         else
         {
@@ -61,124 +62,48 @@ namespace rive
             const float m4 = m[4];
             const float m5 = m[5];
 
-            float transformBuffer[COUNTOUR_BUFFER_ELEMENT_COUNT * numComponents];
+            float transformBuffer[512 * numComponents]; // todo: dynamic array
 
-            for (int i = 0; i < m_ContourVertexCount * numComponents; i += numComponents)
+            rive::Vec2D* contourVertices = &m_ContourVertices[4];
+            int numContours              = m_ContourVertices.size() - 4;
+
+            for (int i = 0; i < numContours; i++)
             {
-                float x                = m_ContourVertexData[i];
-                float y                = m_ContourVertexData[i + 1];
-                transformBuffer[i    ] = m0 * x + m2 * y + m4;
-                transformBuffer[i + 1] = m1 * x + m3 * y + m5;
+                float x                  = contourVertices[i][0];
+                float y                  = contourVertices[i][1];
+                transformBuffer[i*2    ] = m0 * x + m2 * y + m4;
+                transformBuffer[i*2 + 1] = m1 * x + m3 * y + m5;
             }
 
-            tessAddContour((TESStesselator*)tess, numComponents, transformBuffer, stride, m_ContourVertexCount);
+            tessAddContour((TESStesselator*) tess, numComponents, transformBuffer, stride, numContours);
         }
     }
 
-    void TessellationRenderPath::computeContour()
+    void TessellationRenderPath::updateContour()
     {
-        const float minSegmentLength = m_ContourError * m_ContourError;
-        const float distTooFar       = m_ContourError;
-
-        m_IsDirty       = false;
-        float penX      = 0.0f;
-        float penY      = 0.0f;
-        float penDownX  = 0.0f;
-        float penDownY  = 0.0f;
-        float isPenDown = false;
-
-        m_ContourVertexCount = 0;
-
-        #define ADD_VERTEX(x,y) \
-            { \
-                m_ContourVertexData[m_ContourVertexCount * 2]     = x; \
-                m_ContourVertexData[m_ContourVertexCount * 2 + 1] = y; \
-                m_ContourVertexCount++; \
-            }
-
-        #define PEN_DOWN() \
-            if (!isPenDown) \
-            { \
-                isPenDown = true; \
-                penDownX = penX; \
-                penDownY = penY; \
-                ADD_VERTEX(penX, penY); \
-            }
-
-        for (int i=0; i < (int)m_PathCommands.Size(); i++)
+        if (isContainer())
         {
-            const PathCommand& pc = m_PathCommands[i];
-            switch(pc.m_Command)
+            for (int i = 0; i < m_SubPaths.size(); ++i)
             {
-                case TYPE_MOVE:
-                    penX = pc.m_X;
-                    penY = pc.m_Y;
-                    break;
-                case TYPE_LINE:
-                    PEN_DOWN()
-                    ADD_VERTEX(pc.m_X, pc.m_Y);
-                    break;
-                case TYPE_CUBIC:
-                    PEN_DOWN()
-                    segmentCubic(
-                        Vec2D(penX, penY),
-                        Vec2D(pc.m_OX, pc.m_OY),
-                        Vec2D(pc.m_IX, pc.m_IY),
-                        Vec2D(pc.m_X, pc.m_Y),
-                        0.0f,
-                        1.0f,
-                        minSegmentLength,
-                        distTooFar,
-                        m_ContourVertexData,
-                        m_ContourVertexCount,
-                        0);
-                    penX = pc.m_X;
-                    penY = pc.m_Y;
-                    break;
-                case TYPE_CLOSE:
-                    if (isPenDown)
-                    {
-                        penX      = penDownX;
-                        penY      = penDownY;
-                        isPenDown = false;
-                    }
-                    break;
+                TessellationRenderPath* sharedPath = (TessellationRenderPath*) m_SubPaths[i].path();
+                sharedPath->updateContour();
             }
         }
 
-        #undef ADD_VERTEX
-        #undef PEN_DOWN
-    }
-
-    void TessellationRenderPath::updateContour(float contourError)
-    {
-        if (m_Paths.Size() > 0)
-        {
-            for (int i=0; i < (int)m_Paths.Size(); i++)
-            {
-                TessellationRenderPath* sharedPath = (TessellationRenderPath*) m_Paths[i].m_Path;
-                sharedPath->updateContour(contourError);
-            }
-        }
-
-        m_IsDirty      = m_IsDirty      || contourError != m_ContourError;
-        m_IsShapeDirty = m_IsShapeDirty || contourError != m_ContourError;
-        m_ContourError = contourError;
-
-        if (m_IsDirty)
+        if (isDirty())
         {
             computeContour();
         }
     }
 
-    void TessellationRenderPath::updateTesselation(float contourError)
+    void TessellationRenderPath::updateTesselation()
     {
-        updateContour(contourError);
-
-        if (!isShapeDirty())
+        if (!isDirty())
         {
             return;
         }
+
+        updateContour();
 
         TESStesselator* tess = tessNewTess(0);
 
@@ -197,13 +122,8 @@ namespace rive
             const TESSreal*  tessVertices      = tessGetVertices(tess);
             const TESSindex* tessElements      = tessGetElements(tess);
 
-            void* requestUserData = m_Context->m_BufferCbUserData;
-            m_VertexBuffer = m_Context->m_RequestBufferCb(m_VertexBuffer, BUFFER_TYPE_VERTEX_BUFFER, (void*) tessVertices, tessVerticesCount * sizeof(float) * vertexSize, requestUserData);
-            m_IndexBuffer  = m_Context->m_RequestBufferCb(m_IndexBuffer, BUFFER_TYPE_INDEX_BUFFER, (void*) tessElements, tessElementsCount * sizeof(int) * polySize, requestUserData);
-        }
-        else
-        {
-            printf("Unable to tessellate path %p\n", this);
+            m_VertexBuffer = m_Context->m_RequestBufferCb(m_VertexBuffer, BUFFER_TYPE_VERTEX_BUFFER, (void*) tessVertices, tessVerticesCount * sizeof(float) * vertexSize, m_Context->m_BufferCbUserData);
+            m_IndexBuffer  = m_Context->m_RequestBufferCb(m_IndexBuffer, BUFFER_TYPE_INDEX_BUFFER, (void*) tessElements, tessElementsCount * sizeof(int) * polySize, m_Context->m_BufferCbUserData);
         }
 
         tessDeleteTess(tess);
@@ -211,7 +131,7 @@ namespace rive
 
     void TessellationRenderPath::drawMesh(SharedRenderer* renderer, const Mat2D& transform)
     {
-        updateTesselation(getContourError(renderer));
+        updateTesselation();
     }
 
     /* Renderer impl */
