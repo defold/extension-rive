@@ -1,6 +1,8 @@
 #include "shapes/points_path.hpp"
 #include "bones/skin.hpp"
 
+#include <algorithm>
+
 using namespace rive;
 
 Mat2D identity;

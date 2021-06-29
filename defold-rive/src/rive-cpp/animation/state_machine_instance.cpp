@@ -1,3 +1,4 @@
+
 #include "animation/state_machine_instance.hpp"
 #include "animation/state_machine_input.hpp"
 #include "animation/state_machine_bool.hpp"
@@ -13,6 +14,8 @@
 #include "animation/animation_state.hpp"
 #include "animation/state_instance.hpp"
 #include "animation/animation_state_instance.hpp"
+
+#include <algorithm>
 
 using namespace rive;
 namespace rive

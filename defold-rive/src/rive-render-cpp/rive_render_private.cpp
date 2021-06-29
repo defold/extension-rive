@@ -342,14 +342,23 @@ namespace rive
         if (c->m_RenderMode == MODE_STENCIL_TO_COVER)
         {
             StencilToCoverRenderPath* p = (StencilToCoverRenderPath*) path;
-            buffers.m_IndexBuffer       = r->m_IndexBuffer;
-            buffers.m_VertexBuffer      = p->m_VertexBuffer;
+            if (r)
+            {
+                buffers.m_IndexBuffer = r->m_IndexBuffer;
+            }
+            if (p)
+            {
+                buffers.m_VertexBuffer = p->m_VertexBuffer;
+            }
         }
         else if (c->m_RenderMode == MODE_TESSELLATION)
         {
             TessellationRenderPath* p = (TessellationRenderPath*) path;
-            buffers.m_IndexBuffer     = p->m_IndexBuffer;
-            buffers.m_VertexBuffer    = p->m_VertexBuffer;
+            if (p)
+            {
+                buffers.m_IndexBuffer     = p->m_IndexBuffer;
+                buffers.m_VertexBuffer    = p->m_VertexBuffer;
+            }
         }
 
         return buffers;

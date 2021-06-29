@@ -1,3 +1,4 @@
+#define _USE_MATH_DEFINES
 #include "shapes/rectangle.hpp"
 
 using namespace rive;

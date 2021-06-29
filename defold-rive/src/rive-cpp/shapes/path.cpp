@@ -8,6 +8,8 @@
 #include "shapes/straight_vertex.hpp"
 #include <cassert>
 
+#include <algorithm>
+
 using namespace rive;
 
 Path::~Path() { delete m_CommandPath; }

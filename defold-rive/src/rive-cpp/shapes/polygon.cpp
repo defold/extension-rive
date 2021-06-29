@@ -1,7 +1,10 @@
+#define _USE_MATH_DEFINES
 #include "shapes/polygon.hpp"
 #include "shapes/star.hpp"
 #include "shapes/straight_vertex.hpp"
 #include <cmath>
+
+#include <algorithm>
 
 using namespace rive;
 
