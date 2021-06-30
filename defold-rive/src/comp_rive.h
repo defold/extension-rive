@@ -35,6 +35,9 @@ namespace dmRive
         //dmMessage::URL                          m_Listener;
         dmGameSystem::HComponentRenderConstants m_RenderConstants;
         dmRender::HMaterial                     m_Material;
+
+        rive::LinearAnimationInstance*          m_AnimationInstance;
+
         //dmArray<dmGameObject::HInstance>        m_NodeInstances; // Node instances corresponding to the bones
         uint32_t                                m_VertexCount;
         uint32_t                                m_IndexCount;

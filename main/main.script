@@ -1,5 +1,8 @@
 function init(self)
 	self.v = 0
+
+	local url = msg.url("#test")
+	rive.play_anim(url, "idle", go.PLAYBACK_LOOP_FORWARD)
 end
 
 function update(self, dt)

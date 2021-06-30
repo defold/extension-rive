@@ -10,13 +10,17 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "res_rive_data.h"
+#include <dmsdk/dlib/hash.h>
 #include <dmsdk/dlib/log.h>
 #include <dmsdk/resource/resource.h>
 
 // Rive includes
-// #include <artboard.hpp>
+#include <artboard.hpp>
 #include <file.hpp>
+#include <animation/linear_animation_instance.hpp>
+#include <animation/linear_animation.hpp>
+
+#include "res_rive_data.h"
 
 namespace dmRive
 {
@@ -32,7 +36,29 @@ namespace dmRive
             return  dmResource::RESULT_INVALID_DATA;
         }
 
-        params.m_Resource->m_Resource     = (void*) file;
+        RiveSceneData* scene_data          = new RiveSceneData();
+        scene_data->m_File                 = file;
+        scene_data->m_LinearAnimations     = 0;
+        scene_data->m_LinearAnimationCount = 0;
+
+        rive::Artboard* artboard = file->artboard();
+
+        if (artboard && artboard->animationCount() > 0)
+        {
+            scene_data->m_LinearAnimationCount = artboard->animationCount();
+            scene_data->m_LinearAnimations     = new RiveLinearAnimationEntry[scene_data->m_LinearAnimationCount];
+
+            for (int i = 0; i < artboard->animationCount(); ++i)
+            {
+                rive::LinearAnimation* animation = artboard->animation(i);
+                assert(animation);
+                RiveLinearAnimationEntry& entry = scene_data->m_LinearAnimations[i];
+                entry.m_AnimationIndex          = i;
+                entry.m_NameHash                = dmHashString64(animation->name().c_str());
+            }
+        }
+
+        params.m_Resource->m_Resource     = (void*) scene_data;
         params.m_Resource->m_ResourceSize = 0;
 
         return dmResource::RESULT_OK;
@@ -50,7 +76,12 @@ namespace dmRive
     {
         if (params.m_Resource->m_Resource != 0)
         {
-            delete (rive::File*) params.m_Resource->m_Resource;
+            RiveSceneData* data = (RiveSceneData*) params.m_Resource->m_Resource;
+            if (data->m_File)
+                delete data->m_File;
+            if (data->m_LinearAnimations)
+                delete [] data->m_LinearAnimations;
+            delete data;
             params.m_Resource->m_Resource = 0;
         }
 
@@ -63,7 +94,29 @@ namespace dmRive
             return  dmResource::RESULT_INVALID_DATA;
         }
 
-        params.m_Resource->m_Resource     = (void*) file;
+        RiveSceneData* scene_data          = new RiveSceneData();
+        scene_data->m_File                 = file;
+        scene_data->m_LinearAnimations     = 0;
+        scene_data->m_LinearAnimationCount = 0;
+
+        rive::Artboard* artboard = file->artboard();
+
+        if (artboard && artboard->animationCount() > 0)
+        {
+            scene_data->m_LinearAnimationCount = artboard->animationCount();
+            scene_data->m_LinearAnimations     = new RiveLinearAnimationEntry[scene_data->m_LinearAnimationCount];
+
+            for (int i = 0; i < artboard->animationCount(); ++i)
+            {
+                rive::LinearAnimation* animation = artboard->animation(i);
+                assert(animation);
+                RiveLinearAnimationEntry& entry = scene_data->m_LinearAnimations[i];
+                entry.m_AnimationIndex          = i;
+                entry.m_NameHash                = dmHashString64(animation->name().c_str());
+            }
+        }
+
+        params.m_Resource->m_Resource     = (void*) scene_data;
         params.m_Resource->m_ResourceSize = 0;
 
         return dmResource::RESULT_OK;

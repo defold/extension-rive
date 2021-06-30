@@ -10,7 +10,13 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#include <file.hpp>
+#include <renderer.hpp>
+#include <animation/linear_animation_instance.hpp>
+#include <rive/rive_render_api.h>
+
 #include "comp_rive.h"
+#include "res_rive_data.h"
 #include "res_rive_scene.h"
 #include "res_rive_model.h"
 
@@ -42,10 +48,6 @@
 #include <dmsdk/graphics/graphics.h>
 #include <dmsdk/render/render.h>
 #include <gameobject/gameobject_ddf.h>
-
-#include <file.hpp>
-#include <renderer.hpp>
-#include <rive/rive_render_api.h>
 
 namespace rive
 {
@@ -280,6 +282,9 @@ namespace dmRive
 
         if (component->m_RenderConstants)
             dmGameSystem::DestroyRenderConstants(component->m_RenderConstants);
+
+        if (component->m_AnimationInstance)
+            delete component->m_AnimationInstance;
 
         delete component;
         world->m_Components.Free(index, true);
@@ -731,9 +736,16 @@ namespace dmRive
             }
 
             // RIVE UPDATE
-            rive::File* f              = (rive::File*) component.m_Resource->m_Scene->m_Scene;
-            rive::Artboard* artboard   = f->artboard();
-            rive::AABB artboard_bounds = artboard->bounds();
+            dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component.m_Resource->m_Scene->m_Scene;
+            rive::File* f               = data->m_File;
+            rive::Artboard* artboard    = f->artboard();
+            rive::AABB artboard_bounds  = artboard->bounds();
+
+            if (component.m_AnimationInstance)
+            {
+                component.m_AnimationInstance->advance(dt);
+                component.m_AnimationInstance->apply(artboard, 1.0f);
+            }
 
             rive::Mat2D transform;
             Mat4ToMat2D(component.m_World, transform);
@@ -876,14 +888,37 @@ namespace dmRive
         }
         else if (params.m_Message->m_Descriptor != 0x0)
         {
-            // if (params.m_Message->m_Id == dmRiveDDF::SpinePlayAnimation::m_DDFDescriptor->m_NameHash)
-            // {
-            //     dmRiveDDF::SpinePlayAnimation* ddf = (dmRiveDDF::SpinePlayAnimation*)params.m_Message->m_Data;
-            //     if (dmRig::RESULT_OK == dmRig::PlayAnimation(component->m_RigInstance, ddf->m_AnimationId, ddf_playback_map.m_Table[ddf->m_Playback], ddf->m_BlendDuration, ddf->m_Offset, ddf->m_PlaybackRate))
-            //     {
-            //         component->m_Listener = params.m_Message->m_Sender;
-            //     }
-            // }
+            if (params.m_Message->m_Id == dmRiveDDF::RivePlayAnimation::m_DDFDescriptor->m_NameHash)
+            {
+                dmRiveDDF::RivePlayAnimation* ddf = (dmRiveDDF::RivePlayAnimation*)params.m_Message->m_Data;
+                dmRive::RiveSceneData* data       = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
+                rive::LinearAnimation* animation  = 0;
+                rive::Artboard* artboard          = data->m_File->artboard();
+
+                for (int i = 0; i < data->m_LinearAnimationCount; ++i)
+                {
+                    if (data->m_LinearAnimations[i].m_NameHash == ddf->m_AnimationId)
+                    {
+                        animation = artboard->animation(data->m_LinearAnimations[i].m_AnimationIndex);
+                        break;
+                    }
+                }
+
+                if (animation)
+                {
+                    if (component->m_AnimationInstance)
+                        delete component->m_AnimationInstance;
+
+                    component->m_AnimationInstance = new rive::LinearAnimationInstance(animation);
+                }
+
+                /*
+                if (dmRig::RESULT_OK == dmRig::PlayAnimation(component->m_RigInstance, ddf->m_AnimationId, ddf_playback_map.m_Table[ddf->m_Playback], ddf->m_BlendDuration, ddf->m_Offset, ddf->m_PlaybackRate))
+                {
+                    component->m_Listener = params.m_Message->m_Sender;
+                }
+                */
+            }
             // else if (params.m_Message->m_Id == dmRiveDDF::SpineCancelAnimation::m_DDFDescriptor->m_NameHash)
             // {
             //     dmRig::CancelAnimation(component->m_RigInstance);

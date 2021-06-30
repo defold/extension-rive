@@ -22,7 +22,10 @@
 //#include <gamesys/gamesys_ddf.h>
 //#include "rive_ddf.h"
 
+#include <animation/linear_animation.hpp>
+#include <animation/linear_animation_instance.hpp>
 #include "comp_rive.h"
+#include "rive_ddf.h"
 
 namespace dmRive
 {
@@ -280,62 +283,71 @@ namespace dmRive
      * end
      * ```
      */
-    // static int RiveComp_PlayAnim(lua_State* L)
-    // {
-    //     DM_LUA_STACK_CHECK(L, 0);
-    //     int top = lua_gettop(L);
+    static int RiveComp_PlayAnim(lua_State* L)
+    {
+        DM_LUA_STACK_CHECK(L, 0);
+        int top = lua_gettop(L);
 
-    //     dmGameObject::HInstance instance = dmScript::CheckGOInstance(L);
+        dmGameObject::HInstance instance = dmScript::CheckGOInstance(L);
 
-    //     dmhash_t anim_id = dmScript::CheckHashOrString(L, 2);
-    //     lua_Integer playback = luaL_checkinteger(L, 3);
-    //     lua_Number blend_duration = 0.0, offset = 0.0, playback_rate = 1.0;
+        dmhash_t anim_id          = dmScript::CheckHashOrString(L, 2);
+        lua_Integer playback      = luaL_checkinteger(L, 3);
+        lua_Number blend_duration = 0.0;
+        lua_Number offset         = 0.0;
+        lua_Number playback_rate  = 1.0;
 
-    //     dmMessage::URL receiver;
-    //     dmMessage::URL sender;
-    //     dmScript::ResolveURL(L, 1, &receiver, &sender);
+        dmMessage::URL receiver;
+        dmMessage::URL sender;
+        dmScript::ResolveURL(L, 1, &receiver, &sender);
 
-    //     if (top > 3) // table with args
-    //     {
-    //         luaL_checktype(L, 4, LUA_TTABLE);
-    //         lua_pushvalue(L, 4);
+        /*
+        if (top > 3) // table with args
+        {
+            luaL_checktype(L, 4, LUA_TTABLE);
+            lua_pushvalue(L, 4);
 
-    //         lua_getfield(L, -1, "blend_duration");
-    //         blend_duration = lua_isnil(L, -1) ? 0.0 : luaL_checknumber(L, -1);
-    //         lua_pop(L, 1);
+            lua_getfield(L, -1, "blend_duration");
+            blend_duration = lua_isnil(L, -1) ? 0.0 : luaL_checknumber(L, -1);
+            lua_pop(L, 1);
 
-    //         lua_getfield(L, -1, "offset");
-    //         offset = lua_isnil(L, -1) ? 0.0 : luaL_checknumber(L, -1);
-    //         lua_pop(L, 1);
+            lua_getfield(L, -1, "offset");
+            offset = lua_isnil(L, -1) ? 0.0 : luaL_checknumber(L, -1);
+            lua_pop(L, 1);
 
-    //         lua_getfield(L, -1, "playback_rate");
-    //         playback_rate = lua_isnil(L, -1) ? 1.0 : luaL_checknumber(L, -1);
-    //         lua_pop(L, 1);
+            lua_getfield(L, -1, "playback_rate");
+            playback_rate = lua_isnil(L, -1) ? 1.0 : luaL_checknumber(L, -1);
+            lua_pop(L, 1);
 
-    //         lua_pop(L, 1);
-    //     }
+            lua_pop(L, 1);
+        }
+        */
 
-    //     int functionref = 0;
-    //     if (top > 4) // completed cb
-    //     {
-    //         if (lua_isfunction(L, 5))
-    //         {
-    //             lua_pushvalue(L, 5);
-    //             // NOTE: By convention m_FunctionRef is offset by LUA_NOREF, see message.h in dlib
-    //             functionref = dmScript::RefInInstance(L) - LUA_NOREF;
-    //         }
-    //     }
+        int functionref = 0;
 
-    //     dmGameSystemDDF::SpinePlayAnimation msg;
-    //     msg.m_AnimationId = anim_id;
-    //     msg.m_Playback = playback;
-    //     msg.m_BlendDuration = blend_duration;
-    //     msg.m_Offset = offset;
-    //     msg.m_PlaybackRate = playback_rate;
+        /*
+        if (top > 4) // completed cb
+        {
+            if (lua_isfunction(L, 5))
+            {
+                lua_pushvalue(L, 5);
+                // NOTE: By convention m_FunctionRef is offset by LUA_NOREF, see message.h in dlib
+                functionref = dmScript::RefInInstance(L) - LUA_NOREF;
+            }
+        }
+        */
 
-    //     dmMessage::Post(&sender, &receiver, dmGameSystemDDF::SpinePlayAnimation::m_DDFDescriptor->m_NameHash, (uintptr_t)instance, (uintptr_t)functionref, (uintptr_t)dmGameSystemDDF::SpinePlayAnimation::m_DDFDescriptor, &msg, sizeof(msg), 0);
-    //     return 0;
-    // }
+        dmRiveDDF::RivePlayAnimation msg;
+        msg.m_AnimationId = anim_id;
+        msg.m_Playback    = playback;
+        /*
+        msg.m_BlendDuration = blend_duration;
+        msg.m_Offset = offset;
+        msg.m_PlaybackRate = playback_rate;
+        */
+
+        dmMessage::Post(&sender, &receiver, dmRiveDDF::RivePlayAnimation::m_DDFDescriptor->m_NameHash, (uintptr_t)instance, (uintptr_t)functionref, (uintptr_t)dmRiveDDF::RivePlayAnimation::m_DDFDescriptor, &msg, sizeof(msg), 0);
+        return 0;
+    }
 
     /*# cancel all animation on a spine model
      * Cancels all running animations on a specified spine model component.
@@ -709,7 +721,7 @@ namespace dmRive
     static const luaL_reg RIVE_FUNCTIONS[] =
     {
             // {"play",    RiveComp_Play},
-            // {"play_anim", RiveComp_PlayAnim},
+            {"play_anim", RiveComp_PlayAnim},
             // {"cancel",  RiveComp_Cancel},
             // {"get_go",  RiveComp_GetGO},
             // {"set_skin",  RiveComp_SetSkin},

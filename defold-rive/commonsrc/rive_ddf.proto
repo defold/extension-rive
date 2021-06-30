@@ -33,6 +33,11 @@ message RiveModelDesc
     //optional float tesselation_option1    = 4 [default = 0.0];
 }
 
+message RivePlayAnimation
+{
+    required uint64 animation_id = 1;
+    required uint32 playback     = 2; // matches dmGameObject::Playback in gameobject.h
+}
 
 /*
 message RivePlayAnimation
