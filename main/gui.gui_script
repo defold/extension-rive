@@ -3,13 +3,14 @@ local dirtylarry = require "dirtylarry/dirtylarry"
 function init(self)
 	msg.post(".", "acquire_input_focus")
 
+	self.playback_value = go.PLAYBACK_LOOP_FORWARD
 	self.animation_label = gui.get_node("animation_label/larrylabel")
 	gui.set_text(self.animation_label, "Animation: none")
 end
 
 function animation_play(self, anim)
 	gui.set_text(self.animation_label, "Animation: " .. anim)
-	msg.post("/go#main", "MSG_PLAY", { animation = hash(anim) })
+	msg.post("/go#main", "MSG_PLAY", { animation = hash(anim), playback = self.playback_value })
 end
 
 function animation_cancel(self)
@@ -18,6 +19,13 @@ function animation_cancel(self)
 end
 
 function on_input(self, action_id, action)
+	self.playback_value = dirtylarry:radio("playback_once_forward", action_id, action, go.PLAYBACK_ONCE_FORWARD, self.playback_value)
+	self.playback_value = dirtylarry:radio("playback_once_backward", action_id, action, go.PLAYBACK_ONCE_BACKWARD, self.playback_value)
+	self.playback_value = dirtylarry:radio("playback_once_pingpong", action_id, action, go.PLAYBACK_ONCE_PINGPONG, self.playback_value)
+	self.playback_value = dirtylarry:radio("playback_loop_forward", action_id, action, go.PLAYBACK_LOOP_FORWARD, self.playback_value)
+	self.playback_value = dirtylarry:radio("playback_loop_backward", action_id, action, go.PLAYBACK_LOOP_BACKWARD, self.playback_value)
+	self.playback_value = dirtylarry:radio("playback_loop_pingpong", action_id, action, go.PLAYBACK_LOOP_PINGPONG, self.playback_value)
+	
 	dirtylarry:button("animation_cancel", action_id, action, function ()
 		animation_cancel(self)
 	end)

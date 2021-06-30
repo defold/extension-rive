@@ -13,6 +13,7 @@
 #include <file.hpp>
 #include <renderer.hpp>
 #include <animation/linear_animation_instance.hpp>
+#include <animation/loop.hpp>
 #include <rive/rive_render_api.h>
 
 #include "comp_rive.h"
@@ -22,6 +23,7 @@
 
 #include <string.h> // memset
 
+#include <dmsdk/gameobject/gameobject.h>
 #include <dmsdk/gameobject/component.h>
 #include <dmsdk/resource/resource.h>
 #include <dmsdk/dlib/math.h>
@@ -734,12 +736,6 @@ namespace dmRive
             rive::Artboard* artboard    = f->artboard();
             rive::AABB artboard_bounds  = artboard->bounds();
 
-            if (component.m_AnimationInstance)
-            {
-                component.m_AnimationInstance->advance(dt);
-                component.m_AnimationInstance->apply(artboard, 1.0f);
-            }
-
             rive::Mat2D transform;
             Mat4ToMat2D(component.m_World, transform);
 
@@ -760,6 +756,12 @@ namespace dmRive
             artboard->advance(dt);
             artboard->draw(rive_renderer);
             rive_renderer->restore();
+
+            if (component.m_AnimationInstance)
+            {
+                component.m_AnimationInstance->advance(dt);
+                component.m_AnimationInstance->apply(artboard, 1.0f);
+            }
 
             if (component.m_ReHash || (component.m_RenderConstants && dmGameSystem::AreRenderConstantsUpdated(component.m_RenderConstants)))
             {
@@ -906,6 +908,41 @@ namespace dmRive
 
                     component->m_AnimationInstance = new rive::LinearAnimationInstance(animation);
                     component->m_AnimationIndex    = animation_index;
+
+                    rive::Loop loop_value = rive::Loop::oneShot;
+                    int play_direction    = 1;
+                    float play_time       = animation->startSeconds();
+
+                    switch(ddf->m_Playback)
+                    {
+                        case dmGameObject::PLAYBACK_ONCE_FORWARD:
+                            loop_value     = rive::Loop::oneShot;
+                            break;
+                        case dmGameObject::PLAYBACK_ONCE_BACKWARD:
+                            loop_value     = rive::Loop::oneShot;
+                            play_direction = -1;
+                            play_time      = animation->endSeconds();
+                            break;
+                        case dmGameObject::PLAYBACK_ONCE_PINGPONG:
+                            loop_value     = rive::Loop::pingPong;
+                            break;
+                        case dmGameObject::PLAYBACK_LOOP_FORWARD:
+                            loop_value     = rive::Loop::loop;
+                            break;
+                        case dmGameObject::PLAYBACK_LOOP_BACKWARD:
+                            loop_value     = rive::Loop::loop;
+                            play_direction = -1;
+                            play_time      = animation->endSeconds();
+                            break;
+                        case dmGameObject::PLAYBACK_LOOP_PINGPONG:
+                            loop_value     = rive::Loop::pingPong;
+                            break;
+                        default:break;
+                    }
+
+                    component->m_AnimationInstance->time(play_time);
+                    component->m_AnimationInstance->loopValue((int)loop_value);
+                    component->m_AnimationInstance->direction(play_direction);
                 }
             }
             else if (params.m_Message->m_Id == dmRiveDDF::RiveCancelAnimation::m_DDFDescriptor->m_NameHash)

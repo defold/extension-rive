@@ -1,7 +1,8 @@
 function init(self)
-    self.v    = 0
-    self.url  = msg.url("#test")
-    self.anim = 0
+    self.v        = 0
+    self.url      = msg.url("#test")
+    self.anim     = 0
+    self.playback =  go.PLAYBACK_LOOP_FORWARD
 end
 
 function update(self, dt)
@@ -9,11 +10,12 @@ function update(self, dt)
     self.anim = go.get(self.url, "animation")
 end
 
-function play_animation(self, anim)
-    if anim ~= self.anim then
-        print("Playing animation: " .. tostring(anim))
+function play_animation(self, anim, playback)
+    if anim ~= self.anim or playback ~= self.playback then
+        print("Playing animation: " .. tostring(anim) .. " with playback " .. tostring(playback))
         self.anim = anim
-        rive.play_anim(self.url, self.anim, go.PLAYBACK_LOOP_FORWARD)
+        self.playback = playback
+        rive.play_anim(self.url, self.anim, self.playback)
     end
 end
 
@@ -21,6 +23,6 @@ function on_message(self, message_id, message)
     if message_id == hash("MSG_CANCEL") then
         rive.cancel(self.url)
     elseif message_id == hash("MSG_PLAY") then
-        play_animation(self, message.animation)
+        play_animation(self, message.animation, message.playback)
     end
 end
