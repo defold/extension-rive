@@ -32,17 +32,9 @@
 #include <dmsdk/gamesys/resources/res_animationset.h>
 #include <dmsdk/gamesys/resources/res_textureset.h>
 
-
-// #include <dmsdk/dlib/array.h>
-// #include <dmsdk/dlib/hash.h>
 #include <dmsdk/dlib/log.h>
 #include <dmsdk/gamesys/property.h>
-// #include <dmsdk/dlib/message.h>
-// #include <dmsdk/dlib/profile.h>
-// #include <dmsdk/dlib/dstrings.h>
 #include <dmsdk/dlib/object_pool.h>
-// #include <dmsdk/dlib/math.h>
-// #include <dmsdk/dlib/vmath.h>
 
 //#include <gameobject/gameobject_ddf.h> // for creating bones where the rive scene bones are
 #include <dmsdk/graphics/graphics.h>
@@ -254,6 +246,7 @@ namespace dmRive
         component->m_Instance = params.m_Instance;
         component->m_Transform = dmTransform::Transform(Vector3(params.m_Position), params.m_Rotation, 1.0f);
         component->m_Resource = (RiveModelResource*)params.m_Resource;
+        component->m_AnimationIndex = 0xFF;
         //dmMessage::ResetURL(&component->m_Listener);
 
         component->m_ComponentIndex = params.m_ComponentIndex;
@@ -894,12 +887,14 @@ namespace dmRive
                 dmRive::RiveSceneData* data       = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
                 rive::LinearAnimation* animation  = 0;
                 rive::Artboard* artboard          = data->m_File->artboard();
+                int animation_index               = -1;
 
                 for (int i = 0; i < data->m_LinearAnimationCount; ++i)
                 {
                     if (data->m_LinearAnimations[i].m_NameHash == ddf->m_AnimationId)
                     {
-                        animation = artboard->animation(data->m_LinearAnimations[i].m_AnimationIndex);
+                        animation       = artboard->animation(data->m_LinearAnimations[i].m_AnimationIndex);
+                        animation_index = i;
                         break;
                     }
                 }
@@ -910,19 +905,18 @@ namespace dmRive
                         delete component->m_AnimationInstance;
 
                     component->m_AnimationInstance = new rive::LinearAnimationInstance(animation);
+                    component->m_AnimationIndex    = animation_index;
                 }
-
-                /*
-                if (dmRig::RESULT_OK == dmRig::PlayAnimation(component->m_RigInstance, ddf->m_AnimationId, ddf_playback_map.m_Table[ddf->m_Playback], ddf->m_BlendDuration, ddf->m_Offset, ddf->m_PlaybackRate))
-                {
-                    component->m_Listener = params.m_Message->m_Sender;
-                }
-                */
             }
-            // else if (params.m_Message->m_Id == dmRiveDDF::SpineCancelAnimation::m_DDFDescriptor->m_NameHash)
-            // {
-            //     dmRig::CancelAnimation(component->m_RigInstance);
-            // }
+            else if (params.m_Message->m_Id == dmRiveDDF::RiveCancelAnimation::m_DDFDescriptor->m_NameHash)
+            {
+                if (component->m_AnimationInstance)
+                {
+                    delete component->m_AnimationInstance;
+                    component->m_AnimationInstance = 0;
+                    component->m_AnimationIndex    = 0xFF;
+                }
+            }
             // else if (params.m_Message->m_Id == dmRiveDDF::SetConstantSpineModel::m_DDFDescriptor->m_NameHash)
             // {
             //     dmRiveDDF::SetConstantSpineModel* ddf = (dmRiveDDF::SetConstantSpineModel*)params.m_Message->m_Data;
@@ -972,11 +966,16 @@ namespace dmRive
         CompRiveContext* context = (CompRiveContext*)params.m_Context;
         RiveWorld* world = (RiveWorld*)params.m_World;
         RiveComponent* component = GetComponentFromIndex(world, *params.m_UserData);
-        // if (params.m_PropertyId == PROP_ANIMATION)
-        // {
-        //     out_value.m_Variant = dmGameObject::PropertyVar(dmRig::GetAnimation(component->m_RigInstance));
-        //     return dmGameObject::PROPERTY_RESULT_OK;
-        // }
+        dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
+
+        if (params.m_PropertyId == PROP_ANIMATION)
+        {
+            if (component->m_AnimationInstance && component->m_AnimationIndex < data->m_LinearAnimationCount)
+            {
+                out_value.m_Variant = dmGameObject::PropertyVar(data->m_LinearAnimations[component->m_AnimationIndex].m_NameHash);
+            }
+            return dmGameObject::PROPERTY_RESULT_OK;
+        }
         // else if (params.m_PropertyId == PROP_CURSOR)
         // {
         //     out_value.m_Variant = dmGameObject::PropertyVar(dmRig::GetCursor(component->m_RigInstance, true));
@@ -1137,74 +1136,6 @@ namespace dmRive
     // ******************************************************************************
     // SCRIPTING HELPER FUNCTIONS
     // ******************************************************************************
-
-    /*
-    static Vector3 UpdateIKInstanceCallback(dmRig::IKTarget* ik_target)
-    {
-        RiveComponent* component = (RiveComponent*)ik_target->m_UserPtr;
-        dmhash_t target_instance_id = ik_target->m_UserHash;
-        dmGameObject::HInstance target_instance = dmGameObject::GetInstanceFromIdentifier(dmGameObject::GetCollection(component->m_Instance), target_instance_id);
-        if(target_instance == 0x0)
-        {
-            // instance have been removed, disable animation
-            dmLogError("Could not get IK position for target %s, removed?", dmHashReverseSafe64(target_instance_id))
-            ik_target->m_Callback = 0x0;
-            ik_target->m_Mix = 0x0;
-            return Vector3(0.0f);
-        }
-        return (Vector3)dmTransform::Apply(dmTransform::Inv(dmTransform::Mul(dmGameObject::GetWorldTransform(component->m_Instance), component->m_Transform)), dmGameObject::GetWorldPosition(target_instance));
-    }
-
-    static Vector3 UpdateIKPositionCallback(dmRig::IKTarget* ik_target)
-    {
-        RiveComponent* component = (RiveComponent*)ik_target->m_UserPtr;
-        return (Vector3)dmTransform::Apply(dmTransform::Inv(dmTransform::Mul(dmGameObject::GetWorldTransform(component->m_Instance), component->m_Transform)), (Point3)ik_target->m_Position);
-    }
-
-    bool CompRiveSetIKTargetInstance(RiveComponent* component, dmhash_t constraint_id, float mix, dmhash_t instance_id)
-    {
-        dmRig::IKTarget* target = dmRig::GetIKTarget(component->m_RigInstance, constraint_id);
-        if (!target) {
-            return false;
-        }
-
-        target->m_Callback = UpdateIKInstanceCallback;
-        target->m_Mix = mix;
-        target->m_UserPtr = component;
-        target->m_UserHash = instance_id;
-        return true;
-    }
-
-    bool CompRiveSetIKTargetPosition(RiveComponent* component, dmhash_t constraint_id, float mix, Point3 position)
-    {
-        dmRig::IKTarget* target = dmRig::GetIKTarget(component->m_RigInstance, constraint_id);
-        if (!target) {
-            return false;
-        }
-        target->m_Callback = UpdateIKPositionCallback;
-        target->m_Mix = mix;
-        target->m_UserPtr = component;
-        target->m_Position = (Vector3)position;
-        return true;
-    }
-
-    bool CompRiveResetIKTarget(RiveComponent* component, dmhash_t constraint_id)
-    {
-        return dmRig::ResetIKTarget(component->m_RigInstance, constraint_id);
-    }
-
-    bool CompRiveSetSkin(RiveComponent* component, dmhash_t skin_id)
-    {
-        dmRig::Result r = dmRig::SetMesh(component->m_RigInstance, skin_id);
-        return r == dmRig::RESULT_OK;
-    }
-
-    bool CompRiveSetSkinSlot(RiveComponent* component, dmhash_t skin_id, dmhash_t slot_id)
-    {
-        dmRig::Result r = dmRig::SetMeshSlot(component->m_RigInstance, skin_id, slot_id);
-        return r == dmRig::RESULT_OK;
-    }
-    */
 }
 
 DM_DECLARE_COMPONENT_TYPE(ComponentTypeRive, "rivemodelc", dmRive::CompRiveRegister);

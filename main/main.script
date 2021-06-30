@@ -1,18 +1,26 @@
 function init(self)
-	self.v = 0
-
-	local url = msg.url("#test")
-	rive.play_anim(url, "idle", go.PLAYBACK_LOOP_FORWARD)
+    self.v    = 0
+    self.url  = msg.url("#test")
+    self.anim = 0
 end
 
 function update(self, dt)
-	self.v = self.v + dt
-
-	local p = go.get_position()
-	p.x = p.x + math.sin(self.v) * 4
-	-- go.set_position(p)
-
-	local r = vmath.quat_rotation_z(self.v * 0.1)
-	-- go.set_rotation(r)
+    self.v    = self.v + dt
+    self.anim = go.get(self.url, "animation")
 end
 
+function play_animation(self, anim)
+    if anim ~= self.anim then
+        print("Playing animation: " .. tostring(anim))
+        self.anim = anim
+        rive.play_anim(self.url, self.anim, go.PLAYBACK_LOOP_FORWARD)
+    end
+end
+
+function on_message(self, message_id, message)
+    if message_id == hash("MSG_CANCEL") then
+        rive.cancel(self.url)
+    elseif message_id == hash("MSG_PLAY") then
+        play_animation(self, message.animation)
+    end
+end

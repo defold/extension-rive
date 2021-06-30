@@ -43,6 +43,7 @@ namespace dmRive
         uint32_t                                m_IndexCount;
         uint32_t                                m_MixedHash;
         uint16_t                                m_ComponentIndex;
+        uint8_t                                 m_AnimationIndex;
         uint8_t                                 m_Enabled : 1;
         uint8_t                                 m_DoRender : 1;
         uint8_t                                 m_AddedToUpdate : 1;

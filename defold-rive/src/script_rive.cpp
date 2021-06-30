@@ -82,9 +82,25 @@ namespace dmRive
         return 0;
     }
 
+    static int RiveComp_Cancel(lua_State* L)
+    {
+        DM_LUA_STACK_CHECK(L, 0);
+
+        dmGameObject::HInstance instance = dmScript::CheckGOInstance(L);
+
+        dmMessage::URL receiver;
+        dmMessage::URL sender;
+        dmScript::ResolveURL(L, 1, &receiver, &sender);
+
+        dmRiveDDF::RiveCancelAnimation msg;
+        dmMessage::Post(&sender, &receiver, dmRiveDDF::RiveCancelAnimation::m_DDFDescriptor->m_NameHash, (uintptr_t)instance, 0, (uintptr_t)dmRiveDDF::RiveCancelAnimation::m_DDFDescriptor, &msg, sizeof(msg), 0);
+        return 0;
+    }
+
     static const luaL_reg RIVE_FUNCTIONS[] =
     {
         {"play_anim", RiveComp_PlayAnim},
+        {"cancel",    RiveComp_Cancel},
         {0, 0}
     };
 
