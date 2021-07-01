@@ -10,16 +10,24 @@ function update(self, dt)
     self.anim = go.get(self.url, "animation")
 end
 
+local function anim_done(self, message_id, message, sender)
+    print("anim_done")
+    if message_id == hash("rive_animation_done") then
+        pprint(message)
+    end
+end
+
 function play_animation(self, anim, playback)
     if anim ~= self.anim or playback ~= self.playback then
         print("Playing animation: " .. tostring(anim) .. " with playback " .. tostring(playback))
         self.anim = anim
         self.playback = playback
-        rive.play_anim(self.url, self.anim, self.playback)
+        rive.play_anim(self.url, self.anim, self.playback, {}, anim_done)
     end
 end
 
-function on_message(self, message_id, message)
+function on_message(self, message_id, message) 
+    print(message_id)
     if message_id == hash("MSG_CANCEL") then
         rive.cancel(self.url)
     elseif message_id == hash("MSG_PLAY") then

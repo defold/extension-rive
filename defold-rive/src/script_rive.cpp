@@ -59,10 +59,31 @@ namespace dmRive
         dmMessage::URL sender;
         dmScript::ResolveURL(L, 1, &receiver, &sender);
 
+        if (top > 3) // table with args
+        {
+            luaL_checktype(L, 4, LUA_TTABLE);
+            lua_pushvalue(L, 4);
+
+            /*
+            lua_getfield(L, -1, "blend_duration");
+            blend_duration = lua_isnil(L, -1) ? 0.0 : luaL_checknumber(L, -1);
+            lua_pop(L, 1);
+
+            lua_getfield(L, -1, "offset");
+            offset = lua_isnil(L, -1) ? 0.0 : luaL_checknumber(L, -1);
+            lua_pop(L, 1);
+
+            lua_getfield(L, -1, "playback_rate");
+            playback_rate = lua_isnil(L, -1) ? 1.0 : luaL_checknumber(L, -1);
+            lua_pop(L, 1);
+            */
+
+            lua_pop(L, 1);
+        }
+
 
         int functionref = 0;
 
-        /* TODO: Callback
         if (top > 4) // completed cb
         {
             if (lua_isfunction(L, 5))
@@ -72,7 +93,6 @@ namespace dmRive
                 functionref = dmScript::RefInInstance(L) - LUA_NOREF;
             }
         }
-        */
 
         dmRiveDDF::RivePlayAnimation msg;
         msg.m_AnimationId = anim_id;

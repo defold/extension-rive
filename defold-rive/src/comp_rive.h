@@ -32,11 +32,12 @@ namespace dmRive
         dmTransform::Transform                  m_Transform;
         dmVMath::Matrix4                        m_World;
         RiveModelResource*                      m_Resource;
-        //dmMessage::URL                          m_Listener;
+        dmMessage::URL                          m_Listener;
         dmGameSystem::HComponentRenderConstants m_RenderConstants;
         dmRender::HMaterial                     m_Material;
 
         rive::LinearAnimationInstance*          m_AnimationInstance;
+        dmGameObject::Playback                  m_AnimationPlayback;
 
         //dmArray<dmGameObject::HInstance>        m_NodeInstances; // Node instances corresponding to the bones
         uint32_t                                m_VertexCount;

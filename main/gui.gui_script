@@ -9,6 +9,7 @@ function init(self)
 end
 
 function animation_play(self, anim)
+	self.anim = anim
 	gui.set_text(self.animation_label, "Animation: " .. anim)
 	msg.post("/go#main", "MSG_PLAY", { animation = hash(anim), playback = self.playback_value })
 end
@@ -19,12 +20,17 @@ function animation_cancel(self)
 end
 
 function on_input(self, action_id, action)
+	local playback_value = self.playback_value
 	self.playback_value = dirtylarry:radio("playback_once_forward", action_id, action, go.PLAYBACK_ONCE_FORWARD, self.playback_value)
 	self.playback_value = dirtylarry:radio("playback_once_backward", action_id, action, go.PLAYBACK_ONCE_BACKWARD, self.playback_value)
 	self.playback_value = dirtylarry:radio("playback_once_pingpong", action_id, action, go.PLAYBACK_ONCE_PINGPONG, self.playback_value)
 	self.playback_value = dirtylarry:radio("playback_loop_forward", action_id, action, go.PLAYBACK_LOOP_FORWARD, self.playback_value)
 	self.playback_value = dirtylarry:radio("playback_loop_backward", action_id, action, go.PLAYBACK_LOOP_BACKWARD, self.playback_value)
 	self.playback_value = dirtylarry:radio("playback_loop_pingpong", action_id, action, go.PLAYBACK_LOOP_PINGPONG, self.playback_value)
+
+	if self.playback_value ~= playback_value and self.anim ~= nil then
+		animation_play(self, self.anim)
+	end
 	
 	dirtylarry:button("animation_cancel", action_id, action, function ()
 		animation_cancel(self)
@@ -46,3 +52,8 @@ function on_input(self, action_id, action)
 		animation_play(self, "broken")
 	end)
 end
+
+function on_message(self, message_id, message)
+	
+end
+

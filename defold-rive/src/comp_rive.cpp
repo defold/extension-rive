@@ -249,7 +249,7 @@ namespace dmRive
         component->m_Transform = dmTransform::Transform(Vector3(params.m_Position), params.m_Rotation, 1.0f);
         component->m_Resource = (RiveModelResource*)params.m_Resource;
         component->m_AnimationIndex = 0xFF;
-        //dmMessage::ResetURL(&component->m_Listener);
+        dmMessage::ResetURL(&component->m_Listener);
 
         component->m_ComponentIndex = params.m_ComponentIndex;
         component->m_Enabled = 1;
@@ -703,6 +703,53 @@ namespace dmRive
         return dmGameObject::CREATE_RESULT_OK;
     }
 
+    static bool GetSender(RiveComponent* component, dmMessage::URL* out_sender)
+    {
+        dmMessage::URL sender;
+        sender.m_Socket = dmGameObject::GetMessageSocket(dmGameObject::GetCollection(component->m_Instance));
+        if (dmMessage::IsSocketValid(sender.m_Socket))
+        {
+            dmGameObject::Result go_result = dmGameObject::GetComponentId(component->m_Instance, component->m_ComponentIndex, &sender.m_Fragment);
+            if (go_result == dmGameObject::RESULT_OK)
+            {
+                sender.m_Path = dmGameObject::GetIdentifier(component->m_Instance);
+                *out_sender = sender;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static void CompRiveAnimationDoneCallback(RiveComponent& component)
+    {
+        assert(component.m_AnimationInstance);
+        dmMessage::URL sender;
+        dmMessage::URL receiver  = component.m_Listener;
+
+        if (!GetSender(&component, &sender))
+        {
+            dmLogError("Could not send animation_done to listener because of incomplete component.");
+            return;
+        }
+
+        dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component.m_Resource->m_Scene->m_Scene;
+        dmhash_t message_id         = dmRiveDDF::RiveAnimationDone::m_DDFDescriptor->m_NameHash;
+
+        dmRiveDDF::RiveAnimationDone message;
+        message.m_AnimationId = data->m_LinearAnimations[component.m_AnimationIndex].m_NameHash;
+        message.m_Playback    = component.m_AnimationPlayback;
+
+        uintptr_t descriptor = (uintptr_t)dmRiveDDF::RiveAnimationDone::m_DDFDescriptor;
+        uint32_t data_size   = sizeof(dmRiveDDF::RiveAnimationDone);
+
+        dmMessage::Result result = dmMessage::Post(&sender, &receiver, message_id, 0, 0, descriptor, &message, data_size, 0);
+        dmMessage::ResetURL(&component.m_Listener);
+        if (result != dmMessage::RESULT_OK)
+        {
+            dmLogError("Could not send animation_done to listener.");
+        }
+    }
+
     dmGameObject::UpdateResult CompRiveUpdate(const dmGameObject::ComponentsUpdateParams& params, dmGameObject::ComponentsUpdateResult& update_result)
     {
         RiveWorld* world         = (RiveWorld*)params.m_World;
@@ -761,6 +808,32 @@ namespace dmRive
             {
                 component.m_AnimationInstance->advance(dt);
                 component.m_AnimationInstance->apply(artboard, 1.0f);
+
+                if (component.m_AnimationInstance->didLoop())
+                {
+                    bool did_finish = false;
+                    switch(component.m_AnimationPlayback)
+                    {
+                        case dmGameObject::PLAYBACK_ONCE_FORWARD:
+                            did_finish = true;
+                            break;
+                        case dmGameObject::PLAYBACK_ONCE_BACKWARD:
+                            did_finish = true;
+                            break;
+                        case dmGameObject::PLAYBACK_ONCE_PINGPONG:
+                            did_finish = component.m_AnimationInstance->direction() == -1 ? true : false;
+                            break;
+                        default:break;
+                    }
+
+                    if (did_finish)
+                    {
+                        CompRiveAnimationDoneCallback(component);
+                        delete component.m_AnimationInstance;
+                        component.m_AnimationInstance = 0;
+                        component.m_AnimationIndex    = 0xFF;
+                    }
+                }
             }
 
             if (component.m_ReHash || (component.m_RenderConstants && dmGameSystem::AreRenderConstantsUpdated(component.m_RenderConstants)))
@@ -908,6 +981,8 @@ namespace dmRive
 
                     component->m_AnimationInstance = new rive::LinearAnimationInstance(animation);
                     component->m_AnimationIndex    = animation_index;
+                    component->m_AnimationPlayback = (dmGameObject::Playback) ddf->m_Playback;
+                    component->m_Listener          = params.m_Message->m_Sender;
 
                     rive::Loop loop_value = rive::Loop::oneShot;
                     int play_direction    = 1;
