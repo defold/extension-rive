@@ -16,12 +16,12 @@ local function anim_done(self, message_id, message, sender)
     end
 end
 
-function play_animation(self, anim, playback)
+function play_animation(self, anim, playback, offset, rate)
     if anim ~= self.anim or playback ~= self.playback then
-        print("Playing animation: " .. tostring(anim) .. " with playback " .. tostring(playback))
-        self.anim = anim
+        print("Playing animation: " .. tostring(anim) .. " with playback mode " .. tostring(playback) .. ", rate " .. tostring(rate) .. ", offset " .. tostring(offset))
+        self.anim     = anim
         self.playback = playback
-        rive.play_anim(self.url, self.anim, self.playback, {}, anim_done)
+        rive.play_anim(self.url, self.anim, self.playback, { offset = offset, playback_rate = rate }, anim_done)
     end
 end
 
@@ -29,6 +29,6 @@ function on_message(self, message_id, message)
     if message_id == hash("MSG_CANCEL") then
         rive.cancel(self.url)
     elseif message_id == hash("MSG_PLAY") then
-        play_animation(self, message.animation, message.playback)
+        play_animation(self, message.animation, message.playback, message.offset, message.rate)
     end
 end

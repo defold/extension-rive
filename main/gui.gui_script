@@ -3,23 +3,31 @@ local dirtylarry = require "dirtylarry/dirtylarry"
 function init(self)
 	msg.post(".", "acquire_input_focus")
 
-	self.playback_value = go.PLAYBACK_LOOP_FORWARD
+	self.playback_rate   = 1.0
+	self.playback_offset = 0.0
+	self.playback_cursor = 0.0
+	self.playback_value  = go.PLAYBACK_LOOP_FORWARD
 	self.animation_label = gui.get_node("animation_label/larrylabel")
-	gui.set_text(self.animation_label, "Animation: none")
+	clear_animation_label(self)
 end
 
 function animation_play(self, anim)
 	self.anim = anim
 	gui.set_text(self.animation_label, "Animation: " .. anim)
-	msg.post("/go#main", "MSG_PLAY", { animation = hash(anim), playback = self.playback_value })
+	msg.post("/go#main", "MSG_PLAY", {
+		animation = hash(anim),
+		playback  = self.playback_value,
+		rate      = self.playback_rate,
+		offset    = self.playback_offset,
+	})
 end
 
-function clear_label(self)
+function clear_animation_label(self)
 	gui.set_text(self.animation_label, "Animation: none")
 end
 
 function animation_cancel(self)
-	clear_label(self)
+	clear_animation_label(self)
 	msg.post("/go#main", "MSG_CANCEL")
 end
 
@@ -31,6 +39,10 @@ function on_input(self, action_id, action)
 	self.playback_value = dirtylarry:radio("playback_loop_forward", action_id, action, go.PLAYBACK_LOOP_FORWARD, self.playback_value)
 	self.playback_value = dirtylarry:radio("playback_loop_backward", action_id, action, go.PLAYBACK_LOOP_BACKWARD, self.playback_value)
 	self.playback_value = dirtylarry:radio("playback_loop_pingpong", action_id, action, go.PLAYBACK_LOOP_PINGPONG, self.playback_value)
+
+	self.playback_rate   = dirtylarry:slider("playback_rate",   action_id, action, 0.0, 1.0, self.playback_rate)
+	self.playback_offset = dirtylarry:slider("playback_offset", action_id, action, 0.0, 1.0, self.playback_offset)
+	self.playback_cursor = dirtylarry:slider("playback_cursor", action_id, action, 0.0, 1.0, self.playback_cursor)
 
 	if self.playback_value ~= playback_value and self.anim ~= nil then
 		animation_play(self, self.anim)
@@ -59,7 +71,9 @@ end
 
 function on_message(self, message_id, message)
 	if message_id == hash("animation_complete") then
-		clear_label(self)
+		clear_animation_label(self)
+	elseif message_id == hash("animation_cursor") then
+		self.playback_cursor = message.cursor
 	end
 end
 

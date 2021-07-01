@@ -38,6 +38,7 @@ namespace dmRive
 
         rive::LinearAnimationInstance*          m_AnimationInstance;
         dmGameObject::Playback                  m_AnimationPlayback;
+        float                                   m_AnimationPlaybackRate;
         int                                     m_AnimationCallbackRef;
 
         //dmArray<dmGameObject::HInstance>        m_NodeInstances; // Node instances corresponding to the bones

@@ -724,12 +724,14 @@ namespace dmRive
 
     static void CompRiveAnimationReset(RiveComponent* component)
     {
+        component->m_AnimationInstance     = 0;
+        component->m_AnimationIndex        = 0xff;
+        component->m_AnimationCallbackRef  = 0;
+        component->m_AnimationPlaybackRate = 1.0f;
+        component->m_AnimationPlayback     = dmGameObject::PLAYBACK_NONE;
+
         if (component->m_AnimationInstance)
             delete component->m_AnimationInstance;
-        component->m_AnimationInstance    = 0;
-        component->m_AnimationIndex       = 0xff;
-        component->m_AnimationCallbackRef = 0;
-        component->m_AnimationPlayback    = dmGameObject::PLAYBACK_NONE;
     }
 
     static void CompRiveAnimationDoneCallback(RiveComponent& component)
@@ -818,7 +820,7 @@ namespace dmRive
 
             if (component.m_AnimationInstance)
             {
-                component.m_AnimationInstance->advance(dt);
+                component.m_AnimationInstance->advance(dt * component.m_AnimationPlaybackRate);
                 component.m_AnimationInstance->apply(artboard, 1.0f);
 
                 if (component.m_AnimationInstance->didLoop())
@@ -989,15 +991,10 @@ namespace dmRive
                     if (component->m_AnimationInstance)
                         delete component->m_AnimationInstance;
 
-                    component->m_AnimationInstance    = new rive::LinearAnimationInstance(animation);
-                    component->m_AnimationIndex       = animation_index;
-                    component->m_AnimationPlayback    = (dmGameObject::Playback) ddf->m_Playback;
-                    component->m_AnimationCallbackRef = params.m_Message->m_UserData2;
-                    component->m_Listener             = params.m_Message->m_Sender;
-
                     rive::Loop loop_value = rive::Loop::oneShot;
                     int play_direction    = 1;
                     float play_time       = animation->startSeconds();
+                    float offset_value    = animation->durationSeconds() * ddf->m_Offset;
 
                     switch(ddf->m_Playback)
                     {
@@ -1008,6 +1005,7 @@ namespace dmRive
                             loop_value     = rive::Loop::oneShot;
                             play_direction = -1;
                             play_time      = animation->endSeconds();
+                            offset_value   = -offset_value;
                             break;
                         case dmGameObject::PLAYBACK_ONCE_PINGPONG:
                             loop_value     = rive::Loop::pingPong;
@@ -1019,6 +1017,7 @@ namespace dmRive
                             loop_value     = rive::Loop::loop;
                             play_direction = -1;
                             play_time      = animation->endSeconds();
+                            offset_value   = -offset_value;
                             break;
                         case dmGameObject::PLAYBACK_LOOP_PINGPONG:
                             loop_value     = rive::Loop::pingPong;
@@ -1026,7 +1025,13 @@ namespace dmRive
                         default:break;
                     }
 
-                    component->m_AnimationInstance->time(play_time);
+                    component->m_AnimationIndex        = animation_index;
+                    component->m_AnimationPlaybackRate = ddf->m_PlaybackRate;
+                    component->m_AnimationPlayback     = (dmGameObject::Playback) ddf->m_Playback;
+                    component->m_AnimationCallbackRef  = params.m_Message->m_UserData2;
+                    component->m_Listener              = params.m_Message->m_Sender;
+                    component->m_AnimationInstance     = new rive::LinearAnimationInstance(animation);
+                    component->m_AnimationInstance->time(play_time + offset_value);
                     component->m_AnimationInstance->loopValue((int)loop_value);
                     component->m_AnimationInstance->direction(play_direction);
                 }

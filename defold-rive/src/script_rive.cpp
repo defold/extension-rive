@@ -51,9 +51,9 @@ namespace dmRive
 
         dmhash_t anim_id          = dmScript::CheckHashOrString(L, 2);
         lua_Integer playback      = luaL_checkinteger(L, 3);
-        lua_Number blend_duration = 0.0;
         lua_Number offset         = 0.0;
         lua_Number playback_rate  = 1.0;
+        int functionref           = 0;
 
         dmMessage::URL receiver;
         dmMessage::URL sender;
@@ -64,11 +64,6 @@ namespace dmRive
             luaL_checktype(L, 4, LUA_TTABLE);
             lua_pushvalue(L, 4);
 
-            /*
-            lua_getfield(L, -1, "blend_duration");
-            blend_duration = lua_isnil(L, -1) ? 0.0 : luaL_checknumber(L, -1);
-            lua_pop(L, 1);
-
             lua_getfield(L, -1, "offset");
             offset = lua_isnil(L, -1) ? 0.0 : luaL_checknumber(L, -1);
             lua_pop(L, 1);
@@ -76,13 +71,9 @@ namespace dmRive
             lua_getfield(L, -1, "playback_rate");
             playback_rate = lua_isnil(L, -1) ? 1.0 : luaL_checknumber(L, -1);
             lua_pop(L, 1);
-            */
 
             lua_pop(L, 1);
         }
-
-
-        int functionref = 0;
 
         if (top > 4) // completed cb
         {
@@ -95,8 +86,10 @@ namespace dmRive
         }
 
         dmRiveDDF::RivePlayAnimation msg;
-        msg.m_AnimationId = anim_id;
-        msg.m_Playback    = playback;
+        msg.m_AnimationId  = anim_id;
+        msg.m_Playback     = playback;
+        msg.m_Offset       = offset;
+        msg.m_PlaybackRate = playback_rate;
 
         dmMessage::Post(&sender, &receiver, dmRiveDDF::RivePlayAnimation::m_DDFDescriptor->m_NameHash, (uintptr_t)instance, (uintptr_t)functionref, (uintptr_t)dmRiveDDF::RivePlayAnimation::m_DDFDescriptor, &msg, sizeof(msg), 0);
         return 0;
