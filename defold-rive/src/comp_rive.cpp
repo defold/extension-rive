@@ -1126,19 +1126,21 @@ namespace dmRive
     {
         RiveWorld* world = (RiveWorld*)params.m_World;
         RiveComponent* component = world->m_Components.Get(*params.m_UserData);
-        // if (params.m_PropertyId == PROP_CURSOR)
-        // {
-        //     if (params.m_Value.m_Type != dmGameObject::PROPERTY_TYPE_NUMBER)
-        //         return dmGameObject::PROPERTY_RESULT_TYPE_MISMATCH;
-        //     dmRig::Result res = dmRig::SetCursor(component->m_RigInstance, params.m_Value.m_Number, true);
-        //     if (res == dmRig::RESULT_ERROR)
-        //     {
-        //         dmLogError("Could not set cursor %f on the spine model.", params.m_Value.m_Number);
-        //         return dmGameObject::PROPERTY_RESULT_UNSUPPORTED_VALUE;
-        //     }
-        //     return dmGameObject::PROPERTY_RESULT_OK;
-        // }
-        if (params.m_PropertyId == PROP_PLAYBACK_RATE)
+        if (params.m_PropertyId == PROP_CURSOR)
+        {
+            if (params.m_Value.m_Type != dmGameObject::PROPERTY_TYPE_NUMBER)
+                return dmGameObject::PROPERTY_RESULT_TYPE_MISMATCH;
+
+            if (component->m_AnimationInstance)
+            {
+                const rive::LinearAnimation* animation = component->m_AnimationInstance->animation();
+                float cursor = params.m_Value.m_Number * animation->durationSeconds() + animation->startSeconds();
+                component->m_AnimationInstance->time(cursor);
+            }
+
+            return dmGameObject::PROPERTY_RESULT_OK;
+        }
+        else if (params.m_PropertyId == PROP_PLAYBACK_RATE)
         {
             if (params.m_Value.m_Type != dmGameObject::PROPERTY_TYPE_NUMBER)
                 return dmGameObject::PROPERTY_RESULT_TYPE_MISMATCH;

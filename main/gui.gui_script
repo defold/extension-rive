@@ -8,6 +8,8 @@ function init(self)
 	self.playback_cursor = 0.0
 	self.playback_value  = go.PLAYBACK_LOOP_FORWARD
 	self.animation_label = gui.get_node("animation_label/larrylabel")
+	self.cursor_node     = gui.get_node("playback_cursor/larrysafearea")
+	
 	clear_animation_label(self)
 end
 
@@ -28,6 +30,12 @@ function animation_set_rate(self, rate)
 	})
 end
 
+function animation_set_cursor(self, cursor)
+	msg.post("/go#main", "MSG_PLAYBACK_CURSOR", {
+		cursor = self.playback_cursor,
+	})
+end
+
 function clear_animation_label(self)
 	gui.set_text(self.animation_label, "Animation: none")
 end
@@ -38,8 +46,9 @@ function animation_cancel(self)
 end
 
 function on_input(self, action_id, action)
-	local playback_value = self.playback_value
-	local playback_rate  = self.playback_rate
+	local playback_value  = self.playback_value
+	local playback_rate   = self.playback_rate 
+	local playback_cursor = self.playback_cursor
 
 	self.playback_value = dirtylarry:radio("playback_once_forward", action_id, action, go.PLAYBACK_ONCE_FORWARD, self.playback_value)
 	self.playback_value = dirtylarry:radio("playback_once_backward", action_id, action, go.PLAYBACK_ONCE_BACKWARD, self.playback_value)
@@ -56,6 +65,10 @@ function on_input(self, action_id, action)
 		animation_play(self, self.anim)
 	elseif self.playback_rate ~= playback_rate and self.anim ~= nil then
 		animation_set_rate(self, self.playback_rate)
+	end
+
+	if self.playback_cursor ~= playback_cursor and self.anim ~= nil then
+		animation_set_cursor(self, self.playback_cursor)
 	end
 
 	dirtylarry:button("animation_cancel", action_id, action, function ()
@@ -83,6 +96,10 @@ function on_message(self, message_id, message)
 	if message_id == hash("animation_complete") then
 		clear_animation_label(self)
 	elseif message_id == hash("animation_cursor") then
+		if dirtylarry.active_node ~= nil and gui.get_id(dirtylarry.active_node) == gui.get_id(self.cursor_node) then
+			return
+		end
+		
 		self.playback_cursor = message.cursor
 		self.playback_cursor = dirtylarry:slider("playback_cursor", hash("touch"), { x = -1, y = -1 }, 0.0, 1.0, self.playback_cursor)
 	end
