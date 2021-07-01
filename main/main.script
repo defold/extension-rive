@@ -2,12 +2,18 @@ function init(self)
     self.v        = 0
     self.url      = msg.url("#test")
     self.anim     = 0
-    self.playback =  go.PLAYBACK_LOOP_FORWARD
+    self.cursor   = 0
+    self.playback = go.PLAYBACK_LOOP_FORWARD
 end
 
 function update(self, dt)
-    self.v    = self.v + dt
-    self.anim = go.get(self.url, "animation")
+    self.v      = self.v + dt
+    self.anim   = go.get(self.url, "animation")
+    self.cursor = go.get(self.url, "cursor")
+
+    if self.anim ~= 0 then
+        msg.post("/gui#gui", "animation_cursor", { cursor = self.cursor })
+    end
 end
 
 local function anim_done(self, message_id, message, sender)

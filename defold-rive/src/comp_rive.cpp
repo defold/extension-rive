@@ -1099,11 +1099,16 @@ namespace dmRive
             }
             return dmGameObject::PROPERTY_RESULT_OK;
         }
-        // else if (params.m_PropertyId == PROP_CURSOR)
-        // {
-        //     out_value.m_Variant = dmGameObject::PropertyVar(dmRig::GetCursor(component->m_RigInstance, true));
-        //     return dmGameObject::PROPERTY_RESULT_OK;
-        // }
+        else if (params.m_PropertyId == PROP_CURSOR)
+        {
+            if (component->m_AnimationInstance)
+            {
+                const rive::LinearAnimation* animation = component->m_AnimationInstance->animation();
+                float cursor_value                     = (component->m_AnimationInstance->time() - animation->startSeconds()) / animation->durationSeconds();
+                out_value.m_Variant                    = dmGameObject::PropertyVar(cursor_value);
+            }
+            return dmGameObject::PROPERTY_RESULT_OK;
+        }
         else if (params.m_PropertyId == PROP_PLAYBACK_RATE)
         {
             out_value.m_Variant = dmGameObject::PropertyVar(component->m_AnimationPlaybackRate);
