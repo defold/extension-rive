@@ -22,6 +22,12 @@ function animation_play(self, anim)
 	})
 end
 
+function animation_set_rate(self, rate)
+	msg.post("/go#main", "MSG_PLAYBACK_RATE", {
+		rate = self.playback_rate,
+	})
+end
+
 function clear_animation_label(self)
 	gui.set_text(self.animation_label, "Animation: none")
 end
@@ -33,6 +39,8 @@ end
 
 function on_input(self, action_id, action)
 	local playback_value = self.playback_value
+	local playback_rate  = self.playback_rate
+	
 	self.playback_value = dirtylarry:radio("playback_once_forward", action_id, action, go.PLAYBACK_ONCE_FORWARD, self.playback_value)
 	self.playback_value = dirtylarry:radio("playback_once_backward", action_id, action, go.PLAYBACK_ONCE_BACKWARD, self.playback_value)
 	self.playback_value = dirtylarry:radio("playback_once_pingpong", action_id, action, go.PLAYBACK_ONCE_PINGPONG, self.playback_value)
@@ -46,6 +54,8 @@ function on_input(self, action_id, action)
 
 	if self.playback_value ~= playback_value and self.anim ~= nil then
 		animation_play(self, self.anim)
+	elseif self.playback_rate ~= playback_rate and self.anim ~= nil then
+		animation_set_rate(self, self.playback_rate)
 	end
 	
 	dirtylarry:button("animation_cancel", action_id, action, function ()

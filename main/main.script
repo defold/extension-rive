@@ -30,5 +30,7 @@ function on_message(self, message_id, message)
         rive.cancel(self.url)
     elseif message_id == hash("MSG_PLAY") then
         play_animation(self, message.animation, message.playback, message.offset, message.rate)
+    elseif message_id == hash("MSG_PLAYBACK_RATE") then
+        go.set(self.url, "playback_rate", message.rate)
     end
 end
