@@ -11,9 +11,8 @@ function update(self, dt)
 end
 
 local function anim_done(self, message_id, message, sender)
-    print("anim_done")
     if message_id == hash("rive_animation_done") then
-        pprint(message)
+        msg.post("/gui#gui", "animation_complete")
     end
 end
 
@@ -27,7 +26,6 @@ function play_animation(self, anim, playback)
 end
 
 function on_message(self, message_id, message) 
-    print(message_id)
     if message_id == hash("MSG_CANCEL") then
         rive.cancel(self.url)
     elseif message_id == hash("MSG_PLAY") then

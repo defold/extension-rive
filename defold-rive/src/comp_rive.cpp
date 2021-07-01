@@ -73,6 +73,7 @@ namespace dmRive
 
     static void ResourceReloadedCallback(const dmResource::ResourceReloadedParams& params);
     static void DestroyComponent(struct RiveWorld* world, uint32_t index);
+    static void CompRiveAnimationReset(RiveComponent* component);
 
     static rive::HBuffer RiveRequestBufferCallback(rive::HBuffer buffer, rive::BufferType type, void* data, unsigned int dataSize, void* userData);
     static void          RiveDestroyBufferCallback(rive::HBuffer buffer, void* userData);
@@ -248,7 +249,8 @@ namespace dmRive
         component->m_Instance = params.m_Instance;
         component->m_Transform = dmTransform::Transform(Vector3(params.m_Position), params.m_Rotation, 1.0f);
         component->m_Resource = (RiveModelResource*)params.m_Resource;
-        component->m_AnimationIndex = 0xFF;
+
+        CompRiveAnimationReset(component);
         dmMessage::ResetURL(&component->m_Listener);
 
         component->m_ComponentIndex = params.m_ComponentIndex;
@@ -720,6 +722,16 @@ namespace dmRive
         return false;
     }
 
+    static void CompRiveAnimationReset(RiveComponent* component)
+    {
+        if (component->m_AnimationInstance)
+            delete component->m_AnimationInstance;
+        component->m_AnimationInstance    = 0;
+        component->m_AnimationIndex       = 0xff;
+        component->m_AnimationCallbackRef = 0;
+        component->m_AnimationPlayback    = dmGameObject::PLAYBACK_NONE;
+    }
+
     static void CompRiveAnimationDoneCallback(RiveComponent& component)
     {
         assert(component.m_AnimationInstance);
@@ -742,7 +754,7 @@ namespace dmRive
         uintptr_t descriptor = (uintptr_t)dmRiveDDF::RiveAnimationDone::m_DDFDescriptor;
         uint32_t data_size   = sizeof(dmRiveDDF::RiveAnimationDone);
 
-        dmMessage::Result result = dmMessage::Post(&sender, &receiver, message_id, 0, 0, descriptor, &message, data_size, 0);
+        dmMessage::Result result = dmMessage::Post(&sender, &receiver, message_id, 0, component.m_AnimationCallbackRef, descriptor, &message, data_size, 0);
         dmMessage::ResetURL(&component.m_Listener);
         if (result != dmMessage::RESULT_OK)
         {
@@ -821,7 +833,7 @@ namespace dmRive
                             did_finish = true;
                             break;
                         case dmGameObject::PLAYBACK_ONCE_PINGPONG:
-                            did_finish = component.m_AnimationInstance->direction() == -1 ? true : false;
+                            did_finish = component.m_AnimationInstance->direction() > 0;
                             break;
                         default:break;
                     }
@@ -829,9 +841,7 @@ namespace dmRive
                     if (did_finish)
                     {
                         CompRiveAnimationDoneCallback(component);
-                        delete component.m_AnimationInstance;
-                        component.m_AnimationInstance = 0;
-                        component.m_AnimationIndex    = 0xFF;
+                        CompRiveAnimationReset(&component);
                     }
                 }
             }
@@ -979,10 +989,11 @@ namespace dmRive
                     if (component->m_AnimationInstance)
                         delete component->m_AnimationInstance;
 
-                    component->m_AnimationInstance = new rive::LinearAnimationInstance(animation);
-                    component->m_AnimationIndex    = animation_index;
-                    component->m_AnimationPlayback = (dmGameObject::Playback) ddf->m_Playback;
-                    component->m_Listener          = params.m_Message->m_Sender;
+                    component->m_AnimationInstance    = new rive::LinearAnimationInstance(animation);
+                    component->m_AnimationIndex       = animation_index;
+                    component->m_AnimationPlayback    = (dmGameObject::Playback) ddf->m_Playback;
+                    component->m_AnimationCallbackRef = params.m_Message->m_UserData2;
+                    component->m_Listener             = params.m_Message->m_Sender;
 
                     rive::Loop loop_value = rive::Loop::oneShot;
                     int play_direction    = 1;
@@ -1022,12 +1033,7 @@ namespace dmRive
             }
             else if (params.m_Message->m_Id == dmRiveDDF::RiveCancelAnimation::m_DDFDescriptor->m_NameHash)
             {
-                if (component->m_AnimationInstance)
-                {
-                    delete component->m_AnimationInstance;
-                    component->m_AnimationInstance = 0;
-                    component->m_AnimationIndex    = 0xFF;
-                }
+                CompRiveAnimationReset(component);
             }
             // else if (params.m_Message->m_Id == dmRiveDDF::SetConstantSpineModel::m_DDFDescriptor->m_NameHash)
             // {
