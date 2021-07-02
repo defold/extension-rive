@@ -1,0 +1,107 @@
+local dirtylarry = require "dirtylarry/dirtylarry"
+
+function init(self)
+	msg.post(".", "acquire_input_focus")
+
+	self.playback_rate   = 1.0
+	self.playback_offset = 0.0
+	self.playback_cursor = 0.0
+	self.playback_value  = go.PLAYBACK_LOOP_FORWARD
+	self.animation_label = gui.get_node("animation_label/larrylabel")
+	self.cursor_node     = gui.get_node("playback_cursor/larrysafearea")
+	
+	clear_animation_label(self)
+end
+
+function animation_play(self, anim)
+	self.anim = anim
+	gui.set_text(self.animation_label, "Animation: " .. anim)
+	msg.post("/go#main", "MSG_PLAY", {
+		animation = hash(anim),
+		playback  = self.playback_value,
+		rate      = self.playback_rate,
+		offset    = self.playback_offset,
+	})
+end
+
+function animation_set_rate(self, rate)
+	msg.post("/go#main", "MSG_PLAYBACK_RATE", {
+		rate = self.playback_rate,
+	})
+end
+
+function animation_set_cursor(self, cursor)
+	msg.post("/go#main", "MSG_PLAYBACK_CURSOR", {
+		cursor = self.playback_cursor,
+	})
+end
+
+function clear_animation_label(self)
+	gui.set_text(self.animation_label, "Animation: none")
+end
+
+function animation_cancel(self)
+	clear_animation_label(self)
+	msg.post("/go#main", "MSG_CANCEL")
+end
+
+function on_input(self, action_id, action)
+	local playback_value  = self.playback_value
+	local playback_rate   = self.playback_rate 
+	local playback_cursor = self.playback_cursor
+
+	self.playback_value = dirtylarry:radio("playback_once_forward", action_id, action, go.PLAYBACK_ONCE_FORWARD, self.playback_value)
+	self.playback_value = dirtylarry:radio("playback_once_backward", action_id, action, go.PLAYBACK_ONCE_BACKWARD, self.playback_value)
+	self.playback_value = dirtylarry:radio("playback_once_pingpong", action_id, action, go.PLAYBACK_ONCE_PINGPONG, self.playback_value)
+	self.playback_value = dirtylarry:radio("playback_loop_forward", action_id, action, go.PLAYBACK_LOOP_FORWARD, self.playback_value)
+	self.playback_value = dirtylarry:radio("playback_loop_backward", action_id, action, go.PLAYBACK_LOOP_BACKWARD, self.playback_value)
+	self.playback_value = dirtylarry:radio("playback_loop_pingpong", action_id, action, go.PLAYBACK_LOOP_PINGPONG, self.playback_value)
+
+	self.playback_rate   = dirtylarry:slider("playback_rate",   action_id, action, 0.0, 1.0, self.playback_rate)
+	self.playback_offset = dirtylarry:slider("playback_offset", action_id, action, 0.0, 1.0, self.playback_offset)
+	self.playback_cursor = dirtylarry:slider("playback_cursor", action_id, action, 0.0, 1.0, self.playback_cursor)
+
+	if self.playback_value ~= playback_value and self.anim ~= nil then
+		animation_play(self, self.anim)
+	elseif self.playback_rate ~= playback_rate and self.anim ~= nil then
+		animation_set_rate(self, self.playback_rate)
+	end
+
+	if self.playback_cursor ~= playback_cursor and self.anim ~= nil then
+		animation_set_cursor(self, self.playback_cursor)
+	end
+
+	dirtylarry:button("animation_cancel", action_id, action, function ()
+		animation_cancel(self)
+	end)
+
+	dirtylarry:button("animation_idle", action_id, action, function ()
+		animation_play(self, "idle")
+	end)
+
+	dirtylarry:button("animation_bouncing", action_id, action, function ()
+		animation_play(self, "bouncing")
+	end)
+
+	dirtylarry:button("animation_windshield_wipers", action_id, action, function ()
+		animation_play(self, "windshield_wipers")
+	end)
+
+	dirtylarry:button("animation_broken", action_id, action, function ()
+		animation_play(self, "broken")
+	end)
+end
+
+function on_message(self, message_id, message)
+	if message_id == hash("animation_complete") then
+		clear_animation_label(self)
+	elseif message_id == hash("animation_cursor") then
+		if dirtylarry.active_node ~= nil and gui.get_id(dirtylarry.active_node) == gui.get_id(self.cursor_node) then
+			return
+		end
+		
+		self.playback_cursor = message.cursor
+		self.playback_cursor = dirtylarry:slider("playback_cursor", hash("touch"), { x = -1, y = -1 }, 0.0, 1.0, self.playback_cursor)
+	end
+end
+

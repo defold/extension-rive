@@ -15,7 +15,18 @@
 
 namespace dmRive
 {
-	
+	struct RiveLinearAnimationEntry
+	{
+		dmhash_t m_NameHash;
+		uint8_t  m_AnimationIndex;
+	};
+
+	struct RiveSceneData
+	{
+		rive::File*               m_File;
+		RiveLinearAnimationEntry* m_LinearAnimations;
+		uint8_t                   m_LinearAnimationCount;
+	};
 }
 
 #endif // DM_RES_RIVE_DATA_H

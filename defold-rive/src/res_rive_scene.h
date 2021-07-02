@@ -22,9 +22,8 @@ namespace dmRive
     struct RiveSceneResource
     {
         dmRiveDDF::RiveSceneDesc* m_DDF;
-        // TODO: use the correct rive type
-        void*                   m_Scene; // the actual rive scene
-        dmGraphics::HTexture    m_Texture;
+        void*                     m_Scene; // The rive::File* ptr
+        dmGraphics::HTexture      m_Texture;
     };
 }
 
