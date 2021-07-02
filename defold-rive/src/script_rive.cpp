@@ -110,10 +110,51 @@ namespace dmRive
         return 0;
     }
 
+    static int RiveComp_GetGO(lua_State* L)
+    {
+        DM_LUA_STACK_CHECK(L, 1);
+
+        RiveComponent* component = 0;
+        dmGameObject::GetComponentFromLua(L, 1, RIVE_EXT, 0, (void**)&component, 0);
+
+        dmhash_t bone_id = dmScript::CheckHashOrString(L, 2);
+        uint32_t bone_index = ~0u;
+
+        for (uint32_t i = 0; i < component->m_NodeInstanceIds.Size(); ++i)
+        {
+            if (component->m_NodeInstanceIds[i] == bone_id)
+            {
+                bone_index = i;
+                break;
+            }
+        }
+        if (bone_index == ~0u)
+        {
+            return DM_LUA_ERROR("the bone '%s' could not be found", lua_tostring(L, 2));
+        }
+        if(bone_index >= component->m_NodeInstances.Size())
+        {
+            return DM_LUA_ERROR("no game object found for the bone '%s'", lua_tostring(L, 2));
+        }
+        dmGameObject::HInstance instance = component->m_NodeInstances[bone_index];
+        if (instance == 0x0)
+        {
+            return DM_LUA_ERROR("no game object found for the bone '%s'", lua_tostring(L, 2));
+        }
+        dmhash_t instance_id = dmGameObject::GetIdentifier(instance);
+        if (instance_id == 0x0)
+        {
+            return DM_LUA_ERROR("game object contains no identifier for the bone '%s'", lua_tostring(L, 2));
+        }
+        dmScript::PushHash(L, instance_id);
+        return 1;
+    }
+
     static const luaL_reg RIVE_FUNCTIONS[] =
     {
         {"play_anim", RiveComp_PlayAnim},
         {"cancel",    RiveComp_Cancel},
+        {"get_go",    RiveComp_GetGO},
         {0, 0}
     };
 

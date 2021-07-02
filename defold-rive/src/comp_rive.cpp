@@ -12,6 +12,8 @@
 
 #include <file.hpp>
 #include <renderer.hpp>
+#include <core.hpp>
+#include <drawable.hpp>
 #include <animation/linear_animation_instance.hpp>
 #include <animation/loop.hpp>
 #include <rive/rive_render_api.h>
@@ -125,6 +127,7 @@ namespace dmRive
         dmGraphics::HIndexBuffer            m_IndexBuffer;
         dmArray<int>                        m_IndexBufferData;
         dmArray<RiveDrawEntry>              m_DrawEntries;
+        dmArray<dmGameObject::HInstance>    m_ScratchInstances;
     };
 
     static inline void Mat4ToMat2D(const Matrix4 m4, rive::Mat2D& m2)
@@ -226,6 +229,119 @@ namespace dmRive
         component->m_ReHash = 0;
     }
 
+    static bool CreateGameobjects(RiveWorld* world, RiveComponent* component)
+    {
+        dmGameObject::HInstance rive_instance            = component->m_Instance;
+        dmGameObject::HCollection collection             = dmGameObject::GetCollection(rive_instance);
+        dmRive::RiveSceneData* data                      = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
+        rive::File* f                                    = data->m_File;
+        rive::Artboard* artboard                         = f->artboard();
+        const std::vector<rive::Core*>& artboard_objects = artboard->objects();
+
+        std::vector<uint32_t> artboard_node_map;
+        // object index to drawable
+        dmHashTable<uint32_t, uint32_t> drawables_to_objects_map;
+        drawables_to_objects_map.SetCapacity(32, 128); // Todo: What are good values here?
+
+        for (int i = 0; i < artboard_objects.size(); ++i)
+        {
+            rive::Core* object = artboard_objects[i];
+            if (object->is<rive::TransformComponent>())
+            {
+                if (drawables_to_objects_map.Full())
+                {
+                    drawables_to_objects_map.SetCapacity(32, drawables_to_objects_map.Capacity() + 128);
+                }
+
+                drawables_to_objects_map.Put(i, artboard_node_map.size());
+                artboard_node_map.push_back(i);
+            }
+        }
+
+        int node_count = artboard_node_map.size();
+        component->m_NodeInstances.SetCapacity(node_count);
+        component->m_NodeInstances.SetSize(node_count);
+        component->m_NodeInstanceIds.SetCapacity(node_count);
+        component->m_NodeInstanceIds.SetSize(node_count);
+
+        if (node_count > world->m_ScratchInstances.Capacity())
+        {
+            world->m_ScratchInstances.SetCapacity(node_count);
+        }
+
+        world->m_ScratchInstances.SetSize(0);
+        for (uint32_t i = 0; i < node_count; ++i)
+        {
+            dmGameObject::HInstance node_instance = dmGameObject::New(collection, 0x0);
+            if (node_instance == 0x0)
+            {
+                component->m_NodeInstances.SetSize(i);
+                return false;
+            }
+
+            uint32_t index = dmGameObject::AcquireInstanceIndex(collection);
+            if (index == dmGameObject::INVALID_INSTANCE_POOL_INDEX)
+            {
+                dmGameObject::Delete(collection, node_instance, false);
+                component->m_NodeInstances.SetSize(i);
+                return false;
+            }
+
+            dmhash_t id = dmGameObject::ConstructInstanceId(index);
+            dmGameObject::AssignInstanceIndex(index, node_instance);
+
+            dmGameObject::Result result = dmGameObject::SetIdentifier(collection, node_instance, id);
+            if (dmGameObject::RESULT_OK != result)
+            {
+                dmGameObject::Delete(collection, node_instance, false);
+                component->m_NodeInstances.SetSize(i);
+                return false;
+            }
+
+            dmGameObject::SetBone(node_instance, true);
+
+            uint32_t object_index = artboard_node_map[i];
+            rive::TransformComponent* object_node = artboard_objects[object_index]->as<rive::TransformComponent>();
+
+            Matrix4 node_transform_m4;
+            rive::Mat2D node_transform = object_node->transform();
+            Mat2DToMat4(node_transform, node_transform_m4);
+            dmTransform::Transform transform = dmTransform::ToTransform(node_transform_m4);
+            if (i == 0)
+            {
+                transform = dmTransform::Mul(component->m_Transform, transform);
+            }
+            dmGameObject::SetPosition(node_instance, Point3(transform.GetTranslation()));
+            dmGameObject::SetRotation(node_instance, transform.GetRotation());
+            dmGameObject::SetScale(node_instance, transform.GetScale());
+
+            component->m_NodeInstances[i]   = node_instance;
+            component->m_NodeInstanceIds[i] = dmHashString64(object_node->name().c_str());
+
+            world->m_ScratchInstances.Push(node_instance);
+        }
+
+        // Set parents in reverse to account for child-prepending
+        for (uint32_t i = 0; i < node_count; ++i)
+        {
+            uint32_t index = node_count - 1 - i;
+            dmGameObject::HInstance bone_instance = world->m_ScratchInstances[index];
+            dmGameObject::HInstance parent = rive_instance;
+            if (index > 0)
+            {
+                uint32_t object_index                 = artboard_node_map[index];
+                rive::TransformComponent* object_node = artboard_objects[object_index]->as<rive::TransformComponent>();
+                uint32_t parent_id                    = object_node->parentId();
+                uint32_t* parent_index                = drawables_to_objects_map.Get(parent_id);
+                assert(parent_index);
+                parent = world->m_ScratchInstances[*parent_index];
+            }
+            dmGameObject::SetParent(bone_instance, parent);
+        }
+
+        return true;
+    }
+
     void* CompRiveGetComponent(const dmGameObject::ComponentGetParams& params)
     {
         RiveWorld* world = (RiveWorld*)params.m_World;
@@ -259,7 +375,12 @@ namespace dmRive
         component->m_DoRender = 0;
         component->m_RenderConstants = 0;
 
-        // TODO: Create the bone hierarchy
+        if (!CreateGameobjects(world, component))
+        {
+            dmLogError("Failed to create game objects for paths in the rive model. Consider increasing collection max instances (collection.max_instances).");
+            DestroyComponent(world, index);
+            return dmGameObject::CREATE_RESULT_UNKNOWN_ERROR;
+        }
 
         component->m_ReHash = 1;
 
