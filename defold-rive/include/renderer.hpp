@@ -47,8 +47,6 @@ namespace rive
 			addRenderPath(path->renderPath(), transform);
 		}
 
-		virtual uintptr_t getUserData() { return 0; }
-
 		virtual void addRenderPath(RenderPath* path,
 		                           const Mat2D& transform) = 0;
 	};

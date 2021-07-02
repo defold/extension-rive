@@ -1,6 +1,5 @@
 #include "shapes/cubic_mirrored_vertex.hpp"
 #include "math/vec2d.hpp"
-#define _USE_MATH_DEFINES
 #include <cmath>
 
 using namespace rive;

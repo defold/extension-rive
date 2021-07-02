@@ -1,3 +1,4 @@
+
 #include "animation/state_machine_instance.hpp"
 #include "animation/state_machine_input.hpp"
 #include "animation/state_machine_bool.hpp"
@@ -10,13 +11,13 @@
 #include "animation/entry_state.hpp"
 #include "animation/state_transition.hpp"
 #include "animation/transition_condition.hpp"
-#include "animation/linear_animation_instance.hpp"
 #include "animation/animation_state.hpp"
+#include "animation/state_instance.hpp"
+#include "animation/animation_state_instance.hpp"
 
 #include <algorithm>
 
 using namespace rive;
-
 namespace rive
 {
 	class StateMachineLayerInstance
@@ -24,208 +25,252 @@ namespace rive
 	private:
 		static const int maxIterations = 100;
 		const StateMachineLayer* m_Layer = nullptr;
-		const LayerState* m_CurrentState = nullptr;
-		const LayerState* m_StateFrom = nullptr;
+
+		StateInstance* m_AnyStateInstance = nullptr;
+		StateInstance* m_CurrentState = nullptr;
+		StateInstance* m_StateFrom = nullptr;
+
+		// const LayerState* m_CurrentState = nullptr;
+		// const LayerState* m_StateFrom = nullptr;
 		const StateTransition* m_Transition = nullptr;
 
 		bool m_HoldAnimationFrom = false;
-		LinearAnimationInstance* m_AnimationInstance = nullptr;
-		LinearAnimationInstance* m_AnimationInstanceFrom = nullptr;
+		// LinearAnimationInstance* m_AnimationInstance = nullptr;
+		// LinearAnimationInstance* m_AnimationInstanceFrom = nullptr;
 		float m_Mix = 1.0f;
+		float m_MixFrom = 1.0f;
+		bool m_StateChangedOnAdvance = false;
+
+		bool m_WaitingForExit = false;
+		/// Used to ensure a specific animation is applied on the next apply.
+		const LinearAnimation* m_HoldAnimation = nullptr;
+		float m_HoldTime = 0.0f;
 
 	public:
-		void init(const StateMachineLayer* layer)
+		~StateMachineLayerInstance()
 		{
-			m_Layer = layer;
-			m_CurrentState = m_Layer->entryState();
+			delete m_AnyStateInstance;
+			delete m_CurrentState;
+			delete m_StateFrom;
 		}
 
-		bool advance(float seconds, SMIInput** inputs)
+		void init(const StateMachineLayer* layer)
 		{
-			bool keepGoing = false;
-			if (m_AnimationInstance != nullptr)
-			{
-				keepGoing = m_AnimationInstance->advance(seconds);
-			}
+			assert(m_Layer == nullptr);
+			m_AnyStateInstance = layer->anyState()->makeInstance();
+			m_Layer = layer;
+			changeState(m_Layer->entryState());
+		}
 
+		void updateMix(float seconds)
+		{
 			if (m_Transition != nullptr && m_StateFrom != nullptr &&
 			    m_Transition->duration() != 0)
 			{
-				m_Mix =
-				    std::min(1.0f,
-				             std::max(0.0f,
-				                      (m_Mix + seconds / m_Transition->mixTime(
-				                                             m_StateFrom))));
+				m_Mix = std::min(
+				    1.0f,
+				    std::max(0.0f,
+				             (m_Mix + seconds / m_Transition->mixTime(
+				                                    m_StateFrom->state()))));
 			}
 			else
 			{
 				m_Mix = 1.0f;
 			}
+		}
 
-			if (m_AnimationInstanceFrom != nullptr && m_Mix < 1.0f &&
-			    !m_HoldAnimationFrom)
+		bool advance(Artboard* artboard,
+		             float seconds,
+		             SMIInput** inputs,
+		             size_t inputCount)
+		{
+			m_StateChangedOnAdvance = false;
+
+			if (m_CurrentState != nullptr)
 			{
-				m_AnimationInstanceFrom->advance(seconds);
+				m_CurrentState->advance(seconds, inputs);
 			}
 
-			for (int i = 0; updateState(inputs); i++)
+			updateMix(seconds);
+
+			if (m_StateFrom != nullptr && m_Mix < 1.0f && !m_HoldAnimationFrom)
 			{
+				// This didn't advance during our updateState, but it should now
+				// that we realize we need to mix it in.
+				m_StateFrom->advance(seconds, inputs);
+			}
+
+			for (int i = 0; updateState(inputs, i != 0); i++)
+			{
+				apply(artboard);
+
 				if (i == maxIterations)
 				{
 					fprintf(stderr, "StateMachine exceeded max iterations.\n");
 					return false;
 				}
 			}
-			return m_Mix != 1.0f || keepGoing;
+
+			apply(artboard);
+
+			return m_Mix != 1.0f || m_WaitingForExit ||
+			       (m_CurrentState != nullptr && m_CurrentState->keepGoing());
 		}
 
-		bool updateState(SMIInput** inputs)
+		bool isTransitioning()
 		{
-			if (tryChangeState(m_Layer->anyState(), inputs))
+			return m_Transition != nullptr && m_StateFrom != nullptr &&
+			       m_Transition->duration() != 0 && m_Mix < 1.0f;
+		}
+
+		bool updateState(SMIInput** inputs, bool ignoreTriggers)
+		{
+			// Don't allow changing state while a transition is taking place
+			// (we're mixing one state onto another).
+			if (isTransitioning())
+			{
+				return false;
+			}
+
+			m_WaitingForExit = false;
+
+			if (tryChangeState(m_AnyStateInstance, inputs, ignoreTriggers))
 			{
 				return true;
 			}
 
-			return tryChangeState(m_CurrentState, inputs);
+			return tryChangeState(m_CurrentState, inputs, ignoreTriggers);
 		}
 
 		bool changeState(const LayerState* stateTo)
 		{
-			if (m_CurrentState == stateTo)
+			if ((m_CurrentState == nullptr
+			         ? nullptr
+			         : m_CurrentState->state()) == stateTo)
 			{
 				return false;
 			}
-			m_CurrentState = stateTo;
+			m_CurrentState =
+			    stateTo == nullptr ? nullptr : stateTo->makeInstance();
 			return true;
 		}
 
-		bool tryChangeState(const LayerState* stateFrom, SMIInput** inputs)
+		bool tryChangeState(StateInstance* stateFromInstance,
+		                    SMIInput** inputs,
+		                    bool ignoreTriggers)
 		{
-			if (stateFrom == nullptr)
+			if (stateFromInstance == nullptr)
 			{
 				return false;
 			}
+			auto stateFrom = stateFromInstance->state();
+			auto outState = m_CurrentState;
 			for (size_t i = 0, length = stateFrom->transitionCount();
 			     i < length;
 			     i++)
 			{
 				auto transition = stateFrom->transition(i);
-
-				if (transition->isDisabled())
+				auto allowed = transition->allowed(
+				    stateFromInstance, inputs, ignoreTriggers);
+				if (allowed == AllowTransition::yes &&
+				    changeState(transition->stateTo()))
 				{
-					continue;
-				}
-
-				bool valid = true;
-				for (size_t j = 0, length = transition->conditionCount();
-				     j < length;
-				     j++)
-				{
-					auto condition = transition->condition(j);
-					auto input = inputs[condition->inputId()];
-					if (!condition->evaluate(input))
-					{
-						valid = false;
-						break;
-					}
-				}
-
-				// If all the conditions evaluated to true, make sure the exit
-				// time (when set) is also valid.
-				if (valid && stateFrom->is<AnimationState>() &&
-				    transition->enableExitTime())
-				{
-					auto fromAnimation =
-					    stateFrom->as<AnimationState>()->animation();
-					assert(fromAnimation != nullptr);
-					auto lastTime = m_AnimationInstance->lastTotalTime();
-					auto time = m_AnimationInstance->totalTime();
-					auto exitTime =
-					    transition->exitTimeSeconds(stateFrom, true);
-					if (exitTime < fromAnimation->durationSeconds())
-					{
-						// Get exit time relative to the loop lastTime was in.
-						exitTime +=
-						    (int)(lastTime / fromAnimation->durationSeconds()) *
-						    fromAnimation->durationSeconds();
-					}
-					if (time < exitTime)
-					{
-						valid = false;
-					}
-				}
-
-				// Try to change the state...
-				if (valid && changeState(transition->stateTo()))
-				{
+					m_StateChangedOnAdvance = true;
 					// state actually has changed
 					m_Transition = transition;
-					m_StateFrom = stateFrom;
+					if (m_StateFrom != m_AnyStateInstance)
+					{
+						// Old state from is done.
+						delete m_StateFrom;
+					}
+					m_StateFrom = outState;
 
 					// If we had an exit time and wanted to pause on exit, make
-					// sure to hold the exit time.
-					if (transition->pauseOnExit() &&
-					    transition->enableExitTime() &&
-					    m_AnimationInstance != nullptr)
+					// sure to hold the exit time. Delegate this to the
+					// transition by telling it that it was completed.
+					if (outState != nullptr &&
+					    transition->applyExitCondition(outState))
 					{
-						m_AnimationInstance->time(
-						    transition->exitTimeSeconds(stateFrom, false));
-					}
+						// Make sure we apply this state. This only returns true
+						// when it's an animation state instance.
+						auto instance = static_cast<AnimationStateInstance*>(
+						                    m_StateFrom)
+						                    ->animationInstance();
 
+						m_HoldAnimation = instance->animation();
+						m_HoldTime = instance->time();
+					}
+					m_MixFrom = m_Mix;
+
+					// Keep mixing last animation that was mixed in.
 					if (m_Mix != 0.0f)
 					{
 						m_HoldAnimationFrom = transition->pauseOnExit();
-						delete m_AnimationInstanceFrom;
-						m_AnimationInstanceFrom = m_AnimationInstance;
+					}
+					if (m_StateFrom != nullptr &&
+					    m_StateFrom->state()->is<AnimationState>() &&
+					    m_CurrentState != nullptr)
+					{
+						auto instance = static_cast<AnimationStateInstance*>(
+						                    m_StateFrom)
+						                    ->animationInstance();
 
-						// Don't let it get deleted as we've passed it on to the
-						// from.
-						m_AnimationInstance = nullptr;
+						auto spilledTime = instance->spilledTime();
+						m_CurrentState->advance(spilledTime, inputs);
 					}
-					else
-					{
-						delete m_AnimationInstance;
-						m_AnimationInstance = nullptr;
-					}
-					if (m_CurrentState->is<AnimationState>())
-					{
-						auto animationState =
-						    m_CurrentState->as<AnimationState>();
-						auto spilledTime =
-						    m_AnimationInstanceFrom == nullptr
-						        ? 0
-						        : m_AnimationInstanceFrom->spilledTime();
-						if (animationState->animation() != nullptr)
-						{
-							m_AnimationInstance = new LinearAnimationInstance(
-							    animationState->animation());
-							m_AnimationInstance->advance(spilledTime);
-						}
-						m_Mix = 0.0f;
-					}
+					m_Mix = 0.0f;
+					updateMix(0.0f);
+					m_WaitingForExit = false;
 					return true;
+				}
+				else if (allowed == AllowTransition::waitingForExit)
+				{
+					m_WaitingForExit = true;
 				}
 			}
 			return false;
 		}
 
-		void apply(Artboard* artboard) const
+		void apply(Artboard* artboard)
 		{
-			if (m_AnimationInstanceFrom != nullptr && m_Mix < 1.0f)
+			if (m_HoldAnimation != nullptr)
 			{
-				m_AnimationInstanceFrom->animation()->apply(
-				    artboard, m_AnimationInstanceFrom->time(), 1.0 - m_Mix);
+				m_HoldAnimation->apply(artboard, m_HoldTime, m_MixFrom);
+				m_HoldAnimation = nullptr;
 			}
-			if (m_AnimationInstance != nullptr)
+
+			if (m_StateFrom != nullptr && m_Mix < 1.0f)
 			{
-				m_AnimationInstance->animation()->apply(
-				    artboard, m_AnimationInstance->time(), m_Mix);
+				m_StateFrom->apply(artboard, m_MixFrom);
 			}
+			if (m_CurrentState != nullptr)
+			{
+				m_CurrentState->apply(artboard, m_Mix);
+			}
+		}
+
+		bool stateChangedOnAdvance() const { return m_StateChangedOnAdvance; }
+
+		const LayerState* currentState()
+		{
+			return m_CurrentState == nullptr ? nullptr
+			                                 : m_CurrentState->state();
+		}
+
+		const LinearAnimationInstance* currentAnimation() const
+		{
+			if (m_CurrentState == nullptr ||
+			    !m_CurrentState->state()->is<AnimationState>())
+			{
+				return nullptr;
+			}
+			return static_cast<AnimationStateInstance*>(m_CurrentState)
+			    ->animationInstance();
 		}
 	};
 } // namespace rive
 
-StateMachineInstance::StateMachineInstance(StateMachine* machine) :
+StateMachineInstance::StateMachineInstance(const StateMachine* machine) :
     m_Machine(machine)
 {
 	m_InputCount = machine->inputCount();
@@ -277,12 +322,13 @@ StateMachineInstance::~StateMachineInstance()
 	delete[] m_Layers;
 }
 
-bool StateMachineInstance::advance(float seconds)
+bool StateMachineInstance::advance(Artboard* artboard, float seconds)
 {
 	m_NeedsAdvance = false;
 	for (int i = 0; i < m_LayerCount; i++)
 	{
-		if (m_Layers[i].advance(seconds, m_InputInstances))
+		if (m_Layers[i].advance(
+		        artboard, seconds, m_InputInstances, m_InputCount))
 		{
 			m_NeedsAdvance = true;
 		}
@@ -294,14 +340,6 @@ bool StateMachineInstance::advance(float seconds)
 	}
 
 	return m_NeedsAdvance;
-}
-
-void StateMachineInstance::apply(Artboard* artboard) const
-{
-	for (int i = 0; i < m_LayerCount; i++)
-	{
-		m_Layers[i].apply(artboard);
-	}
 }
 
 void StateMachineInstance::markNeedsAdvance() { m_NeedsAdvance = true; }
@@ -349,6 +387,67 @@ SMITrigger* StateMachineInstance::getTrigger(std::string name) const
 		if (input->is<StateMachineTrigger>() && input->name() == name)
 		{
 			return static_cast<SMITrigger*>(m_InputInstances[i]);
+		}
+	}
+	return nullptr;
+}
+
+size_t StateMachineInstance::stateChangedCount() const
+{
+	size_t count = 0;
+	for (int i = 0; i < m_LayerCount; i++)
+	{
+		if (m_Layers[i].stateChangedOnAdvance())
+		{
+			count++;
+		}
+	}
+	return count;
+}
+
+const LayerState* StateMachineInstance::stateChangedByIndex(size_t index) const
+{
+	size_t count = 0;
+	for (int i = 0; i < m_LayerCount; i++)
+	{
+		if (m_Layers[i].stateChangedOnAdvance())
+		{
+			if (count == index)
+			{
+				return m_Layers[i].currentState();
+			}
+			count++;
+		}
+	}
+	return nullptr;
+}
+
+const size_t StateMachineInstance::currentAnimationCount() const
+{
+	size_t count = 0;
+	for (int i = 0; i < m_LayerCount; i++)
+	{
+		if (m_Layers[i].currentAnimation() != nullptr)
+		{
+			count++;
+		}
+	}
+	return count;
+}
+
+const LinearAnimationInstance*
+StateMachineInstance::currentAnimationByIndex(size_t index) const
+{
+	size_t count = 0;
+	for (int i = 0; i < m_LayerCount; i++)
+	{
+		if (m_Layers[i].currentAnimation() != nullptr)
+		{
+			if (count == index)
+			{
+				return m_Layers[i].currentAnimation();
+			}
+			count++;
 		}
 	}
 	return nullptr;

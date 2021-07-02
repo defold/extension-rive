@@ -1,7 +1,6 @@
 #include "animation/linear_animation_instance.hpp"
 #include "animation/linear_animation.hpp"
 #include "animation/loop.hpp"
-#define _USE_MATH_DEFINES
 #include <cmath>
 
 using namespace rive;
@@ -39,10 +38,10 @@ bool LinearAnimationInstance::advance(float elapsedSeconds)
 	bool didLoop = false;
 	m_SpilledTime = 0.0f;
 
-	switch (animation.loop())
+	switch (loop())
 	{
 		case Loop::oneShot:
-			if (frames > end)
+			if (m_Direction == 1 && frames > end)
 			{
 				keepGoing = false;
 				m_SpilledTime = (frames - end) / fps;
@@ -50,13 +49,31 @@ bool LinearAnimationInstance::advance(float elapsedSeconds)
 				m_Time = frames / fps;
 				didLoop = true;
 			}
+			else if (m_Direction == -1 && frames < start)
+			{
+				keepGoing = false;
+				m_SpilledTime = (start - frames) / fps;
+				frames = start;
+				m_Time = frames / fps;
+				didLoop = true;
+			}
 			break;
 		case Loop::loop:
-			if (frames >= end)
+			if (m_Direction == 1 && frames >= end)
 			{
 				m_SpilledTime = (frames - end) / fps;
 				frames = m_Time * fps;
 				frames = start + std::fmod(frames - start, range);
+
+				m_Time = frames / fps;
+				didLoop = true;
+			}
+			else if (m_Direction == -1 && frames <= start)
+			{
+
+				m_SpilledTime = (start - frames) / fps;
+				frames = m_Time * fps;
+				frames = end - std::abs(std::fmod(start - frames, range));
 				m_Time = frames / fps;
 				didLoop = true;
 			}
@@ -113,5 +130,31 @@ void LinearAnimationInstance::time(float value)
 	m_TotalTime = value - start;
 	m_LastTotalTime = m_TotalTime - diff;
 
+	// leaving this RIGHT now. but is this required? it kinda messes up
+	// playing things backwards and seeking. what purpose does it solve?
 	m_Direction = 1;
+}
+
+// Returns either the animation's default or overridden loop values
+int LinearAnimationInstance::loopValue()
+{
+	if (m_LoopValue != -1)
+	{
+		return m_LoopValue;
+	}
+	return m_Animation->loopValue();
+}
+
+// Override the animation's loop value
+void LinearAnimationInstance::loopValue(int value)
+{
+	if (m_LoopValue == value)
+	{
+		return;
+	}
+	if (m_LoopValue == -1 && m_Animation->loopValue() == value)
+	{
+		return;
+	}
+	m_LoopValue = value;
 }
