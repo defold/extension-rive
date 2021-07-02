@@ -1,15 +1,44 @@
 function init(self)
-	self.v = 0
+    self.v        = 0
+    self.url      = msg.url("#test")
+    self.anim     = 0
+    self.cursor   = 0
+    self.playback = go.PLAYBACK_LOOP_FORWARD
 end
 
 function update(self, dt)
-	self.v = self.v + dt
+    self.v      = self.v + dt
+    self.anim   = go.get(self.url, "animation")
+    self.cursor = go.get(self.url, "cursor")
 
-	local p = go.get_position()
-	p.x = p.x + math.sin(self.v) * 4
-	-- go.set_position(p)
-
-	local r = vmath.quat_rotation_z(self.v * 0.1)
-	-- go.set_rotation(r)
+    if self.anim ~= 0 then
+        msg.post("/gui#gui", "animation_cursor", { cursor = self.cursor })
+    end
 end
 
+local function anim_done(self, message_id, message, sender)
+    if message_id == hash("rive_animation_done") then
+        msg.post("/gui#gui", "animation_complete")
+    end
+end
+
+function play_animation(self, anim, playback, offset, rate)
+    if anim ~= self.anim or playback ~= self.playback then
+        print("Playing animation: " .. tostring(anim) .. " with playback mode " .. tostring(playback) .. ", rate " .. tostring(rate) .. ", offset " .. tostring(offset))
+        self.anim     = anim
+        self.playback = playback
+        rive.play_anim(self.url, self.anim, self.playback, { offset = offset, playback_rate = rate }, anim_done)
+    end
+end
+
+function on_message(self, message_id, message) 
+    if message_id == hash("MSG_CANCEL") then
+        rive.cancel(self.url)
+    elseif message_id == hash("MSG_PLAY") then
+        play_animation(self, message.animation, message.playback, message.offset, message.rate)
+    elseif message_id == hash("MSG_PLAYBACK_RATE") then
+        go.set(self.url, "playback_rate", message.rate)
+    elseif message_id == hash("MSG_PLAYBACK_CURSOR") then
+        go.set(self.url, "cursor", message.cursor)
+    end
+end

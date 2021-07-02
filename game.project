@@ -8,12 +8,14 @@ shared_state = 1
 [display]
 width = 960
 height = 640
+high_dpi = 1
 
 [android]
 input_method = HiddenInputField
 
 [project]
 title = extension-rive
+dependencies#0 = https://github.com/andsve/dirtylarry/archive/master.zip
 
 [library]
 include_dirs = defold-rive,assets

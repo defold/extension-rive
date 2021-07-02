@@ -33,41 +33,23 @@ message RiveModelDesc
     //optional float tesselation_option1    = 4 [default = 0.0];
 }
 
-
-/*
 message RivePlayAnimation
 {
     required uint64 animation_id = 1;
-    // matches dmGameObject::Playback in gameobject.h
-    required uint32 playback = 2;
-    optional float blend_duration = 3 [default = 0.0];
-    optional float offset = 4 [default = 0.0];
-    optional float playback_rate = 5 [default = 1.0];
-}
-
-message RiveAnimationDone
-{
-    required uint64 animation_id = 1;
-    // matches dmGameObject::Playback in gameobject.h
-    required uint32 playback = 2;
+    required uint32 playback     = 2; // matches dmGameObject::Playback in gameobject.h
+    optional float offset        = 3 [default = 0.0];
+    optional float playback_rate = 4 [default = 1.0];
 }
 
 message RiveCancelAnimation
 {
 }
 
-message RiveEvent
+message RiveAnimationDone
 {
-    required uint64 event_id = 1;
-    required uint64 animation_id = 2;
-    required float t = 3;
-    required float blend_weight = 4;
-    optional int32 integer = 5 [default = 0];
-    optional float float = 6 [default = 0.0];
-    optional uint64 string = 7 [default = 0];
-    optional dmScriptDDF.LuaRef node = 8;
+    required uint64 animation_id = 1;
+    required uint32 playback     = 2; // matches dmGameObject::Playback in gameobject.h
 }
-*/
 
 // Function wrapper documented in gamesys_script.cpp
 message SetConstantRiveModel
