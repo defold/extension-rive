@@ -41,8 +41,10 @@ namespace dmRive
         float                                   m_AnimationPlaybackRate;
         int                                     m_AnimationCallbackRef;
 
+        dmGameObject::HInstance                 m_RootInstance;
         dmArray<dmGameObject::HInstance>        m_NodeInstances;   // Node instances corresponding to the bones
         dmArray<dmhash_t>                       m_NodeInstanceIds; // Node instance name hashes for script lookup
+        dmArray<uint32_t>                       m_NodeInstanceToObjectIndex;
         uint32_t                                m_VertexCount;
         uint32_t                                m_IndexCount;
         uint32_t                                m_MixedHash;

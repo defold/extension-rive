@@ -270,6 +270,12 @@ namespace rive
         r->m_Transform = transform;
     }
 
+    Mat2D getTransform(HRenderer renderer)
+    {
+        SharedRenderer* r = (SharedRenderer*) renderer;
+        return r->m_Transform;
+    }
+
     RenderMode getRenderMode(HContext ctx)
     {
         Context* c = (Context*) ctx;

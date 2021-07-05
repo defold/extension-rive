@@ -4,6 +4,9 @@ function init(self)
     self.anim     = 0
     self.cursor   = 0
     self.playback = go.PLAYBACK_LOOP_FORWARD
+
+    go.set_parent("/duck_anchor", rive.get_go(self.url, "duck"))
+    go.set_parent("/car_motor_anchor", rive.get_go(self.url, "car_motor"))
 end
 
 function update(self, dt)
@@ -13,6 +16,13 @@ function update(self, dt)
 
     if self.anim ~= 0 then
         msg.post("/gui#gui", "animation_cursor", { cursor = self.cursor })
+    end
+
+    local p = go.get_position()
+
+    if p.x < 1000 then
+        p.x = p.x + self.v * 0.25
+        --go.set_position(p)
     end
 end
 

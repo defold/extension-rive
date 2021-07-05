@@ -26,6 +26,7 @@
 namespace dmRive
 {
     static const char*    RIVE_EXT      = "rivc";
+    static const char*    RIVE_MDL_EXT  = "rivemodelc";
     static const dmhash_t RIVE_EXT_HASH = dmHashString64(RIVE_EXT);
 
     /*# Rive model API documentation
@@ -115,7 +116,7 @@ namespace dmRive
         DM_LUA_STACK_CHECK(L, 1);
 
         RiveComponent* component = 0;
-        dmGameObject::GetComponentFromLua(L, 1, RIVE_EXT, 0, (void**)&component, 0);
+        dmGameObject::GetComponentFromLua(L, 1, RIVE_MDL_EXT, 0, (void**)&component, 0);
 
         dmhash_t bone_id = dmScript::CheckHashOrString(L, 2);
         uint32_t bone_index = ~0u;
