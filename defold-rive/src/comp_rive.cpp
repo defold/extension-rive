@@ -1212,29 +1212,29 @@ namespace dmRive
             {
                 CompRiveAnimationReset(component);
             }
-            // else if (params.m_Message->m_Id == dmRiveDDF::SetConstantSpineModel::m_DDFDescriptor->m_NameHash)
-            // {
-            //     dmRiveDDF::SetConstantSpineModel* ddf = (dmRiveDDF::SetConstantSpineModel*)params.m_Message->m_Data;
-            //     dmGameObject::PropertyResult result = dmGameSystem::SetMaterialConstant(GetMaterial(component, component->m_Resource), ddf->m_NameHash,
-            //             dmGameObject::PropertyVar(ddf->m_Value), CompRiveSetConstantCallback, component);
-            //     if (result == dmGameObject::PROPERTY_RESULT_NOT_FOUND)
-            //     {
-            //         dmMessage::URL& receiver = params.m_Message->m_Receiver;
-            //         dmLogError("'%s:%s#%s' has no constant named '%s'",
-            //                 dmMessage::GetSocketName(receiver.m_Socket),
-            //                 dmHashReverseSafe64(receiver.m_Path),
-            //                 dmHashReverseSafe64(receiver.m_Fragment),
-            //                 dmHashReverseSafe64(ddf->m_NameHash));
-            //     }
-            // }
-            // else if (params.m_Message->m_Id == dmRiveDDF::ResetConstantSpineModel::m_DDFDescriptor->m_NameHash)
-            // {
-            //     dmRiveDDF::ResetConstantSpineModel* ddf = (dmRiveDDF::ResetConstantSpineModel*)params.m_Message->m_Data;
-            //     if (component->m_RenderConstants)
-            //     {
-            //         component->m_ReHash |= dmGameSystem::ClearRenderConstant(component->m_RenderConstants, ddf->m_NameHash);
-            //     }
-            // }
+            else if (params.m_Message->m_Id == dmRiveDDF::SetConstantRiveModel::m_DDFDescriptor->m_NameHash)
+            {
+                dmRiveDDF::SetConstantRiveModel* ddf = (dmRiveDDF::SetConstantRiveModel*)params.m_Message->m_Data;
+                dmGameObject::PropertyResult result  = dmGameSystem::SetMaterialConstant(GetMaterial(component, component->m_Resource), ddf->m_NameHash,
+                        dmGameObject::PropertyVar(ddf->m_Value), CompRiveSetConstantCallback, component);
+                if (result == dmGameObject::PROPERTY_RESULT_NOT_FOUND)
+                {
+                    dmMessage::URL& receiver = params.m_Message->m_Receiver;
+                    dmLogError("'%s:%s#%s' has no constant named '%s'",
+                            dmMessage::GetSocketName(receiver.m_Socket),
+                            dmHashReverseSafe64(receiver.m_Path),
+                            dmHashReverseSafe64(receiver.m_Fragment),
+                            dmHashReverseSafe64(ddf->m_NameHash));
+                }
+            }
+            else if (params.m_Message->m_Id == dmRiveDDF::ResetConstantRiveModel::m_DDFDescriptor->m_NameHash)
+            {
+                dmRiveDDF::ResetConstantRiveModel* ddf = (dmRiveDDF::ResetConstantRiveModel*)params.m_Message->m_Data;
+                if (component->m_RenderConstants)
+                {
+                    component->m_ReHash |= dmGameSystem::ClearRenderConstant(component->m_RenderConstants, ddf->m_NameHash);
+                }
+            }
         }
 
         return dmGameObject::UPDATE_RESULT_OK;

@@ -151,11 +151,53 @@ namespace dmRive
         return 1;
     }
 
+    static int RiveComp_SetConstant(lua_State* L)
+    {
+        DM_LUA_STACK_CHECK(L, 0);
+
+        dmGameObject::HInstance instance = dmScript::CheckGOInstance(L);
+        dmhash_t name_hash               = dmScript::CheckHashOrString(L, 2);
+        Vectormath::Aos::Vector4* value  = dmScript::CheckVector4(L, 3);
+
+        dmRiveDDF::SetConstantRiveModel msg;
+        msg.m_NameHash = name_hash;
+        msg.m_Value = *value;
+
+        dmMessage::URL receiver;
+        dmMessage::URL sender;
+        dmScript::ResolveURL(L, 1, &receiver, &sender);
+
+        dmMessage::Post(&sender, &receiver, dmRiveDDF::SetConstantRiveModel::m_DDFDescriptor->m_NameHash,
+            (uintptr_t)instance, 0, (uintptr_t)dmRiveDDF::SetConstantRiveModel::m_DDFDescriptor, &msg, sizeof(msg), 0);
+        return 0;
+    }
+
+    static int RiveComp_ResetConstant(lua_State* L)
+    {
+        DM_LUA_STACK_CHECK(L, 0);
+
+        dmGameObject::HInstance instance = dmScript::CheckGOInstance(L);
+        dmhash_t name_hash = dmScript::CheckHashOrString(L, 2);
+
+        dmRiveDDF::ResetConstantRiveModel msg;
+        msg.m_NameHash = name_hash;
+
+        dmMessage::URL receiver;
+        dmMessage::URL sender;
+        dmScript::ResolveURL(L, 1, &receiver, &sender);
+
+        dmMessage::Post(&sender, &receiver, dmRiveDDF::ResetConstantRiveModel::m_DDFDescriptor->m_NameHash,
+            (uintptr_t)instance, 0, (uintptr_t)dmRiveDDF::ResetConstantRiveModel::m_DDFDescriptor, &msg, sizeof(msg), 0);
+        return 0;
+    }
+
     static const luaL_reg RIVE_FUNCTIONS[] =
     {
-        {"play_anim", RiveComp_PlayAnim},
-        {"cancel",    RiveComp_Cancel},
-        {"get_go",    RiveComp_GetGO},
+        {"play_anim",      RiveComp_PlayAnim},
+        {"cancel",         RiveComp_Cancel},
+        {"get_go",         RiveComp_GetGO},
+        {"set_constant",   RiveComp_SetConstant},
+        {"reset_constant", RiveComp_ResetConstant},
         {0, 0}
     };
 
