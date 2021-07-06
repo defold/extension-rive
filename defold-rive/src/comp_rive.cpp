@@ -40,7 +40,6 @@
 #include <dmsdk/gamesys/property.h>
 #include <dmsdk/dlib/object_pool.h>
 
-//#include <gameobject/gameobject_ddf.h> // for creating bones where the rive scene bones are
 #include <dmsdk/graphics/graphics.h>
 #include <dmsdk/render/render.h>
 #include <gameobject/gameobject_ddf.h>
@@ -174,7 +173,6 @@ namespace dmRive
         world->m_VertexBuffer      = dmGraphics::NewVertexBuffer(context->m_GraphicsContext, 0, 0x0, dmGraphics::BUFFER_USAGE_DYNAMIC_DRAW);
         world->m_IndexBuffer       = dmGraphics::NewIndexBuffer(context->m_GraphicsContext, 0, 0x0, dmGraphics::BUFFER_USAGE_DYNAMIC_DRAW);
 
-        // TODO: Make this count configurable and/or grow accordingly
         world->m_VertexBufferData.SetCapacity(context->m_MaxInstanceCount * 512);
         world->m_IndexBufferData.SetCapacity(context->m_MaxInstanceCount * 512);
 
@@ -301,6 +299,10 @@ namespace dmRive
         }
 
         dmGameObject::HInstance root_instance = MakeBoneInstance(collection);
+        if (root_instance == 0x0)
+        {
+            return false;
+        }
 
         dmVMath::Vector3 inv_scale(1.0f, -1.0f, 1.0f);
         dmVMath::Vector3 origin_position(-artboard->width()/2, artboard->height()/2, 0);
@@ -309,7 +311,7 @@ namespace dmRive
         dmGameObject::SetPosition(root_instance, Point3(origin_position));
         dmGameObject::SetParent(root_instance, rive_instance);
 
-        component->m_RootInstance = root_instance; // todo: delete
+        component->m_RootInstance = root_instance;
 
         world->m_ScratchInstances.SetSize(0);
         for (uint32_t i = 0; i < node_count; ++i)
