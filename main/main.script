@@ -19,11 +19,14 @@ function update(self, dt)
     end
 
     local p = go.get_position()
+    p.x = math.sin(self.v) * 500
+    go.set_position(p)
 
-    if p.x < 1000 then
-        p.x = p.x + self.v * 0.25
-        --go.set_position(p)
-    end
+    local s = go.get_scale()
+    s.x = (math.sin(self.v) + math.pi/2)
+    s.y = s.x
+    s.z = s.z
+    go.set_scale(s)
 end
 
 local function anim_done(self, message_id, message, sender)

@@ -87,7 +87,6 @@ namespace rive
     void                setContourQuality(HRenderer renderer, float quality);
     void                setClippingSupport(HRenderer renderer, bool state);
     void                setTransform(HRenderer renderer, const Mat2D& transform);
-    Mat2D               getTransform(HRenderer renderer);
     bool                getClippingSupport(HRenderer renderer);
     float               getContourError(HRenderer renderer);
     uint32_t            getDrawEventCount(HRenderer renderer);

@@ -307,6 +307,7 @@ namespace dmRive
 
         dmGameObject::SetScale(root_instance, inv_scale);
         dmGameObject::SetPosition(root_instance, Point3(origin_position));
+        dmGameObject::SetParent(root_instance, rive_instance);
 
         component->m_RootInstance = root_instance; // todo: delete
 
@@ -539,7 +540,6 @@ namespace dmRive
         uint32_t vx_offset                        = 0;
         uint8_t clear_clipping_flag               = 0;
         bool is_applying_clipping                 = false;
-        bool clear_stencil_state                  = false;
         uint32_t ro_index                         = ro_start;
 
         rive::DrawBuffers buffers_renderer = rive::getDrawBuffers(rive_ctx, renderer, 0);
@@ -661,7 +661,6 @@ namespace dmRive
 
                     if (vxBuffer != 0 && ixBuffer != 0)
                     {
-                        clear_stencil_state = true;
                         int* ix_data_ptr  = (int*) ixBuffer->m_Data;
                         uint32_t vx_count = 4;
                         uint32_t ix_count = 2 * 3;
@@ -961,8 +960,6 @@ namespace dmRive
                rive::AABB(-artboard_bounds.width(), -artboard_bounds.height(),
                artboard_bounds.width(), artboard_bounds.height()),
                artboard_bounds);
-
-            rive::Mat2D renderer_transform = rive::getTransform(renderer);
 
             rive_renderer->save();
             artboard->advance(dt);

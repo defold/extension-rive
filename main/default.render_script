@@ -86,7 +86,6 @@ function update(self)
     render.set_projection(vmath.matrix4_orthographic(0, render.get_window_width(), 0, render.get_window_height(), -1, 1))
 
     render.enable_state(render.STATE_STENCIL_TEST)
-    render.disable_state(render.STATE_STENCIL_TEST)
     render.draw(self.gui_pred)
     render.draw(self.text_pred)
     render.disable_state(render.STATE_STENCIL_TEST)
