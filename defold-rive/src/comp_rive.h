@@ -14,12 +14,10 @@
 #define DM_GAMESYS_COMP_RIVE_H
 
 #include <stdint.h>
-//#include <dmsdk/dlib/array.h>
 #include <dmsdk/dlib/vmath.h>
 #include <dmsdk/dlib/transform.h>
 #include <dmsdk/gameobject/gameobject.h>
 #include <dmsdk/gamesys/render_constants.h>
-//#include <dmsdk/resource/resource.h>
 
 namespace dmRive
 {
@@ -41,28 +39,24 @@ namespace dmRive
         float                                   m_AnimationPlaybackRate;
         int                                     m_AnimationCallbackRef;
 
+        // Root object for sub hierarchy, inverted and translated
         dmGameObject::HInstance                 m_RootInstance;
-        dmArray<dmGameObject::HInstance>        m_NodeInstances;   // Node instances corresponding to the bones
-        dmArray<dmhash_t>                       m_NodeInstanceIds; // Node instance name hashes for script lookup
+        // Node instances corresponding to the bones
+        dmArray<dmGameObject::HInstance>        m_NodeInstances;
+        // Node instance name hashes for script lookup
+        dmArray<dmhash_t>                       m_NodeInstanceIds;
+        // Node index to object index for updating transforms
         dmArray<uint32_t>                       m_NodeInstanceToObjectIndex;
         uint32_t                                m_VertexCount;
         uint32_t                                m_IndexCount;
         uint32_t                                m_MixedHash;
         uint16_t                                m_ComponentIndex;
         uint8_t                                 m_AnimationIndex;
-        uint8_t                                 m_Enabled : 1;
-        uint8_t                                 m_DoRender : 1;
+        uint8_t                                 m_Enabled       : 1;
+        uint8_t                                 m_DoRender      : 1;
         uint8_t                                 m_AddedToUpdate : 1;
-        uint8_t                                 m_ReHash : 1;
+        uint8_t                                 m_ReHash        : 1;
     };
-
-    // For scripting
-    // bool CompRiveSetIKTargetInstance(RiveComponent* component, dmhash_t constraint_id, float mix, dmhash_t instance_id);
-    // bool CompRiveSetIKTargetPosition(RiveComponent* component, dmhash_t constraint_id, float mix, Vectormath::Aos::Point3 position);
-    // bool CompRiveResetIKTarget(RiveComponent* component, dmhash_t constraint_id);
-
-    // bool CompRiveSetSkin(RiveComponent* component, dmhash_t skin_id);
-    // bool CompRiveSetSkinSlot(RiveComponent* component, dmhash_t skin_id, dmhash_t slot_id);
 }
 
 #endif // DM_GAMESYS_COMP_RIVE_H

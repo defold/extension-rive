@@ -219,6 +219,35 @@ namespace dmRive
         component->m_ReHash = 0;
     }
 
+    static dmGameObject::HInstance MakeBoneInstance(dmGameObject::HCollection collection)
+    {
+        dmGameObject::HInstance instance = dmGameObject::New(collection, 0x0);
+        if (instance == 0x0)
+        {
+            return 0;
+        }
+
+        uint32_t index = dmGameObject::AcquireInstanceIndex(collection);
+        if (index == dmGameObject::INVALID_INSTANCE_POOL_INDEX)
+        {
+            dmGameObject::Delete(collection, instance, false);
+            return 0;
+        }
+
+        dmhash_t id = dmGameObject::ConstructInstanceId(index);
+        dmGameObject::AssignInstanceIndex(index, instance);
+
+        dmGameObject::Result result = dmGameObject::SetIdentifier(collection, instance, id);
+        if (dmGameObject::RESULT_OK != result)
+        {
+            dmGameObject::Delete(collection, instance, false);
+            return 0;
+        }
+
+        dmGameObject::SetBone(instance, true);
+        return instance;
+    }
+
     static bool CreateGameobjects(RiveWorld* world, RiveComponent* component)
     {
         dmGameObject::HInstance rive_instance            = component->m_Instance;
@@ -230,27 +259,35 @@ namespace dmRive
 
         artboard->advance(0.0f);
 
-        std::vector<uint32_t> artboard_node_map;
-        // object index to drawable
-        dmHashTable<uint32_t, uint32_t> drawables_to_objects_map;
-        drawables_to_objects_map.SetCapacity(32, 128); // Todo: What are good values here?
+        // transform index to object index
+        dmArray<uint32_t> transform_to_object_array;
+        transform_to_object_array.SetCapacity(64);
+
+        // object index to transform index
+        dmHashTable<uint32_t, uint32_t> transform_to_object_map;
+        transform_to_object_map.SetCapacity(32, 128); // Todo: What are good values here?
 
         for (int i = 0; i < artboard_objects.size(); ++i)
         {
             rive::Core* object = artboard_objects[i];
             if (object->is<rive::TransformComponent>())
             {
-                if (drawables_to_objects_map.Full())
+                if (transform_to_object_map.Full())
                 {
-                    drawables_to_objects_map.SetCapacity(32, drawables_to_objects_map.Capacity() + 128);
+                    transform_to_object_map.SetCapacity(32, transform_to_object_map.Capacity() + 128);
                 }
 
-                drawables_to_objects_map.Put(i, artboard_node_map.size());
-                artboard_node_map.push_back(i);
+                if (transform_to_object_array.Full())
+                {
+                    transform_to_object_array.OffsetCapacity(64);
+                }
+
+                transform_to_object_map.Put(i, transform_to_object_array.Size());
+                transform_to_object_array.Push(i);
             }
         }
 
-        int node_count = artboard_node_map.size();
+        int node_count = transform_to_object_array.Size();
         component->m_NodeInstances.SetCapacity(node_count);
         component->m_NodeInstances.SetSize(node_count);
         component->m_NodeInstanceIds.SetCapacity(node_count);
@@ -263,12 +300,7 @@ namespace dmRive
             world->m_ScratchInstances.SetCapacity(node_count);
         }
 
-        dmGameObject::HInstance root_instance = dmGameObject::New(collection, 0x0);
-        uint32_t root_index = dmGameObject::AcquireInstanceIndex(collection);
-        dmhash_t root_id = dmGameObject::ConstructInstanceId(root_index);
-        dmGameObject::AssignInstanceIndex(root_index, root_instance);
-        dmGameObject::SetIdentifier(collection, root_instance, root_id);
-        dmGameObject::SetBone(root_instance, true);
+        dmGameObject::HInstance root_instance = MakeBoneInstance(collection);
 
         dmVMath::Vector3 inv_scale(1.0f, -1.0f, 1.0f);
         dmVMath::Vector3 origin_position(-artboard->width()/2, artboard->height()/2, 0);
@@ -281,36 +313,15 @@ namespace dmRive
         world->m_ScratchInstances.SetSize(0);
         for (uint32_t i = 0; i < node_count; ++i)
         {
-            dmGameObject::HInstance node_instance = dmGameObject::New(collection, 0x0);
+            dmGameObject::HInstance node_instance = MakeBoneInstance(collection);
+
             if (node_instance == 0x0)
             {
                 component->m_NodeInstances.SetSize(i);
                 return false;
             }
 
-            uint32_t index = dmGameObject::AcquireInstanceIndex(collection);
-            if (index == dmGameObject::INVALID_INSTANCE_POOL_INDEX)
-            {
-                dmGameObject::Delete(collection, node_instance, false);
-                component->m_NodeInstances.SetSize(i);
-                return false;
-            }
-
-            dmhash_t id = dmGameObject::ConstructInstanceId(index);
-            dmGameObject::AssignInstanceIndex(index, node_instance);
-
-            dmGameObject::Result result = dmGameObject::SetIdentifier(collection, node_instance, id);
-            if (dmGameObject::RESULT_OK != result)
-            {
-                dmGameObject::Delete(collection, node_instance, false);
-                component->m_NodeInstances.SetSize(i);
-                return false;
-            }
-
-            dmGameObject::SetBone(node_instance, true);
-
-            uint32_t object_index = artboard_node_map[i];
-
+            uint32_t object_index                 = transform_to_object_array[i];
             rive::TransformComponent* object_node = artboard_objects[object_index]->as<rive::TransformComponent>();
 
             Matrix4 node_transform_m4;
@@ -335,15 +346,15 @@ namespace dmRive
         // Set parents in reverse to account for child-prepending
         for (uint32_t i = 0; i < node_count; ++i)
         {
-            uint32_t index = node_count - 1 - i;
+            uint32_t index                        = node_count - 1 - i;
             dmGameObject::HInstance bone_instance = world->m_ScratchInstances[index];
-            dmGameObject::HInstance parent = root_instance; // rive_instance;
+            dmGameObject::HInstance parent        = root_instance;
             if (index > 0)
             {
-                uint32_t object_index                 = artboard_node_map[index];
+                uint32_t object_index                 = transform_to_object_array[index];
                 rive::TransformComponent* object_node = artboard_objects[object_index]->as<rive::TransformComponent>();
                 uint32_t parent_id                    = object_node->parentId();
-                uint32_t* parent_index                = drawables_to_objects_map.Get(parent_id);
+                uint32_t* parent_index                = transform_to_object_map.Get(parent_id);
                 assert(parent_index);
                 parent = world->m_ScratchInstances[*parent_index];
             }
@@ -408,6 +419,10 @@ namespace dmRive
     {
         RiveComponent* component = GetComponentFromIndex(world, index);
         dmGameObject::DeleteBones(component->m_Instance);
+
+        component->m_NodeInstances.SetCapacity(0);
+        component->m_NodeInstanceIds.SetCapacity(0);
+        component->m_NodeInstanceToObjectIndex.SetCapacity(0);
 
         if (component->m_RenderConstants)
             dmGameSystem::DestroyRenderConstants(component->m_RenderConstants);
