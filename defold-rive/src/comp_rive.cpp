@@ -750,26 +750,6 @@ namespace dmRive
                 default:break;
             }
         }
-
-        /*
-        if (clear_stencil_state)
-        {
-            dmRender::RenderObject& ro = world->m_RenderObjects[ro_index];
-            ro.Init();
-            ro.m_VertexDeclaration               = world->m_VertexDeclaration;
-            ro.m_VertexBuffer                    = world->m_VertexBuffer;
-            ro.m_PrimitiveType                   = dmGraphics::PRIMITIVE_TRIANGLES;
-            ro.m_VertexStart                     = 0;
-            ro.m_VertexCount                     = 0;
-            ro.m_Material                        = material;
-            ro.m_IndexBuffer                     = world->m_IndexBuffer;
-            ro.m_IndexType                       = dmGraphics::TYPE_UNSIGNED_INT;
-            ro.m_SetStencilTest                  = 1;
-            ro.m_StencilTestParams.m_ClearBuffer = 1;
-
-            dmRender::AddToRender(render_context, &ro);
-        }
-        */
     }
 
     static void RenderBatch(RiveWorld* world, dmRender::HRenderContext render_context, dmRender::RenderListEntry *buf, uint32_t* begin, uint32_t* end)
@@ -930,10 +910,10 @@ namespace dmRive
 
         dmArray<RiveComponent*>& components = world->m_Components.m_Objects;
         const uint32_t count = components.Size();
-
         const rive::RenderMode render_mode = rive::getRenderMode(ctx);
 
         dmArray<dmTransform::Transform> bone_transforms;
+        bool transforms_updated = false;
 
         for (uint32_t i = 0; i < count; ++i)
         {
@@ -1009,43 +989,23 @@ namespace dmRive
             bone_transforms.SetSize(component.m_NodeInstanceToObjectIndex.Size());
 
             const std::vector<rive::Core*>& artboard_objects = artboard->objects();
+            Matrix4 node_transform_m4;
 
-            // todo: Origin?
-            rive::Mat2D artboard_transform;
-            artboard_transform[4] = artboard->x();
-            artboard_transform[5] = artboard->y();
-
-            for (int i = 0; i < component.m_NodeInstanceToObjectIndex.Size(); ++i)
+            if (component.m_NodeInstanceToObjectIndex.Size() > 0)
             {
-                uint32_t object_index = component.m_NodeInstanceToObjectIndex[i];
-                rive::TransformComponent* object_node = artboard_objects[object_index]->as<rive::TransformComponent>();
-
-                Matrix4 node_transform_m4;
-                rive::Mat2D node_transform = object_node->transform();
-                if (i == 0)
+                for (int i = 0; i < component.m_NodeInstanceToObjectIndex.Size(); ++i)
                 {
-                    // rive::Mat2D::multiply(artboard_transform, artboard_transform, renderer_transform);
-                    // rive::Mat2D::multiply(node_transform, node_transform, renderer_transform);
-                }
-                Mat2DToMat4(node_transform, node_transform_m4);
-                // bone_transforms[i] = dmTransform::ToTransform(node_transform_m4);
-                dmTransform::Transform transform = dmTransform::ToTransform(node_transform_m4);
+                    uint32_t object_index                 = component.m_NodeInstanceToObjectIndex[i];
+                    rive::TransformComponent* object_node = artboard_objects[object_index]->as<rive::TransformComponent>();
+                    rive::Mat2D node_transform            = object_node->transform();
 
-                //dmTransform::Transform transform = dmTransform::ToTransform(node_transform_m4);
-                /*
-                if (i == 0)
-                {
-                    transform = dmTransform::Mul(component->m_Transform, transform);
+                    Mat2DToMat4(node_transform, node_transform_m4);
+                    bone_transforms[i] = dmTransform::ToTransform(node_transform_m4);
                 }
-                */
-                dmGameObject::SetPosition(component.m_NodeInstances[i], Point3(transform.GetTranslation()));
-                dmGameObject::SetRotation(component.m_NodeInstances[i], transform.GetRotation());
-                dmGameObject::SetScale(component.m_NodeInstances[i], transform.GetScale());
 
-                // component->m_NodeInstances[i]             = node_instance;
+                transforms_updated = dmGameObject::SetBoneTransforms(component.m_NodeInstances[0],
+                    component.m_Transform, bone_transforms.Begin(), bone_transforms.Size());
             }
-
-            //dmGameObject::SetBoneTransforms(component.m_NodeInstances[0], component.m_Transform, bone_transforms.Begin(), bone_transforms.Size());
 
             if (component.m_ReHash || (component.m_RenderConstants && dmGameSystem::AreRenderConstantsUpdated(component.m_RenderConstants)))
             {
@@ -1055,8 +1015,7 @@ namespace dmRive
             component.m_DoRender = 1;
         }
 
-        // If the child bones have been updated, we need to return true
-        update_result.m_TransformsUpdated = true;
+        update_result.m_TransformsUpdated = transforms_updated;
 
         return dmGameObject::UPDATE_RESULT_OK;
     }
