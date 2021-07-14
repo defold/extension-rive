@@ -89,12 +89,11 @@
 
 ; Node defs
 
-(g/defnk produce-save-value [rive-file-resource sample-rate]
+(g/defnk produce-save-value [rive-file-resource]
   (prn "RIVE" "produce-save-value" rive-file-resource)
   {:scene (resource/resource->proj-path rive-file-resource)
    ;:rive-json (resource/resource->proj-path rive-file-resource)
    ;:atlas (resource/resource->proj-path atlas-resource)
-   ;:sample-rate sample-rate
    })
 
 ; (defprotocol Interpolator
@@ -1004,8 +1003,6 @@
             (dynamic error (g/fnk [_node-id rive-file]
                                   (validate-rivescene-riv-file _node-id rive-file))))
 
-  (property sample-rate g/Num)
-
   (input rive-file-resource resource/Resource)
   ;(input atlas-resource resource/Resource)
 
@@ -1043,7 +1040,6 @@
      (g/set-property self
                      :rive-file rive-resource
                       ;:atlas atlas
-                      ;:sample-rate (:sample-rate spine)
                      ))))
 
 
@@ -1248,7 +1244,6 @@
                      :rive-scene rive-scene-resource
                      :material material
                      :default-animation ""
-                      ;:sample-rate (:sample-rate spine)
                      ))))
 
 
