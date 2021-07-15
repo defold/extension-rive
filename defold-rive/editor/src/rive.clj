@@ -823,7 +823,7 @@
     (map (partial get verts) (:position-indices mesh))))
 
 (defn generate-vertex-buffer [renderables]
-  (prn "MAWE" "PLUGIN" "generate-vertex-buffer")
+  ;(prn "MAWE" "PLUGIN" "generate-vertex-buffer")
   ; (let [meshes (mapcat renderable->meshes renderables)
   ;       vcount (reduce + 0 (map (comp count :position-indices) meshes))]
   ;   (when (> vcount 0)
@@ -831,8 +831,12 @@
   ;           verts (mapcat mesh->verts meshes)]
   ;       (persistent! (reduce conj! vb verts))))))
 
-  (let [vertices [[0 0 0 0 0 0 0 0 0] [0 0 0 0 0 0 0 0 0] [0 0 0 0 0 0 0 0 0] [0 0 0 0 0 0 0 0 0]]]
-    vertices))
+  (let [sz 64
+        verts [[0 0 0 0 0 1 1 1 1] [sz 0 0 0 0 1 1 1 1] [sz sz 0 0 0 1 1 1 1]
+               [sz sz 0 0 0 1 1 1 1] [0 sz 0 0 0 1 1 1 1] [0 0 0 0 0 1 1 1 1]]
+        vcount (count verts)
+        vb (render/->vtx-pos-tex-col vcount)] ; vec3-vec2-vec4
+    (persistent! (reduce conj! vb verts))))
 
 ; (def color [1.0 1.0 1.0 1.0])
 
@@ -867,15 +871,38 @@
 
 (shader/defshader rive-id-fragment-shader
   (varying vec2 var_texcoord0)
-  (uniform sampler2D texture_sampler)
+  ;(uniform sampler2D texture_sampler)
   (uniform vec4 id)
   (defn void main []
-    (setq vec4 color (texture2D texture_sampler var_texcoord0.xy))
-    (if (> color.a 0.05)
-      (setq gl_FragColor id)
-      (discard))))
+    (setq gl_FragColor id)
+    ;; (setq vec4 color (texture2D texture_sampler var_texcoord0.xy))
+    ;; (if (> color.a 0.05)
+    ;;   (setq gl_FragColor id)
+    ;;   (discard))
+    ))
 
 (def rive-id-shader (shader/make-shader ::id-shader rive-id-vertex-shader rive-id-fragment-shader {"id" :id}))
+
+(shader/defshader rive-shader-ver-tex-col
+  (attribute vec4 position)
+  (attribute vec2 texcoord0)
+  (attribute vec4 color)
+  (varying vec2 var_texcoord0)
+  (varying vec4 var_color)
+  (defn void main []
+    (setq gl_Position (* gl_ModelViewProjectionMatrix position))
+    (setq var_texcoord0 texcoord0)
+    (setq var_color color)))
+
+(shader/defshader rive-shader-frag-tint
+  (varying vec2 var_texcoord0)
+  (varying vec4 var_color)
+  (defn void main []
+    ;(setq gl_FragColor var_color)))
+    (setq gl_FragColor (vec4 1 1 1 1))))
+
+(def rive-shader-tint (shader/make-shader ::shader rive-shader-ver-tex-col rive-shader-frag-tint))
+
 
 (defn- render-rive-scenes [^GL2 gl render-args renderables rcount]
   (let [pass (:pass render-args)]
@@ -885,8 +912,10 @@
         (let [user-data (:user-data (first renderables))
               blend-mode (:blend-mode user-data)
               gpu-texture (or (get user-data :gpu-texture) texture/white-pixel)
-              shader (get user-data :shader render/shader-tex-tint)
+              ;shader (get user-data :shader render/shader-tex-tint)
+              shader (get user-data :shader rive-shader-tint)
               vertex-binding (vtx/use-with ::rive-trans vb shader)]
+          ;(prn "render-rive-scenes" "shader:" shader "gpu-texture:" gpu-texture "vertex-binding:" vertex-binding)
           (gl/with-gl-bindings gl render-args [gpu-texture shader vertex-binding]
             (gl/set-blend-mode gl blend-mode)
             (gl/gl-draw-arrays gl GL/GL_TRIANGLES 0 (count vb))
@@ -917,7 +946,7 @@
   (when true
     (prn "RIVE produce-main-scene")
     (let [blend-mode :blend-mode-alpha]
-      (assoc {:node-id _node-id :aabb aabb :test "produce-main-scene"}
+      (assoc {:node-id _node-id :aabb aabb}
              :renderable {:render-fn render-rive-scenes
                           :tags #{:rive}
                           :batch-key gpu-texture
@@ -965,8 +994,10 @@
 ;     (reduce (fn [aabb pos] (apply geom/aabb-incorporate aabb pos)) aabb positions)))
 (defn- scene->aabb [aabb rivescene]
   (let [;positions (partition 3 (:positions mesh))
-        positions [[0 0 0] [100 0 0] [100 100 0] [0 100 0]]]
-    (reduce (fn [aabb pos] (apply geom/aabb-incorporate aabb pos)) aabb positions)))
+        positions [[0 0 0] [100 0 0] [100 100 0] [0 100 0]]
+        aabb (reduce (fn [aabb pos] (apply geom/aabb-incorporate aabb pos)) aabb positions)]
+    (prn "AABB" aabb)
+    aabb))
 
 ; (g/defnk produce-skin-aabbs [scene-structure rive-scene-pb]
 ;   (let [skin-names (:skins scene-structure)
