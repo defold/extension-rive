@@ -71,12 +71,12 @@
 
 ;; (defn dynamically-load-class!
 ;;   [class-name jar-file]
-;;   (prn "MAWE" "dynamically-load-class!" class-name)
+;;   (prn "RIVE" "dynamically-load-class!" class-name)
 ;;   (let [class-loader (clojure.lang.DynamicClassLoader. (.getContextClassLoader (Thread/currentThread)))
 ;;         url (io/as-url jar-file)]
 ;;     (.addURL class-loader url)
 ;;     (let [cls (Class/forName class-name true class-loader)]
-;;       (prn "MAWE" "klass" cls)
+;;       (prn "RIVE" "klass" cls)
 ;;       cls)))
 
 (set! *warn-on-reflection* true)
@@ -551,11 +551,11 @@
 ;   (prop-resource-error :fatal _node-id :atlas atlas "Atlas"))
 
 (defn- validate-rivescene-riv-file [_node-id rive-file]
-  ;(prn "MAWE" "validate-rivescene-riv-file" rive-file)
+  ;(prn "RIVE" "validate-rivescene-riv-file" rive-file)
   (prop-resource-error :fatal _node-id :scene rive-file "Riv File"))
 
 (g/defnk produce-rivescene-own-build-errors [_node-id rive-file]
-  (prn "MAWE" "produce-rivescene-own-build-errors" rive-file)
+  ;(prn "RIVE" "produce-rivescene-own-build-errors" rive-file)
   (g/package-errors _node-id
                     ;(validate-scene-atlas _node-id atlas)
                     (validate-rivescene-riv-file _node-id rive-file)))
@@ -571,7 +571,7 @@
 
 (g/defnk produce-rivescene-build-targets
   [_node-id own-build-errors resource rive-scene-pb rive-file dep-build-targets]
-  (prn "MAWE" "produce-rivescene-build-targets" rive-scene-pb rive-file "dep-build-targets:" dep-build-targets)
+  ;(prn "RIVE" "produce-rivescene-build-targets" rive-scene-pb rive-file "dep-build-targets:" dep-build-targets)
   (g/precluding-errors own-build-errors
                        (let [dep-build-targets (flatten dep-build-targets)
                              deps-by-source (into {} (map #(let [res (:resource %)] [(:resource res) res]) dep-build-targets))
@@ -837,7 +837,7 @@
     (map (partial get verts) (:position-indices mesh))))
 
 (defn generate-vertex-buffer [renderables]
-  ;(prn "MAWE" "PLUGIN" "generate-vertex-buffer")
+  ;(prn "RIVE" "PLUGIN" "generate-vertex-buffer")
   ; (let [meshes (mapcat renderable->meshes renderables)
   ;       vcount (reduce + 0 (map (comp count :position-indices) meshes))]
   ;   (when (> vcount 0)
@@ -1118,7 +1118,7 @@
 ;                            (disj (set rive-skins) "default"))))
 
 (defn- validate-model-default-animation [node-id rive-scene rive-anim-ids default-animation]
-  ;(prn "MAWE" "validate-model-default-animation" rive-scene rive-anim-ids default-animation)
+  ;(prn "RIVE" "validate-model-default-animation" rive-scene rive-anim-ids default-animation)
   nil)
   ;; (when (and rive-scene (not-empty default-animation))
   ;;   (validation/prop-error :fatal node-id :default-animation
@@ -1129,7 +1129,7 @@
   ;;                          (set rive-anim-ids))))
 
 (defn- validate-model-material [node-id material]
-  (prn "RIVE" "validate-model-material" node-id material)
+  ;(prn "RIVE" "validate-model-material" node-id material)
   (prop-resource-error :fatal node-id :material material "Material"))
 
 ; (defn- validate-model-skin [node-id rive-scene scene-structure skin]
@@ -1137,7 +1137,7 @@
 ;     (validate-skin node-id :skin (:skins scene-structure) skin)))
 
 (defn- validate-model-rive-scene [node-id rive-scene]
-  (prn "RIVE" "validate-model-rive-scene" node-id rive-scene (:scene rive-scene))
+  ;(prn "RIVE" "validate-model-rive-scene" node-id rive-scene (:scene rive-scene))
   (prop-resource-error :fatal node-id :scene rive-scene "Rive Scene"))
 
 (g/defnk produce-model-own-build-errors [_node-id default-animation material rive-anim-ids rive-scene scene-structure]
@@ -1148,20 +1148,20 @@
                     (validate-model-default-animation _node-id rive-scene rive-anim-ids default-animation)))
 
 (defn- build-rive-model [resource dep-resources user-data]
-  (prn "MAWE" "build-rive-model")
+  (prn "RIVE" "build-rive-model")
   (let [pb (:proto-msg user-data)
         pb (reduce #(assoc %1 (first %2) (second %2)) pb (map (fn [[label res]] [label (resource/proj-path (get dep-resources res))]) (:dep-resources user-data)))]
     {:resource resource :content (protobuf/map->bytes (workspace/load-class! "com.dynamo.rive.proto.Rive$RiveModelDesc") pb)}))
 
 (g/defnk produce-model-build-targets [_node-id own-build-errors resource model-pb rive-scene-resource material-resource dep-build-targets]
-  (prn "MAWE" "produce-model-build-targets")
+  (prn "RIVE" "produce-model-build-targets")
   (g/precluding-errors own-build-errors
                        (let [dep-build-targets (flatten dep-build-targets)
                              deps-by-source (into {} (map #(let [res (:resource %)] [(:resource res) res]) dep-build-targets))
                              dep-resources (map (fn [[label resource]] [label (get deps-by-source resource)]) [[:scene rive-scene-resource] [:material material-resource]])
           ;model-pb (update model-pb :skin (fn [skin] (or skin "")))
                              ]
-                        (prn "    MAWE " rive-scene-resource "dep-resources:" dep-resources)
+                        ;(prn "    MAWE " rive-scene-resource "dep-resources:" dep-resources)
 
                          [(bt/with-content-hash
                             {:node-id _node-id
@@ -1171,106 +1171,94 @@
                                          :dep-resources dep-resources}
                              :deps dep-build-targets})])))
 
-(defn- register-model-node []
-  (g/defnode RiveModelNode
-    (inherits resource-node/ResourceNode)
+(g/defnode RiveModelNode
+  (inherits resource-node/ResourceNode)
 
-    (property rive-scene resource/Resource
-              (value (gu/passthrough rive-scene-resource))
-              (set (fn [evaluation-context self old-value new-value]
-                     (project/resource-setter evaluation-context self old-value new-value
-                                              [:resource :rive-scene-resource]
-                                              [:main-scene :rive-main-scene]
+  (property rive-scene resource/Resource
+            (value (gu/passthrough rive-scene-resource))
+            (set (fn [evaluation-context self old-value new-value]
+                   (project/resource-setter evaluation-context self old-value new-value
+                                            [:resource :rive-scene-resource]
+                                            [:main-scene :rive-main-scene]
                                             ;[:skin-aabbs :rive-scene-skin-aabbs]
-                                              [:rive-anim-ids :rive-anim-ids]
-                                              [:build-targets :dep-build-targets]
-                                              [:anim-data :anim-data]
-                                              [:scene-structure :scene-structure])))
-              (dynamic edit-type (g/constantly {:type resource/Resource :ext rive-scene-ext}))
-              (dynamic error (g/fnk [_node-id rive-scene]
-                                    (validate-model-rive-scene _node-id rive-scene))))
-    (property blend-mode g/Any (default :blend-mode-alpha)
-              (dynamic tip (validation/blend-mode-tip blend-mode (workspace/load-class! "com.dynamo.rive.proto.Rive$RiveModelDesc$BlendMode")))
-              (dynamic edit-type (g/constantly (properties/->pb-choicebox (workspace/load-class! "com.dynamo.rive.proto.Rive$RiveModelDesc$BlendMode")))))
-    (property material resource/Resource
-              (value (gu/passthrough material-resource))
-              (set (fn [evaluation-context self old-value new-value]
-                     (project/resource-setter evaluation-context self old-value new-value
-                                              [:resource :material-resource]
-                                              [:shader :material-shader]
-                                              [:samplers :material-samplers]
-                                              [:build-targets :dep-build-targets])))
-              (dynamic edit-type (g/constantly {:type resource/Resource :ext "material"}))
-              (dynamic error (g/fnk [_node-id material]
-                                    (validate-model-material _node-id material))))
-    (property default-animation g/Str
-              (dynamic error (g/fnk [_node-id rive-anim-ids default-animation scene]
-                                    (validate-model-default-animation _node-id scene rive-anim-ids default-animation)))
-              (dynamic edit-type (g/fnk [rive-anim-ids] (properties/->choicebox rive-anim-ids))))
+                                            [:rive-anim-ids :rive-anim-ids]
+                                            [:build-targets :dep-build-targets]
+                                            [:anim-data :anim-data]
+                                            [:scene-structure :scene-structure])))
+            (dynamic edit-type (g/constantly {:type resource/Resource :ext rive-scene-ext}))
+            (dynamic error (g/fnk [_node-id rive-scene]
+                                  (validate-model-rive-scene _node-id rive-scene))))
+  (property blend-mode g/Any (default :blend-mode-alpha)
+            (dynamic tip (validation/blend-mode-tip blend-mode (workspace/load-class! "com.dynamo.rive.proto.Rive$RiveModelDesc$BlendMode")))
+            (dynamic edit-type (g/constantly (properties/->pb-choicebox (workspace/load-class! "com.dynamo.rive.proto.Rive$RiveModelDesc$BlendMode")))))
+  (property material resource/Resource
+            (value (gu/passthrough material-resource))
+            (set (fn [evaluation-context self old-value new-value]
+                   (project/resource-setter evaluation-context self old-value new-value
+                                            [:resource :material-resource]
+                                            [:shader :material-shader]
+                                            [:samplers :material-samplers]
+                                            [:build-targets :dep-build-targets])))
+            (dynamic edit-type (g/constantly {:type resource/Resource :ext "material"}))
+            (dynamic error (g/fnk [_node-id material]
+                                  (validate-model-material _node-id material))))
+  (property default-animation g/Str
+            (dynamic error (g/fnk [_node-id rive-anim-ids default-animation scene]
+                                  (validate-model-default-animation _node-id scene rive-anim-ids default-animation)))
+            (dynamic edit-type (g/fnk [rive-anim-ids] (properties/->choicebox rive-anim-ids))))
   ; (property skin g/Str
   ;           (dynamic error (g/fnk [_node-id skin scene-structure rive-scene]
   ;                            (validate-model-skin _node-id rive-scene scene-structure skin)))
   ;           (dynamic edit-type (g/fnk [scene-structure] (->skin-choicebox (:skins scene-structure)))))
 
-    (input dep-build-targets g/Any :array)
-    (input rive-scene-resource resource/Resource)
-    (input rive-main-scene g/Any)
+  (input dep-build-targets g/Any :array)
+  (input rive-scene-resource resource/Resource)
+  (input rive-main-scene g/Any)
   ;(input rive-scene-skin-aabbs g/Any)
-    (input scene-structure g/Any)
-    (input rive-anim-ids g/Any)
-    (input material-resource resource/Resource)
-    (input material-shader ShaderLifecycle)
-    (input material-samplers g/Any)
-    (input default-tex-params g/Any)
-    (input anim-data g/Any)
+  (input scene-structure g/Any)
+  (input rive-anim-ids g/Any)
+  (input material-resource resource/Resource)
+  (input material-shader ShaderLifecycle)
+  (input material-samplers g/Any)
+  (input default-tex-params g/Any)
+  (input anim-data g/Any)
 
   ; (output tex-params g/Any (g/fnk [material-samplers default-tex-params]
   ;                            (or (some-> material-samplers first material/sampler->tex-params)
   ;                                default-tex-params)))
-    (output anim-ids g/Any :cached (g/fnk [anim-data] (vec (sort (keys anim-data)))))
-    (output material-shader ShaderLifecycle (gu/passthrough material-shader))
-    (output scene g/Any :cached (g/fnk [_node-id rive-main-scene material-shader]
-                                       (if (and (some? material-shader) (some? (:renderable rive-main-scene)))
-                                         (let [aabb geom/empty-bounding-box
-                                               rive-scene-node-id (:node-id rive-main-scene)]
-                                           (-> rive-main-scene
-                                               (assoc-in [:renderable :user-data :shader] material-shader)
+  (output anim-ids g/Any :cached (g/fnk [anim-data] (vec (sort (keys anim-data)))))
+  (output material-shader ShaderLifecycle (gu/passthrough material-shader))
+  (output scene g/Any :cached (g/fnk [_node-id rive-main-scene material-shader]
+                                     (if (and (some? material-shader) (some? (:renderable rive-main-scene)))
+                                       (let [aabb geom/empty-bounding-box
+                                             rive-scene-node-id (:node-id rive-main-scene)]
+                                         (-> rive-main-scene
+                                             (assoc-in [:renderable :user-data :shader] material-shader)
                                         ;;;;;;;;;;;(assoc :gpu-texture texture/white-pixel)
                                         ;(update-in [:renderable :user-data :gpu-texture] texture/set-params tex-params)
                                         ;(assoc-in [:renderable :user-data :skin] skin)
-                                               (assoc :aabb aabb)
-                                               (assoc :test "RiveModelNode")
+                                             (assoc :aabb aabb)
+                                             (assoc :test "RiveModelNode")
                                         ;(assoc :children [(make-rive-outline-scene rive-scene-node-id aabb)])
-                                               ))
-                                         (merge {:node-id _node-id
-                                                 :renderable {:passes [pass/selection]}
-                                                 :aabb geom/empty-bounding-box
-                                                 :test "RiveModelNode2"}
-                                                rive-main-scene))))
-    (output node-outline outline/OutlineData :cached (g/fnk [_node-id own-build-errors scene]
-                                                            (cond-> {:node-id _node-id
-                                                                     :node-outline-key "Rive Model"
-                                                                     :label "Rive Model"
-                                                                     :icon rive-model-icon
-                                                                     :outline-error? (g/error-fatal? own-build-errors)}
+                                             ))
+                                       (merge {:node-id _node-id
+                                               :renderable {:passes [pass/selection]}
+                                               :aabb geom/empty-bounding-box
+                                               :test "RiveModelNode2"}
+                                              rive-main-scene))))
+  (output node-outline outline/OutlineData :cached (g/fnk [_node-id own-build-errors scene]
+                                                          (cond-> {:node-id _node-id
+                                                                   :node-outline-key "Rive Model"
+                                                                   :label "Rive Model"
+                                                                   :icon rive-model-icon
+                                                                   :outline-error? (g/error-fatal? own-build-errors)}
 
-                                                              (resource/openable-resource? scene)
-                                                              (assoc :link scene :outline-reference? false))))
-    (output model-pb g/Any produce-rivemodel-pb)
-    (output save-value g/Any (gu/passthrough model-pb))
-    (output own-build-errors g/Any produce-model-own-build-errors)
-    (output build-targets g/Any :cached produce-model-build-targets)))
-
-;; (defn load-rive-model [project self resource content]
-;;   (prn "RIVE load-rive-model")
-;;   (let [resolve-fn (partial workspace/resolve-resource resource)
-;;         content (-> content
-;;                 (update :rive-scene resolve-fn)
-;;                 (update :material resolve-fn))]
-;;     (concat
-;;       (g/connect project :default-tex-params self :default-tex-params)
-;;       (for [[k v] content]
-;;         (g/set-property self k v)))))
+                                                            (resource/openable-resource? scene)
+                                                            (assoc :link scene :outline-reference? false))))
+  (output model-pb g/Any produce-rivemodel-pb)
+  (output save-value g/Any (gu/passthrough model-pb))
+  (output own-build-errors g/Any produce-model-own-build-errors)
+  (output build-targets g/Any :cached produce-model-build-targets))
 
 
 ; .rivemodel
@@ -1386,7 +1374,7 @@
   ;;                                   (g/connect node-id :content scene :content))
   ;;     ;scene-id (tx-first-created scene-tx-data)
   ;;       ]
-  ;;   (prn "MAWE" "load-rive-file" scene-tx-data)
+  ;;   (prn "RIVE" "load-rive-file" scene-tx-data)
   ;;   scene-tx-data))
 
   (prn "RIVE load-rive-file")
@@ -1533,10 +1521,7 @@
 
 ; The plugin
 (defn load-plugin-rive [workspace]
-  (prn "MAWE" "load-plugin-rive")
-  ;; (reset! rive-jar-file (workspace/plugin-path workspace @rive-jar-file))
-  ;; (prn "MAWE" "rive-jar-file" rive-jar-file)
-  (register-model-node)
+  (prn "RIVE" "load-plugin-rive")
   (g/transact (concat (register-resource-types workspace))))
 
 (defn return-plugin []
