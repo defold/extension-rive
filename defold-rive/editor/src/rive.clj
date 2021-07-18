@@ -1158,7 +1158,7 @@
   (g/precluding-errors own-build-errors
                        (let [dep-build-targets (flatten dep-build-targets)
                              deps-by-source (into {} (map #(let [res (:resource %)] [(:resource res) res]) dep-build-targets))
-                             dep-resources (map (fn [[label resource]] [label (get deps-by-source resource)]) [[:rive-scene rive-scene-resource] [:material material-resource]])
+                             dep-resources (map (fn [[label resource]] [label (get deps-by-source resource)]) [[:scene rive-scene-resource] [:material material-resource]])
           ;model-pb (update model-pb :skin (fn [skin] (or skin "")))
                              ]
                         (prn "    MAWE " rive-scene-resource "dep-resources:" dep-resources)
@@ -1505,7 +1505,6 @@
   (concat
    (resource-node/register-ddf-resource-type workspace
                                              :ext rive-scene-ext
-                                             :build-ext "rivescenec"
                                              :label "Rive Scene"
                                              :node-type RiveSceneNode
                                              :ddf-type (workspace/load-class! "com.dynamo.rive.proto.Rive$RiveSceneDesc")
@@ -1516,7 +1515,6 @@
    (resource-node/register-ddf-resource-type workspace
                                              :ext rive-model-ext
                                              :label "Rive Model"
-                                             :build-ext "rivemodelc"
                                              :node-type RiveModelNode
                                              :ddf-type (workspace/load-class! "com.dynamo.rive.proto.Rive$RiveModelDesc")
                                              :load-fn load-rive-model
