@@ -26,13 +26,19 @@ import com.dynamo.rive.proto.Rive.RiveModelDesc;
 public class RiveModelBuilder extends ProtoBuilder<RiveModelDesc.Builder> {
 
     @Override
-    protected RiveModelDesc.Builder transform(Task<Void> task, IResource resource, RiveModelDesc.Builder messageBuilder) throws CompileExceptionError {
-        BuilderUtil.checkResource(this.project, resource, "scene", messageBuilder.getScene());
-        messageBuilder.setScene(BuilderUtil.replaceExt(messageBuilder.getScene(), ".rivescene", ".rivescenec"));
-        BuilderUtil.checkResource(this.project, resource, "material", messageBuilder.getMaterial());
-        messageBuilder.setMaterial(BuilderUtil.replaceExt(messageBuilder.getMaterial(), ".material", ".materialc"));
+    protected RiveModelDesc.Builder transform(Task<Void> task, IResource resource, RiveModelDesc.Builder builder) throws CompileExceptionError {
+
+        if (!builder.getScene().equals("")) {
+            BuilderUtil.checkResource(this.project, resource, "scene", builder.getScene());
+        }
+        builder.setScene(BuilderUtil.replaceExt(builder.getScene(), ".rivescene", ".rivescenec"));
+
+        if (!builder.getMaterial().equals("")) {
+            BuilderUtil.checkResource(this.project, resource, "material", builder.getMaterial());
+        }
+        builder.setMaterial(BuilderUtil.replaceExt(builder.getMaterial(), ".material", ".materialc"));
 
         System.out.printf("MAWE: OUTPUT FROM EXTENSION RiveModelBuilder!\n");
-        return messageBuilder;
+        return builder;
     }
 }

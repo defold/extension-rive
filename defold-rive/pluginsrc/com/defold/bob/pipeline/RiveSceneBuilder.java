@@ -37,10 +37,15 @@ public class RiveSceneBuilder extends Builder<Void> {
 
         RiveSceneDesc.Builder builder = RiveSceneDesc.newBuilder();
         ProtoUtil.merge(input, builder);
-        BuilderUtil.checkResource(this.project, input, "scene", builder.getScene());
+
+        if (!builder.getScene().equals("")) {
+            BuilderUtil.checkResource(this.project, input, "scene", builder.getScene());
+
+            taskBuilder.addInput(input.getResource(builder.getScene()));
+        }
+
         //BuilderUtil.checkResource(this.project, input, "atlas", builder.getAtlas());
 
-        taskBuilder.addInput(input.getResource(builder.getScene()));
         //taskBuilder.addInput(project.getResource(project.getBuildDirectory() + BuilderUtil.replaceExt( builder.getAtlas(), "atlas", "texturesetc")));
         return taskBuilder.build();
     }
@@ -53,7 +58,7 @@ public class RiveSceneBuilder extends Builder<Void> {
         RiveSceneDesc.Builder builder = RiveSceneDesc.newBuilder();
         ProtoUtil.merge(task.input(0), builder);
         builder.setScene(BuilderUtil.replaceExt(builder.getScene(), ".riv", ".rivc"));
-        builder.setAtlas(BuilderUtil.replaceExt(builder.getAtlas(), ".atlas", ".texturesetc"));
+        //builder.setAtlas(BuilderUtil.replaceExt(builder.getAtlas(), ".atlas", ".texturesetc"));
 
         Message msg = builder.build();
         ByteArrayOutputStream out = new ByteArrayOutputStream(64 * 1024);

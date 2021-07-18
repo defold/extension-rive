@@ -33,7 +33,7 @@ function copy_results() {
 
     # Copy the .jar files
     for path in ./build/$platform_ne/$PROJECT/*.jar; do
-        copyfile $path $TARGET_DIR/lib/common
+        copyfile $path $TARGET_DIR/share
     done
 
     # Copy the files to the target folder
