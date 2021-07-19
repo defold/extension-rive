@@ -47,7 +47,7 @@ function build_plugin() {
     local platform=$1
     local platform_ne=$2
 
-    java -jar $BOB --platform=$platform build --build-plugins --variant $VARIANT --build-server=$SERVER
+    java -jar $BOB --platform=$platform build --build-artifacts=plugins --variant $VARIANT --build-server=$SERVER
 
     copy_results $platform $platform_ne
 }
