@@ -37,8 +37,8 @@ function copy_results() {
     done
 
     # Copy the files to the target folder
-    for path in ./build/$platform_ne/*.dylib; do
-        copyfile $path $TARGET_DIR/lib/$PLATFORM
+    for path in ./build/$platform_ne/$PROJECT/*.dylib; do
+        copyfile $path $TARGET_DIR/lib/$platform_ne
     done
 }
 
