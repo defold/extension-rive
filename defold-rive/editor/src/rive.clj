@@ -571,7 +571,7 @@
 
 (g/defnk produce-rivescene-build-targets
   [_node-id own-build-errors resource rive-scene-pb rive-file dep-build-targets]
-  ;(prn "RIVE" "produce-rivescene-build-targets" rive-scene-pb rive-file "dep-build-targets:" dep-build-targets)
+  (prn "RIVE" "produce-rivescene-build-targets" rive-scene-pb rive-file "dep-build-targets:" dep-build-targets)
   (g/precluding-errors own-build-errors
                        (let [dep-build-targets (flatten dep-build-targets)
                              deps-by-source (into {} (map #(let [res (:resource %)] [(:resource res) res]) dep-build-targets))
@@ -875,6 +875,9 @@
 ;       (let [vb (render/->vtx-pos-col vcount)]
 ;         (persistent! (reduce conj! vb vs))))))
 
+
+; TODO: Load shader resources by name from the extension!
+
 (shader/defshader rive-id-vertex-shader
   (attribute vec4 position)
   (attribute vec2 texcoord0)
@@ -1042,7 +1045,8 @@
                    (project/resource-setter evaluation-context self old-value new-value
                                             [:resource :rive-file-resource]
                                             [:content :rive-scene]
-                                            [:consumer-passthrough :scene-structure]
+                                            [:scene-structure :scene-structure]
+                                            [:animations :rive-anim-ids]
                                             [:node-outline :source-outline]
                                             [:build-targets :dep-build-targets])))
             (dynamic edit-type (g/constantly {:type resource/Resource :ext rive-file-ext}))
@@ -1050,6 +1054,7 @@
                                   (validate-rivescene-riv-file _node-id rive-file))))
 
   (input rive-file-resource resource/Resource)
+  (input rive-anim-ids g/Any)
   ;(input atlas-resource resource/Resource)
 
   (input anim-data g/Any)
@@ -1064,20 +1069,20 @@
   (output build-targets g/Any :cached produce-rivescene-build-targets)
   (output rive-scene-pb g/Any :cached produce-rivescene-pb)
   (output main-scene g/Any :cached produce-main-scene)
-  (output scene g/Any :cached produce-riescene)
+  (output scene g/Any :cached produce-rivescene)
   ;(output aabb AABB :cached (g/fnk [rive-scene-pb] (reduce scene->aabb geom/null-aabb (get-in rive-scene-pb [:mesh-set :mesh-attachments]))))
   (output aabb AABB :cached (g/fnk [rive-scene-pb] (reduce scene->aabb geom/null-aabb nil)))
   ; (output skin-aabbs g/Any :cached produce-skin-aabbs)
   ; (output anim-data g/Any (gu/passthrough anim-data))
   (output scene-structure g/Any (gu/passthrough scene-structure))
-  ; (output rive-anim-ids g/Any (g/fnk [scene-structure] (:animations scene-structure)))
+  (output rive-anim-ids g/Any (g/fnk [scene-structure] (:animations scene-structure)))
   )
 
 ; .rivescene
 (defn load-rive-scene [project self resource rivescene]
   (prn "RIVE load-rive-scene")
-  (prn "self:" self "content:" resource rivescene "scene:" (:rive-file rivescene))
-  (let [rive-resource (workspace/resolve-resource resource (:scene rivescene))
+  (prn "self:" self "content:" resource rivescene)
+  (let [rive-resource (workspace/resolve-resource resource (:scene rivescene)) ; File/ZipResource type
         ;atlas          (workspace/resolve-resource resource (:atlas rivescene))
         ]
     (prn "scene:" rive-resource)
@@ -1097,7 +1102,7 @@
 
 
 (g/defnk produce-rivemodel-pb [rive-scene-resource default-animation material-resource blend-mode]
-  (prn "RIVE produce-rivemodel-pb" (resource/resource->proj-path rive-scene-resource))
+  (prn "RIVE produce-rivemodel-pb" (resource/resource->proj-path rive-scene-resource) "animation:" default-animation)
   (let [pb {:scene (resource/resource->proj-path rive-scene-resource)
             :default-animation default-animation
             :material (resource/resource->proj-path material-resource)
@@ -1118,15 +1123,14 @@
 ;                            (disj (set rive-skins) "default"))))
 
 (defn- validate-model-default-animation [node-id rive-scene rive-anim-ids default-animation]
-  ;(prn "RIVE" "validate-model-default-animation" rive-scene rive-anim-ids default-animation)
-  nil)
-  ;; (when (and rive-scene (not-empty default-animation))
-  ;;   (validation/prop-error :fatal node-id :default-animation
-  ;;                          (fn [anim ids]
-  ;;                            (when-not (contains? ids anim)
-  ;;                              (format "animation '%s' could not be found in the specified rive scene" anim)))
-  ;;                          default-animation
-  ;;                          (set rive-anim-ids))))
+  (prn "RIVE" "validate-model-default-animation" rive-scene rive-anim-ids default-animation)
+  (when (and rive-scene (not-empty default-animation))
+    (validation/prop-error :fatal node-id :default-animation
+                           (fn [anim ids]
+                             (when-not (contains? ids anim)
+                               (format "animation '%s' could not be found in the specified rive scene" anim)))
+                           default-animation
+                           (set rive-anim-ids))))
 
 (defn- validate-model-material [node-id material]
   ;(prn "RIVE" "validate-model-material" node-id material)
@@ -1203,8 +1207,8 @@
             (dynamic error (g/fnk [_node-id material]
                                   (validate-model-material _node-id material))))
   (property default-animation g/Str
-            (dynamic error (g/fnk [_node-id rive-anim-ids default-animation scene]
-                                  (validate-model-default-animation _node-id scene rive-anim-ids default-animation)))
+            (dynamic error (g/fnk [_node-id rive-anim-ids default-animation rive-scene]
+                                  (validate-model-default-animation _node-id rive-scene rive-anim-ids default-animation)))
             (dynamic edit-type (g/fnk [rive-anim-ids] (properties/->choicebox rive-anim-ids))))
   ; (property skin g/Str
   ;           (dynamic error (g/fnk [_node-id skin scene-structure rive-scene]
@@ -1341,69 +1345,62 @@
     (catch IOException e
       (g/->error _node-id :resource :fatal resource (format "Couldn't read rive file %s" (resource/resource->proj-path resource))))))
 
+(g/defnk produce-rive-file-content [_node-id resource]
+  (when resource
+    (resource->bytes resource)))
+
 (g/defnode RiveFileNode
   (inherits resource-node/ResourceNode)
-           
+
 ;   (input source-outline outline/OutlineData)
 ;   (output node-outline outline/OutlineData (g/fnk [source-outline] source-outline))
 
   ;(input skeleton g/Any)
+  (property rive-content g/Any
+            (value (gu/passthrough content))
+            (dynamic visible (g/constantly false)))
+           
+  (input scene-structure g/Any)
+  (output scene-structure g/Any (gu/passthrough scene-structure))
+
   (input content g/Any)
-  (input test g/Any)
+  (output content g/Any (gu/passthrough content))
+
   (output structure g/Any :cached (g/fnk
                                          ;[skeleton content]
-                                   [content]
-                                   (prn "RiveFileNode.structure:" "content" (count content))
+                                   [resource content rive-content]
+                                   (prn "RiveFileNode.structure:" "resource" resource "content" (count content) content)
+                                   (prn "    rive-content: " rive-content)
                                    {:skeleton []
-                                    :animations []
+                                    :animations ["test-anim1" "test-anim2"]
                                           ;:skeleton (update-transforms (math/->mat4) skeleton)
                                           ;:animations (keys (get content "animations"))
                                     }))
-  (output build-targets g/Any produce-rive-file-build-targets))
-
+  (output build-targets g/Any :cached produce-rive-file-build-targets)
+  ;(output rive-anim-ids g/Any (:animations structure))
+  )
 
 ; Loads the .riv file
-(defn load-rive-file ;[node-id content]
+(defn- load-rive-file
   [project node-id resource]
-  ;; (let [;bones (get content "bones")
-  ;;       graph (g/node-id->graph-id node-id)
-  ;;       scene-tx-data (g/make-nodes graph [scene RiveFileNode]
-  ;;                                   (g/connect scene :_node-id node-id :nodes)
-  ;;                                   (g/connect scene :node-outline node-id :child-outlines)
-  ;;                                   (g/connect scene :structure node-id :consumer-passthrough)
-  ;;                                   (g/connect node-id :content scene :content))
-  ;;     ;scene-id (tx-first-created scene-tx-data)
-  ;;       ]
-  ;;   (prn "RIVE" "load-rive-file" scene-tx-data)
-  ;;   scene-tx-data))
-
   (prn "RIVE load-rive-file")
   (prn "    rive-file-resource:" resource)
   (let [;rive-resource (workspace/resolve-resource resource (:scene rivescene))
-        content (resource->bytes resource)]
-    (prn "    content len: " (count content))
-    (concat
-     ;(g/connect project :default-tex-params self :default-tex-params)
-     (g/set-property node-id
-                      ;:atlas atlas
-                     ; just a test, we need to laod/parse the file for meta data
-                     :test "hello"
-                     ))))
-
-; (g/defnode RiveFileNode
-;   (inherits outline/OutlineNode)
-;   (input source-outline outline/OutlineData)
-;   (output node-outline outline/OutlineData (g/fnk [source-outline] source-outline))
-;   ;(input skeleton g/Any)
-;   (input content g/Any)
-;   (output structure g/Any :cached (g/fnk
-;                                          ;[skeleton content]
-;                                          [content]
-;                                          {
-;                                           ;:skeleton (update-transforms (math/->mat4) skeleton)
-;                                           ;:animations (keys (get content "animations"))
-;                                          }
-;                                           )))
+        content (resource->bytes resource)
+        graph (g/node-id->graph-id node-id)
+        tx-data (concat
+                 (g/set-property node-id
+                                 :rive-content content)
+                 (g/make-nodes graph [rive-file RiveFileNode]
+                               (g/connect rive-file :_node-id node-id :nodes)
+                              ;(g/connect rive-file :node-outline node-id :child-outlines)
+                               (g/connect rive-file :structure node-id :scene-structure)
+                               (g/connect node-id :content rive-file :content)
+                              ;(g/set-property node-id :content content)
+                               ))
+        ]
+    (prn "    data: " tx-data)
+    tx-data))
 
 ; (defn accept-rive-scene-json [content]
 ;   (when (or (get-in content ["skeleton" "spine"])
@@ -1514,7 +1511,7 @@
    (workspace/register-resource-type workspace
                                      :ext rive-file-ext
                                      :node-type RiveFileNode
-                                     ;:load-fn load-rive-file
+                                     :load-fn load-rive-file
                                      :icon rive-file-icon
                                      :view-types [:default]
                                      :tags #{:embeddable})))
