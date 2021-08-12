@@ -10,8 +10,6 @@
 ;; CONDITIONS OF ANY KIND, either express or implied. See the License for the
 ;; specific language governing permissions and limitations under the License.
 
-(prn "RIVE EXTENSION PLUGIN!")
-
 (ns editor.rive
   (:require [clojure.java.io :as io]
             [editor.protobuf :as protobuf]
@@ -20,7 +18,7 @@
             [editor.build-target :as bt]
             [editor.graph-util :as gu]
             [editor.geom :as geom]
-            [editor.material :as material]
+            ;[editor.material :as material]
             [editor.math :as math]
             [editor.gl :as gl]
             [editor.gl.shader :as shader]
@@ -45,6 +43,8 @@
             [service.log :as log]
             [internal.util :as util])
   (:import [com.dynamo.bob.textureset TextureSetGenerator$UVTransform]
+           [java.lang.invoke MethodType MethodHandles]
+           ;[com.dynamo.bob.pipeline Rive]
            ;[com.dynamo.bob.util BezierUtil RigUtil$Transform]
            [editor.gl.shader ShaderLifecycle]
            [editor.types AABB]
@@ -59,25 +59,6 @@
 ;(def rive-jar-file "/defold-rive/plugins/share/pluginRiveExt.jar")
 
 ;(def rive-jar-file (atom "/defold-rive/plugins/share/pluginRiveExt.jar"))
-
-; TODO: Centralize this code so it can be updated when plugins are added or rebuilt
-;; (def dcl
-;;   (let [loader (clojure.lang.DynamicClassLoader. (.getContextClassLoader (Thread/currentThread)))
-;;         ;url (URL. "file://Users/jhonny/dev/extension-rive/build/x86_64-osx/defold-rive/pluginRiveExt.jar")]
-;;         ;url (URL. (format "file://%s/shared/java/fmt-spine.jar" (system/defold-unpack-path)))]
-;;         url (io/as-url rive-jar-file)]
-;;     (.addURL loader url)
-;;     loader))
-
-;; (defn dynamically-load-class!
-;;   [class-name jar-file]
-;;   (prn "RIVE" "dynamically-load-class!" class-name)
-;;   (let [class-loader (clojure.lang.DynamicClassLoader. (.getContextClassLoader (Thread/currentThread)))
-;;         url (io/as-url jar-file)]
-;;     (.addURL class-loader url)
-;;     (let [cls (Class/forName class-name true class-loader)]
-;;       (prn "RIVE" "klass" cls)
-;;       cls)))
 
 (set! *warn-on-reflection* true)
 
@@ -562,8 +543,8 @@
 
 (defn- build-rive-scene [resource dep-resources user-data]
   (prn "MAWE build-rive-scene:" "resource" resource)
-  (prn "MAWE build-rive-scene:" "user-data" user-data)
-  (prn "MAWE build-rive-scene:" "dep-resources" dep-resources (:dep-resources user-data))
+  ;; (prn "MAWE build-rive-scene:" "user-data" user-data)
+  ;; (prn "MAWE build-rive-scene:" "dep-resources" dep-resources (:dep-resources user-data))
   (let [pb (:proto-msg user-data)
         pb (reduce #(assoc %1 (first %2) (second %2)) pb (map (fn [[label res]] [label (resource/proj-path (get dep-resources res))]) (:dep-resources user-data)))]
     {:resource resource :content (protobuf/map->bytes (workspace/load-class! "com.dynamo.rive.proto.Rive$RiveSceneDesc") pb)}))
@@ -576,7 +557,6 @@
                        (let [dep-build-targets (flatten dep-build-targets)
                              deps-by-source (into {} (map #(let [res (:resource %)] [(:resource res) res]) dep-build-targets))
                              dep-resources (map (fn [[label resource]] [label (get deps-by-source resource)]) [[:scene rive-file]])]
-                         (prn "    MAWE " rive-file "dep-resources:" dep-resources)
                          [(bt/with-content-hash
                             {:node-id _node-id
                              :resource (workspace/make-build-resource resource)
@@ -1045,7 +1025,7 @@
                    (project/resource-setter evaluation-context self old-value new-value
                                             [:resource :rive-file-resource]
                                             [:content :rive-scene]
-                                            [:scene-structure :scene-structure]
+                                            [:structure :scene-structure]
                                             [:animations :rive-anim-ids]
                                             [:node-outline :source-outline]
                                             [:build-targets :dep-build-targets])))
@@ -1075,7 +1055,8 @@
   ; (output skin-aabbs g/Any :cached produce-skin-aabbs)
   ; (output anim-data g/Any (gu/passthrough anim-data))
   (output scene-structure g/Any (gu/passthrough scene-structure))
-  (output rive-anim-ids g/Any (g/fnk [scene-structure] (:animations scene-structure)))
+  (output rive-anim-ids g/Any (gu/passthrough rive-anim-ids))
+  ;(output rive-anim-ids g/Any (g/fnk [scene-structure] (:animations scene-structure)))
   )
 
 ; .rivescene
@@ -1356,92 +1337,89 @@
 ;   (output node-outline outline/OutlineData (g/fnk [source-outline] source-outline))
 
   ;(input skeleton g/Any)
-  (property rive-content g/Any
-            (value (gu/passthrough content))
-            (dynamic visible (g/constantly false)))
            
   (input scene-structure g/Any)
   (output scene-structure g/Any (gu/passthrough scene-structure))
 
-  (input content g/Any)
-  (output content g/Any (gu/passthrough content))
+  (property content g/Any)
+  (property rive-handle g/Any) ; The cpp pointer
+  (property animations g/Any)
 
-  (output structure g/Any :cached (g/fnk
-                                         ;[skeleton content]
-                                   [resource content rive-content]
-                                   (prn "RiveFileNode.structure:" "resource" resource "content" (count content) content)
-                                   (prn "    rive-content: " rive-content)
-                                   {:skeleton []
-                                    :animations ["test-anim1" "test-anim2"]
-                                          ;:skeleton (update-transforms (math/->mat4) skeleton)
-                                          ;:animations (keys (get content "animations"))
-                                    }))
+  ;; (output structure g/Any :cached (g/fnk
+  ;;                                        ;[skeleton content]
+  ;;                                  [resource content]
+  ;;                                  (prn "RiveFileNode.structure:" "resource" resource "content" (count content) content)
+  ;;                                  {:skeleton []
+  ;;                                   :animations ["test-anim1" "test-anim2"]
+  ;;                                         ;:skeleton (update-transforms (math/->mat4) skeleton)
+  ;;                                         ;:animations (keys (get content "animations"))
+  ;;                                   }))
+  
   (output build-targets g/Any :cached produce-rive-file-build-targets)
   ;(output rive-anim-ids g/Any (:animations structure))
   )
 
+;; (def plugin-TestPrint-method-type (MethodType/methodType Void String))
+
+;; (defn plugin-TestPrint [cl s]
+;;   (let [lu (MethodHandles/lookup)
+;;         h (.findStatic lu cl "TestPrintLocal" plugin-TestPrint-method-type)]
+;;     (.invokeWithArguments h [s])))
+
+;; (defn- debug-cls [^Class cls]
+;;   (doseq [m (.getMethods cls)]
+;;     (prn (.toString m))
+;;     (println "Method Name: " (.getName m) "(" (.getParameterTypes m) ")")
+;;     (println "Return Type: " (.getReturnType m) "\n")))
+
+(def rive-plugin-cls (workspace/load-class! "com.dynamo.bob.pipeline.Rive"))
+(def rive-plugin-pointer-cls (workspace/load-class! "com.dynamo.bob.pipeline.Rive$RivePointer"))
+;(def rive-plugin-pointer-cls (workspace/load-class! "com.sun.jna.Pointer"))
+(def byte-array-cls (Class/forName "[B"))
+
+(defn- plugin-invoke-static [^Class cls name types args]
+  (print "plugin-invoke-static" cls name types args)
+  (let [method (.getMethod cls name types)]
+    ;(prn "METHOD" method)
+    (.invoke method nil (into-array Object args))))
+
+(defn- plugin-test-print [^String s]
+    (plugin-invoke-static rive-plugin-cls "TestPrint" (into-array Class [String]) [s]))
+
+(defn- plugin-load-file [bytes]
+  (plugin-invoke-static rive-plugin-cls "RIVE_LoadFileFromBuffer" (into-array Class [byte-array-cls]) [bytes]))
+
+(defn- plugin-get-num-animations [handle]
+  (plugin-invoke-static rive-plugin-cls "RIVE_GetNumAnimations" (into-array Class [rive-plugin-pointer-cls]) [handle]))
+
+(defn- plugin-get-animation ^String [handle index] 
+  ;(debug-cls rive-plugin-cls)
+  ;; (prn "MAWE " "plugin-get-animation" handle index)
+  ;; (prn "  types: " (map type [rive-plugin-pointer-cls Integer/TYPE]))
+  ;; (prn "  argument types: " (map type [handle (int index)]))
+  (let [x (plugin-invoke-static rive-plugin-cls "RIVE_GetAnimation" (into-array Class [rive-plugin-pointer-cls Integer/TYPE]) [handle (int index)])]
+    (prn "get-animation: " index ">>>>" x "<<<<")
+    x))
+
+(defn- get-animations [handle]
+  (let [num-animations (plugin-get-num-animations handle)
+        indices (range num-animations)
+        animations (map (fn [index] (plugin-get-animation handle index)) indices)]
+    animations))
+
 ; Loads the .riv file
 (defn- load-rive-file
   [project node-id resource]
-  (prn "RIVE load-rive-file")
-  (prn "    rive-file-resource:" resource)
-  (let [;rive-resource (workspace/resolve-resource resource (:scene rivescene))
-        content (resource->bytes resource)
-        graph (g/node-id->graph-id node-id)
+  ;; (prn "RIVE load-rive-file")
+  ;; (prn "    test-print" (plugin-test-print "HELLO"))
+  (let [content (resource->bytes resource)
+        rive-handle (plugin-load-file content)
+        animations (get-animations rive-handle)
         tx-data (concat
-                 (g/set-property node-id
-                                 :rive-content content)
-                 (g/make-nodes graph [rive-file RiveFileNode]
-                               (g/connect rive-file :_node-id node-id :nodes)
-                              ;(g/connect rive-file :node-outline node-id :child-outlines)
-                               (g/connect rive-file :structure node-id :scene-structure)
-                               (g/connect node-id :content rive-file :content)
-                              ;(g/set-property node-id :content content)
-                               ))
-        ]
-    (prn "    data: " tx-data)
+                 (g/set-property node-id :content content)
+                 (g/set-property node-id :rive-handle rive-handle)
+                 (g/set-property node-id :animations animations))]
     tx-data))
-
-; (defn accept-rive-scene-json [content]
-;   (when (or (get-in content ["skeleton" "spine"])
-;             (and (get content "bones") (get content "animations")))
-;     content))
-
-; (defn accept-resource-json
-;   [resource]
-;   ;; This function tries to find the JSON elements that mark a spine scene
-;   ;; without doing a full parse. This is a performance improvement for startup
-;   ;; of large projects. A full parse is done if this function succeeds so there
-;   ;; is no need to check if the content is valid JSON at this point.
-;   (with-open [rdr (io/reader resource)]
-;     (let [sb (StringBuilder.)]
-;       (loop [done? false
-;              inside-string? false
-;              escape? false
-;              strings (HashSet.)
-;              c (.read rdr)]
-;         (if done?
-;           true
-;           (if (= -1 c)
-;             false
-;             (if escape?
-;               (do
-;                 (.append sb (char c))
-;                 (recur done? inside-string? false strings (.read rdr)))
-;               (case c
-;                 92 (recur done? inside-string? true strings (.read rdr)) ;; \
-;                 34 (if inside-string? ;; "
-;                      (do
-;                        (.add strings (.toString sb))
-;                        (.setLength sb 0)
-;                        (recur (or (and (.contains strings "skeleton") (.contains strings "spine"))
-;                                   (and (.contains strings "bones") (.contains strings "animations")))
-;                               false escape? strings (.read rdr)))
-;                      (recur done? true escape? strings (.read rdr)))
-;                 (do
-;                   (when inside-string?
-;                     (.append sb (char c)))
-;                   (recur done? inside-string? escape? strings (.read rdr)))))))))))
 
 ; (defn- tx-first-created [tx-data]
 ;   (get-in (first tx-data) [:node :_node-id]))
@@ -1486,7 +1464,6 @@
 
 
 (defn register-resource-types [workspace]
-  (prn "RIVE register resource types")
   (concat
    (resource-node/register-ddf-resource-type workspace
                                              :ext rive-scene-ext
