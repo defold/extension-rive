@@ -40,6 +40,14 @@ function copy_results() {
     for path in ./build/$platform_ne/$PROJECT/*.dylib; do
         copyfile $path $TARGET_DIR/lib/$platform_ne
     done
+
+    for path in ./build/$platform_ne/$PROJECT/*.so; do
+        copyfile $path $TARGET_DIR/lib/$platform_ne
+    done
+
+    for path in ./build/$platform_ne/$PROJECT/*.dll; do
+        copyfile $path $TARGET_DIR/lib/$platform_ne
+    done
 }
 
 
