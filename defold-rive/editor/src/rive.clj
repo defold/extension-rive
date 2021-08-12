@@ -1260,8 +1260,7 @@
      (g/set-property self
                      :rive-scene rive-scene-resource
                      :material material
-                     :default-animation ""
-                     ))))
+                     :default-animation (:default-animation content)))))
 
 
 
