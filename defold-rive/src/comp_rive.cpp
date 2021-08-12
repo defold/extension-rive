@@ -74,6 +74,8 @@ namespace dmRive
     static void ResourceReloadedCallback(const dmResource::ResourceReloadedParams& params);
     static void DestroyComponent(struct RiveWorld* world, uint32_t index);
     static void CompRiveAnimationReset(RiveComponent* component);
+    static bool PlayAnimation(RiveComponent* component, dmRive::RiveSceneData* data, dmhash_t anim_id,
+                    dmGameObject::Playback playback_mode, float offset, float playback_rate);
 
     static rive::HBuffer RiveRequestBufferCallback(rive::HBuffer buffer, rive::BufferType type, void* data, unsigned int dataSize, void* userData);
     static void          RiveDestroyBufferCallback(rive::HBuffer buffer, void* userData);
@@ -260,6 +262,13 @@ namespace dmRive
         component->m_RenderConstants = 0;
 
         // TODO: Create the bone hierarchy
+
+        dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
+        dmhash_t anim_id = dmHashString64(component->m_Resource->m_DDF->m_DefaultAnimation);
+        if (!PlayAnimation(component, data, anim_id, dmGameObject::PLAYBACK_LOOP_FORWARD, 0.0f, 1.0f))
+        {
+            dmLogError("Couldn't play animation named '%s'", dmHashReverseSafe64(anim_id));
+        }
 
         component->m_ReHash = 1;
 
@@ -954,6 +963,83 @@ namespace dmRive
         component->m_ReHash = 1;
     }
 
+    static rive::LinearAnimation* FindAnimation(dmRive::RiveSceneData* data, int* animation_index, dmhash_t anim_id)
+    {
+        rive::Artboard* artboard = data->m_File->artboard();
+        if (animation_index) {
+            *animation_index = -1;
+        }
+
+        for (int i = 0; i < data->m_LinearAnimationCount; ++i)
+        {
+            if (data->m_LinearAnimations[i].m_NameHash == anim_id)
+            {
+                if (animation_index) {
+                    *animation_index = i;
+                }
+
+                return artboard->animation(data->m_LinearAnimations[i].m_AnimationIndex);
+            }
+        }
+        return 0;
+    }
+
+    static bool PlayAnimation(RiveComponent* component, dmRive::RiveSceneData* data, dmhash_t anim_id,
+                        dmGameObject::Playback playback_mode, float offset, float playback_rate)
+    {
+        int animation_index;
+        rive::LinearAnimation* animation  = FindAnimation(data, &animation_index, anim_id);
+
+        if (!animation) {
+            return false;
+        }
+
+        CompRiveAnimationReset(component);
+
+        rive::Loop loop_value = rive::Loop::oneShot;
+        int play_direction    = 1;
+        float play_time       = animation->startSeconds();
+        float offset_value    = animation->durationSeconds() * offset;
+
+        switch(playback_mode)
+        {
+            case dmGameObject::PLAYBACK_ONCE_FORWARD:
+                loop_value     = rive::Loop::oneShot;
+                break;
+            case dmGameObject::PLAYBACK_ONCE_BACKWARD:
+                loop_value     = rive::Loop::oneShot;
+                play_direction = -1;
+                play_time      = animation->endSeconds();
+                offset_value   = -offset_value;
+                break;
+            case dmGameObject::PLAYBACK_ONCE_PINGPONG:
+                loop_value     = rive::Loop::pingPong;
+                break;
+            case dmGameObject::PLAYBACK_LOOP_FORWARD:
+                loop_value     = rive::Loop::loop;
+                break;
+            case dmGameObject::PLAYBACK_LOOP_BACKWARD:
+                loop_value     = rive::Loop::loop;
+                play_direction = -1;
+                play_time      = animation->endSeconds();
+                offset_value   = -offset_value;
+                break;
+            case dmGameObject::PLAYBACK_LOOP_PINGPONG:
+                loop_value     = rive::Loop::pingPong;
+                break;
+            default:break;
+        }
+
+        component->m_AnimationIndex        = animation_index;
+        component->m_AnimationPlaybackRate = playback_rate;
+        component->m_AnimationPlayback     = playback_mode;
+        component->m_AnimationInstance     = new rive::LinearAnimationInstance(animation);
+        component->m_AnimationInstance->time(play_time + offset_value);
+        component->m_AnimationInstance->loopValue((int)loop_value);
+        component->m_AnimationInstance->direction(play_direction);
+        return true;
+    }
+
     dmGameObject::UpdateResult CompRiveOnMessage(const dmGameObject::ComponentOnMessageParams& params)
     {
         RiveWorld* world = (RiveWorld*)params.m_World;
@@ -972,69 +1058,16 @@ namespace dmRive
             {
                 dmRiveDDF::RivePlayAnimation* ddf = (dmRiveDDF::RivePlayAnimation*)params.m_Message->m_Data;
                 dmRive::RiveSceneData* data       = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
-                rive::LinearAnimation* animation  = 0;
-                rive::Artboard* artboard          = data->m_File->artboard();
-                int animation_index               = -1;
 
-                for (int i = 0; i < data->m_LinearAnimationCount; ++i)
-                {
-                    if (data->m_LinearAnimations[i].m_NameHash == ddf->m_AnimationId)
-                    {
-                        animation       = artboard->animation(data->m_LinearAnimations[i].m_AnimationIndex);
-                        animation_index = i;
-                        break;
-                    }
-                }
-
-                if (animation)
-                {
-                    if (component->m_AnimationInstance)
-                        delete component->m_AnimationInstance;
-
-                    rive::Loop loop_value = rive::Loop::oneShot;
-                    int play_direction    = 1;
-                    float play_time       = animation->startSeconds();
-                    float offset_value    = animation->durationSeconds() * ddf->m_Offset;
-
-                    switch(ddf->m_Playback)
-                    {
-                        case dmGameObject::PLAYBACK_ONCE_FORWARD:
-                            loop_value     = rive::Loop::oneShot;
-                            break;
-                        case dmGameObject::PLAYBACK_ONCE_BACKWARD:
-                            loop_value     = rive::Loop::oneShot;
-                            play_direction = -1;
-                            play_time      = animation->endSeconds();
-                            offset_value   = -offset_value;
-                            break;
-                        case dmGameObject::PLAYBACK_ONCE_PINGPONG:
-                            loop_value     = rive::Loop::pingPong;
-                            break;
-                        case dmGameObject::PLAYBACK_LOOP_FORWARD:
-                            loop_value     = rive::Loop::loop;
-                            break;
-                        case dmGameObject::PLAYBACK_LOOP_BACKWARD:
-                            loop_value     = rive::Loop::loop;
-                            play_direction = -1;
-                            play_time      = animation->endSeconds();
-                            offset_value   = -offset_value;
-                            break;
-                        case dmGameObject::PLAYBACK_LOOP_PINGPONG:
-                            loop_value     = rive::Loop::pingPong;
-                            break;
-                        default:break;
-                    }
-
-                    component->m_AnimationIndex        = animation_index;
-                    component->m_AnimationPlaybackRate = ddf->m_PlaybackRate;
-                    component->m_AnimationPlayback     = (dmGameObject::Playback) ddf->m_Playback;
+                dmhash_t anim_id = ddf->m_AnimationId;
+                bool result = PlayAnimation(component, data, anim_id, (dmGameObject::Playback)ddf->m_Playback, ddf->m_Offset, ddf->m_PlaybackRate);
+                if (result) {
                     component->m_AnimationCallbackRef  = params.m_Message->m_UserData2;
                     component->m_Listener              = params.m_Message->m_Sender;
-                    component->m_AnimationInstance     = new rive::LinearAnimationInstance(animation);
-                    component->m_AnimationInstance->time(play_time + offset_value);
-                    component->m_AnimationInstance->loopValue((int)loop_value);
-                    component->m_AnimationInstance->direction(play_direction);
+                } else {
+                    dmLogError("Couldn't play animation named '%s'", dmHashReverseSafe64(anim_id));
                 }
+
             }
             else if (params.m_Message->m_Id == dmRiveDDF::RiveCancelAnimation::m_DDFDescriptor->m_NameHash)
             {
