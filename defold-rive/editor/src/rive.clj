@@ -1355,12 +1355,6 @@
   ;(output rive-anim-ids g/Any (:animations structure))
   )
 
-;; (def plugin-TestPrint-method-type (MethodType/methodType Void String))
-
-;; (defn plugin-TestPrint [cl s]
-;;   (let [lu (MethodHandles/lookup)
-;;         h (.findStatic lu cl "TestPrintLocal" plugin-TestPrint-method-type)]
-;;     (.invokeWithArguments h [s])))
 
 ;; (defn- debug-cls [^Class cls]
 ;;   (doseq [m (.getMethods cls)]
@@ -1370,17 +1364,11 @@
 
 (def rive-plugin-cls (workspace/load-class! "com.dynamo.bob.pipeline.Rive"))
 (def rive-plugin-pointer-cls (workspace/load-class! "com.dynamo.bob.pipeline.Rive$RivePointer"))
-;(def rive-plugin-pointer-cls (workspace/load-class! "com.sun.jna.Pointer"))
 (def byte-array-cls (Class/forName "[B"))
 
 (defn- plugin-invoke-static [^Class cls name types args]
-  (print "plugin-invoke-static" cls name types args)
   (let [method (.getMethod cls name types)]
-    ;(prn "METHOD" method)
     (.invoke method nil (into-array Object args))))
-
-(defn- plugin-test-print [^String s]
-  (plugin-invoke-static rive-plugin-cls "TestPrint" (into-array Class [String]) [s]))
 
 (defn- plugin-load-file [bytes]
   (plugin-invoke-static rive-plugin-cls "RIVE_LoadFileFromBuffer" (into-array Class [byte-array-cls]) [bytes]))
@@ -1389,13 +1377,7 @@
   (plugin-invoke-static rive-plugin-cls "RIVE_GetNumAnimations" (into-array Class [rive-plugin-pointer-cls]) [handle]))
 
 (defn- plugin-get-animation ^String [handle index]
-  ;(debug-cls rive-plugin-cls)
-  ;; (prn "MAWE " "plugin-get-animation" handle index)
-  ;; (prn "  types: " (map type [rive-plugin-pointer-cls Integer/TYPE]))
-  ;; (prn "  argument types: " (map type [handle (int index)]))
-  (let [x (plugin-invoke-static rive-plugin-cls "RIVE_GetAnimation" (into-array Class [rive-plugin-pointer-cls Integer/TYPE]) [handle (int index)])]
-    (prn "get-animation: " index ">>>>" x "<<<<")
-    x))
+  (plugin-invoke-static rive-plugin-cls "RIVE_GetAnimation" (into-array Class [rive-plugin-pointer-cls Integer/TYPE]) [handle (int index)]))
 
 (defn- get-animations [handle]
   (let [num-animations (plugin-get-num-animations handle)
@@ -1456,9 +1438,6 @@
   ;           (recur (rest bones) (conj tx-data bone-tx-data) (assoc bone-ids name bone-id)))
   ;         tx-data)))))
 
-;(json/register-json-loader ::scene accept-rive-scene-json accept-resource-json load-rive-file)
-
-
 (defn register-resource-types [workspace]
   (concat
    (resource-node/register-ddf-resource-type workspace
@@ -1467,7 +1446,7 @@
                                              :node-type RiveSceneNode
                                              :ddf-type (workspace/load-class! "com.dynamo.rive.proto.Rive$RiveSceneDesc")
                                              :load-fn load-rive-scene
-                                             :icon rive-scene-icon
+                                             ;:icon rive-scene-icon
                                              :view-types [:scene :text]
                                              :view-opts {:scene {:grid true}})
    (resource-node/register-ddf-resource-type workspace
@@ -1476,7 +1455,7 @@
                                              :node-type RiveModelNode
                                              :ddf-type (workspace/load-class! "com.dynamo.rive.proto.Rive$RiveModelDesc")
                                              :load-fn load-rive-model
-                                             :icon rive-model-icon
+                                             ;:icon rive-model-icon
                                              :view-types [:scene :text]
                                              :view-opts {:scene {:grid true}}
                                              :tags #{:component}
@@ -1485,7 +1464,7 @@
                                      :ext rive-file-ext
                                      :node-type RiveFileNode
                                      :load-fn load-rive-file
-                                     :icon rive-file-icon
+                                     ;:icon rive-file-icon
                                      :view-types [:default]
                                      :tags #{:embeddable})))
 
