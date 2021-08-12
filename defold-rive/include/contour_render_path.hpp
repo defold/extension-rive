@@ -4,6 +4,7 @@
 #include "renderer.hpp"
 #include "math/aabb.hpp"
 #include <vector>
+#include <stdint.h>
 
 namespace rive
 {
