@@ -1248,13 +1248,10 @@
 
 ; .rivemodel
 (defn load-rive-model [project self resource content]
-  (prn "RIVE load-rive-model")
-  (prn "  content:" resource content)
   (let [rive-scene-resource (workspace/resolve-resource resource (:scene content))
         material (workspace/resolve-resource resource (:material content))
         ;atlas          (workspace/resolve-resource resource (:atlas rivescene))
         ]
-    (prn "  scene:" rive-scene-resource)
     (concat
      (g/connect project :default-tex-params self :default-tex-params)
      (g/set-property self
@@ -1336,7 +1333,7 @@
 ;   (output node-outline outline/OutlineData (g/fnk [source-outline] source-outline))
 
   ;(input skeleton g/Any)
-           
+
   (input scene-structure g/Any)
   (output scene-structure g/Any (gu/passthrough scene-structure))
 
@@ -1353,7 +1350,7 @@
   ;;                                         ;:skeleton (update-transforms (math/->mat4) skeleton)
   ;;                                         ;:animations (keys (get content "animations"))
   ;;                                   }))
-  
+
   (output build-targets g/Any :cached produce-rive-file-build-targets)
   ;(output rive-anim-ids g/Any (:animations structure))
   )
@@ -1383,7 +1380,7 @@
     (.invoke method nil (into-array Object args))))
 
 (defn- plugin-test-print [^String s]
-    (plugin-invoke-static rive-plugin-cls "TestPrint" (into-array Class [String]) [s]))
+  (plugin-invoke-static rive-plugin-cls "TestPrint" (into-array Class [String]) [s]))
 
 (defn- plugin-load-file [bytes]
   (plugin-invoke-static rive-plugin-cls "RIVE_LoadFileFromBuffer" (into-array Class [byte-array-cls]) [bytes]))
@@ -1391,7 +1388,7 @@
 (defn- plugin-get-num-animations [handle]
   (plugin-invoke-static rive-plugin-cls "RIVE_GetNumAnimations" (into-array Class [rive-plugin-pointer-cls]) [handle]))
 
-(defn- plugin-get-animation ^String [handle index] 
+(defn- plugin-get-animation ^String [handle index]
   ;(debug-cls rive-plugin-cls)
   ;; (prn "MAWE " "plugin-get-animation" handle index)
   ;; (prn "  types: " (map type [rive-plugin-pointer-cls Integer/TYPE]))
