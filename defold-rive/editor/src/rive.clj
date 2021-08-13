@@ -63,10 +63,10 @@
 (set! *warn-on-reflection* true)
 
 ; TODO: Dynamically unpack the assets from the .jar to someplace where the
-(def rive-file-icon "icons/32/Icons_16-Rive-scene.png")
-(def rive-scene-icon "icons/32/Icons_16-Rive-scene.png")
-(def rive-model-icon "icons/32/Icons_15-Rive-model.png")
-(def rive-bone-icon "icons/32/Icons_S_13_radiocircle.png")
+(def rive-file-icon "/defold-rive/editor/resources/icons/32/Icons_16-Rive-scene.png")
+(def rive-scene-icon "/defold-rive/editor/resources/icons/32/Icons_16-Rive-scene.png")
+(def rive-model-icon "/defold-rive/editor/resources/icons/32/Icons_15-Rive-model.png")
+;(def rive-bone-icon "icons/32/Icons_S_13_radiocircle.png")
 
 (def rive-file-ext "riv")
 (def rive-scene-ext "rivescene")
@@ -780,7 +780,6 @@
 ;     pb))
 
 (g/defnk produce-rivescene-pb [_node-id rive-file-resource]
-  (prn "RIVE produce-rivescene-pb" (resource/resource->proj-path rive-file-resource))
   {:scene (resource/resource->proj-path rive-file-resource)})
 
 ; (defn- transform-positions [^Matrix4d transform mesh]
@@ -937,11 +936,11 @@
 ;   (render/render-aabb-outline gl render-args ::rive-outline renderables rcount))
 
 (g/defnk produce-main-scene [_node-id aabb gpu-texture default-tex-params rive-scene-pb scene-structure]
-  (prn "RIVE produce-main-scene"  "gpu-texture" gpu-texture "scene-structure" scene-structure)
+  ;(prn "RIVE produce-main-scene"  "gpu-texture" gpu-texture "scene-structure" scene-structure)
   ;(when (and gpu-texture scene-structure)
   ;(when scene-structure
   (when true
-    (prn "RIVE produce-main-scene")
+    ;(prn "RIVE produce-main-scene")
     (let [blend-mode :blend-mode-alpha]
       (assoc {:node-id _node-id :aabb aabb}
              :renderable {:render-fn render-rive-scenes
@@ -1312,7 +1311,6 @@
   {:resource resource :content (resource->bytes (:resource resource))})
 
 (g/defnk produce-rive-file-build-targets [_node-id resource]
-  (prn "RIVE produce-rive-file-build-targets" resource)
   (try
     [(bt/with-content-hash
        {:node-id _node-id
@@ -1329,11 +1327,6 @@
 (g/defnode RiveFileNode
   (inherits resource-node/ResourceNode)
 
-;   (input source-outline outline/OutlineData)
-;   (output node-outline outline/OutlineData (g/fnk [source-outline] source-outline))
-
-  ;(input skeleton g/Any)
-
   (input scene-structure g/Any)
   (output scene-structure g/Any (gu/passthrough scene-structure))
 
@@ -1341,18 +1334,7 @@
   (property rive-handle g/Any) ; The cpp pointer
   (property animations g/Any)
 
-  ;; (output structure g/Any :cached (g/fnk
-  ;;                                        ;[skeleton content]
-  ;;                                  [resource content]
-  ;;                                  (prn "RiveFileNode.structure:" "resource" resource "content" (count content) content)
-  ;;                                  {:skeleton []
-  ;;                                   :animations ["test-anim1" "test-anim2"]
-  ;;                                         ;:skeleton (update-transforms (math/->mat4) skeleton)
-  ;;                                         ;:animations (keys (get content "animations"))
-  ;;                                   }))
-
   (output build-targets g/Any :cached produce-rive-file-build-targets)
-  ;(output rive-anim-ids g/Any (:animations structure))
   )
 
 
@@ -1388,8 +1370,6 @@
 ; Loads the .riv file
 (defn- load-rive-file
   [project node-id resource]
-  ;; (prn "RIVE load-rive-file")
-  ;; (prn "    test-print" (plugin-test-print "HELLO"))
   (let [content (resource->bytes resource)
         rive-handle (plugin-load-file content)
         animations (get-animations rive-handle)
@@ -1446,25 +1426,27 @@
                                              :node-type RiveSceneNode
                                              :ddf-type (workspace/load-class! "com.dynamo.rive.proto.Rive$RiveSceneDesc")
                                              :load-fn load-rive-scene
-                                             ;:icon rive-scene-icon
+                                             :icon rive-scene-icon
                                              :view-types [:scene :text]
-                                             :view-opts {:scene {:grid true}})
+                                             :view-opts {:scene {:grid true}}
+                                             :template "/defold-rive/assets/template.rivescene")
    (resource-node/register-ddf-resource-type workspace
                                              :ext rive-model-ext
                                              :label "Rive Model"
                                              :node-type RiveModelNode
                                              :ddf-type (workspace/load-class! "com.dynamo.rive.proto.Rive$RiveModelDesc")
                                              :load-fn load-rive-model
-                                             ;:icon rive-model-icon
+                                             :icon rive-model-icon
                                              :view-types [:scene :text]
                                              :view-opts {:scene {:grid true}}
                                              :tags #{:component}
-                                             :tag-opts {:component {:transform-properties #{:position :rotation}}})
+                                             :tag-opts {:component {:transform-properties #{:position :rotation}}}
+                                             :template "/defold-rive/assets/template.rivemodel")
    (workspace/register-resource-type workspace
                                      :ext rive-file-ext
                                      :node-type RiveFileNode
                                      :load-fn load-rive-file
-                                     ;:icon rive-file-icon
+                                     :icon rive-file-icon
                                      :view-types [:default]
                                      :tags #{:embeddable})))
 

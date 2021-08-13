@@ -1,0 +1,4 @@
+scene: "/assets/car.rivescene"
+default_animation: "idle"
+material: "/defold-rive/assets/rivemodel.material"
+blend_mode: BLEND_MODE_ALPHA

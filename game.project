@@ -1,5 +1,5 @@
 [bootstrap]
-main_collection = /main/main.collectionc
+main_collection = /main/many.collectionc
 render = /main/default.renderc
 
 [script]
@@ -19,4 +19,7 @@ dependencies#0 = https://github.com/andsve/dirtylarry/archive/master.zip
 
 [library]
 include_dirs = defold-rive,assets
+
+[graphics]
+max_draw_calls = 2048
 
