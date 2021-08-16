@@ -84,6 +84,7 @@ namespace rive
     HRenderer           createRenderer(HContext ctx);
     void                destroyRenderer(HRenderer renderer);
     void                newFrame(HRenderer renderer);
+    void                resetClipping(HRenderer renderer);
     void                setContourQuality(HRenderer renderer, float quality);
     void                setClippingSupport(HRenderer renderer, bool state);
     void                setTransform(HRenderer renderer, const Mat2D& transform);

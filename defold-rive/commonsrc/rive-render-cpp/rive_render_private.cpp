@@ -375,4 +375,14 @@ namespace rive
         Context* ctx = new Context;
         return (HContext) ctx;
     }
+
+
+    void resetClipping(HRenderer renderer)
+    {
+        SharedRenderer* r = (SharedRenderer*) renderer;
+        r->m_IsClippingDirty = true;
+        r->m_IsClipping = false;
+        r->m_ClipPaths.SetSize(0);
+        r->m_AppliedClips.SetSize(0);
+    }
 }
