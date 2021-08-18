@@ -815,6 +815,7 @@ namespace dmRive
             rive::Vec2D yflip(1.0f,-1.0f);
             rive::Mat2D::scale(transform, transform, yflip);
             rive::setTransform(renderer, transform);
+            rive::resetClipping(renderer);
 
             rive_renderer->align(rive::Fit::none,
                rive::Alignment::center,
