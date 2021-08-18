@@ -1092,14 +1092,11 @@
 ; .rivemodel (The "instance" file)
 ;
 
-
 (g/defnk produce-rivemodel-pb [rive-scene-resource default-animation material-resource blend-mode]
-  (prn "RIVE produce-rivemodel-pb" (resource/resource->proj-path rive-scene-resource) "animation:" default-animation)
   (let [pb {:scene (resource/resource->proj-path rive-scene-resource)
             :default-animation default-animation
             :material (resource/resource->proj-path material-resource)
             :blend-mode blend-mode}]
-    (prn "  pb ->" pb)
     pb))
 
 ; (defn ->skin-choicebox [rive-skins]
@@ -1126,29 +1123,21 @@
 (defn- validate-model-material [node-id material]
   (prop-resource-error :fatal node-id :material material "Material"))
 
-; (defn- validate-model-skin [node-id rive-scene scene-structure skin]
-;   (when rive-scene
-;     (validate-skin node-id :skin (:skins scene-structure) skin)))
-
 (defn- validate-model-rive-scene [node-id rive-scene]
-  ;(prn "RIVE" "validate-model-rive-scene" node-id rive-scene (:scene rive-scene))
   (prop-resource-error :fatal node-id :scene rive-scene "Rive Scene"))
 
 (g/defnk produce-model-own-build-errors [_node-id default-animation material rive-anim-ids rive-scene scene-structure]
   (g/package-errors _node-id
                     (validate-model-material _node-id material)
                     (validate-model-rive-scene _node-id rive-scene)
-                    ;(validate-model-skin _node-id rive-scene scene-structure skin)
                     (validate-model-default-animation _node-id rive-scene rive-anim-ids default-animation)))
 
 (defn- build-rive-model [resource dep-resources user-data]
-  (prn "RIVE" "build-rive-model")
   (let [pb (:proto-msg user-data)
         pb (reduce #(assoc %1 (first %2) (second %2)) pb (map (fn [[label res]] [label (resource/proj-path (get dep-resources res))]) (:dep-resources user-data)))]
     {:resource resource :content (protobuf/map->bytes (workspace/load-class! "com.dynamo.rive.proto.Rive$RiveModelDesc") pb)}))
 
 (g/defnk produce-model-build-targets [_node-id own-build-errors resource model-pb rive-scene-resource material-resource dep-build-targets]
-  (prn "RIVE" "produce-model-build-targets")
   (g/precluding-errors own-build-errors
                        (let [dep-build-targets (flatten dep-build-targets)
                              deps-by-source (into {} (map #(let [res (:resource %)] [(:resource res) res]) dep-build-targets))
