@@ -46,6 +46,8 @@ public class Rive {
     public static native void RIVE_Destroy(RivePointer rive);
     public static native int RIVE_GetNumAnimations(RivePointer rive);
     public static native String RIVE_GetAnimation(RivePointer rive, int index);
+    public static native float RIVE_GetArtboardWidth(RivePointer rive);
+    public static native float RIVE_GetArtboardHeight(RivePointer rive);
 
     public static RivePointer RIVE_LoadFileFromBuffer(byte[] buffer) {
         Buffer bb = ByteBuffer.wrap(buffer);
