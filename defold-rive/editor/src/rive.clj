@@ -792,6 +792,10 @@
 ;                                           (.transform transform p)
 ;                                           [(.x p) (.y p) (.z p)])))))))
 
+(defn- renderable->aabb [renderable]
+  (let [aabb (get-in renderable [:user-data :aabb])]
+    aabb))
+
 ; (defn- renderable->meshes [renderable]
 ;   (let [meshes (get-in renderable [:user-data :rive-scene-pb :mesh-set :mesh-attachments])
 ;         skins (get-in renderable [:user-data :rive-scene-pb :mesh-set :mesh-entries])
@@ -824,9 +828,16 @@
   ;           verts (mapcat mesh->verts meshes)]
   ;       (persistent! (reduce conj! vb verts))))))
 
-  (let [sz 64
-        verts [[0 0 0 0 0 1 1 1 1] [sz 0 0 0 0 1 1 1 1] [sz sz 0 0 0 1 1 1 1]
-               [sz sz 0 0 0 1 1 1 1] [0 sz 0 0 0 1 1 1 1] [0 0 0 0 0 1 1 1 1]]
+  (let [aabbs (map renderable->aabb renderables)
+        aabb (first aabbs)
+        min-p ^Point3d (.min aabb)
+        max-p ^Point3d (.max aabb)
+        min-x (.x min-p)
+        min-y (.y min-p)
+        max-x (.x max-p)
+        max-y (.y max-p)
+        verts [[min-x min-y 0 0 0 1 1 1 1] [max-x min-y 0 0 0 1 1 1 1] [max-x max-y 0 0 0 1 1 1 1]
+               [max-x max-y 0 0 0 1 1 1 1] [min-x max-y 0 0 0 1 1 1 1] [min-x min-y 0 0 0 1 1 1 1]]
         vcount (count verts)
         vb (render/->vtx-pos-tex-col vcount)] ; vec3-vec2-vec4
     (persistent! (reduce conj! vb verts))))
@@ -931,9 +942,9 @@
 ;       (gl/with-gl-bindings gl render-args [render/shader-outline vertex-binding]
 ;         (gl/gl-draw-arrays gl GL/GL_LINES 0 (count vb))))))
 
-; (defn- render-rive-outlines [^GL2 gl render-args renderables rcount]
-;   (assert (= (:pass render-args) pass/outline))
-;   (render/render-aabb-outline gl render-args ::rive-outline renderables rcount))
+(defn- render-rive-outlines [^GL2 gl render-args renderables rcount]
+  (assert (= (:pass render-args) pass/outline))
+  (render/render-aabb-outline gl render-args ::rive-outline renderables rcount))
 
 (g/defnk produce-main-scene [_node-id aabb gpu-texture default-tex-params rive-scene-pb scene-structure]
   ;(prn "RIVE produce-main-scene"  "gpu-texture" gpu-texture "scene-structure" scene-structure)
@@ -948,6 +959,7 @@
                           :batch-key gpu-texture
                           :select-batch-key _node-id
                           :user-data {:rive-scene-pb rive-scene-pb
+                                      :aabb aabb
                                       ;:scene-structure scene-structure
                                       :scene-structure {}
                                       ;:gpu-texture gpu-texture
@@ -956,13 +968,13 @@
                                       :blend-mode blend-mode}
                           :passes [pass/transparent pass/selection]}))))
 
-; (defn- make-rive-outline-scene [_node-id aabb]
-;   {:aabb aabb
-;    :node-id _node-id
-;    :renderable {:render-fn render-rive-outlines
-;                 :tags #{:spine :outline}
-;                 :batch-key ::outline
-;                 :passes [pass/outline]}})
+(defn- make-rive-outline-scene [_node-id aabb]
+  {:aabb aabb
+   :node-id _node-id
+   :renderable {:render-fn render-rive-outlines
+                :tags #{:spine :outline}
+                :batch-key ::outline
+                :passes [pass/outline]}})
 
 ; (defn- make-rive-skeleton-scene [_node-id aabb gpu-texture scene-structure]
 ;   (let [scene {:node-id _node-id :aabb aabb}]
@@ -978,12 +990,11 @@
 ;       scene)))
 
 (g/defnk produce-rivescene [_node-id aabb main-scene gpu-texture scene-structure]
-  (prn "RIVE produce-rivescene" main-scene)
   (if (some? main-scene)
     (assoc main-scene :children [;(make-rive-skeleton-scene _node-id aabb gpu-texture scene-structure)
-                                 ;(make-rive-outline-scene _node-id aabb)
+                                 (make-rive-outline-scene _node-id aabb)
                                  ])
-    {:node-id _node-id :aabb geom/empty-bounding-box :test "produce-rivescene"}))
+    {:node-id _node-id :aabb aabb}))
 
 ; (defn- mesh->aabb [aabb mesh]
 ;   (let [positions (partition 3 (:positions mesh))]
@@ -1026,6 +1037,7 @@
                                             [:content :rive-scene]
                                             [:structure :scene-structure]
                                             [:animations :rive-anim-ids]
+                                            [:aabb :aabb]
                                             [:node-outline :source-outline]
                                             [:build-targets :dep-build-targets])))
             (dynamic edit-type (g/constantly {:type resource/Resource :ext rive-file-ext}))
@@ -1034,6 +1046,7 @@
 
   (input rive-file-resource resource/Resource)
   (input rive-anim-ids g/Any)
+  (input aabb g/Any)
   ;(input atlas-resource resource/Resource)
 
   (input anim-data g/Any)
@@ -1049,12 +1062,11 @@
   (output rive-scene-pb g/Any :cached produce-rivescene-pb)
   (output main-scene g/Any :cached produce-main-scene)
   (output scene g/Any :cached produce-rivescene)
-  ;(output aabb AABB :cached (g/fnk [rive-scene-pb] (reduce scene->aabb geom/null-aabb (get-in rive-scene-pb [:mesh-set :mesh-attachments]))))
-  (output aabb AABB :cached (g/fnk [rive-scene-pb] (reduce scene->aabb geom/null-aabb nil)))
   ; (output skin-aabbs g/Any :cached produce-skin-aabbs)
   ; (output anim-data g/Any (gu/passthrough anim-data))
   (output scene-structure g/Any (gu/passthrough scene-structure))
   (output rive-anim-ids g/Any (gu/passthrough rive-anim-ids))
+  (output aabb g/Any :cached (gu/passthrough aabb))
   ;(output rive-anim-ids g/Any (g/fnk [scene-structure] (:animations scene-structure)))
   )
 
@@ -1103,7 +1115,6 @@
 ;                            (disj (set rive-skins) "default"))))
 
 (defn- validate-model-default-animation [node-id rive-scene rive-anim-ids default-animation]
-  (prn "RIVE" "validate-model-default-animation" rive-scene rive-anim-ids default-animation)
   (when (and rive-scene (not-empty default-animation))
     (validation/prop-error :fatal node-id :default-animation
                            (fn [anim ids]
@@ -1113,7 +1124,6 @@
                            (set rive-anim-ids))))
 
 (defn- validate-model-material [node-id material]
-  ;(prn "RIVE" "validate-model-material" node-id material)
   (prop-resource-error :fatal node-id :material material "Material"))
 
 ; (defn- validate-model-skin [node-id rive-scene scene-structure skin]
@@ -1214,7 +1224,7 @@
   (output material-shader ShaderLifecycle (gu/passthrough material-shader))
   (output scene g/Any :cached (g/fnk [_node-id rive-main-scene material-shader]
                                      (if (and (some? material-shader) (some? (:renderable rive-main-scene)))
-                                       (let [aabb geom/empty-bounding-box
+                                       (let [aabb (:aabb rive-main-scene)
                                              rive-scene-node-id (:node-id rive-main-scene)]
                                          (-> rive-main-scene
                                              (assoc-in [:renderable :user-data :shader] material-shader)
@@ -1222,13 +1232,11 @@
                                         ;(update-in [:renderable :user-data :gpu-texture] texture/set-params tex-params)
                                         ;(assoc-in [:renderable :user-data :skin] skin)
                                              (assoc :aabb aabb)
-                                             (assoc :test "RiveModelNode")
-                                        ;(assoc :children [(make-rive-outline-scene rive-scene-node-id aabb)])
+                                             (assoc :children [(make-rive-outline-scene rive-scene-node-id aabb)])
                                              ))
                                        (merge {:node-id _node-id
                                                :renderable {:passes [pass/selection]}
-                                               :aabb geom/empty-bounding-box
-                                               :test "RiveModelNode2"}
+                                               :aabb (:aabb rive-main-scene)}
                                               rive-main-scene))))
   (output node-outline outline/OutlineData :cached (g/fnk [_node-id own-build-errors scene]
                                                           (cond-> {:node-id _node-id
@@ -1333,6 +1341,7 @@
   (property content g/Any)
   (property rive-handle g/Any) ; The cpp pointer
   (property animations g/Any)
+  (property aabb g/Any)
 
   (output build-targets g/Any :cached produce-rive-file-build-targets)
   )
@@ -1361,11 +1370,23 @@
 (defn- plugin-get-animation ^String [handle index]
   (plugin-invoke-static rive-plugin-cls "RIVE_GetAnimation" (into-array Class [rive-plugin-pointer-cls Integer/TYPE]) [handle (int index)]))
 
+(defn- plugin-get-artboard-width ^double [handle]
+  (plugin-invoke-static rive-plugin-cls "RIVE_GetArtboardWidth" (into-array Class [rive-plugin-pointer-cls]) [handle]))
+
+(defn- plugin-get-artboard-height ^double [handle]
+  (plugin-invoke-static rive-plugin-cls "RIVE_GetArtboardHeight" (into-array Class [rive-plugin-pointer-cls]) [handle]))
+
 (defn- get-animations [handle]
   (let [num-animations (plugin-get-num-animations handle)
         indices (range num-animations)
         animations (map (fn [index] (plugin-get-animation handle index)) indices)]
     animations))
+
+(defn- get-aabb [handle]
+  (let [width  (plugin-get-artboard-width handle)
+        height  (plugin-get-artboard-height handle)
+        aabb (geom/coords->aabb [(- width) (- height) 0] [width height 0])]
+    aabb))
 
 ; Loads the .riv file
 (defn- load-rive-file
@@ -1373,10 +1394,12 @@
   (let [content (resource->bytes resource)
         rive-handle (plugin-load-file content)
         animations (get-animations rive-handle)
+        aabb (get-aabb rive-handle)
         tx-data (concat
                  (g/set-property node-id :content content)
                  (g/set-property node-id :rive-handle rive-handle)
-                 (g/set-property node-id :animations animations))]
+                 (g/set-property node-id :animations animations)
+                 (g/set-property node-id :aabb aabb))]
     tx-data))
 
 ; (defn- tx-first-created [tx-data]

@@ -14,7 +14,8 @@ VARIANT=debug
 TARGET_DIR=./$PROJECT/plugins
 mkdir -p $TARGET_DIR
 
-
+# comment out when you want to use the bob version instead!
+DEFOLDSDK="--defoldsdk=afa49790f992cb8cdd8de64be0c1cb53f06a9a1a"
 
 function copyfile() {
     local path=$1
@@ -55,7 +56,7 @@ function build_plugin() {
     local platform=$1
     local platform_ne=$2
 
-    java -jar $BOB --platform=$platform build --build-artifacts=plugins --variant $VARIANT --build-server=$SERVER
+    java -jar $BOB --platform=$platform build --build-artifacts=plugins --variant $VARIANT --build-server=$SERVER $DEFOLDSDK
 
     copy_results $platform $platform_ne
 }
