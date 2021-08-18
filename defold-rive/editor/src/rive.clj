@@ -63,7 +63,7 @@
 (set! *warn-on-reflection* true)
 
 ; TODO: Dynamically unpack the assets from the .jar to someplace where the
-(def rive-file-icon "/defold-rive/editor/resources/icons/32/Icons_16-Rive-scene.png")
+(def rive-file-icon "/defold-rive/editor/resources/icons/32/Icons_17-Rive-file.png")
 (def rive-scene-icon "/defold-rive/editor/resources/icons/32/Icons_16-Rive-scene.png")
 (def rive-model-icon "/defold-rive/editor/resources/icons/32/Icons_15-Rive-model.png")
 ;(def rive-bone-icon "icons/32/Icons_S_13_radiocircle.png")
