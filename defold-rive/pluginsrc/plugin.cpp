@@ -234,14 +234,16 @@ extern "C" DM_DLLEXPORT void* RIVE_GetVertices(void* _rive_file, void* _buffer, 
 
     //int count = RIVE_GetVertexCount(_rive_file);
 
-    float sz = 512.0f;
-
     rive::Artboard* artboard = file->m_File->artboard();
     rive::AABB bounds = artboard->bounds();
-    float minx = bounds.minX;
-    float miny = bounds.minY;
-    float maxx = bounds.maxX;
-    float maxy = bounds.maxY;
+
+    float cx = (bounds.maxX - bounds.minX) * 0.5f;
+    float cy = (bounds.maxY - bounds.minY) * 0.5f;
+
+    float minx = bounds.minX - cx;
+    float miny = bounds.minY - cy;
+    float maxx = bounds.maxX - cx;
+    float maxy = bounds.maxY - cy;
 
 // verts [[min-x min-y 0 0 0 1 1 1 1] [max-x min-y 0 0 0 1 1 1 1] [max-x max-y 0 0 0 1 1 1 1]
 //        [max-x max-y 0 0 0 1 1 1 1] [min-x max-y 0 0 0 1 1 1 1] [min-x min-y 0 0 0 1 1 1 1]]
@@ -322,7 +324,7 @@ extern "C" DM_DLLEXPORT float RIVE_GetAABBMinX(void* _rive_file) {
     }
     rive::Artboard* artboard = file->m_File->artboard();
     rive::AABB bounds = artboard->bounds();
-    return bounds.minX;
+    return bounds.minX - (bounds.maxX - bounds.minX) * 0.5f;
 }
 
 extern "C" DM_DLLEXPORT float RIVE_GetAABBMinY(void* _rive_file) {
@@ -332,7 +334,7 @@ extern "C" DM_DLLEXPORT float RIVE_GetAABBMinY(void* _rive_file) {
     }
     rive::Artboard* artboard = file->m_File->artboard();
     rive::AABB bounds = artboard->bounds();
-    return bounds.minY;
+    return bounds.minY - (bounds.maxY - bounds.minY) * 0.5f;
 }
 
 extern "C" DM_DLLEXPORT float RIVE_GetAABBMaxX(void* _rive_file) {
@@ -342,7 +344,7 @@ extern "C" DM_DLLEXPORT float RIVE_GetAABBMaxX(void* _rive_file) {
     }
     rive::Artboard* artboard = file->m_File->artboard();
     rive::AABB bounds = artboard->bounds();
-    return bounds.maxX;
+    return bounds.maxX - (bounds.maxX - bounds.minX) * 0.5f;
 }
 
 extern "C" DM_DLLEXPORT float RIVE_GetAABBMaxY(void* _rive_file) {
@@ -353,7 +355,7 @@ extern "C" DM_DLLEXPORT float RIVE_GetAABBMaxY(void* _rive_file) {
 
     rive::Artboard* artboard = file->m_File->artboard();
     rive::AABB bounds = artboard->bounds();
-    return bounds.maxY;
+    return bounds.maxY - (bounds.maxY - bounds.minY) * 0.5f;
 }
 
 

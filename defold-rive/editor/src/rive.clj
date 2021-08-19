@@ -83,9 +83,9 @@
 ; .rivemodel
 (defn load-rive-model [project self resource content]
   (let [rive-scene-resource (workspace/resolve-resource resource (:scene content))
-        material (workspace/resolve-resource resource (:material content))
+        material (workspace/resolve-resource resource (:material content))]
         ;atlas          (workspace/resolve-resource resource (:atlas rivescene))
-        ]
+        
     (concat
      (g/connect project :default-tex-params self :default-tex-params)
      (g/set-property self
@@ -311,10 +311,10 @@
 ; Node defs
 (g/defnk produce-rivescene-save-value [rive-file-resource]
   (prn "RIVE" "produce-rivescene-save-value" rive-file-resource)
-  {:scene (resource/resource->proj-path rive-file-resource)
+  {:scene (resource/resource->proj-path rive-file-resource)})
    ;:rive-json (resource/resource->proj-path rive-file-resource)
    ;:atlas (resource/resource->proj-path atlas-resource)
-   })
+   
 
 ; (defprotocol Interpolator
 ;   (interpolate [v0 v1 t]))
@@ -1020,9 +1020,15 @@
 ;                                           (.transform transform p)
 ;                                           [(.x p) (.y p) (.z p)])))))))
 
-(defn- renderable->aabb [renderable]
-  (let [aabb (get-in renderable [:user-data :aabb])]
-    aabb))
+(defn- transform-vertices [^Matrix4d transform mesh]
+  (let [p (Point3d.)
+        vertices (:vertices mesh)
+        transformed (map (fn [vert]
+                           (let [[x y z  u v  r g b a] vert]
+                             (.set p x y z)
+                             (.transform transform p)
+                             [(.x p) (.y p) (.z p) u v r g b a])) vertices)]
+    (assoc mesh :vertices transformed)))
 
 ; (defn- renderable->meshes [renderable]
 ;   (let [meshes (get-in renderable [:user-data :rive-scene-pb :mesh-set :mesh-attachments])
@@ -1049,8 +1055,10 @@
 
 (defn- renderable->mesh [renderable]
   (let [handle (get-in renderable [:user-data :rive-file-handle])
-        vertices (rive-file->vertices handle 0.0)] ; gets all the vertices for the mesh
-    {:vertices vertices :indices nil}))
+        vertices (rive-file->vertices handle 0.0)
+        mesh {:vertices vertices :indices nil}
+        mesh (transform-vertices (:world-transform renderable) mesh)]
+    mesh))
 
 (defn generate-vertex-buffer [renderables]
   (let [meshes (map renderable->mesh renderables)
@@ -1100,12 +1108,12 @@
   ;(uniform sampler2D texture_sampler)
   (uniform vec4 id)
   (defn void main []
-    (setq gl_FragColor id)
+    (setq gl_FragColor id)))
     ;; (setq vec4 color (texture2D texture_sampler var_texcoord0.xy))
     ;; (if (> color.a 0.05)
     ;;   (setq gl_FragColor id)
     ;;   (discard))
-    ))
+    
 
 (def rive-id-shader (shader/make-shader ::id-shader rive-id-vertex-shader rive-id-fragment-shader {"id" :id}))
 
@@ -1208,8 +1216,8 @@
 (g/defnk produce-rivescene [_node-id aabb main-scene gpu-texture scene-structure]
   (if (some? main-scene)
     (assoc main-scene :children [;(make-rive-skeleton-scene _node-id aabb gpu-texture scene-structure)
-                                 (make-rive-outline-scene _node-id aabb)
-                                 ])
+                                 (make-rive-outline-scene _node-id aabb)])
+                                 
     {:node-id _node-id :aabb aabb}))
 
 ; (defn- mesh->aabb [aabb mesh]
@@ -1279,22 +1287,22 @@
   (output scene-structure g/Any (gu/passthrough scene-structure))
   (output rive-file-handle g/Any :cached (gu/passthrough rive-file-handle))
   (output rive-anim-ids g/Any :cached (gu/passthrough rive-anim-ids))
-  (output aabb g/Any :cached (gu/passthrough aabb))
+  (output aabb g/Any :cached (gu/passthrough aabb)))
 
   ;(output rive-anim-ids g/Any (g/fnk [scene-structure] (:animations scene-structure)))
-  )
+  
 
 ; .rivescene
 (defn load-rive-scene [project self resource rivescene]
-  (let [rive-resource (workspace/resolve-resource resource (:scene rivescene)) ; File/ZipResource type
+  (let [rive-resource (workspace/resolve-resource resource (:scene rivescene))] ; File/ZipResource type
         ;atlas          (workspace/resolve-resource resource (:atlas rivescene))
-        ]
+        
     (concat
      (g/connect project :default-tex-params self :default-tex-params)
      (g/set-property self
-                     :rive-file rive-resource
+                     :rive-file rive-resource))))
                       ;:atlas atlas
-                     ))))
+                     
 
 
 
@@ -1352,9 +1360,9 @@
   (g/precluding-errors own-build-errors
                        (let [dep-build-targets (flatten dep-build-targets)
                              deps-by-source (into {} (map #(let [res (:resource %)] [(:resource res) res]) dep-build-targets))
-                             dep-resources (map (fn [[label resource]] [label (get deps-by-source resource)]) [[:scene rive-scene-resource] [:material material-resource]])
+                             dep-resources (map (fn [[label resource]] [label (get deps-by-source resource)]) [[:scene rive-scene-resource] [:material material-resource]])]
           ;model-pb (update model-pb :skin (fn [skin] (or skin "")))
-                             ]
+                             
                         ;(prn "    MAWE " rive-scene-resource "dep-resources:" dep-resources)
 
                          [(bt/with-content-hash
@@ -1432,8 +1440,8 @@
                                         ;(update-in [:renderable :user-data :gpu-texture] texture/set-params tex-params)
                                         ;(assoc-in [:renderable :user-data :skin] skin)
                                              (assoc :aabb aabb)
-                                             (assoc :children [(make-rive-outline-scene rive-scene-node-id aabb)])
-                                             ))
+                                             (assoc :children [(make-rive-outline-scene rive-scene-node-id aabb)])))
+                                             
                                        (merge {:node-id _node-id
                                                :renderable {:passes [pass/selection]}
                                                :aabb (:aabb rive-main-scene)}
