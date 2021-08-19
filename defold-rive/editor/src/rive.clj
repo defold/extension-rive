@@ -1132,8 +1132,7 @@
   (varying vec2 var_texcoord0)
   (varying vec4 var_color)
   (defn void main []
-    ;(setq gl_FragColor var_color)))
-    (setq gl_FragColor (vec4 1 1 1 1))))
+    (setq gl_FragColor var_color)))
 
 (def rive-shader-tint (shader/make-shader ::shader rive-shader-ver-tex-col rive-shader-frag-tint))
 
@@ -1435,7 +1434,7 @@
                                        (let [aabb (:aabb rive-main-scene)
                                              rive-scene-node-id (:node-id rive-main-scene)]
                                          (-> rive-main-scene
-                                             (assoc-in [:renderable :user-data :shader] material-shader)
+                                             (assoc-in [:renderable :user-data :shader] rive-shader-tint)
                                         ;;;;;;;;;;;(assoc :gpu-texture texture/white-pixel)
                                         ;(update-in [:renderable :user-data :gpu-texture] texture/set-params tex-params)
                                         ;(assoc-in [:renderable :user-data :skin] skin)
