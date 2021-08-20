@@ -253,8 +253,8 @@ extern "C" DM_DLLEXPORT void RIVE_UpdateVertices(void* _rive_file, float dt) {
 
     // calculate the vertices and store in buffers for later retrieval
     if (file->m_Vertices.Empty()) {
-        //GenerateAABB(file);
-        GenerateVertices(file);
+        GenerateAABB(file);
+        //GenerateVertices(file);
     }
 }
 
