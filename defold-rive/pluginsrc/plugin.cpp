@@ -26,19 +26,57 @@ __declspec(dllexport) int dummyFunc()
 // Due to an X11.h issue (Likely Ubuntu 16.04 issue) we include the Rive/C++17 includes first
 
 #include <dmsdk/sdk.h>
+#include <dmsdk/dlib/array.h>
 #include <dmsdk/dlib/log.h>
 #include <dmsdk/dlib/shared_library.h>
 #include <stdio.h>
 #include <stdint.h>
 
 
-typedef rive::File* HRiveFile;
-
 struct RiveBuffer
 {
     void*        m_Data;
     unsigned int m_Size;
 };
+
+struct RiveInternalVertex
+{
+    float x, y;
+};
+
+struct RivePluginVertex
+{
+    float x, y, z;
+    float u, v;
+    float r, g, b, a;
+};
+
+struct Vec4
+{
+    float x, y, z, w;
+};
+
+struct Matrix4
+{
+    float m[16];
+};
+
+// struct Command
+// {
+//     rive::DrawBuffers   m_Buffers;
+//     Vec4                m_Color;
+//     Matrix4x4           m_Transform;
+//     uint32_t            m_IsClipping : 1;
+// };
+
+struct RiveFile
+{
+    rive::HRenderer     m_Renderer; // Separate renderer for multi threading
+    rive::File*         m_File;
+    dmArray<RivePluginVertex> m_Vertices;
+};
+
+typedef RiveFile* HRiveFile;
 
 static rive::HBuffer RiveRequestBufferCallback(rive::HBuffer buffer, rive::BufferType type, void* data, unsigned int dataSize, void* userData);
 static void          RiveDestroyBufferCallback(rive::HBuffer buffer, void* userData);
@@ -83,8 +121,6 @@ namespace rive
     {
         return createRenderPaint(g_Ctx);
     }
-
-    HRenderer g_RendererCtx = 0;
 }
 
 static void InitRiveContext() {
@@ -94,9 +130,15 @@ static void InitRiveContext() {
     }
 }
 
-extern "C" DM_DLLEXPORT void TestPrint(const char* name) {
-    dmLogInfo("TestPrint: Hello %s!\n", name);
+static RiveFile* ToRiveFile(void* _rive_file, const char* fnname)
+{
+    if (!_rive_file) {
+        dmLogError("%s: File handle is null", fnname);
+    }
+    return (RiveFile*)_rive_file;
 }
+
+#define TO_RIVE_FILE(_P_) ToRiveFile(_P_, __FUNCTION__);
 
 extern "C" DM_DLLEXPORT void* RIVE_LoadFromBuffer(void* buffer, size_t buffer_size) {
     InitRiveContext();
@@ -112,7 +154,14 @@ extern "C" DM_DLLEXPORT void* RIVE_LoadFromBuffer(void* buffer, size_t buffer_si
         file = 0;
     }
 
-    return (void*)file;
+    RiveFile* out = new RiveFile;
+    out->m_File = file;
+    out->m_Renderer = rive::createRenderer(rive::g_Ctx);
+
+    rive::setContourQuality(out->m_Renderer, 0.8888888888888889f);
+    rive::setClippingSupport(out->m_Renderer, true);
+
+    return (void*)out;
 }
 
 extern "C" DM_DLLEXPORT void* RIVE_LoadFromPath(const char* path) {
@@ -131,38 +180,29 @@ extern "C" DM_DLLEXPORT void* RIVE_LoadFromPath(const char* path) {
 }
 
 extern "C" DM_DLLEXPORT void RIVE_Destroy(void* _rive_file) {
-    rive::File* file = (rive::File*)_rive_file;
+    RiveFile* file = (RiveFile*)_rive_file;
+    delete file->m_File;
+    rive::destroyRenderer(file->m_Renderer);
     delete file;
 }
 
 extern "C" DM_DLLEXPORT int32_t RIVE_GetNumAnimations(void* _rive_file) {
-    if (!_rive_file) {
-        dmLogError("%s: File handle is null", __FUNCTION__);
+    RiveFile* file = TO_RIVE_FILE(_rive_file);
+    if (!file) {
         return 0;
     }
 
-    HRiveFile file = (HRiveFile)_rive_file;
-    rive::File* riv = (rive::File*)file;
-
-    rive::Artboard* artboard = riv->artboard();
+    rive::Artboard* artboard = file->m_File->artboard();
     return artboard ? artboard->animationCount() : 0;
 }
 
 extern "C" DM_DLLEXPORT const char* RIVE_GetAnimation(void* _rive_file, int i) {
-    if (!_rive_file) {
-        dmLogError("%s: File handle is null", __FUNCTION__);
+    RiveFile* file = TO_RIVE_FILE(_rive_file);
+    if (!file) {
         return 0;
     }
 
-    HRiveFile file = (HRiveFile)_rive_file;
-    rive::File* riv = (rive::File*)file;
-
-    if (!riv) {
-        dmLogError("%s: File is invalid: %p", __FUNCTION__, riv);
-        return 0;
-    }
-
-    rive::Artboard* artboard = riv->artboard();
+    rive::Artboard* artboard = file->m_File->artboard();
     if (!artboard) {
         dmLogError("%s: File has no animations", __FUNCTION__);
         return 0;
@@ -194,64 +234,104 @@ static rive::LinearAnimation* FindAnimation(rive::File* riv, const char* name)
     return 0;
 }
 
-static rive::File* ToRiveFile(void* _rive_file, const char* fnname)
-{
-    if (!_rive_file) {
-        dmLogError("%s: File handle is null", fnname);
-    }
-    HRiveFile file = (HRiveFile)_rive_file;
-    rive::File* riv = (rive::File*)file;
-    return riv;
+extern "C" DM_DLLEXPORT int RIVE_GetVertexSize() {
+    return sizeof(RivePluginVertex);
 }
 
-#define TO_RIVE_FILE(_P_) ToRiveFile(_P_, __FUNCTION__);
+static void GenerateAABB(RiveFile* file);
+static void GenerateVertices(RiveFile* file);
 
 
-extern "C" DM_DLLEXPORT void* RIVE_GetVertices(void* _rive_file, int* num_vertices) {
-    rive::File* riv = TO_RIVE_FILE(_rive_file);
-    if (!riv) {
+extern "C" DM_DLLEXPORT void RIVE_UpdateVertices(void* _rive_file, float dt) {
+    RiveFile* file = TO_RIVE_FILE(_rive_file);
+    if (!file) {
+        return;
+    }
+
+    rive::Artboard* artboard = file->m_File->artboard();
+    artboard->advance(dt);
+
+    // calculate the vertices and store in buffers for later retrieval
+    if (file->m_Vertices.Empty()) {
+        //GenerateAABB(file);
+        GenerateVertices(file);
+    }
+}
+
+extern "C" DM_DLLEXPORT int RIVE_GetVertexCount(void* _rive_file) {
+    RiveFile* file = TO_RIVE_FILE(_rive_file);
+    if (!file) {
+        return 0;
+    }
+    return file->m_Vertices.Size();
+}
+
+extern "C" DM_DLLEXPORT void* RIVE_GetVertices(void* _rive_file, void* _buffer, size_t buffer_size) {
+    RiveFile* file = TO_RIVE_FILE(_rive_file);
+    if (!file) {
         return 0;
     }
 
-    // HRiveFile file = (HRiveFile)_rive_file;
-    // rive::File* riv = (rive::File*)file;
+    float* buffer = (float*)_buffer;
 
-    // rive::Artboard* artboard = riv->artboard();
-    // return artboard ? artboard->animationCount() : 0;
+    size_t sz = sizeof(RivePluginVertex) * file->m_Vertices.Size();
+    if (sz > buffer_size) {
+        dmLogWarning("The output vertex buffer (%u bytes) is smaller than the current buffer (%u bytes)", (uint32_t)buffer_size, (uint32_t)sz);
 
+        sz = buffer_size;
+    }
 
-    // rive::newFrame(renderer);
-    // rive::Renderer* rive_renderer = (rive::Renderer*) renderer;
-
+    memcpy(_buffer, (void*)file->m_Vertices.Begin(), sz);
 
     return 0;
 }
 
-extern "C" DM_DLLEXPORT float RIVE_GetArtboardWidth(void* _rive_file) {
-    rive::File* riv = TO_RIVE_FILE(_rive_file);
-    if (!riv) {
+extern "C" DM_DLLEXPORT float RIVE_GetAABBMinX(void* _rive_file) {
+    RiveFile* file = TO_RIVE_FILE(_rive_file);
+    if (!file) {
+        return 0;
+    }
+    rive::Artboard* artboard = file->m_File->artboard();
+    rive::AABB bounds = artboard->bounds();
+    return bounds.minX - (bounds.maxX - bounds.minX) * 0.5f;
+}
+
+extern "C" DM_DLLEXPORT float RIVE_GetAABBMinY(void* _rive_file) {
+    RiveFile* file = TO_RIVE_FILE(_rive_file);
+    if (!file) {
+        return 0;
+    }
+    rive::Artboard* artboard = file->m_File->artboard();
+    rive::AABB bounds = artboard->bounds();
+    return bounds.minY - (bounds.maxY - bounds.minY) * 0.5f;
+}
+
+extern "C" DM_DLLEXPORT float RIVE_GetAABBMaxX(void* _rive_file) {
+    RiveFile* file = TO_RIVE_FILE(_rive_file);
+    if (!file) {
+        return 0;
+    }
+    rive::Artboard* artboard = file->m_File->artboard();
+    rive::AABB bounds = artboard->bounds();
+    return bounds.maxX - (bounds.maxX - bounds.minX) * 0.5f;
+}
+
+extern "C" DM_DLLEXPORT float RIVE_GetAABBMaxY(void* _rive_file) {
+    RiveFile* file = TO_RIVE_FILE(_rive_file);
+    if (!file) {
         return 0;
     }
 
-    rive::Artboard* artboard = riv->artboard();
-    rive::AABB artboard_bounds = artboard->bounds();
-    return artboard_bounds.width();
+    rive::Artboard* artboard = file->m_File->artboard();
+    rive::AABB bounds = artboard->bounds();
+    return bounds.maxY - (bounds.maxY - bounds.minY) * 0.5f;
 }
 
-extern "C" DM_DLLEXPORT float RIVE_GetArtboardHeight(void* _rive_file) {
-    rive::File* riv = TO_RIVE_FILE(_rive_file);
-    if (!riv) {
-        return 0;
-    }
-
-    rive::Artboard* artboard = riv->artboard();
-    rive::AABB artboard_bounds = artboard->bounds();
-    return artboard_bounds.height();
-}
 
 static rive::HBuffer RiveRequestBufferCallback(rive::HBuffer buffer, rive::BufferType type, void* data, unsigned int dataSize, void* userData)
 {
     RiveBuffer* buf = (RiveBuffer*) buffer;
+
     if (dataSize == 0)
     {
         return 0;
@@ -284,5 +364,233 @@ static void RiveDestroyBufferCallback(rive::HBuffer buffer, void* userData)
     }
 }
 
+static void GenerateAABB(RiveFile* file)
+{
+    if (file->m_Vertices.Capacity() < 6)
+        file->m_Vertices.SetCapacity(6);
+    file->m_Vertices.SetSize(6);
 
+    rive::Artboard* artboard = file->m_File->artboard();
+    rive::AABB bounds = artboard->bounds();
+
+    float cx = (bounds.maxX - bounds.minX) * 0.5f;
+    float cy = (bounds.maxY - bounds.minY) * 0.5f;
+
+    float minx = bounds.minX - cx;
+    float miny = bounds.minY - cy;
+    float maxx = bounds.maxX - cx;
+    float maxy = bounds.maxY - cy;
+
+// verts [[min-x min-y 0 0 0 1 1 1 1] [max-x min-y 0 0 0 1 1 1 1] [max-x max-y 0 0 0 1 1 1 1]
+//        [max-x max-y 0 0 0 1 1 1 1] [min-x max-y 0 0 0 1 1 1 1] [min-x min-y 0 0 0 1 1 1 1]]
+
+    RivePluginVertex* v = file->m_Vertices.Begin();
+
+    v->x = minx;
+    v->y = miny;
+    v->z = 0;
+    v->u = v->v = 0;
+    v->r = v->g = v->b = v->a = 1;
+    ++v;
+
+    v->x = maxx;
+    v->y = miny;
+    v->z = 0;
+    v->u = v->v = 0;
+    v->r = v->g = v->b = v->a = 1;
+    ++v;
+
+    v->x = maxx;
+    v->y = maxy;
+    v->z = 0;
+    v->u = v->v = 0;
+    v->r = v->g = v->b = v->a = 1;
+    ++v;
+
+
+    v->x = maxx;
+    v->y = maxy;
+    v->z = 0;
+    v->u = v->v = 0;
+    v->r = v->g = v->b = v->a = 1;
+    ++v;
+
+    v->x = minx;
+    v->y = maxy;
+    v->z = 0;
+    v->u = v->v = 0;
+    v->r = v->g = v->b = v->a = 1;
+    ++v;
+
+    v->x = minx;
+    v->y = miny;
+    v->z = 0;
+    v->u = v->v = 0;
+    v->r = v->g = v->b = v->a = 1;
+    ++v;
+}
+
+static inline void Mat2DToMat4(const rive::Mat2D m2, dmVMath::Matrix4& m4)
+{
+    m4[0][0] = m2[0];
+    m4[0][1] = m2[1];
+    m4[0][2] = 0.0;
+    m4[0][3] = 0.0;
+
+    m4[1][0] = m2[2];
+    m4[1][1] = m2[3];
+    m4[1][2] = 0.0;
+    m4[1][3] = 0.0;
+
+    m4[2][0] = 0.0;
+    m4[2][1] = 0.0;
+    m4[2][2] = 1.0;
+    m4[2][3] = 0.0;
+
+    m4[3][0] = m2[4];
+    m4[3][1] = m2[5];
+    m4[3][2] = 0.0;
+    m4[3][3] = 1.0;
+}
+
+static void GenerateVertices(RiveFile* file)
+{
+    file->m_Vertices.SetSize(0); // Clear the vertices
+
+    rive::newFrame(file->m_Renderer);
+
+    rive::Mat2D transform;
+    rive::Mat2D::identity(transform);
+
+    rive::Vec2D yflip(1.0f,-1.0f);
+    rive::Mat2D::scale(transform, transform, yflip);
+    rive::setTransform(file->m_Renderer, transform);
+
+    rive::Artboard* artboard = file->m_File->artboard();
+    rive::AABB bounds = artboard->bounds();
+    float cx = (bounds.maxX - bounds.minX) * 0.5f;
+    float cy = (bounds.maxY - bounds.minY) * 0.5f;
+
+    rive::HContext rive_ctx = rive::g_Ctx;
+    rive::HRenderer renderer = file->m_Renderer;
+    rive::Renderer* rive_renderer = (rive::Renderer*) renderer;
+
+    rive_renderer->align(rive::Fit::none, rive::Alignment::center, bounds, bounds);
+    rive_renderer->save();
+
+    // Triggers the buffer allocation callbacks
+    artboard->draw(rive_renderer);
+    rive_renderer->restore();
+
+    // Now we also need to iterate over the paint events
+
+    rive::HRenderPaint paint = 0;
+    bool is_paint_dirty = false;
+    bool is_applying_clipping = false;
+    bool is_clipping = false;
+
+    float z = 0.0f;
+
+    for (int ei = 0; ei < rive::getDrawEventCount(renderer); ++ei)
+    {
+        const rive::PathDrawEvent evt = rive::getDrawEvent(renderer, ei);
+
+        switch(evt.m_Type)
+        {
+            case rive::EVENT_SET_PAINT:
+            {
+                if (evt.m_Paint != 0 && paint != evt.m_Paint)
+                {
+                    paint = evt.m_Paint;
+                    is_paint_dirty = true;
+                }
+
+            } break;
+            case rive::EVENT_DRAW:
+            {
+                rive::DrawBuffers buffers = rive::getDrawBuffers(rive_ctx, renderer, evt.m_Path);
+                RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_VertexBuffer;
+                RiveBuffer* ixBuffer      = (RiveBuffer*) buffers.m_IndexBuffer;
+
+                if (vxBuffer != 0 && ixBuffer != 0)
+                {
+                    RiveInternalVertex* vx_data_ptr = (RiveInternalVertex*) vxBuffer->m_Data;
+                    int*                ix_data_ptr = (int*) ixBuffer->m_Data;
+                    uint32_t vx_count = vxBuffer->m_Size / sizeof(RiveInternalVertex);
+                    uint32_t ix_count = ixBuffer->m_Size / sizeof(int);
+
+                    if ((file->m_Vertices.Size() + ix_count) > file->m_Vertices.Capacity())
+                    {
+                        file->m_Vertices.OffsetCapacity(ix_count);
+                    }
+
+                    dmVMath::Matrix4 transform;
+                    Mat2DToMat4(evt.m_TransformWorld, transform);
+
+                    const float white[] = {1, 1, 1, 0.0f};
+                    const float* color = white;
+
+                    if (is_paint_dirty && !is_applying_clipping)
+                    {
+                        is_paint_dirty = false;
+
+                        const rive::PaintData draw_entry_paint = rive::getPaintData(paint);
+                        color = &draw_entry_paint.m_Colors[0];
+                    } else {
+                        // For the MVP, we want something that resembles the scene, for easier authoring.
+                        // So we skip the clipping parts for now
+                        continue;
+                    }
+
+                    for (int ix = 0; ix < ix_count; ++ix)
+                    {
+                        int index = ix_data_ptr[ix];
+
+                        RiveInternalVertex rive_p = vx_data_ptr[index];
+
+                        dmVMath::Point3 localp(rive_p.x, rive_p.y, 0);
+                        dmVMath::Vector4 worldp = transform * localp;
+
+                        RivePluginVertex vtx;
+                        vtx.x = worldp.getX() - cx;
+                        vtx.y = worldp.getY() + cy;
+                        vtx.z = z;
+                        vtx.u = vtx.v = 0;
+
+                        vtx.r = color[0];
+                        vtx.g = color[1];
+                        vtx.b = color[2];
+                        vtx.a = color[3];
+
+                        // // Since some vertices are extremely out of bounds
+                        // float border = 100.0f;
+                        // if (vtx.x >= (bounds.minX-border) && vtx.x <= (bounds.maxX+border) &&
+                        //     vtx.y >= (bounds.minY-border) && vtx.y <= (bounds.maxY+border))
+                        // {
+                            file->m_Vertices.Push(vtx);
+                        //}
+                    }
+
+                    z += 0.001f;
+                }
+
+            } break;
+            case rive::EVENT_CLIPPING_BEGIN:
+                is_clipping = true;
+                is_applying_clipping = true;
+                //clear_clipping_flag = 1;
+                break;
+            case rive::EVENT_CLIPPING_END:
+                is_applying_clipping = false;
+                break;
+            case rive::EVENT_CLIPPING_DISABLE:
+                is_applying_clipping = false;
+                is_clipping = false;
+                break;
+            default:
+                //dmLogWarning("Unknown render paint event: %d", evt.m_Type);
+                break;
+        }
+    }
+}
 

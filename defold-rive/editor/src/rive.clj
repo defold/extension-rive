@@ -1,24 +1,18 @@
-;; Copyright 2020 The Defold Foundation
-;; Licensed under the Defold License version 1.0 (the "License"); you may not use
-;; this file except in compliance with the License.
-;;
-;; You may obtain a copy of the License, together with FAQs at
-;; https://www.defold.com/license
-;;
-;; Unless required by applicable law or agreed to in writing, software distributed
-;; under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-;; CONDITIONS OF ANY KIND, either express or implied. See the License for the
-;; specific language governing permissions and limitations under the License.
+;
+; MIT License
+; Copyright (c) 2021 Defold
+; Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+; The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+;
 
 (ns editor.rive
   (:require [clojure.java.io :as io]
             [editor.protobuf :as protobuf]
             [dynamo.graph :as g]
-            ;[util.murmur :as murmur]
             [editor.build-target :as bt]
             [editor.graph-util :as gu]
             [editor.geom :as geom]
-            ;[editor.material :as material]
             [editor.math :as math]
             [editor.gl :as gl]
             [editor.gl.shader :as shader]
@@ -35,34 +29,23 @@
             [editor.validation :as validation]
             [editor.gl.pass :as pass]
             [editor.types :as types]
-            ;[editor.json :as json]
             [editor.outline :as outline]
             [editor.properties :as properties]
-            ;[editor.rig :as rig]
             [editor.system :as system]
             [service.log :as log]
             [internal.util :as util])
   (:import [com.dynamo.bob.textureset TextureSetGenerator$UVTransform]
            [java.lang.invoke MethodType MethodHandles]
-           ;[com.dynamo.bob.pipeline Rive]
-           ;[com.dynamo.bob.util BezierUtil RigUtil$Transform]
            [editor.gl.shader ShaderLifecycle]
            [editor.types AABB]
            [com.jogamp.opengl GL GL2]
-           ;[java.util HashSet]
            [org.apache.commons.io IOUtils]
            [java.io IOException]
-           ;[java.net URL]
            [javax.vecmath Matrix4d Point2d Point3d Quat4d Vector3d Vector4d Tuple3d Tuple4d]))
 
-; Replaced by the file representation
-;(def rive-jar-file "/defold-rive/plugins/share/pluginRiveExt.jar")
-
-;(def rive-jar-file (atom "/defold-rive/plugins/share/pluginRiveExt.jar"))
 
 (set! *warn-on-reflection* true)
 
-; TODO: Dynamically unpack the assets from the .jar to someplace where the
 (def rive-file-icon "/defold-rive/editor/resources/icons/32/Icons_17-Rive-file.png")
 (def rive-scene-icon "/defold-rive/editor/resources/icons/32/Icons_16-Rive-scene.png")
 (def rive-model-icon "/defold-rive/editor/resources/icons/32/Icons_15-Rive-model.png")
@@ -72,21 +55,242 @@
 (def rive-scene-ext "rivescene")
 (def rive-model-ext "rivemodel")
 
-;(def slot-signal-unchanged 0x10CCED)
 
-; ; Helper to do an .indexOf with a type checked first arg.
-; (defn- index-of
-;   [^java.util.List list value]
-;   (.indexOf list value))
+; .rivemodel
+(defn load-rive-model [project self resource content]
+  (let [rive-scene-resource (workspace/resolve-resource resource (:scene content))
+        material (workspace/resolve-resource resource (:material content))]
+        ;atlas          (workspace/resolve-resource resource (:atlas rivescene))
+        
+    (concat
+     (g/connect project :default-tex-params self :default-tex-params)
+     (g/set-property self
+                     :rive-scene rive-scene-resource
+                     :material material
+                     :default-animation (:default-animation content)))))
 
+
+
+(g/defnk produce-transform [position rotation scale]
+  (math/->mat4-non-uniform (Vector3d. (double-array position))
+                           (math/euler-z->quat rotation)
+                           (Vector3d. (double-array scale))))
+
+; (g/defnode SpineBone
+;   (inherits outline/OutlineNode)
+;   (property name g/Str (dynamic read-only? (g/constantly true)))
+;   (property position types/Vec3
+;             (dynamic edit-type (g/constantly (properties/vec3->vec2 0.0)))
+;             (dynamic read-only? (g/constantly true)))
+;   (property rotation g/Num (dynamic read-only? (g/constantly true)))
+;   (property scale types/Vec3
+;             (dynamic edit-type (g/constantly (properties/vec3->vec2 1.0)))
+;             (dynamic read-only? (g/constantly true)))
+;   (property length g/Num
+;             (dynamic read-only? (g/constantly true)))
+
+;   (input child-bones g/Any :array)
+
+;   (output transform Matrix4d :cached produce-transform)
+;   (output bone g/Any (g/fnk [name transform child-bones]
+;                             {:name name
+;                              :local-transform transform
+;                              :children child-bones}))
+;   (output node-outline outline/OutlineData (g/fnk [_node-id name child-outlines]
+;                                                   {:node-id _node-id
+;                                                    :node-outline-key name
+;                                                    :label name
+;                                                    :icon rive-bone-icon
+;                                                    :children child-outlines
+;                                                    :read-only true})))
+
+; (defn- update-transforms [^Matrix4d parent bone]
+;   (let [t ^Matrix4d (:local-transform bone)
+;         t (doto (Matrix4d.)
+;             (.mul parent t))]
+;     (-> bone
+;       (assoc :transform t)
+;       (assoc :children (mapv #(update-transforms t %) (:children bone))))))
+
+
+(defn- resource->bytes [resource]
+  (with-open [in (io/input-stream resource)]
+    (IOUtils/toByteArray in)))
+
+(defn- build-rive-file
+  [resource dep-resources user-data]
+  {:resource resource :content (resource->bytes (:resource resource))})
+
+(g/defnk produce-rive-file-build-targets [_node-id resource]
+  (try
+    [(bt/with-content-hash
+       {:node-id _node-id
+        :resource (workspace/make-build-resource resource)
+        :build-fn build-rive-file
+        :user-data {:content-hash (resource/resource->sha1-hex resource)}})]
+    (catch IOException e
+      (g/->error _node-id :resource :fatal resource (format "Couldn't read rive file %s" (resource/resource->proj-path resource))))))
+
+(g/defnk produce-rive-file-content [_node-id resource]
+  (when resource
+    (resource->bytes resource)))
+
+(g/defnode RiveFileNode
+  (inherits resource-node/ResourceNode)
+
+  (input scene-structure g/Any)
+  (output scene-structure g/Any (gu/passthrough scene-structure))
+
+  (property content g/Any)
+  (property rive-handle g/Any) ; The cpp pointer
+  (property animations g/Any)
+  (property aabb g/Any)
+  (property vertices g/Any)
+
+  (output build-targets g/Any :cached produce-rive-file-build-targets))
+
+;; (defn- debug-cls [^Class cls]
+;;   (doseq [m (.getMethods cls)]
+;;     (prn (.toString m))
+;;     (println "Method Name: " (.getName m) "(" (.getParameterTypes m) ")")
+;;     (println "Return Type: " (.getReturnType m) "\n")))
+
+; More about JNA + Clojure
+; https://nakkaya.com/2009/11/16/java-native-access-from-clojure/
+
+(def rive-plugin-cls (workspace/load-class! "com.dynamo.bob.pipeline.Rive"))
+(def rive-plugin-pointer-cls (workspace/load-class! "com.dynamo.bob.pipeline.Rive$RivePointer"))
+(def byte-array-cls (Class/forName "[B"))
+(def float-array-cls (Class/forName "[F"))
+
+(defn- plugin-invoke-static [^Class cls name types args]
+  ;(debug-cls cls)
+  (let [method (.getMethod cls name types)]
+    (.invoke method nil (into-array Object args))))
+
+(defn- plugin-load-file [bytes]
+  (plugin-invoke-static rive-plugin-cls "RIVE_LoadFileFromBuffer" (into-array Class [byte-array-cls]) [bytes]))
+
+(defn- plugin-get-num-animations [handle]
+  (plugin-invoke-static rive-plugin-cls "RIVE_GetNumAnimations" (into-array Class [rive-plugin-pointer-cls]) [handle]))
+
+(defn- plugin-get-animation ^String [handle index]
+  (plugin-invoke-static rive-plugin-cls "RIVE_GetAnimation" (into-array Class [rive-plugin-pointer-cls Integer/TYPE]) [handle (int index)]))
+
+(defn- plugin-get-aabb-min-x ^double [handle]
+  (plugin-invoke-static rive-plugin-cls "RIVE_GetAABBMinX" (into-array Class [rive-plugin-pointer-cls]) [handle]))
+
+(defn- plugin-get-aabb-min-y ^double [handle]
+  (plugin-invoke-static rive-plugin-cls "RIVE_GetAABBMinY" (into-array Class [rive-plugin-pointer-cls]) [handle]))
+
+(defn- plugin-get-aabb-max-x ^double [handle]
+  (plugin-invoke-static rive-plugin-cls "RIVE_GetAABBMaxX" (into-array Class [rive-plugin-pointer-cls]) [handle]))
+
+(defn- plugin-get-aabb-max-y ^double [handle]
+  (plugin-invoke-static rive-plugin-cls "RIVE_GetAABBMaxY" (into-array Class [rive-plugin-pointer-cls]) [handle]))
+
+(defn- plugin-get-vertex-size ^double []
+  (plugin-invoke-static rive-plugin-cls "RIVE_GetVertexSize" (into-array Class []) []))
+
+(defn- plugin-update-vertices [handle dt]
+  (plugin-invoke-static rive-plugin-cls "RIVE_UpdateVertices" (into-array Class [rive-plugin-pointer-cls Float/TYPE]) [handle (float dt)]))
+
+(defn- plugin-get-vertex-count [handle]
+  (plugin-invoke-static rive-plugin-cls "RIVE_GetVertexCount" (into-array Class [rive-plugin-pointer-cls]) [handle]))
+
+(defn- plugin-get-vertices [handle buffer]
+  (plugin-invoke-static rive-plugin-cls "RIVE_GetVertices" (into-array Class [rive-plugin-pointer-cls float-array-cls]) [handle buffer]))
+
+(defn- get-animations [handle]
+  (let [num-animations (plugin-get-num-animations handle)
+        indices (range num-animations)
+        animations (map (fn [index] (plugin-get-animation handle index)) indices)]
+    animations))
+
+(defn- get-aabb [handle]
+  (let [min-x  (plugin-get-aabb-min-x handle)
+        min-y  (plugin-get-aabb-min-y handle)
+        max-x  (plugin-get-aabb-max-x handle)
+        max-y  (plugin-get-aabb-max-y handle)
+        aabb (geom/coords->aabb [min-x min-y 0] [max-x max-y 0])]
+    aabb))
+
+(defn- rive-file->vertices [rive-handle dt]
+  (let [vtx-size-bytes (plugin-get-vertex-size) ; size in bytes
+        vtx-size (int (/ vtx-size-bytes 4)) ; number of floats per vertex
+        _ (plugin-update-vertices rive-handle dt)
+        vtx-count (plugin-get-vertex-count rive-handle)
+        vtx-buffer (float-array (* vtx-size vtx-count))
+        _ (plugin-get-vertices rive-handle vtx-buffer)
+        vertices (partition vtx-size (vec vtx-buffer))]
+    vertices))
+
+; Loads the .riv file
+(defn- load-rive-file
+  [project node-id resource]
+  (let [content (resource->bytes resource)
+        rive-handle (plugin-load-file content)
+        animations (get-animations rive-handle)
+        aabb (get-aabb rive-handle)
+        vertices (rive-file->vertices rive-handle 0.0)
+
+        tx-data (concat
+                 (g/set-property node-id :content content)
+                 (g/set-property node-id :rive-handle rive-handle)
+                 (g/set-property node-id :animations animations)
+                 (g/set-property node-id :aabb aabb)
+                 (g/set-property node-id :vertices vertices))]
+    tx-data))
+
+; (defn- tx-first-created [tx-data]
+;   (get-in (first tx-data) [:node :_node-id]))
+
+
+  ; (let [bones (get content "bones")
+  ;       graph (g/node-id->graph-id node-id)
+  ;       scene-tx-data (g/make-nodes graph [scene SpineSceneJson]
+  ;                                   (g/connect scene :_node-id node-id :nodes)
+  ;                                   (g/connect scene :node-outline node-id :child-outlines)
+  ;                                   (g/connect scene :structure node-id :consumer-passthrough)
+  ;                                   (g/connect node-id :content scene :content))
+  ;       scene-id (tx-first-created scene-tx-data)]
+  ;   (concat
+  ;     scene-tx-data
+  ;     (loop [bones bones
+  ;            tx-data []
+  ;            bone-ids {}]
+  ;       (if-let [bone (first bones)]
+  ;         (let [name (get bone "name")
+  ;               parent (get bone "parent")
+  ;               x (get bone "x" 0)
+  ;               y (get bone "y" 0)
+  ;               rotation (get bone "rotation" 0)
+  ;               scale-x (get bone "scaleX" 1.0)
+  ;               scale-y (get bone "scaleY" 1.0)
+  ;               length (get bone "length")
+  ;               bone-tx-data (g/make-nodes graph [bone [SpineBone :name name :position [x y 0] :rotation rotation :scale [scale-x scale-y 1.0] :length length]]
+  ;                                          (g/connect bone :_node-id node-id :nodes)
+  ;                                          (if-let [parent (get bone-ids parent)]
+  ;                                            (concat
+  ;                                              (g/connect bone :node-outline parent :child-outlines)
+  ;                                              (g/connect bone :bone parent :child-bones))
+  ;                                            (concat
+  ;                                              (g/connect bone :node-outline scene-id :source-outline)
+  ;                                              (g/connect bone :bone scene-id :skeleton))))
+  ;               bone-id (tx-first-created bone-tx-data)]
+  ;           (recur (rest bones) (conj tx-data bone-tx-data) (assoc bone-ids name bone-id)))
+  ;         tx-data)))))
+
+
+; Rive Scene
 
 ; Node defs
 (g/defnk produce-rivescene-save-value [rive-file-resource]
   (prn "RIVE" "produce-rivescene-save-value" rive-file-resource)
-  {:scene (resource/resource->proj-path rive-file-resource)
+  {:scene (resource/resource->proj-path rive-file-resource)})
    ;:rive-json (resource/resource->proj-path rive-file-resource)
    ;:atlas (resource/resource->proj-path atlas-resource)
-   })
+   
 
 ; (defprotocol Interpolator
 ;   (interpolate [v0 v1 t]))
@@ -123,6 +327,8 @@
 ;   (case pb-field
 ;     (:positions :rotations :scale :slot-colors) (math/vecmath->clj interpolatable)
 ;     :mix                                        interpolatable))
+
+;(def slot-signal-unchanged 0x10CCED)
 
 ; (def default-vals {:positions [0 0 0]
 ;                    :rotations [0 0 0 1]
@@ -305,6 +511,12 @@
 ;                                                  m timeline)))
 ;                                   {} timelines)]
 ;     (sort-by :bone-index (vals tracks-by-bone))))
+
+; ; Helper to do an .indexOf with a type checked first arg.
+; (defn- index-of
+;   [^java.util.List list value]
+;   (.indexOf list value))
+
 
 ; (defn- build-mesh-tracks [slot-timelines do-timelines duration sample-rate spf base-slots]
 ;   (let [; Reshape do-timelines into slot-timelines
@@ -792,9 +1004,15 @@
 ;                                           (.transform transform p)
 ;                                           [(.x p) (.y p) (.z p)])))))))
 
-(defn- renderable->aabb [renderable]
-  (let [aabb (get-in renderable [:user-data :aabb])]
-    aabb))
+(defn- transform-vertices [^Matrix4d transform mesh]
+  (let [p (Point3d.)
+        vertices (:vertices mesh)
+        transformed (map (fn [vert]
+                           (let [[x y z  u v  r g b a] vert]
+                             (.set p x y z)
+                             (.transform transform p)
+                             [(.x p) (.y p) (.z p) u v r g b a])) vertices)]
+    (assoc mesh :vertices transformed)))
 
 ; (defn- renderable->meshes [renderable]
 ;   (let [meshes (get-in renderable [:user-data :rive-scene-pb :mesh-set :mesh-attachments])
@@ -815,34 +1033,27 @@
 ;                          (assoc mesh :color final-color)))))
 ;           (:mesh-slots skin))))
 
-(defn- mesh->verts [mesh]
-  (let [verts (mapv concat (partition 3 (:positions mesh)) (partition 2 (:texcoord0 mesh)) (repeat (:color mesh)))]
-    (map (partial get verts) (:position-indices mesh))))
+;; (defn- mesh->verts [mesh]
+;;   (let [verts (mapv concat (partition 3 (:positions mesh)) (partition 2 (:texcoord0 mesh)) (repeat (:color mesh)))]
+;;     (map (partial get verts) (:position-indices mesh))))
+
+(defn- renderable->mesh [renderable]
+  (let [handle (get-in renderable [:user-data :rive-file-handle])
+        vertices (rive-file->vertices handle 0.0)
+        mesh {:vertices vertices :indices nil}
+        mesh (transform-vertices (:world-transform renderable) mesh)]
+    mesh))
 
 (defn generate-vertex-buffer [renderables]
-  ;(prn "RIVE" "PLUGIN" "generate-vertex-buffer")
-  ; (let [meshes (mapcat renderable->meshes renderables)
-  ;       vcount (reduce + 0 (map (comp count :position-indices) meshes))]
-  ;   (when (> vcount 0)
-  ;     (let [vb (render/->vtx-pos-tex-col vcount)
-  ;           verts (mapcat mesh->verts meshes)]
-  ;       (persistent! (reduce conj! vb verts))))))
+  (let [meshes (map renderable->mesh renderables)
+        vcount (reduce + 0 (map (fn [mesh] (count (:vertices mesh))) meshes))]
+    (when (> vcount 0)
+      ; vertices are vec3-vec2-vec4
+      (let [vb (render/->vtx-pos-tex-col vcount)
+            verts (into [] (reduce concat (map (fn [mesh] (map vec (:vertices mesh))) meshes)))]
+        ; verts should be in the format [[x y x u v r g b a] [x y x u v r g b a] ...]
+        (persistent! (reduce conj! vb verts))))))
 
-  (let [aabbs (map renderable->aabb renderables)
-        aabb (first aabbs)
-        min-p ^Point3d (.min aabb)
-        max-p ^Point3d (.max aabb)
-        min-x (.x min-p)
-        min-y (.y min-p)
-        max-x (.x max-p)
-        max-y (.y max-p)
-        verts [[min-x min-y 0 0 0 1 1 1 1] [max-x min-y 0 0 0 1 1 1 1] [max-x max-y 0 0 0 1 1 1 1]
-               [max-x max-y 0 0 0 1 1 1 1] [min-x max-y 0 0 0 1 1 1 1] [min-x min-y 0 0 0 1 1 1 1]]
-        vcount (count verts)
-        vb (render/->vtx-pos-tex-col vcount)] ; vec3-vec2-vec4
-    (persistent! (reduce conj! vb verts))))
-
-; (def color [1.0 1.0 1.0 1.0])
 
 ; (defn- skeleton-vs [parent-pos bone vs ^Matrix4d wt]
 ;   (let [t (doto (Matrix4d.)
@@ -881,12 +1092,12 @@
   ;(uniform sampler2D texture_sampler)
   (uniform vec4 id)
   (defn void main []
-    (setq gl_FragColor id)
+    (setq gl_FragColor id)))
     ;; (setq vec4 color (texture2D texture_sampler var_texcoord0.xy))
     ;; (if (> color.a 0.05)
     ;;   (setq gl_FragColor id)
     ;;   (discard))
-    ))
+    
 
 (def rive-id-shader (shader/make-shader ::id-shader rive-id-vertex-shader rive-id-fragment-shader {"id" :id}))
 
@@ -905,8 +1116,7 @@
   (varying vec2 var_texcoord0)
   (varying vec4 var_color)
   (defn void main []
-    ;(setq gl_FragColor var_color)))
-    (setq gl_FragColor (vec4 1 1 1 1))))
+    (setq gl_FragColor var_color)))
 
 (def rive-shader-tint (shader/make-shader ::shader rive-shader-ver-tex-col rive-shader-frag-tint))
 
@@ -946,12 +1156,8 @@
   (assert (= (:pass render-args) pass/outline))
   (render/render-aabb-outline gl render-args ::rive-outline renderables rcount))
 
-(g/defnk produce-main-scene [_node-id aabb gpu-texture default-tex-params rive-scene-pb scene-structure]
-  ;(prn "RIVE produce-main-scene"  "gpu-texture" gpu-texture "scene-structure" scene-structure)
-  ;(when (and gpu-texture scene-structure)
-  ;(when scene-structure
-  (when true
-    ;(prn "RIVE produce-main-scene")
+(g/defnk produce-main-scene [_node-id rive-file-handle rive-anim-ids aabb gpu-texture default-tex-params rive-scene-pb scene-structure]
+  (when rive-file-handle
     (let [blend-mode :blend-mode-alpha]
       (assoc {:node-id _node-id :aabb aabb}
              :renderable {:render-fn render-rive-scenes
@@ -959,6 +1165,7 @@
                           :batch-key gpu-texture
                           :select-batch-key _node-id
                           :user-data {:rive-scene-pb rive-scene-pb
+                                      :rive-file-handle rive-file-handle
                                       :aabb aabb
                                       ;:scene-structure scene-structure
                                       :scene-structure {}
@@ -992,19 +1199,13 @@
 (g/defnk produce-rivescene [_node-id aabb main-scene gpu-texture scene-structure]
   (if (some? main-scene)
     (assoc main-scene :children [;(make-rive-skeleton-scene _node-id aabb gpu-texture scene-structure)
-                                 (make-rive-outline-scene _node-id aabb)
-                                 ])
+                                 (make-rive-outline-scene _node-id aabb)])
+                                 
     {:node-id _node-id :aabb aabb}))
 
 ; (defn- mesh->aabb [aabb mesh]
 ;   (let [positions (partition 3 (:positions mesh))]
 ;     (reduce (fn [aabb pos] (apply geom/aabb-incorporate aabb pos)) aabb positions)))
-(defn- scene->aabb [aabb rivescene]
-  (let [;positions (partition 3 (:positions mesh))
-        positions [[0 0 0] [100 0 0] [100 100 0] [0 100 0]]
-        aabb (reduce (fn [aabb pos] (apply geom/aabb-incorporate aabb pos)) aabb positions)]
-    (prn "AABB" aabb)
-    aabb))
 
 ; (g/defnk produce-skin-aabbs [scene-structure rive-scene-pb]
 ;   (let [skin-names (:skins scene-structure)
@@ -1035,6 +1236,7 @@
                    (project/resource-setter evaluation-context self old-value new-value
                                             [:resource :rive-file-resource]
                                             [:content :rive-scene]
+                                            [:rive-handle :rive-file-handle]
                                             [:structure :scene-structure]
                                             [:animations :rive-anim-ids]
                                             [:aabb :aabb]
@@ -1045,6 +1247,7 @@
                                   (validate-rivescene-riv-file _node-id rive-file))))
 
   (input rive-file-resource resource/Resource)
+  (input rive-file-handle g/Any)
   (input rive-anim-ids g/Any)
   (input aabb g/Any)
   ;(input atlas-resource resource/Resource)
@@ -1065,25 +1268,24 @@
   ; (output skin-aabbs g/Any :cached produce-skin-aabbs)
   ; (output anim-data g/Any (gu/passthrough anim-data))
   (output scene-structure g/Any (gu/passthrough scene-structure))
-  (output rive-anim-ids g/Any (gu/passthrough rive-anim-ids))
-  (output aabb g/Any :cached (gu/passthrough aabb))
+  (output rive-file-handle g/Any :cached (gu/passthrough rive-file-handle))
+  (output rive-anim-ids g/Any :cached (gu/passthrough rive-anim-ids))
+  (output aabb g/Any :cached (gu/passthrough aabb)))
+
   ;(output rive-anim-ids g/Any (g/fnk [scene-structure] (:animations scene-structure)))
-  )
+  
 
 ; .rivescene
 (defn load-rive-scene [project self resource rivescene]
-  (prn "RIVE load-rive-scene")
-  (prn "self:" self "content:" resource rivescene)
-  (let [rive-resource (workspace/resolve-resource resource (:scene rivescene)) ; File/ZipResource type
+  (let [rive-resource (workspace/resolve-resource resource (:scene rivescene))] ; File/ZipResource type
         ;atlas          (workspace/resolve-resource resource (:atlas rivescene))
-        ]
-    (prn "scene:" rive-resource)
+        
     (concat
      (g/connect project :default-tex-params self :default-tex-params)
      (g/set-property self
-                     :rive-file rive-resource
+                     :rive-file rive-resource))))
                       ;:atlas atlas
-                     ))))
+                     
 
 
 
@@ -1141,9 +1343,9 @@
   (g/precluding-errors own-build-errors
                        (let [dep-build-targets (flatten dep-build-targets)
                              deps-by-source (into {} (map #(let [res (:resource %)] [(:resource res) res]) dep-build-targets))
-                             dep-resources (map (fn [[label resource]] [label (get deps-by-source resource)]) [[:scene rive-scene-resource] [:material material-resource]])
+                             dep-resources (map (fn [[label resource]] [label (get deps-by-source resource)]) [[:scene rive-scene-resource] [:material material-resource]])]
           ;model-pb (update model-pb :skin (fn [skin] (or skin "")))
-                             ]
+                             
                         ;(prn "    MAWE " rive-scene-resource "dep-resources:" dep-resources)
 
                          [(bt/with-content-hash
@@ -1216,13 +1418,13 @@
                                        (let [aabb (:aabb rive-main-scene)
                                              rive-scene-node-id (:node-id rive-main-scene)]
                                          (-> rive-main-scene
-                                             (assoc-in [:renderable :user-data :shader] material-shader)
+                                             (assoc-in [:renderable :user-data :shader] rive-shader-tint)
                                         ;;;;;;;;;;;(assoc :gpu-texture texture/white-pixel)
                                         ;(update-in [:renderable :user-data :gpu-texture] texture/set-params tex-params)
                                         ;(assoc-in [:renderable :user-data :skin] skin)
                                              (assoc :aabb aabb)
-                                             (assoc :children [(make-rive-outline-scene rive-scene-node-id aabb)])
-                                             ))
+                                             (assoc :children [(make-rive-outline-scene rive-scene-node-id aabb)])))
+                                             
                                        (merge {:node-id _node-id
                                                :renderable {:passes [pass/selection]}
                                                :aabb (:aabb rive-main-scene)}
@@ -1241,194 +1443,6 @@
   (output own-build-errors g/Any produce-model-own-build-errors)
   (output build-targets g/Any :cached produce-model-build-targets))
 
-
-; .rivemodel
-(defn load-rive-model [project self resource content]
-  (let [rive-scene-resource (workspace/resolve-resource resource (:scene content))
-        material (workspace/resolve-resource resource (:material content))
-        ;atlas          (workspace/resolve-resource resource (:atlas rivescene))
-        ]
-    (concat
-     (g/connect project :default-tex-params self :default-tex-params)
-     (g/set-property self
-                     :rive-scene rive-scene-resource
-                     :material material
-                     :default-animation (:default-animation content)))))
-
-
-
-(g/defnk produce-transform [position rotation scale]
-  (math/->mat4-non-uniform (Vector3d. (double-array position))
-                           (math/euler-z->quat rotation)
-                           (Vector3d. (double-array scale))))
-
-; (g/defnode SpineBone
-;   (inherits outline/OutlineNode)
-;   (property name g/Str (dynamic read-only? (g/constantly true)))
-;   (property position types/Vec3
-;             (dynamic edit-type (g/constantly (properties/vec3->vec2 0.0)))
-;             (dynamic read-only? (g/constantly true)))
-;   (property rotation g/Num (dynamic read-only? (g/constantly true)))
-;   (property scale types/Vec3
-;             (dynamic edit-type (g/constantly (properties/vec3->vec2 1.0)))
-;             (dynamic read-only? (g/constantly true)))
-;   (property length g/Num
-;             (dynamic read-only? (g/constantly true)))
-
-;   (input child-bones g/Any :array)
-
-;   (output transform Matrix4d :cached produce-transform)
-;   (output bone g/Any (g/fnk [name transform child-bones]
-;                             {:name name
-;                              :local-transform transform
-;                              :children child-bones}))
-;   (output node-outline outline/OutlineData (g/fnk [_node-id name child-outlines]
-;                                                   {:node-id _node-id
-;                                                    :node-outline-key name
-;                                                    :label name
-;                                                    :icon rive-bone-icon
-;                                                    :children child-outlines
-;                                                    :read-only true})))
-
-; (defn- update-transforms [^Matrix4d parent bone]
-;   (let [t ^Matrix4d (:local-transform bone)
-;         t (doto (Matrix4d.)
-;             (.mul parent t))]
-;     (-> bone
-;       (assoc :transform t)
-;       (assoc :children (mapv #(update-transforms t %) (:children bone))))))
-
-
-(defn- resource->bytes [resource]
-  (with-open [in (io/input-stream resource)]
-    (IOUtils/toByteArray in)))
-
-(defn- build-rive-file
-  [resource dep-resources user-data]
-  {:resource resource :content (resource->bytes (:resource resource))})
-
-(g/defnk produce-rive-file-build-targets [_node-id resource]
-  (try
-    [(bt/with-content-hash
-       {:node-id _node-id
-        :resource (workspace/make-build-resource resource)
-        :build-fn build-rive-file
-        :user-data {:content-hash (resource/resource->sha1-hex resource)}})]
-    (catch IOException e
-      (g/->error _node-id :resource :fatal resource (format "Couldn't read rive file %s" (resource/resource->proj-path resource))))))
-
-(g/defnk produce-rive-file-content [_node-id resource]
-  (when resource
-    (resource->bytes resource)))
-
-(g/defnode RiveFileNode
-  (inherits resource-node/ResourceNode)
-
-  (input scene-structure g/Any)
-  (output scene-structure g/Any (gu/passthrough scene-structure))
-
-  (property content g/Any)
-  (property rive-handle g/Any) ; The cpp pointer
-  (property animations g/Any)
-  (property aabb g/Any)
-
-  (output build-targets g/Any :cached produce-rive-file-build-targets)
-  )
-
-
-;; (defn- debug-cls [^Class cls]
-;;   (doseq [m (.getMethods cls)]
-;;     (prn (.toString m))
-;;     (println "Method Name: " (.getName m) "(" (.getParameterTypes m) ")")
-;;     (println "Return Type: " (.getReturnType m) "\n")))
-
-(def rive-plugin-cls (workspace/load-class! "com.dynamo.bob.pipeline.Rive"))
-(def rive-plugin-pointer-cls (workspace/load-class! "com.dynamo.bob.pipeline.Rive$RivePointer"))
-(def byte-array-cls (Class/forName "[B"))
-
-(defn- plugin-invoke-static [^Class cls name types args]
-  (let [method (.getMethod cls name types)]
-    (.invoke method nil (into-array Object args))))
-
-(defn- plugin-load-file [bytes]
-  (plugin-invoke-static rive-plugin-cls "RIVE_LoadFileFromBuffer" (into-array Class [byte-array-cls]) [bytes]))
-
-(defn- plugin-get-num-animations [handle]
-  (plugin-invoke-static rive-plugin-cls "RIVE_GetNumAnimations" (into-array Class [rive-plugin-pointer-cls]) [handle]))
-
-(defn- plugin-get-animation ^String [handle index]
-  (plugin-invoke-static rive-plugin-cls "RIVE_GetAnimation" (into-array Class [rive-plugin-pointer-cls Integer/TYPE]) [handle (int index)]))
-
-(defn- plugin-get-artboard-width ^double [handle]
-  (plugin-invoke-static rive-plugin-cls "RIVE_GetArtboardWidth" (into-array Class [rive-plugin-pointer-cls]) [handle]))
-
-(defn- plugin-get-artboard-height ^double [handle]
-  (plugin-invoke-static rive-plugin-cls "RIVE_GetArtboardHeight" (into-array Class [rive-plugin-pointer-cls]) [handle]))
-
-(defn- get-animations [handle]
-  (let [num-animations (plugin-get-num-animations handle)
-        indices (range num-animations)
-        animations (map (fn [index] (plugin-get-animation handle index)) indices)]
-    animations))
-
-(defn- get-aabb [handle]
-  (let [width  (plugin-get-artboard-width handle)
-        height  (plugin-get-artboard-height handle)
-        aabb (geom/coords->aabb [(- width) (- height) 0] [width height 0])]
-    aabb))
-
-; Loads the .riv file
-(defn- load-rive-file
-  [project node-id resource]
-  (let [content (resource->bytes resource)
-        rive-handle (plugin-load-file content)
-        animations (get-animations rive-handle)
-        aabb (get-aabb rive-handle)
-        tx-data (concat
-                 (g/set-property node-id :content content)
-                 (g/set-property node-id :rive-handle rive-handle)
-                 (g/set-property node-id :animations animations)
-                 (g/set-property node-id :aabb aabb))]
-    tx-data))
-
-; (defn- tx-first-created [tx-data]
-;   (get-in (first tx-data) [:node :_node-id]))
-
-
-  ; (let [bones (get content "bones")
-  ;       graph (g/node-id->graph-id node-id)
-  ;       scene-tx-data (g/make-nodes graph [scene SpineSceneJson]
-  ;                                   (g/connect scene :_node-id node-id :nodes)
-  ;                                   (g/connect scene :node-outline node-id :child-outlines)
-  ;                                   (g/connect scene :structure node-id :consumer-passthrough)
-  ;                                   (g/connect node-id :content scene :content))
-  ;       scene-id (tx-first-created scene-tx-data)]
-  ;   (concat
-  ;     scene-tx-data
-  ;     (loop [bones bones
-  ;            tx-data []
-  ;            bone-ids {}]
-  ;       (if-let [bone (first bones)]
-  ;         (let [name (get bone "name")
-  ;               parent (get bone "parent")
-  ;               x (get bone "x" 0)
-  ;               y (get bone "y" 0)
-  ;               rotation (get bone "rotation" 0)
-  ;               scale-x (get bone "scaleX" 1.0)
-  ;               scale-y (get bone "scaleY" 1.0)
-  ;               length (get bone "length")
-  ;               bone-tx-data (g/make-nodes graph [bone [SpineBone :name name :position [x y 0] :rotation rotation :scale [scale-x scale-y 1.0] :length length]]
-  ;                                          (g/connect bone :_node-id node-id :nodes)
-  ;                                          (if-let [parent (get bone-ids parent)]
-  ;                                            (concat
-  ;                                              (g/connect bone :node-outline parent :child-outlines)
-  ;                                              (g/connect bone :bone parent :child-bones))
-  ;                                            (concat
-  ;                                              (g/connect bone :node-outline scene-id :source-outline)
-  ;                                              (g/connect bone :bone scene-id :skeleton))))
-  ;               bone-id (tx-first-created bone-tx-data)]
-  ;           (recur (rest bones) (conj tx-data bone-tx-data) (assoc bone-ids name bone-id)))
-  ;         tx-data)))))
 
 (defn register-resource-types [workspace]
   (concat

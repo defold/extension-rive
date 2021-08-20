@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
+import java.nio.FloatBuffer;
 
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
@@ -36,8 +37,6 @@ public class Rive {
         }
     }
 
-    public static native void TestPrint(String name);
-
     // Type Mapping in JNA
     // https://java-native-access.github.io/jna/3.5.1/javadoc/overview-summary.html#marshalling
 
@@ -46,13 +45,27 @@ public class Rive {
     public static native void RIVE_Destroy(RivePointer rive);
     public static native int RIVE_GetNumAnimations(RivePointer rive);
     public static native String RIVE_GetAnimation(RivePointer rive, int index);
-    public static native float RIVE_GetArtboardWidth(RivePointer rive);
-    public static native float RIVE_GetArtboardHeight(RivePointer rive);
+
+    // TODO: Create a jna Structure for this
+    public static native float RIVE_GetAABBMinX(RivePointer rive);
+    public static native float RIVE_GetAABBMinY(RivePointer rive);
+    public static native float RIVE_GetAABBMaxX(RivePointer rive);
+    public static native float RIVE_GetAABBMaxY(RivePointer rive);
+
+    public static native void RIVE_UpdateVertices(RivePointer rive, float dt);
+    public static native int RIVE_GetVertexSize(); // size in bytes per vertex
+    public static native int RIVE_GetVertexCount(RivePointer rive);
+    public static native void RIVE_GetVertices(RivePointer rive, Buffer buffer, int bufferSize); // buffer size must be at least VertexSize * VertexCount bytes long
 
     public static RivePointer RIVE_LoadFileFromBuffer(byte[] buffer) {
-        Buffer bb = ByteBuffer.wrap(buffer);
-        Pointer p = RIVE_LoadFromBuffer(bb, bb.capacity());
+        Buffer b = ByteBuffer.wrap(buffer);
+        Pointer p = RIVE_LoadFromBuffer(b, b.capacity());
         return new RivePointer(p);
+    }
+
+    public static void RIVE_GetVertices(RivePointer rive, float[] buffer){
+        Buffer b = FloatBuffer.wrap(buffer);
+        RIVE_GetVertices(rive, b, b.capacity()*4);
     }
 
     private static void Usage() {
@@ -86,5 +99,7 @@ public class Rive {
             String animation = RIVE_GetAnimation(p, i);
             System.out.printf("Java: Animation %d: %s\n", i, animation);
         }
+
+        RIVE_UpdateVertices(p, 0.0f);
     }
 }
