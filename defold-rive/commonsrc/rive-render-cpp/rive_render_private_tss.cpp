@@ -1,3 +1,4 @@
+
 #include <float.h>
 #include <string.h>
 
@@ -11,10 +12,14 @@
 #include "rive/rive_render_api.h"
 #include "rive/rive_render_private.h"
 
+#include <dmsdk/dlib/log.h>
+
 #define PRINT_COMMANDS 0
 
 namespace rive
 {
+    #if defined(DM_PLATFORM_WINDOWS) || defined(DM_PLATFORM_OSX)
+
 	/* TessellationRenderPath Impl */
     TessellationRenderPath::TessellationRenderPath(Context* ctx)
     : SharedRenderPath(ctx)
@@ -234,4 +239,55 @@ namespace rive
 
         p->drawMesh(this, m_Transform);
     }
+
+    #else
+
+
+    /* TessellationRenderPath Impl */
+    TessellationRenderPath::TessellationRenderPath(Context* ctx)
+    : SharedRenderPath(ctx)
+    , m_VertexBuffer(0)
+    , m_IndexBuffer(0)
+    {
+        dmLogError("Lib tess is disabled for this platform!");
+    }
+
+    TessellationRenderPath::~TessellationRenderPath()
+    {
+    }
+
+    void TessellationRenderPath::fillRule(FillRule value)
+    {
+    }
+
+    void TessellationRenderPath::addContours(void* tess, const Mat2D& m)
+    {
+    }
+
+    void TessellationRenderPath::updateContour()
+    {
+    }
+
+    void TessellationRenderPath::updateTesselation()
+    {
+    }
+
+    void TessellationRenderPath::drawMesh(SharedRenderer* renderer, const Mat2D& transform)
+    {
+    }
+
+    /* Renderer impl */
+    TessellationRenderer::TessellationRenderer(Context* ctx)
+    {
+    }
+
+    void TessellationRenderer::applyClipping()
+    {
+    }
+
+    void TessellationRenderer::drawPath(RenderPath* path, RenderPaint* paint)
+    {
+    }
+
+    #endif
 }
