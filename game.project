@@ -21,5 +21,6 @@ dependencies#0 = https://github.com/andsve/dirtylarry/archive/master.zip
 include_dirs = defold-rive
 
 [graphics]
-max_draw_calls = 2048
+max_draw_calls = 1024
+max_debug_vertices = 50000
 
