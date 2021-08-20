@@ -1,5 +1,5 @@
 name: "rive-test"
-tags: "tile"
+tags: "rive"
 vertex_program: "/assets/rive.vp"
 fragment_program: "/assets/rive.fp"
 vertex_space: VERTEX_SPACE_WORLD

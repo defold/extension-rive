@@ -1,5 +1,5 @@
 name: "rive-test"
-tags: "tile"
+tags: "rive"
 vertex_space: VERTEX_SPACE_WORLD
 vertex_program: "/assets/rive.vp"
 fragment_program: "/assets/rive.fp"
@@ -40,6 +40,6 @@ fragment_constants {
     x: 0.25
     y: 0.25
     z: 0.25
-    w: 1.00
+    w: 1.0
   }
 }
