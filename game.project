@@ -18,7 +18,7 @@ title = extension-rive
 dependencies#0 = https://github.com/andsve/dirtylarry/archive/master.zip
 
 [library]
-include_dirs = defold-rive,assets
+include_dirs = defold-rive
 
 [graphics]
 max_draw_calls = 2048
