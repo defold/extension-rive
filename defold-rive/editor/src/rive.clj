@@ -1,24 +1,18 @@
-;; Copyright 2020 The Defold Foundation
-;; Licensed under the Defold License version 1.0 (the "License"); you may not use
-;; this file except in compliance with the License.
-;;
-;; You may obtain a copy of the License, together with FAQs at
-;; https://www.defold.com/license
-;;
-;; Unless required by applicable law or agreed to in writing, software distributed
-;; under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-;; CONDITIONS OF ANY KIND, either express or implied. See the License for the
-;; specific language governing permissions and limitations under the License.
+;
+; MIT License
+; Copyright (c) 2021 Defold
+; Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+; The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+;
 
 (ns editor.rive
   (:require [clojure.java.io :as io]
             [editor.protobuf :as protobuf]
             [dynamo.graph :as g]
-            ;[util.murmur :as murmur]
             [editor.build-target :as bt]
             [editor.graph-util :as gu]
             [editor.geom :as geom]
-            ;[editor.material :as material]
             [editor.math :as math]
             [editor.gl :as gl]
             [editor.gl.shader :as shader]
@@ -35,34 +29,23 @@
             [editor.validation :as validation]
             [editor.gl.pass :as pass]
             [editor.types :as types]
-            ;[editor.json :as json]
             [editor.outline :as outline]
             [editor.properties :as properties]
-            ;[editor.rig :as rig]
             [editor.system :as system]
             [service.log :as log]
             [internal.util :as util])
   (:import [com.dynamo.bob.textureset TextureSetGenerator$UVTransform]
            [java.lang.invoke MethodType MethodHandles]
-           ;[com.dynamo.bob.pipeline Rive]
-           ;[com.dynamo.bob.util BezierUtil RigUtil$Transform]
            [editor.gl.shader ShaderLifecycle]
            [editor.types AABB]
            [com.jogamp.opengl GL GL2]
-           ;[java.util HashSet]
            [org.apache.commons.io IOUtils]
            [java.io IOException]
-           ;[java.net URL]
            [javax.vecmath Matrix4d Point2d Point3d Quat4d Vector3d Vector4d Tuple3d Tuple4d]))
 
-; Replaced by the file representation
-;(def rive-jar-file "/defold-rive/plugins/share/pluginRiveExt.jar")
-
-;(def rive-jar-file (atom "/defold-rive/plugins/share/pluginRiveExt.jar"))
 
 (set! *warn-on-reflection* true)
 
-; TODO: Dynamically unpack the assets from the .jar to someplace where the
 (def rive-file-icon "/defold-rive/editor/resources/icons/32/Icons_17-Rive-file.png")
 (def rive-scene-icon "/defold-rive/editor/resources/icons/32/Icons_16-Rive-scene.png")
 (def rive-model-icon "/defold-rive/editor/resources/icons/32/Icons_15-Rive-model.png")
@@ -71,13 +54,6 @@
 (def rive-file-ext "riv")
 (def rive-scene-ext "rivescene")
 (def rive-model-ext "rivemodel")
-
-;(def slot-signal-unchanged 0x10CCED)
-
-; ; Helper to do an .indexOf with a type checked first arg.
-; (defn- index-of
-;   [^java.util.List list value]
-;   (.indexOf list value))
 
 
 ; .rivemodel
@@ -352,6 +328,8 @@
 ;     (:positions :rotations :scale :slot-colors) (math/vecmath->clj interpolatable)
 ;     :mix                                        interpolatable))
 
+;(def slot-signal-unchanged 0x10CCED)
+
 ; (def default-vals {:positions [0 0 0]
 ;                    :rotations [0 0 0 1]
 ;                    :scale [1 1 1]
@@ -533,6 +511,12 @@
 ;                                                  m timeline)))
 ;                                   {} timelines)]
 ;     (sort-by :bone-index (vals tracks-by-bone))))
+
+; ; Helper to do an .indexOf with a type checked first arg.
+; (defn- index-of
+;   [^java.util.List list value]
+;   (.indexOf list value))
+
 
 ; (defn- build-mesh-tracks [slot-timelines do-timelines duration sample-rate spf base-slots]
 ;   (let [; Reshape do-timelines into slot-timelines
