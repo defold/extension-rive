@@ -31,6 +31,7 @@ local function get_projection(self)
 end
 
 function init(self)
+    self.rive_pred = render.predicate({"rive"})
     self.tile_pred = render.predicate({"tile"})
     self.gui_pred = render.predicate({"gui"})
     self.text_pred = render.predicate({"text"})
@@ -64,12 +65,15 @@ function update(self)
 
     render.set_depth_mask(false)
     render.disable_state(render.STATE_DEPTH_TEST)
-    render.enable_state(render.STATE_STENCIL_TEST) -- needed for rive!
     render.enable_state(render.STATE_BLEND)
     render.set_blend_func(render.BLEND_SRC_ALPHA, render.BLEND_ONE_MINUS_SRC_ALPHA)
     render.disable_state(render.STATE_CULL_FACE)
 
     render.set_projection(get_projection(self))
+
+    render.enable_state(render.STATE_STENCIL_TEST)
+    render.draw(self.rive_pred)
+    render.disable_state(render.STATE_STENCIL_TEST)
 
     render.draw(self.tile_pred)
     render.draw(self.particle_pred)
