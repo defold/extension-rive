@@ -65,7 +65,7 @@ public class Rive {
 
     public static void RIVE_GetVertices(RivePointer rive, float[] buffer){
         Buffer b = FloatBuffer.wrap(buffer);
-        RIVE_GetVertices(rive, b, b.capacity());
+        RIVE_GetVertices(rive, b, b.capacity()*4);
     }
 
     private static void Usage() {
@@ -99,5 +99,7 @@ public class Rive {
             String animation = RIVE_GetAnimation(p, i);
             System.out.printf("Java: Animation %d: %s\n", i, animation);
         }
+
+        RIVE_UpdateVertices(p, 0.0f);
     }
 }
