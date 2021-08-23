@@ -6,6 +6,7 @@ set -e
 #UNPACK_FOLDER="rive-cpp-master"
 URL=https://github.com/rive-app/rive-cpp/archive/refs/heads/low_level_rendering.zip
 UNPACK_FOLDER="rive-cpp-low_level_rendering"
+CXXFLAGS="${CXXFLAGS} -DLOW_LEVEL_RENDERING -DCONTOUR_RECURSIVE"
 
 PLATFORM=$1
 shift
@@ -158,7 +159,7 @@ case $PLATFORM in
         export CPPFLAGS="-arch armv7 -isysroot ${IOS_SDK_ROOT}"
         export CXXFLAGS="${CXXFLAGS} -stdlib=libc++ -arch armv7 "
 
-        if [ ! -z "${IOS_MIN_SDK_VERSION}" ]; then
+        if [ -z "${IOS_MIN_SDK_VERSION}" ]; then
             IOS_MIN_SDK_VERSION="8.0"
         fi
 
@@ -184,7 +185,7 @@ case $PLATFORM in
 
         export CXXFLAGS="${CXXFLAGS} -stdlib=libc++ "
 
-        if [ ! -z "${OSX_MIN_SDK_VERSION}" ]; then
+        if [ -z "${OSX_MIN_SDK_VERSION}" ]; then
             OSX_MIN_SDK_VERSION="10.7"
         fi
 
