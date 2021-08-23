@@ -9,8 +9,11 @@ UNPACK_FOLDER="rive-cpp-low_level_rendering"
 CXXFLAGS="${CXXFLAGS} -DLOW_LEVEL_RENDERING -DCONTOUR_RECURSIVE"
 
 PLATFORM=$1
-shift
-
+if [ ! -z "${PLATFORM}" ]; then
+    shift
+else
+    export PLATFORM=$(uname | awk '{print tolower($0)}')
+fi
 
 BUILD_DIR=./build/${PLATFORM}
 SOURCE_DIR="${UNPACK_FOLDER}/src"
