@@ -46,11 +46,10 @@ function unpack_package
     fi
 
     if [ -e "${UNPACK_FOLDER}" ]; then
-        echo "Removing old folder ${UNPACK_FOLDER}"
-        rm -rf ${UNPACK_FOLDER}
+        echo "Folder already exists ${UNPACK_FOLDER}"
+    else
+        unzip -q ${package}
     fi
-
-    unzip -q ${package}
 }
 
 function copy_headers
@@ -141,11 +140,13 @@ if [ ! -z "${DYNAMO_HOME}" ]; then
     OSX_SDK_ROOT=$(find_latest_sdk MacOSX*.sdk)
     IOS_SDK_ROOT=$(find_latest_sdk iPhoneOS*.sdk)
     ANDROID_NDK_ROOT=$(find_latest_sdk android-ndk-*)
+    EMSCRIPTEN=$(find_latest_sdk emsdk-*)/upstream/emscripten
 
     echo DARWIN_TOOLCHAIN_ROOT=${DARWIN_TOOLCHAIN_ROOT}
     echo OSX_SDK_ROOT=${OSX_SDK_ROOT}
     echo IOS_SDK_ROOT=${IOS_SDK_ROOT}
     echo ANDROID_NDK_ROOT=${ANDROID_NDK_ROOT}
+    echo EMSCRIPTEN=${EMSCRIPTEN}
     echo ""
 fi
 
@@ -211,32 +212,6 @@ case $PLATFORM in
         TARGET_NAME_SUFFIX=.lib
         ;;
 
-
-    js-web)
-        export CONFIGURE_WRAPPER=${EMSCRIPTEN}/emconfigure
-        export CC=${EMSCRIPTEN}/emcc
-        export CXX=${EMSCRIPTEN}/em++
-        export AR=${EMSCRIPTEN}/emar
-        export LD=${EMSCRIPTEN}/em++
-        export RANLIB=${EMSCRIPTEN}/emranlib
-        export CFLAGS="${CFLAGS} -fPIC -fno-exceptions"
-        export CXXFLAGS="${CXXFLAGS} -fPIC -fno-exceptions"
-        cmi_cross $1 $1
-        ;;
-
-    wasm-web)
-        export CONFIGURE_WRAPPER=${EMSCRIPTEN}/emconfigure
-        export CC=${EMSCRIPTEN}/emcc
-        export CXX=${EMSCRIPTEN}/em++
-        export AR=${EMSCRIPTEN}/emar
-        export LD=${EMSCRIPTEN}/em++
-        export RANLIB=${EMSCRIPTEN}/emranlib
-        export CFLAGS="${CFLAGS} -fPIC -fno-exceptions"
-        export CXXFLAGS="${CXXFLAGS} -fPIC -fno-exceptions"
-        cmi_cross $1 $1
-        ;;
-
-
     armv7-android)
         [ ! -e "${ANDROID_NDK_ROOT}" ] && echo "No SDK found at ANDROID_NDK_ROOT=${ANDROID_NDK_ROOT}" && exit 1
         export host_platform=`uname | awk '{print tolower($0)}'`
@@ -273,28 +248,32 @@ case $PLATFORM in
         fi
 
         export CXX="${llvm}/aarch64-linux-android${ANDROID_VERSION}-clang++"
-        export AR=${llvm}/arm-linux-androideabi-ar
-        export RANLIB=${llvm}/arm-linux-androideabi-ranlib
+        export AR=${llvm}/aarch64-linux-android-ar
+        export RANLIB=${llvm}/aarch64-linux-android-ranlib
         ;;
 
-    # arm64-android)
-    #     local platform=`uname | awk '{print tolower($0)}'`
-    #     local bin="${ANDROID_NDK_ROOT}/toolchains/aarch64-linux-android-${ANDROID_64_GCC_VERSION}/prebuilt/${platform}-x86_64/bin"
-    #     local llvm="${ANDROID_NDK_ROOT}/toolchains/llvm/prebuilt/${platform}-x86_64/bin"
-    #     local sysroot="${ANDROID_NDK_ROOT}/toolchains/llvm/prebuilt/${platform}-x86_64/sysroot"
+    js-web)
+        [ ! -e "${EMSCRIPTEN}" ] && echo "No SDK found at EMSCRIPTEN=${EMSCRIPTEN}" && exit 1
+        export CXX=${EMSCRIPTEN}/em++
+        export AR=${EMSCRIPTEN}/emar
+        export RANLIB=${EMSCRIPTEN}/emranlib
+        export CXXFLAGS="${CXXFLAGS} -fPIC -fno-exceptions"
 
-    #     export CFLAGS="${CFLAGS} -isysroot ${sysroot} -fpic -ffunction-sections -funwind-tables -D__aarch64__  -march=armv8-a -Os -fomit-frame-pointer -fno-strict-aliasing -DANDROID -Wno-c++11-narrowing"
-    #     export CPPFLAGS=${CFLAGS}
-    #     export CXXFLAGS="${CXXFLAGS} -stdlib=libc++ ${CFLAGS}"
-    #     export CPP="${llvm}/aarch64-linux-android${ANDROID_64_VERSION}-clang -E"
-    #     export CC="${llvm}/aarch64-linux-android${ANDROID_64_VERSION}-clang"
-    #     export CXX="${llvm}/aarch64-linux-android${ANDROID_64_VERSION}-clang++"
-    #     export AR=${bin}/aarch64-linux-android-ar
-    #     export AS=${bin}/aarch64-linux-android-as
-    #     export LD=${bin}/aarch64-linux-android-ld
-    #     export RANLIB=${bin}/aarch64-linux-android-ranlib
-    #     cmi_cross $1 arm-linux
-    #     ;;
+        CXXFLAGS="${CXXFLAGS} -s PRECISE_F32=2 -s AGGRESSIVE_VARIABLE_ELIMINATION=1 -s DISABLE_EXCEPTION_CATCHING=1"
+        CXXFLAGS="${CXXFLAGS} -s WASM=0 -s LEGACY_VM_SUPPORT=1"
+        ;;
+
+    wasm-web)
+        [ ! -e "${EMSCRIPTEN}" ] && echo "No SDK found at EMSCRIPTEN=${EMSCRIPTEN}" && exit 1
+        export CXX=${EMSCRIPTEN}/em++
+        export AR=${EMSCRIPTEN}/emar
+        export RANLIB=${EMSCRIPTEN}/emranlib
+        export CXXFLAGS="${CXXFLAGS} -fPIC -fno-exceptions -fno-rtti"
+
+        CXXFLAGS="${CXXFLAGS} -s PRECISE_F32=2 -s AGGRESSIVE_VARIABLE_ELIMINATION=1 -s DISABLE_EXCEPTION_CATCHING=1"
+        CXXFLAGS="${CXXFLAGS} -s WASM=1 -s IMPORTED_MEMORY=1 -s ALLOW_MEMORY_GROWTH=1"
+
+        ;;
 
     *)
         echo "Unknown platform: ${PLATFORM}, using CROSS_TOOLS_PREFIX to prefix clang++, ar and ranlib, unless CXX, AR and RANLIB are specified"
