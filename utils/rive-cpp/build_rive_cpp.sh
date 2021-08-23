@@ -159,8 +159,7 @@ case $PLATFORM in
         export SDKROOT="${IOS_SDK_ROOT}"
 
         export PATH=$DARWIN_TOOLCHAIN_ROOT/usr/bin:$PATH
-        export CPPFLAGS="-arch armv7 -isysroot ${IOS_SDK_ROOT}"
-        export CXXFLAGS="${CXXFLAGS} -stdlib=libc++ -arch armv7 "
+        export CXXFLAGS="${CXXFLAGS} -stdlib=libc++ -arch arm64 "
 
         if [ -z "${IOS_MIN_SDK_VERSION}" ]; then
             IOS_MIN_SDK_VERSION="8.0"
