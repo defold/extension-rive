@@ -3,14 +3,14 @@
 #include <string.h>
 
 #include <jc/array.h>
-#include <tesselator.h>
 
-#include <artboard.hpp>
-#include <renderer.hpp>
-#include <contour_render_path.hpp>
+#include <tesselator.h> // libtess
 
-#include "rive/rive_render_api.h"
-#include "rive/rive_render_private.h"
+#include <rive/artboard.hpp>
+#include <rive/renderer.hpp>
+
+#include "riverender/rive_render_api.h"
+#include "riverender/rive_render_private.h"
 
 #include <dmsdk/dlib/log.h>
 

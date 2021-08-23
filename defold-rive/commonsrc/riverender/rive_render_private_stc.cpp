@@ -1,12 +1,11 @@
 #include <float.h>
 #include <jc/array.h>
 
-#include <renderer.hpp>
-#include <artboard.hpp>
-#include <contour_render_path.hpp>
+#include <rive/renderer.hpp>
+#include <rive/artboard.hpp>
 
-#include "rive/rive_render_api.h"
-#include "rive/rive_render_private.h"
+#include "riverender/rive_render_api.h"
+#include "riverender/rive_render_private.h"
 
 namespace rive
 {

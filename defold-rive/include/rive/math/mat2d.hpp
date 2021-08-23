@@ -33,6 +33,8 @@ namespace rive
 			result[5] = 0.0f;
 		}
 
+		static const Mat2D& identity();
+
 		static void fromRotation(Mat2D& result, float rad);
 		static void scale(Mat2D& result, const Mat2D& mat, const Vec2D& vec);
 		static void multiply(Mat2D& result, const Mat2D& a, const Mat2D& b);
@@ -49,6 +51,13 @@ namespace rive
 		float yy() const { return m_Buffer[3]; }
 		float tx() const { return m_Buffer[4]; }
 		float ty() const { return m_Buffer[5]; }
+
+		void print() const
+		{
+			printf("X: %f %f\n", m_Buffer[0], m_Buffer[1]);
+			printf("Y: %f %f\n", m_Buffer[2], m_Buffer[3]);
+			printf("T: %f %f\n", m_Buffer[4], m_Buffer[5]);
+		}
 	};
 
 	inline Mat2D operator*(const Mat2D& a, const Mat2D& b)
@@ -63,5 +72,6 @@ namespace rive
 		return a[0] == b[0] && a[1] == b[1] && a[2] == b[2] && a[3] == b[3] &&
 		       a[4] == b[4] && a[5] == b[5];
 	}
+
 } // namespace rive
 #endif

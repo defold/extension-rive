@@ -10,11 +10,11 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include <file.hpp>
-#include <renderer.hpp>
-#include <animation/linear_animation_instance.hpp>
-#include <animation/loop.hpp>
-#include <rive/rive_render_api.h>
+#include <rive/file.hpp>
+#include <rive/renderer.hpp>
+#include <rive/animation/linear_animation_instance.hpp>
+#include <rive/animation/loop.hpp>
+#include <riverender/rive_render_api.h>
 
 #include "comp_rive.h"
 #include "res_rive_data.h"

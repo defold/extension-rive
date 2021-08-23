@@ -15,10 +15,10 @@
 #include <dmsdk/resource/resource.h>
 
 // Rive includes
-#include <artboard.hpp>
-#include <file.hpp>
-#include <animation/linear_animation_instance.hpp>
-#include <animation/linear_animation.hpp>
+#include <rive/artboard.hpp>
+#include <rive/file.hpp>
+#include <rive/animation/linear_animation_instance.hpp>
+#include <rive/animation/linear_animation.hpp>
 
 #include "res_rive_data.h"
 

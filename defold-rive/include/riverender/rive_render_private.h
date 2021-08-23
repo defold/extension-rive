@@ -1,6 +1,8 @@
 #ifndef _RIVE_RENDER_PRIVATE_H_
 #define _RIVE_RENDER_PRIVATE_H_
 
+#include <rive/contour_render_path.hpp>
+
 namespace rive
 {
     struct PathDescriptor
@@ -56,6 +58,7 @@ namespace rive
         void radialGradient(float sx, float sy, float ex, float ey) override;
         void addStop(unsigned int color, float stop)                override;
         void completeGradient()                                     override;
+        void invalidateStroke()                                     override {}
         inline RenderPaintStyle      getStyle()  { return m_Style; }
         inline bool                  isVisible() { return m_IsVisible; }
 
