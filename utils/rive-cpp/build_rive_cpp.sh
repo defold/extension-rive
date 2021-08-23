@@ -202,7 +202,17 @@ case $PLATFORM in
 
     x86_64-linux)
         export CPPFLAGS="${CPPFLAGS} -fPIC"
+        if [ -z "${CXX}" ]; then
+            export CXX=clang++
+        fi
+        if [ -z "${AR}" ]; then
+            export AR=ar
+        fi
+        if [ -z "${RANLIB}" ]; then
+            export RANLIB=ranlib
+        fi
         ;;
+
     x86_64-win32)
         #export CPPFLAGS="${CPPFLAGS} -fPIC"
         TARGET_NAME_SUFFIX=.lib
