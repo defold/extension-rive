@@ -15,12 +15,12 @@ __declspec(dllexport) int dummyFunc()
 
 
 // Rive includes
-#include <artboard.hpp>
-#include <file.hpp>
-#include <animation/linear_animation_instance.hpp>
-#include <animation/linear_animation.hpp>
+#include <rive/artboard.hpp>
+#include <rive/file.hpp>
+#include <rive/animation/linear_animation_instance.hpp>
+#include <rive/animation/linear_animation.hpp>
 
-#include <rive/rive_render_api.h>
+#include <riverender/rive_render_api.h>
 
 
 // Due to an X11.h issue (Likely Ubuntu 16.04 issue) we include the Rive/C++17 includes first
@@ -155,11 +155,13 @@ extern "C" DM_DLLEXPORT void* RIVE_LoadFromBuffer(void* buffer, size_t buffer_si
     }
 
     RiveFile* out = new RiveFile;
-    out->m_File = file;
-    out->m_Renderer = rive::createRenderer(rive::g_Ctx);
+    if (file) {
+        out->m_File = file;
+        out->m_Renderer = rive::createRenderer(rive::g_Ctx);
 
-    rive::setContourQuality(out->m_Renderer, 0.8888888888888889f);
-    rive::setClippingSupport(out->m_Renderer, true);
+        rive::setContourQuality(out->m_Renderer, 0.8888888888888889f);
+        rive::setClippingSupport(out->m_Renderer, true);
+    }
 
     return (void*)out;
 }
@@ -181,8 +183,10 @@ extern "C" DM_DLLEXPORT void* RIVE_LoadFromPath(const char* path) {
 
 extern "C" DM_DLLEXPORT void RIVE_Destroy(void* _rive_file) {
     RiveFile* file = (RiveFile*)_rive_file;
+    if (file->m_Renderer) {
+        rive::destroyRenderer(file->m_Renderer);
+    }
     delete file->m_File;
-    rive::destroyRenderer(file->m_Renderer);
     delete file;
 }
 
@@ -249,6 +253,10 @@ extern "C" DM_DLLEXPORT void RIVE_UpdateVertices(void* _rive_file, float dt) {
     }
 
     rive::Artboard* artboard = file->m_File->artboard();
+    if (!artboard) {
+        return;
+    }
+
     artboard->advance(dt);
 
     // calculate the vertices and store in buffers for later retrieval
@@ -292,6 +300,9 @@ extern "C" DM_DLLEXPORT float RIVE_GetAABBMinX(void* _rive_file) {
         return 0;
     }
     rive::Artboard* artboard = file->m_File->artboard();
+    if (!artboard) {
+        return 0;
+    }
     rive::AABB bounds = artboard->bounds();
     return bounds.minX - (bounds.maxX - bounds.minX) * 0.5f;
 }
@@ -302,6 +313,9 @@ extern "C" DM_DLLEXPORT float RIVE_GetAABBMinY(void* _rive_file) {
         return 0;
     }
     rive::Artboard* artboard = file->m_File->artboard();
+    if (!artboard) {
+        return 0;
+    }
     rive::AABB bounds = artboard->bounds();
     return bounds.minY - (bounds.maxY - bounds.minY) * 0.5f;
 }
@@ -312,6 +326,9 @@ extern "C" DM_DLLEXPORT float RIVE_GetAABBMaxX(void* _rive_file) {
         return 0;
     }
     rive::Artboard* artboard = file->m_File->artboard();
+    if (!artboard) {
+        return 0;
+    }
     rive::AABB bounds = artboard->bounds();
     return bounds.maxX - (bounds.maxX - bounds.minX) * 0.5f;
 }
@@ -321,8 +338,10 @@ extern "C" DM_DLLEXPORT float RIVE_GetAABBMaxY(void* _rive_file) {
     if (!file) {
         return 0;
     }
-
     rive::Artboard* artboard = file->m_File->artboard();
+    if (!artboard) {
+        return 0;
+    }
     rive::AABB bounds = artboard->bounds();
     return bounds.maxY - (bounds.maxY - bounds.minY) * 0.5f;
 }
