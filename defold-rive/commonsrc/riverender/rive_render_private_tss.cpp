@@ -18,7 +18,7 @@
 
 namespace rive
 {
-    #if defined(DM_PLATFORM_WINDOWS) || defined(DM_PLATFORM_OSX)
+    #if (defined(DM_PLATFORM_WINDOWS) && defined(_WIN64)) || defined(DM_PLATFORM_OSX)
 
 	/* TessellationRenderPath Impl */
     TessellationRenderPath::TessellationRenderPath(Context* ctx)
