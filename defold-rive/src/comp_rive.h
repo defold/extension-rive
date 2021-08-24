@@ -14,12 +14,10 @@
 #define DM_GAMESYS_COMP_RIVE_H
 
 #include <stdint.h>
-//#include <dmsdk/dlib/array.h>
 #include <dmsdk/dlib/vmath.h>
 #include <dmsdk/dlib/transform.h>
 #include <dmsdk/gameobject/gameobject.h>
 #include <dmsdk/gamesys/render_constants.h>
-//#include <dmsdk/resource/resource.h>
 
 namespace dmRive
 {

@@ -4,8 +4,4 @@ platforms:
     common:
         context:
             symbols:   ["ResourceTypeRiveScene", "ResourceTypeRiveModel", "ResourceTypeRiveData", "ComponentTypeRive"]
-            flags:     ["-std=c++17"]
-            linkFlags: ["-std=c++17"]
-            defines:   ["LOW_LEVEL_RENDERING", "CONTOUR_RECURSIVE"]
-
 

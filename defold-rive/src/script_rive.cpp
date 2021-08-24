@@ -18,8 +18,9 @@
 #include <dmsdk/gameobject/script.h>
 #include <dmsdk/gamesys/script.h>
 
-#include <animation/linear_animation.hpp>
-#include <animation/linear_animation_instance.hpp>
+#include <rive/animation/linear_animation.hpp>
+#include <rive/animation/linear_animation_instance.hpp>
+
 #include "comp_rive.h"
 #include "rive_ddf.h"
 
