@@ -66,8 +66,11 @@ namespace dmRive
 
     static dmResource::Result ResourceType_RiveData_Destroy(const dmResource::ResourceDestroyParams& params)
     {
-        // TODO: Destroy rive data
-        void* data = params.m_Resource->m_Resource;
+        RiveSceneData* scene_data = (RiveSceneData*)params.m_Resource->m_Resource;
+
+        delete scene_data->m_LinearAnimations;
+        delete scene_data->m_File;
+        delete scene_data;
 
         return dmResource::RESULT_OK;
     }
