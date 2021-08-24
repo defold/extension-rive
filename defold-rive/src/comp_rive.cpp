@@ -804,29 +804,13 @@ namespace dmRive
             dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component.m_Resource->m_Scene->m_Scene;
             rive::File* f               = data->m_File;
             rive::Artboard* artboard    = f->artboard();
+
+            if (!artboard)
+            {
+                component.m_Enabled = false;
+                continue;
+            }
             rive::AABB artboard_bounds  = artboard->bounds();
-
-            rive::Mat2D transform;
-            Mat4ToMat2D(component.m_World, transform);
-
-            // JG: Rive is using a different coordinate system that defold,
-            //     in their examples they flip the projection but that isn't
-            //     really compatible with our setup I don't think?
-            rive::Vec2D yflip(1.0f,-1.0f);
-            rive::Mat2D::scale(transform, transform, yflip);
-            rive::setTransform(renderer, transform);
-            rive::resetClipping(renderer);
-
-            rive_renderer->align(rive::Fit::none,
-               rive::Alignment::center,
-               rive::AABB(-artboard_bounds.width(), -artboard_bounds.height(),
-               artboard_bounds.width(), artboard_bounds.height()),
-               artboard_bounds);
-
-            rive_renderer->save();
-            artboard->advance(dt);
-            artboard->draw(rive_renderer);
-            rive_renderer->restore();
 
             if (component.m_AnimationInstance)
             {
@@ -857,6 +841,28 @@ namespace dmRive
                     }
                 }
             }
+
+            rive::Mat2D transform;
+            Mat4ToMat2D(component.m_World, transform);
+
+            // JG: Rive is using a different coordinate system that defold,
+            //     in their examples they flip the projection but that isn't
+            //     really compatible with our setup I don't think?
+            rive::Vec2D yflip(1.0f,-1.0f);
+            rive::Mat2D::scale(transform, transform, yflip);
+            rive::setTransform(renderer, transform);
+            rive::resetClipping(renderer);
+
+            rive_renderer->align(rive::Fit::none,
+                rive::Alignment::center,
+                rive::AABB(-artboard_bounds.width(), -artboard_bounds.height(),
+                artboard_bounds.width(), artboard_bounds.height()),
+                artboard_bounds);
+
+            rive_renderer->save();
+            artboard->advance(dt);
+            artboard->draw(rive_renderer);
+            rive_renderer->restore();
 
             if (component.m_ReHash || (component.m_RenderConstants && dmGameSystem::AreRenderConstantsUpdated(component.m_RenderConstants)))
             {
