@@ -6,7 +6,6 @@ set -e
 #UNPACK_FOLDER="rive-cpp-master"
 URL=https://github.com/rive-app/rive-cpp/archive/refs/heads/low_level_rendering.zip
 UNPACK_FOLDER="rive-cpp-low_level_rendering"
-CXXFLAGS="${CXXFLAGS} -DLOW_LEVEL_RENDERING -DCONTOUR_RECURSIVE"
 
 PLATFORM=$1
 if [ ! -z "${PLATFORM}" ]; then
@@ -22,6 +21,7 @@ TARGET_LIBRARY_DIR="../../defold-rive/lib/${PLATFORM}"
 TARGET_NAME=librivecpp
 TARGET_NAME_SUFFIX=.a
 OPT="-O2"
+CXXFLAGS="${CXXFLAGS} -DLOW_LEVEL_RENDERING -DCONTOUR_RECURSIVE -g -Werror=format"
 
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
@@ -141,6 +141,8 @@ if [ ! -z "${DYNAMO_HOME}" ]; then
     IOS_SDK_ROOT=$(find_latest_sdk iPhoneOS*.sdk)
     ANDROID_NDK_ROOT=$(find_latest_sdk android-ndk-*)
     EMSCRIPTEN=$(find_latest_sdk emsdk-*)/upstream/emscripten
+    WIN32_MSVC_INCLUDE_DIR=$(find_latest_sdk Win32/MicrosoftVisualStudio14.0/VC/Tools/MSVC/14.*)/include
+    WIN32_SDK_INCLUDE_DIR=$(find_latest_sdk Win32/WindowsKits/10/Include/10.0.*)/ucrt
 
     echo DARWIN_TOOLCHAIN_ROOT=${DARWIN_TOOLCHAIN_ROOT}
     echo OSX_SDK_ROOT=${OSX_SDK_ROOT}
@@ -214,12 +216,29 @@ case $PLATFORM in
         ;;
 
     x86_64-win32)
-        #export CPPFLAGS="${CPPFLAGS} -fPIC"
+        [ ! -e "${WIN32_MSVC_INCLUDE_DIR}" ] && echo "No SDK found at WIN32_MSVC_INCLUDE_DIR=${WIN32_MSVC_INCLUDE_DIR}" && exit 1
+        [ ! -e "${WIN32_SDK_INCLUDE_DIR}" ] && echo "No SDK found at WIN32_SDK_INCLUDE_DIR=${WIN32_SDK_INCLUDE_DIR}" && exit 1
+
         TARGET_NAME_SUFFIX=.lib
+
+        export host_platform=`uname | awk '{print tolower($0)}'`
+        if [ "darwin" == "${host_platform}" ] || [ "linux" == "${host_platform}" ]; then
+            export CXXFLAGS="${CXXFLAGS} -target x86_64-pc-windows-msvc -m64 -D_CRT_SECURE_NO_WARNINGS -D__STDC_LIMIT_MACROS -DWINVER=0x0600 -DNOMINMAX -gcodeview"
+            export CXXFLAGS="${CXXFLAGS} -nostdinc++ -isystem ${WIN32_MSVC_INCLUDE_DIR} -isystem ${WIN32_SDK_INCLUDE_DIR}"
+        fi
         ;;
+
     x86-win32)
-        #export CPPFLAGS="${CPPFLAGS} -fPIC"
+        [ ! -e "${WIN32_MSVC_INCLUDE_DIR}" ] && echo "No SDK found at WIN32_MSVC_INCLUDE_DIR=${WIN32_MSVC_INCLUDE_DIR}" && exit 1
+        [ ! -e "${WIN32_SDK_INCLUDE_DIR}" ] && echo "No SDK found at WIN32_SDK_INCLUDE_DIR=${WIN32_SDK_INCLUDE_DIR}" && exit 1
+
         TARGET_NAME_SUFFIX=.lib
+
+        export host_platform=`uname | awk '{print tolower($0)}'`
+        if [ "darwin" == "${host_platform}" ] || [ "linux" == "${host_platform}" ]; then
+            export CXXFLAGS="${CXXFLAGS} -target i386-pc-win32-msvc -m32 -D_CRT_SECURE_NO_WARNINGS -D__STDC_LIMIT_MACROS -DWINVER=0x0600 -DNOMINMAX -gcodeview"
+            export CXXFLAGS="${CXXFLAGS} -nostdinc++ -isystem ${WIN32_MSVC_INCLUDE_DIR} -isystem ${WIN32_SDK_INCLUDE_DIR}"
+        fi
         ;;
 
     armv7-android)
@@ -286,21 +305,22 @@ case $PLATFORM in
         ;;
 
     *)
-        echo "Unknown platform: ${PLATFORM}, using CROSS_TOOLS_PREFIX to prefix clang++, ar and ranlib, unless CXX, AR and RANLIB are specified"
-        if [ -z "${CXX}" ]; then
-            export CXX=${CROSS_TOOLS_PREFIX}clang++
-        fi
-        if [ -z "${AR}" ]; then
-            export AR=${CROSS_TOOLS_PREFIX}ar
-        fi
-        if [ -z "${RANLIB}" ]; then
-            export RANLIB=${CROSS_TOOLS_PREFIX}ranlib
-        fi
+        echo "Unknown platform: ${PLATFORM}, using host clang++, ar and ranlib. Prefix with CROSS_TOOLS_PREFIX to use specific tools."
         ;;
 esac
 
 if [ ! -z "${SDKROOT}" ]; then
     export SYSROOT="-isysroot $SDKROOT"
+fi
+
+if [ -z "${CXX}" ]; then
+    export CXX=${CROSS_TOOLS_PREFIX}clang++
+fi
+if [ -z "${AR}" ]; then
+    export AR=${CROSS_TOOLS_PREFIX}ar
+fi
+if [ -z "${RANLIB}" ]; then
+    export RANLIB=${CROSS_TOOLS_PREFIX}ranlib
 fi
 
 # *************************************************
