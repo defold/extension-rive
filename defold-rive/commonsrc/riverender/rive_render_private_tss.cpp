@@ -18,7 +18,7 @@
 
 namespace rive
 {
-    #if (defined(DM_PLATFORM_WINDOWS) && defined(_WIN64)) || defined(DM_PLATFORM_OSX)
+    #if (defined(DM_PLATFORM_WINDOWS) && defined(_WIN64)) || defined(DM_PLATFORM_OSX) || defined(DM_PLATFORM_LINUX)
 
 	/* TessellationRenderPath Impl */
     TessellationRenderPath::TessellationRenderPath(Context* ctx)
@@ -249,7 +249,12 @@ namespace rive
     , m_VertexBuffer(0)
     , m_IndexBuffer(0)
     {
-        dmLogError("Lib tess is disabled for this platform!");
+        static int first = 1;
+        if (first)
+        {
+            first = 0;
+            dmLogError("Lib tess is disabled for this platform!");
+        }
     }
 
     TessellationRenderPath::~TessellationRenderPath()
