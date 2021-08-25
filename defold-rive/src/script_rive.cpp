@@ -12,14 +12,14 @@
 
 #include <assert.h>
 
+#include <rive/animation/linear_animation.hpp>
+#include <rive/animation/linear_animation_instance.hpp>
+
 #include <dmsdk/sdk.h>
 #include <dmsdk/dlib/hash.h>
 #include <dmsdk/dlib/message.h>
 #include <dmsdk/gameobject/script.h>
 #include <dmsdk/gamesys/script.h>
-
-#include <rive/animation/linear_animation.hpp>
-#include <rive/animation/linear_animation_instance.hpp>
 
 #include "comp_rive.h"
 #include "rive_ddf.h"

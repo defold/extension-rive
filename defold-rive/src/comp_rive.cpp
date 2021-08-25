@@ -788,7 +788,7 @@ namespace dmRive
 
         world->m_DrawEntries.SetSize(0);
 
-        const rive::RenderMode render_mode = rive::getRenderMode(ctx);
+        //const rive::RenderMode render_mode = rive::getRenderMode(ctx);
 
         for (uint32_t i = 0; i < count; ++i)
         {

@@ -203,7 +203,7 @@ case $PLATFORM in
         ;;
 
     x86_64-linux)
-        export CPPFLAGS="${CPPFLAGS} -fPIC"
+        export CXXFLAGS="${CXXFLAGS} -fPIC"
         if [ -z "${CXX}" ]; then
             export CXX=clang++
         fi
