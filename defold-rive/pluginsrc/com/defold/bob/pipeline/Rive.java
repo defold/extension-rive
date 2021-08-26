@@ -46,6 +46,9 @@ public class Rive {
     public static native int RIVE_GetNumAnimations(RivePointer rive);
     public static native String RIVE_GetAnimation(RivePointer rive, int index);
 
+    public static native int RIVE_GetNumBones(RivePointer rive);
+    public static native String RIVE_GetBone(RivePointer rive, int index);
+
     // TODO: Create a jna Structure for this
     public static native float RIVE_GetAABBMinX(RivePointer rive);
     public static native float RIVE_GetAABBMinY(RivePointer rive);
@@ -96,8 +99,13 @@ public class Rive {
         RivePointer p = new RivePointer(rive_file);
 
         for (int i = 0; i < RIVE_GetNumAnimations(p); ++i) {
-            String animation = RIVE_GetAnimation(p, i);
-            System.out.printf("Java: Animation %d: %s\n", i, animation);
+            String name = RIVE_GetAnimation(p, i);
+            System.out.printf("Java: Animation %d: %s\n", i, name);
+        }
+
+        for (int i = 0; i < RIVE_GetNumBones(p); ++i) {
+            String name = RIVE_GetBone(p, i);
+            System.out.printf("Java: Bone %d: %s\n", i, name);
         }
 
         RIVE_UpdateVertices(p, 0.0f);

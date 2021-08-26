@@ -32,6 +32,7 @@ __declspec(dllexport) int dummyFunc()
 #include <stdio.h>
 #include <stdint.h>
 
+#include "bones.h"
 
 struct RiveBuffer
 {
@@ -74,6 +75,8 @@ struct RiveFile
     rive::HRenderer     m_Renderer; // Separate renderer for multi threading
     rive::File*         m_File;
     dmArray<RivePluginVertex> m_Vertices;
+    dmArray<riveplugin::RiveBone*>  m_Roots;
+    dmArray<riveplugin::RiveBone*>  m_Bones;
 };
 
 typedef RiveFile* HRiveFile;
@@ -150,6 +153,23 @@ static RiveFile* ToRiveFile(void* _rive_file, const char* fnname)
         dmLogError("%s: File has no artboard", __FUNCTION__); \
         return 0; \
     }
+
+
+static void UpdateBones(RiveFile* file)
+{
+    rive::Artboard* artboard = file->m_File->artboard();
+    if (!artboard) {
+        return;
+    }
+
+    file->m_Roots.SetSize(0);
+    file->m_Bones.SetSize(0);
+    riveplugin::BuildBoneHierarchy(artboard, &file->m_Roots, &file->m_Bones);
+
+    riveplugin::DebugHierarchy(&file->m_Roots);
+}
+
+
 extern "C" DM_DLLEXPORT void* RIVE_LoadFromBuffer(void* buffer, size_t buffer_size) {
     InitRiveContext();
 
@@ -171,6 +191,15 @@ extern "C" DM_DLLEXPORT void* RIVE_LoadFromBuffer(void* buffer, size_t buffer_si
 
         rive::setContourQuality(out->m_Renderer, 0.8888888888888889f);
         rive::setClippingSupport(out->m_Renderer, true);
+
+        UpdateBones(out);
+
+        bool bones_ok = riveplugin::ValidateBoneNames(&out->m_Bones);
+        if (!bones_ok) {
+            riveplugin::FreeBones(&out->m_Bones);
+            out->m_Bones.SetSize(0);
+            out->m_Roots.SetSize(0);
+        }
     }
 
     return (void*)out;
@@ -227,20 +256,25 @@ extern "C" DM_DLLEXPORT const char* RIVE_GetAnimation(void* _rive_file, int i) {
     return name;
 }
 
-static rive::LinearAnimation* FindAnimation(rive::File* riv, const char* name)
-{
-    rive::Artboard* artboard = riv->artboard();
-    int num_animations = artboard->animationCount();
-    for (int i = 0; i < num_animations; ++i)
-    {
-        rive::LinearAnimation* animation = artboard->animation(i);
-        const char* animname = animation->name().c_str();
-        if (strcmp(name, animname) == 0)
-        {
-            return animation;
-        }
+
+extern "C" DM_DLLEXPORT int32_t RIVE_GetNumBones(void* _rive_file) {
+    RiveFile* file = TO_RIVE_FILE(_rive_file);
+    CHECK_FILE_RETURN(file);
+
+    return file->m_Bones.Size();
+}
+
+
+extern "C" DM_DLLEXPORT const char* RIVE_GetBone(void* _rive_file, int i) {
+    RiveFile* file = TO_RIVE_FILE(_rive_file);
+    CHECK_FILE_RETURN(file);
+
+    if (i < 0 || i >= (int)file->m_Bones.Size()) {
+        dmLogError("%s: Bone index %d is not in range [0, %u]", __FUNCTION__, i, (uint32_t)file->m_Bones.Size());
+        return 0;
     }
-    return 0;
+
+    return file->m_Bones[i]->m_Bone->name().c_str();
 }
 
 
@@ -259,6 +293,7 @@ static rive::LinearAnimation* FindAnimation(rive::File* riv, const char* name)
 //     }
 //     return 0;
 // }
+
 extern "C" DM_DLLEXPORT int RIVE_GetVertexSize() {
     return sizeof(RivePluginVertex);
 }
