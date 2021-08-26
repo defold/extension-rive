@@ -226,4 +226,10 @@ bool ValidateBoneNames(dmArray<RiveBone*>* bones)
 }
 
 
+const char* GetBoneName(RiveBone* bone)
+{
+    return bone->m_Bone->name().c_str();
+}
+
+
 } // namespace

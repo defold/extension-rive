@@ -26,4 +26,6 @@ namespace riveplugin
 
     // Makes sure the bone names are unique
     bool ValidateBoneNames(dmArray<RiveBone*>* bones);
+
+    const char* GetBoneName(RiveBone* bone);
 }

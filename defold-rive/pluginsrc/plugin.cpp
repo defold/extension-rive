@@ -274,7 +274,7 @@ extern "C" DM_DLLEXPORT const char* RIVE_GetBone(void* _rive_file, int i) {
         return 0;
     }
 
-    return file->m_Bones[i]->m_Bone->name().c_str();
+    return GetBoneName(file->m_Bones[i]);
 }
 
 
