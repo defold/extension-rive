@@ -249,7 +249,12 @@ namespace rive
     , m_VertexBuffer(0)
     , m_IndexBuffer(0)
     {
-        dmLogError("Lib tess is disabled for this platform!");
+        static int log_once = 1;
+        if (log_once)
+        {
+            log_once = 0;
+            dmLogError("Lib tess is disabled for this platform!");
+        }
     }
 
     TessellationRenderPath::~TessellationRenderPath()
