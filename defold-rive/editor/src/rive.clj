@@ -177,17 +177,8 @@
 (defn- plugin-get-animation ^String [handle index]
   (plugin-invoke-static rive-plugin-cls "RIVE_GetAnimation" (into-array Class [rive-plugin-pointer-cls Integer/TYPE]) [handle (int index)]))
 
-(defn- plugin-get-aabb-min-x ^double [handle]
-  (plugin-invoke-static rive-plugin-cls "RIVE_GetAABBMinX" (into-array Class [rive-plugin-pointer-cls]) [handle]))
-
-(defn- plugin-get-aabb-min-y ^double [handle]
-  (plugin-invoke-static rive-plugin-cls "RIVE_GetAABBMinY" (into-array Class [rive-plugin-pointer-cls]) [handle]))
-
-(defn- plugin-get-aabb-max-x ^double [handle]
-  (plugin-invoke-static rive-plugin-cls "RIVE_GetAABBMaxX" (into-array Class [rive-plugin-pointer-cls]) [handle]))
-
-(defn- plugin-get-aabb-max-y ^double [handle]
-  (plugin-invoke-static rive-plugin-cls "RIVE_GetAABBMaxY" (into-array Class [rive-plugin-pointer-cls]) [handle]))
+(defn- plugin-get-aabb [handle]
+  (plugin-invoke-static rive-plugin-cls "RIVE_GetAABB" (into-array Class [rive-plugin-pointer-cls]) [handle]))
 
 (defn- plugin-get-vertex-size ^double []
   (plugin-invoke-static rive-plugin-cls "RIVE_GetVertexSize" (into-array Class []) []))
@@ -208,11 +199,8 @@
     animations))
 
 (defn- get-aabb [handle]
-  (let [min-x  (plugin-get-aabb-min-x handle)
-        min-y  (plugin-get-aabb-min-y handle)
-        max-x  (plugin-get-aabb-max-x handle)
-        max-y  (plugin-get-aabb-max-y handle)
-        aabb (geom/coords->aabb [min-x min-y 0] [max-x max-y 0])]
+  (let [paabb (plugin-get-aabb handle)
+        aabb (geom/coords->aabb [(.-minX paabb) (.-minY paabb) 0] [(.-maxX paabb) (.-maxY paabb) 0])]
     aabb))
 
 (defn- rive-file->vertices [rive-handle dt]

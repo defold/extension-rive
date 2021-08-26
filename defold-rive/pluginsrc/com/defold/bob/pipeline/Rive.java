@@ -13,10 +13,13 @@ import java.io.InputStream;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
+import java.util.List;
+import java.util.Arrays;
 
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 import com.sun.jna.PointerType;
+import com.sun.jna.Structure;
 
 public class Rive {
 
@@ -47,10 +50,25 @@ public class Rive {
     public static native String RIVE_GetAnimation(RivePointer rive, int index);
 
     // TODO: Create a jna Structure for this
-    public static native float RIVE_GetAABBMinX(RivePointer rive);
-    public static native float RIVE_GetAABBMinY(RivePointer rive);
-    public static native float RIVE_GetAABBMaxX(RivePointer rive);
-    public static native float RIVE_GetAABBMaxY(RivePointer rive);
+    // Structures in JNA
+    // https://java-native-access.github.io/jna/3.5.1/javadoc/overview-summary.html#structures
+    static public class AABB extends Structure {
+        public float minX, minY, maxX, maxY;
+        protected List getFieldOrder() {
+            return Arrays.asList(new String[] {"minX", "minY", "maxX", "maxY"});
+        }
+        public AABB() {
+            this.minX = this.minY = this.maxX = this.maxY = 0;
+        }
+    }
+
+    public static native void RIVE_GetAABBInternal(RivePointer rive, AABB aabb);
+
+    public static AABB RIVE_GetAABB(RivePointer rive) {
+        AABB aabb = new AABB();
+        RIVE_GetAABBInternal(rive, aabb);
+        return aabb;
+    }
 
     public static native void RIVE_UpdateVertices(RivePointer rive, float dt);
     public static native int RIVE_GetVertexSize(); // size in bytes per vertex

@@ -56,6 +56,11 @@ struct Vec4
     float x, y, z, w;
 };
 
+struct AABB
+{
+    float minX, minY, maxX, maxY;
+};
+
 struct Matrix4
 {
     float m[16];
@@ -294,58 +299,25 @@ extern "C" DM_DLLEXPORT void* RIVE_GetVertices(void* _rive_file, void* _buffer, 
     return 0;
 }
 
-extern "C" DM_DLLEXPORT float RIVE_GetAABBMinX(void* _rive_file) {
+extern "C" DM_DLLEXPORT void RIVE_GetAABBInternal(void* _rive_file, AABB* aabb)
+{
     RiveFile* file = TO_RIVE_FILE(_rive_file);
     if (!file) {
-        return 0;
+        return;
     }
     rive::Artboard* artboard = file->m_File->artboard();
     if (!artboard) {
-        return 0;
+        return;
     }
-    rive::AABB bounds = artboard->bounds();
-    return bounds.minX - (bounds.maxX - bounds.minX) * 0.5f;
-}
 
-extern "C" DM_DLLEXPORT float RIVE_GetAABBMinY(void* _rive_file) {
-    RiveFile* file = TO_RIVE_FILE(_rive_file);
-    if (!file) {
-        return 0;
-    }
-    rive::Artboard* artboard = file->m_File->artboard();
-    if (!artboard) {
-        return 0;
-    }
     rive::AABB bounds = artboard->bounds();
-    return bounds.minY - (bounds.maxY - bounds.minY) * 0.5f;
+    float cx = (bounds.maxX - bounds.minX) * 0.5f;
+    float cy = (bounds.maxY - bounds.minY) * 0.5f;
+    aabb->minX = bounds.minX - cx;
+    aabb->minY = bounds.minY - cy;
+    aabb->maxX = bounds.maxX - cx;
+    aabb->maxY = bounds.maxY - cy;
 }
-
-extern "C" DM_DLLEXPORT float RIVE_GetAABBMaxX(void* _rive_file) {
-    RiveFile* file = TO_RIVE_FILE(_rive_file);
-    if (!file) {
-        return 0;
-    }
-    rive::Artboard* artboard = file->m_File->artboard();
-    if (!artboard) {
-        return 0;
-    }
-    rive::AABB bounds = artboard->bounds();
-    return bounds.maxX - (bounds.maxX - bounds.minX) * 0.5f;
-}
-
-extern "C" DM_DLLEXPORT float RIVE_GetAABBMaxY(void* _rive_file) {
-    RiveFile* file = TO_RIVE_FILE(_rive_file);
-    if (!file) {
-        return 0;
-    }
-    rive::Artboard* artboard = file->m_File->artboard();
-    if (!artboard) {
-        return 0;
-    }
-    rive::AABB bounds = artboard->bounds();
-    return bounds.maxY - (bounds.maxY - bounds.minY) * 0.5f;
-}
-
 
 static rive::HBuffer RiveRequestBufferCallback(rive::HBuffer buffer, rive::BufferType type, void* data, unsigned int dataSize, void* userData)
 {
