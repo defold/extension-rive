@@ -140,6 +140,16 @@ static RiveFile* ToRiveFile(void* _rive_file, const char* fnname)
 
 #define TO_RIVE_FILE(_P_) ToRiveFile(_P_, __FUNCTION__);
 
+#define CHECK_FILE_RETURN(_P_) \
+    if (!(_P_) || !(_P_)->m_File) { \
+        return 0; \
+    }
+
+#define CHECK_ARTBOARD_RETURN(_P_) \
+    if (!(_P_)) { \
+        dmLogError("%s: File has no artboard", __FUNCTION__); \
+        return 0; \
+    }
 extern "C" DM_DLLEXPORT void* RIVE_LoadFromBuffer(void* buffer, size_t buffer_size) {
     InitRiveContext();
 
@@ -192,25 +202,20 @@ extern "C" DM_DLLEXPORT void RIVE_Destroy(void* _rive_file) {
 
 extern "C" DM_DLLEXPORT int32_t RIVE_GetNumAnimations(void* _rive_file) {
     RiveFile* file = TO_RIVE_FILE(_rive_file);
-    if (!file) {
-        return 0;
-    }
+    CHECK_FILE_RETURN(file);
 
     rive::Artboard* artboard = file->m_File->artboard();
+    CHECK_ARTBOARD_RETURN(artboard);
+
     return artboard ? artboard->animationCount() : 0;
 }
 
 extern "C" DM_DLLEXPORT const char* RIVE_GetAnimation(void* _rive_file, int i) {
     RiveFile* file = TO_RIVE_FILE(_rive_file);
-    if (!file) {
-        return 0;
-    }
+    CHECK_FILE_RETURN(file);
 
     rive::Artboard* artboard = file->m_File->artboard();
-    if (!artboard) {
-        dmLogError("%s: File has no animations", __FUNCTION__);
-        return 0;
-    }
+    CHECK_ARTBOARD_RETURN(artboard);
 
     if (i < 0 || i >= artboard->animationCount()) {
         dmLogError("%s: Animation index %d is not in range [0, %zu]", __FUNCTION__, i, artboard->animationCount());
@@ -238,6 +243,22 @@ static rive::LinearAnimation* FindAnimation(rive::File* riv, const char* name)
     return 0;
 }
 
+
+// static rive::LinearAnimation* FindAnimation(rive::File* riv, const char* name)
+// {
+//     rive::Artboard* artboard = riv->artboard();
+//     int num_animations = artboard->animationCount();
+//     for (int i = 0; i < num_animations; ++i)
+//     {
+//         rive::LinearAnimation* animation = artboard->animation(i);
+//         const char* animname = animation->name().c_str();
+//         if (strcmp(name, animname) == 0)
+//         {
+//             return animation;
+//         }
+//     }
+//     return 0;
+// }
 extern "C" DM_DLLEXPORT int RIVE_GetVertexSize() {
     return sizeof(RivePluginVertex);
 }
@@ -248,7 +269,7 @@ static void GenerateVertices(RiveFile* file);
 
 extern "C" DM_DLLEXPORT void RIVE_UpdateVertices(void* _rive_file, float dt) {
     RiveFile* file = TO_RIVE_FILE(_rive_file);
-    if (!file) {
+    if (!file || !file->m_File) {
         return;
     }
 
@@ -268,17 +289,13 @@ extern "C" DM_DLLEXPORT void RIVE_UpdateVertices(void* _rive_file, float dt) {
 
 extern "C" DM_DLLEXPORT int RIVE_GetVertexCount(void* _rive_file) {
     RiveFile* file = TO_RIVE_FILE(_rive_file);
-    if (!file) {
-        return 0;
-    }
+    CHECK_FILE_RETURN(file);
     return file->m_Vertices.Size();
 }
 
 extern "C" DM_DLLEXPORT void* RIVE_GetVertices(void* _rive_file, void* _buffer, size_t buffer_size) {
     RiveFile* file = TO_RIVE_FILE(_rive_file);
-    if (!file) {
-        return 0;
-    }
+    CHECK_FILE_RETURN(file);
 
     float* buffer = (float*)_buffer;
 
@@ -296,52 +313,36 @@ extern "C" DM_DLLEXPORT void* RIVE_GetVertices(void* _rive_file, void* _buffer, 
 
 extern "C" DM_DLLEXPORT float RIVE_GetAABBMinX(void* _rive_file) {
     RiveFile* file = TO_RIVE_FILE(_rive_file);
-    if (!file) {
-        return 0;
-    }
+    CHECK_FILE_RETURN(file);
     rive::Artboard* artboard = file->m_File->artboard();
-    if (!artboard) {
-        return 0;
-    }
+    CHECK_ARTBOARD_RETURN(artboard);
     rive::AABB bounds = artboard->bounds();
     return bounds.minX - (bounds.maxX - bounds.minX) * 0.5f;
 }
 
 extern "C" DM_DLLEXPORT float RIVE_GetAABBMinY(void* _rive_file) {
     RiveFile* file = TO_RIVE_FILE(_rive_file);
-    if (!file) {
-        return 0;
-    }
+    CHECK_FILE_RETURN(file);
     rive::Artboard* artboard = file->m_File->artboard();
-    if (!artboard) {
-        return 0;
-    }
+    CHECK_ARTBOARD_RETURN(artboard);
     rive::AABB bounds = artboard->bounds();
     return bounds.minY - (bounds.maxY - bounds.minY) * 0.5f;
 }
 
 extern "C" DM_DLLEXPORT float RIVE_GetAABBMaxX(void* _rive_file) {
     RiveFile* file = TO_RIVE_FILE(_rive_file);
-    if (!file) {
-        return 0;
-    }
+    CHECK_FILE_RETURN(file);
     rive::Artboard* artboard = file->m_File->artboard();
-    if (!artboard) {
-        return 0;
-    }
+    CHECK_ARTBOARD_RETURN(artboard);
     rive::AABB bounds = artboard->bounds();
     return bounds.maxX - (bounds.maxX - bounds.minX) * 0.5f;
 }
 
 extern "C" DM_DLLEXPORT float RIVE_GetAABBMaxY(void* _rive_file) {
     RiveFile* file = TO_RIVE_FILE(_rive_file);
-    if (!file) {
-        return 0;
-    }
+    CHECK_FILE_RETURN(file);
     rive::Artboard* artboard = file->m_File->artboard();
-    if (!artboard) {
-        return 0;
-    }
+    CHECK_ARTBOARD_RETURN(artboard);
     rive::AABB bounds = artboard->bounds();
     return bounds.maxY - (bounds.maxY - bounds.minY) * 0.5f;
 }
