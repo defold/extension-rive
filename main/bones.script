@@ -1,0 +1,80 @@
+function init(self)
+	-- Add initialization code here
+	-- Learn more: https://defold.com/manuals/script/
+	-- Remove this function if not needed
+
+	-- Marty (fixed)
+	local names = {"hips","Belly","Chest","Neck","Head","Hair","Arm_right","Forearm_right","Hand_right","Arm_left","Forearm_left","Hand_left","Pocket_rignt","Pocket_left","Hoverboard","Shoe_right_foot","Shoe_right","Root Bone R","Shoe_left_foot","Shoe_left","Root Bone L","Hoverboard_ctrl"}
+	--local names = {"hips"}
+	--local names = {"Neck"}
+	--local names = {"Neck", "hips"}
+	--local names = {"Neck", "hips", "Hand_right"}
+	--local names = {}
+
+	--rive.cancel("#rivemodel")
+
+	local pos = go.get_position()
+	
+	--local dbg = factory.create("#bonefactory", vmath.vector3(0,0,0), nil, nil, 0.5 )
+	--dbg = factory.create("#bonefactory", vmath.vector3(100,0,0), nil, nil, 0.5 )
+	--dbg = factory.create("#bonefactory", vmath.vector3(0,100,0), nil, nil, 0.5 )
+
+	--dbg = factory.create("#bonefactory", vmath.vector3(pos.x,0,0), nil, nil, 0.5 )
+	--dbg = factory.create("#bonefactory", vmath.vector3(0,pos.y,0), nil, nil, 0.5 )
+
+	--dbg = factory.create("#bonefactory", pos, nil, nil, 1 )
+	
+	--go.set(msg.url(nil, id, "sprite"), "tint", vmath.vector4(1,0,0,1))
+
+	print("GO POS", go.get_position(), go.get_world_position())
+
+	-- 729 - 486 = 243  -> 243*2 = 486
+	-- 498 - 332 = 166  -> 166*2 = 332
+	for _, name in ipairs(names) do		
+		local bone_go = rive.get_go("#rivemodel", name)
+
+		local id = factory.create("#bonefactory", vmath.vector3(0,0,0))
+		--go.set_scale(0.2, id)
+		go.set_parent(id, bone_go, false)
+
+		self.name = name
+		self.bone_go = id
+		print("BONE POS", name, go.get_position(bone_go), go.get_world_position(bone_go))
+		
+		--print(name, ":", bone_go, "pos", go.get_position(bone_go))
+	end
+
+	--go.animate(".", "position.x", go.PLAYBACK_LOOP_PINGPONG, pos.x + 100, go.EASING_LINEAR, 2)
+
+	self.first = true
+end
+function update(self, dt)
+	if self.first and self.bone_go then
+		self.first = false
+		print("update BONE POS", self.name, go.get_position(self.bone_go), go.get_world_position(self.bone_go))
+	end
+end
+
+function on_message(self, message_id, message, sender)
+	-- Add message-handling code here
+	-- Learn more: https://defold.com/manuals/message-passing/
+	-- Remove this function if not needed
+end
+
+function on_input(self, action_id, action)
+	-- Add input-handling code here. The game object this script is attached to
+	-- must have acquired input focus:
+	--
+	--    msg.post(".", "acquire_input_focus")
+	--
+	-- All mapped input bindings will be received. Mouse and touch input will
+	-- be received regardless of where on the screen it happened.
+	-- Learn more: https://defold.com/manuals/input/
+	-- Remove this function if not needed
+end
+
+function on_reload(self)
+	-- Add reload-handling code here
+	-- Learn more: https://defold.com/manuals/hot-reload/
+	-- Remove this function if not needed
+end

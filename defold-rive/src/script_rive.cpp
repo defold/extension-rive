@@ -111,10 +111,52 @@ namespace dmRive
         return 0;
     }
 
+    /*# retrieve the game object corresponding to a rive artboard skeleton bone
+     * Returns the id of the game object that corresponds to a specified skeleton bone.
+     * The returned game object can be used for parenting and transform queries.
+     * This function has complexity `O(n)`, where `n` is the number of bones in the rive model skeleton.
+     * Game objects corresponding to a rive model skeleton bone can not be individually deleted.
+     *
+     * @name rive.get_go
+     * @param url [type:string|hash|url] the rive model to query
+     * @param bone_id [type:string|hash] id of the corresponding bone
+     * @return id [type:hash] id of the game object
+     * @examples
+     *
+     * The following examples assumes that the rive model has id "rivemodel".
+     *
+     * How to parent the game object of the calling script to the "right_hand" bone of the rive model in a player game object:
+     *
+     * ```lua
+     * function init(self)
+     *   local parent = rive.get_go("player#rivemodel", "right_hand")
+     *   msg.post(".", "set_parent", {parent_id = parent})
+     * end
+     * ```
+     */
+    static int RiveComp_GetGO(lua_State* L)
+    {
+        DM_LUA_STACK_CHECK(L, 1);
+
+        RiveComponent* component = 0;
+        dmGameObject::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
+
+        dmhash_t bone_name = dmScript::CheckHashOrString(L, 2);
+
+        dmhash_t instance_id = 0;
+        if (!CompRiveGetBoneID(component, bone_name, &instance_id)) {
+            return DM_LUA_ERROR("the bone '%s' could not be found", dmHashReverseSafe64(bone_name));
+        }
+
+        dmScript::PushHash(L, instance_id);
+        return 1;
+    }
+
     static const luaL_reg RIVE_FUNCTIONS[] =
     {
         {"play_anim", RiveComp_PlayAnim},
         {"cancel",    RiveComp_Cancel},
+        {"get_go",    RiveComp_GetGO},
         {0, 0}
     };
 

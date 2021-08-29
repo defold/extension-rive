@@ -32,7 +32,7 @@ __declspec(dllexport) int dummyFunc()
 #include <stdio.h>
 #include <stdint.h>
 
-#include "bones.h"
+#include <common/bones.h>
 
 struct RiveBuffer
 {
@@ -67,21 +67,22 @@ struct Matrix4
     float m[16];
 };
 
-// struct Command
-// {
-//     rive::DrawBuffers   m_Buffers;
-//     Vec4                m_Color;
-//     Matrix4x4           m_Transform;
-//     uint32_t            m_IsClipping : 1;
-// };
+
+struct BoneInteral
+{
+    const char* name;
+    int parent;
+    float posX, posY, rotation, scaleX, scaleY, length;
+};
 
 struct RiveFile
 {
     rive::HRenderer     m_Renderer; // Separate renderer for multi threading
     rive::File*         m_File;
+    const char*         m_Path;
     dmArray<RivePluginVertex> m_Vertices;
-    dmArray<riveplugin::RiveBone*>  m_Roots;
-    dmArray<riveplugin::RiveBone*>  m_Bones;
+    dmArray<dmRive::RiveBone*>  m_Roots;
+    dmArray<dmRive::RiveBone*>  m_Bones;
 };
 
 typedef RiveFile* HRiveFile;
@@ -160,22 +161,31 @@ static RiveFile* ToRiveFile(void* _rive_file, const char* fnname)
     }
 
 
-static void UpdateBones(RiveFile* file)
+static void SetupBones(RiveFile* file)
 {
+    file->m_Roots.SetSize(0);
+    file->m_Bones.SetSize(0);
+
     rive::Artboard* artboard = file->m_File->artboard();
     if (!artboard) {
         return;
     }
 
-    file->m_Roots.SetSize(0);
-    file->m_Bones.SetSize(0);
-    riveplugin::BuildBoneHierarchy(artboard, &file->m_Roots, &file->m_Bones);
+    dmRive::BuildBoneHierarchy(artboard, &file->m_Roots, &file->m_Bones);
 
-    riveplugin::DebugHierarchy(&file->m_Roots);
+    dmRive::DebugBoneHierarchy(&file->m_Roots);
+
+    bool bones_ok = dmRive::ValidateBoneNames(&file->m_Bones);
+    if (!bones_ok) {
+        dmLogWarning("Failed to validate bones for %s", file->m_Path);
+        dmRive::FreeBones(&file->m_Bones);
+        file->m_Bones.SetSize(0);
+        file->m_Roots.SetSize(0);
+    }
 }
 
 
-extern "C" DM_DLLEXPORT void* RIVE_LoadFromBuffer(void* buffer, size_t buffer_size) {
+extern "C" DM_DLLEXPORT void* RIVE_LoadFromBuffer(void* buffer, size_t buffer_size, const char* path) {
     InitRiveContext();
 
     rive::File* file          = 0;
@@ -190,21 +200,19 @@ extern "C" DM_DLLEXPORT void* RIVE_LoadFromBuffer(void* buffer, size_t buffer_si
     }
 
     RiveFile* out = new RiveFile;
+    out->m_Path = 0;
+    out->m_File = 0;
+    out->m_Renderer = 0;
+
     if (file) {
+        out->m_Path = strdup(path);
         out->m_File = file;
         out->m_Renderer = rive::createRenderer(rive::g_Ctx);
 
         rive::setContourQuality(out->m_Renderer, 0.8888888888888889f);
         rive::setClippingSupport(out->m_Renderer, true);
 
-        UpdateBones(out);
-
-        bool bones_ok = riveplugin::ValidateBoneNames(&out->m_Bones);
-        if (!bones_ok) {
-            riveplugin::FreeBones(&out->m_Bones);
-            out->m_Bones.SetSize(0);
-            out->m_Roots.SetSize(0);
-        }
+        SetupBones(out);
     }
 
     return (void*)out;
@@ -220,7 +228,7 @@ extern "C" DM_DLLEXPORT void* RIVE_LoadFromPath(const char* path) {
         return 0;
     }
 
-    void* p = RIVE_LoadFromBuffer(buffer, buffer_size);
+    void* p = RIVE_LoadFromBuffer(buffer, buffer_size, path);
     free(buffer);
     return p;
 }
@@ -230,6 +238,7 @@ extern "C" DM_DLLEXPORT void RIVE_Destroy(void* _rive_file) {
     if (file->m_Renderer) {
         rive::destroyRenderer(file->m_Renderer);
     }
+    free((void*)file->m_Path);
     delete file->m_File;
     delete file;
 }
@@ -269,17 +278,62 @@ extern "C" DM_DLLEXPORT int32_t RIVE_GetNumBones(void* _rive_file) {
     return file->m_Bones.Size();
 }
 
-
-extern "C" DM_DLLEXPORT const char* RIVE_GetBone(void* _rive_file, int i) {
+extern "C" DM_DLLEXPORT void RIVE_GetBoneInternal(void* _rive_file, int i, BoneInteral* outbone) {
     RiveFile* file = TO_RIVE_FILE(_rive_file);
-    CHECK_FILE_RETURN(file);
+    if (!file) {
+        return;
+    }
 
     if (i < 0 || i >= (int)file->m_Bones.Size()) {
         dmLogError("%s: Bone index %d is not in range [0, %u]", __FUNCTION__, i, (uint32_t)file->m_Bones.Size());
+        return;
+    }
+
+    dmRive::RiveBone* rivebone = file->m_Bones[i];
+    outbone->name = dmRive::GetBoneName(rivebone);
+
+    dmRive::RiveBone* parent = rivebone->m_Parent;
+    outbone->parent = parent ? dmRive::GetBoneIndex(parent) : -1;
+
+    dmRive::GetBonePos(rivebone, &outbone->posX, &outbone->posY);
+    dmRive::GetBoneScale(rivebone, &outbone->scaleX, &outbone->scaleY);
+    outbone->rotation = dmRive::GetBoneRotation(rivebone);
+    outbone->length = dmRive::GetBoneLength(rivebone);
+}
+
+extern "C" DM_DLLEXPORT int RIVE_GetNumChildBones(void* _rive_file, int bone_index)
+{
+    RiveFile* file = TO_RIVE_FILE(_rive_file);
+    CHECK_FILE_RETURN(file);
+
+    if (bone_index < 0 || bone_index >= (int)file->m_Bones.Size()) {
+        dmLogError("%s: Bone index %d is not in range [0, %u]", __FUNCTION__, bone_index, (uint32_t)file->m_Bones.Size());
         return 0;
     }
 
-    return GetBoneName(file->m_Bones[i]);
+    dmRive::RiveBone* bone = file->m_Bones[bone_index];
+    return (int)bone->m_Children.Size();
+}
+
+extern "C" DM_DLLEXPORT int RIVE_GetChildBone(void* _rive_file, int bone_index, int child_index)
+{
+    RiveFile* file = TO_RIVE_FILE(_rive_file);
+    CHECK_FILE_RETURN(file);
+
+    if (bone_index < 0 || bone_index >= (int)file->m_Bones.Size()) {
+        dmLogError("%s: Bone index %d is not in range [0, %u]", __FUNCTION__, bone_index, (uint32_t)file->m_Bones.Size());
+        return -1;
+    }
+
+    dmRive::RiveBone* bone = file->m_Bones[bone_index];
+
+    if (child_index < 0 || child_index >= (int)bone->m_Children.Size()) {
+        dmLogError("%s: Child index %d is not in range [0, %u]", __FUNCTION__, child_index, (uint32_t)bone->m_Children.Size());
+        return -1;
+    }
+
+    dmRive::RiveBone* child = bone->m_Children[child_index];
+    return dmRive::GetBoneIndex(child);
 }
 
 

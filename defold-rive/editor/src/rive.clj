@@ -160,6 +160,7 @@
 
 (def rive-plugin-cls (workspace/load-class! "com.dynamo.bob.pipeline.Rive"))
 (def rive-plugin-pointer-cls (workspace/load-class! "com.dynamo.bob.pipeline.Rive$RivePointer"))
+(def rive-plugin-aabb-cls (workspace/load-class! "com.dynamo.bob.pipeline.Rive$AABB"))
 (def byte-array-cls (Class/forName "[B"))
 (def float-array-cls (Class/forName "[F"))
 
@@ -168,8 +169,8 @@
   (let [method (.getMethod cls name types)]
     (.invoke method nil (into-array Object args))))
 
-(defn- plugin-load-file [bytes]
-  (plugin-invoke-static rive-plugin-cls "RIVE_LoadFileFromBuffer" (into-array Class [byte-array-cls]) [bytes]))
+(defn- plugin-load-file [bytes path]
+  (plugin-invoke-static rive-plugin-cls "RIVE_LoadFileFromBuffer" (into-array Class [byte-array-cls String]) [bytes path]))
 
 (defn- plugin-get-num-animations [handle]
   (plugin-invoke-static rive-plugin-cls "RIVE_GetNumAnimations" (into-array Class [rive-plugin-pointer-cls]) [handle]))
@@ -217,7 +218,7 @@
 (defn- load-rive-file
   [project node-id resource]
   (let [content (resource->bytes resource)
-        rive-handle (plugin-load-file content)
+        rive-handle (plugin-load-file content (resource/resource->proj-path resource))
         animations (get-animations rive-handle)
         aabb (get-aabb rive-handle)
         vertices (rive-file->vertices rive-handle 0.0)

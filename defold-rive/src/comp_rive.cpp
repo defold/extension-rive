@@ -10,16 +10,21 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include <rive/file.hpp>
-#include <rive/renderer.hpp>
 #include <rive/animation/linear_animation_instance.hpp>
 #include <rive/animation/loop.hpp>
+#include <rive/bones/bone.hpp>
+#include <rive/file.hpp>
+#include <rive/renderer.hpp>
+
 #include <riverender/rive_render_api.h>
 
 #include "comp_rive.h"
 #include "res_rive_data.h"
 #include "res_rive_scene.h"
 #include "res_rive_model.h"
+
+#include <common/bones.h>
+
 
 #include <string.h> // memset
 
@@ -38,7 +43,7 @@
 #include <dmsdk/gamesys/property.h>
 #include <dmsdk/dlib/object_pool.h>
 
-//#include <gameobject/gameobject_ddf.h> // for creating bones where the rive scene bones are
+#include <gameobject/gameobject_ddf.h> // for creating bones where the rive scene bones are
 #include <dmsdk/graphics/graphics.h>
 #include <dmsdk/render/render.h>
 #include <gameobject/gameobject_ddf.h>
@@ -76,6 +81,9 @@ namespace dmRive
     static void CompRiveAnimationReset(RiveComponent* component);
     static bool PlayAnimation(RiveComponent* component, dmRive::RiveSceneData* data, dmhash_t anim_id,
                     dmGameObject::Playback playback_mode, float offset, float playback_rate);
+    static bool CreateBones(struct RiveWorld* world, RiveComponent* component, dmRive::RiveSceneData* data);
+    static void DeleteBones(RiveComponent* component);
+    static void UpdateBones(RiveComponent* component);
 
     static rive::HBuffer RiveRequestBufferCallback(rive::HBuffer buffer, rive::BufferType type, void* data, unsigned int dataSize, void* userData);
     static void          RiveDestroyBufferCallback(rive::HBuffer buffer, void* userData);
@@ -228,11 +236,16 @@ namespace dmRive
         component->m_ReHash = 0;
     }
 
+    static inline RiveComponent* GetComponentFromIndex(RiveWorld* world, int index)
+    {
+        return world->m_Components.Get(index);
+    }
+
     void* CompRiveGetComponent(const dmGameObject::ComponentGetParams& params)
     {
         RiveWorld* world = (RiveWorld*)params.m_World;
         uint32_t index = (uint32_t)*params.m_UserData;
-        return &world->m_Components.Get(index);
+        return GetComponentFromIndex(world, index);
     }
 
     dmGameObject::CreateResult CompRiveCreate(const dmGameObject::ComponentCreateParams& params)
@@ -244,9 +257,11 @@ namespace dmRive
             dmLogError("Rive instance could not be created since the buffer is full (%d).", world->m_Components.Capacity());
             return dmGameObject::CREATE_RESULT_UNKNOWN_ERROR;
         }
-        uint32_t index = world->m_Components.Alloc();
+
         RiveComponent* component = new RiveComponent;
         memset(component, 0, sizeof(RiveComponent));
+
+        uint32_t index = world->m_Components.Alloc();
         world->m_Components.Set(index, component);
         component->m_Instance = params.m_Instance;
         component->m_Transform = dmTransform::Transform(Vector3(params.m_Position), params.m_Rotation, 1.0f);
@@ -261,9 +276,10 @@ namespace dmRive
         component->m_DoRender = 0;
         component->m_RenderConstants = 0;
 
-        // TODO: Create the bone hierarchy
-
         dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
+
+        CreateBones(world, component, data);
+
         dmhash_t anim_id = dmHashString64(component->m_Resource->m_DDF->m_DefaultAnimation);
         if (!PlayAnimation(component, data, anim_id, dmGameObject::PLAYBACK_LOOP_FORWARD, 0.0f, 1.0f))
         {
@@ -274,11 +290,6 @@ namespace dmRive
 
         *params.m_UserData = (uintptr_t)index;
         return dmGameObject::CREATE_RESULT_OK;
-    }
-
-    static inline RiveComponent* GetComponentFromIndex(RiveWorld* world, int index)
-    {
-        return world->m_Components.Get(index);
     }
 
     static void DestroyComponent(RiveWorld* world, uint32_t index)
@@ -864,6 +875,8 @@ namespace dmRive
             artboard->draw(rive_renderer);
             rive_renderer->restore();
 
+            UpdateBones(&component); // after the artboard->advance();
+
             if (component.m_ReHash || (component.m_RenderConstants && dmGameSystem::AreRenderConstantsUpdated(component.m_RenderConstants)))
             {
                 ReHash(&component);
@@ -1262,6 +1275,125 @@ namespace dmRive
         return dmGameObject::RESULT_OK;
     }
 
+
+    static void DeleteBones(RiveComponent* component)
+    {
+        dmGameObject::HInstance rive_instance = component->m_Instance;
+        dmGameObject::HCollection collection = dmGameObject::GetCollection(rive_instance);
+
+        uint32_t num_bones = component->m_BoneGOs.Size();
+        for (uint32_t i = 0; i < num_bones; ++i)
+        {
+            dmGameObject::HInstance bone_instance = component->m_BoneGOs[i];
+            if (bone_instance)
+            {
+                dmGameObject::Delete(collection, bone_instance, false);
+            }
+        }
+        component->m_BoneGOs.SetSize(0);
+    }
+
+    static void UpdateBones(RiveComponent* component)
+    {
+        dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
+
+        rive::Artboard* artboard    = data->m_File->artboard();
+
+        rive::AABB bounds = artboard->bounds();
+        float cx = (bounds.maxX - bounds.minX) * 0.5f;
+        float cy = (bounds.maxY - bounds.minY) * 0.5f;
+
+        uint32_t num_bones = component->m_BoneGOs.Size();
+
+        dmVMath::Point3 go_pos = dmGameObject::GetPosition(component->m_Instance);
+
+        for (uint32_t i = 0; i < num_bones; ++i)
+        {
+            dmGameObject::HInstance bone_instance = component->m_BoneGOs[i];
+            dmRive::RiveBone* bone = data->m_Bones[i];
+
+            const rive::Mat2D& rt = bone->m_Bone->worldTransform();
+
+            dmVMath::Vector4 x_axis(rt.xx(), rt.xy(), 0, 0);
+            dmVMath::Vector4 y_axis(rt.yx(), rt.yy(), 0, 0);
+
+            float scale_x = length(x_axis);
+            float scale_y = length(y_axis);
+            dmVMath::Vector3 scale(scale_x, scale_y, 1);
+
+            float angle = atan2f(x_axis.getY(), x_axis.getX());
+            Quat rotation = Quat::rotationZ(-angle);
+
+            // Since the Rive space is different, we need to flip the y axis
+            dmVMath::Vector3 pos(rt.tx() - cx, -rt.ty() + cy, 0);
+
+            dmVMath::Matrix4 world_transform(rotation, pos);
+
+            dmTransform::Transform transform = dmTransform::ToTransform(world_transform);
+
+            dmGameObject::SetPosition(bone_instance, Point3(transform.GetTranslation()));
+            dmGameObject::SetRotation(bone_instance, transform.GetRotation());
+            dmGameObject::SetScale(bone_instance, transform.GetScale());
+        }
+    }
+
+    static bool CreateBones(RiveWorld* world, RiveComponent* component, dmRive::RiveSceneData* data)
+    {
+        dmGameObject::HInstance rive_instance = component->m_Instance;
+        dmGameObject::HCollection collection = dmGameObject::GetCollection(rive_instance);
+
+        uint32_t num_bones = data->m_Bones.Size();
+
+        component->m_BoneGOs.SetCapacity(num_bones);
+        component->m_BoneGOs.SetSize(num_bones);
+
+        for (uint32_t i = 0; i < num_bones; ++i)
+        {
+            dmRive::RiveBone* bone = data->m_Bones[i];
+
+            dmGameObject::HInstance bone_instance = dmGameObject::New(collection, 0x0);
+            if (bone_instance == 0x0) {
+                DeleteBones(component);
+                return false;
+            }
+
+            component->m_BoneGOs[i] = bone_instance;
+
+            uint32_t index = dmGameObject::AcquireInstanceIndex(collection);
+            if (index == dmGameObject::INVALID_INSTANCE_POOL_INDEX)
+            {
+                DeleteBones(component);
+                return false;
+            }
+
+            dmhash_t id = dmGameObject::ConstructInstanceId(index);
+            dmGameObject::AssignInstanceIndex(index, bone_instance);
+
+            dmGameObject::Result result = dmGameObject::SetIdentifier(collection, bone_instance, id);
+            if (dmGameObject::RESULT_OK != result)
+            {
+                DeleteBones(component);
+                return false;
+            }
+
+            dmGameObject::SetBone(bone_instance, true);
+
+            // Since we're given the "world" coordinates from the rive bones,
+            // we don't really need a full hierarchy. So we use the actual game object as parent
+            dmGameObject::SetParent(bone_instance, rive_instance);
+        }
+
+        rive::Artboard* artboard = data->m_File->artboard();
+        if (artboard) {
+            artboard->advance(0.0f);
+        }
+
+        // Set the properties
+        UpdateBones(component);
+
+        return true;
+    }
+
     static rive::HBuffer RiveRequestBufferCallback(rive::HBuffer buffer, rive::BufferType type, void* data, unsigned int dataSize, void* userData)
     {
         RiveBuffer* buf = (RiveBuffer*) buffer;
@@ -1299,6 +1431,31 @@ namespace dmRive
     // ******************************************************************************
     // SCRIPTING HELPER FUNCTIONS
     // ******************************************************************************
+
+    bool CompRiveGetBoneID(RiveComponent* component, dmhash_t bone_name, dmhash_t* id)
+    {
+        dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
+        uint32_t num_bones = data->m_Bones.Size();
+
+        // We need the arrays to be matching 1:1 (for lookup using the same indices)
+        if (num_bones == 0 || component->m_BoneGOs.Size() != num_bones) {
+            return false;
+        }
+
+        for (uint32_t i = 0; i < num_bones; ++i)
+        {
+            dmRive::RiveBone* bone = data->m_Bones[i];
+            dmGameObject::HInstance bone_instance = component->m_BoneGOs[i];
+
+            if (bone_name == bone->m_NameHash)
+            {
+                *id = dmGameObject::GetIdentifier(bone_instance);
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
 
 DM_DECLARE_COMPONENT_TYPE(ComponentTypeRive, "rivemodelc", dmRive::CompRiveRegister);

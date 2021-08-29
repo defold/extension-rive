@@ -14,6 +14,7 @@
 #define DM_GAMESYS_COMP_RIVE_H
 
 #include <stdint.h>
+#include <dmsdk/dlib/hash.h>
 #include <dmsdk/dlib/vmath.h>
 #include <dmsdk/dlib/transform.h>
 #include <dmsdk/gameobject/gameobject.h>
@@ -21,6 +22,8 @@
 
 namespace dmRive
 {
+    static const char* RIVE_MODEL_EXT = "rivemodelc";
+
     struct RiveModelResource;
     struct RiveBuffer;
 
@@ -39,7 +42,8 @@ namespace dmRive
         float                                   m_AnimationPlaybackRate;
         int                                     m_AnimationCallbackRef;
 
-        //dmArray<dmGameObject::HInstance>        m_NodeInstances; // Node instances corresponding to the bones
+        dmArray<dmGameObject::HInstance>        m_BoneGOs;
+
         uint32_t                                m_VertexCount;
         uint32_t                                m_IndexCount;
         uint32_t                                m_MixedHash;
@@ -52,6 +56,10 @@ namespace dmRive
     };
 
     // For scripting
+
+    // Get the game object identifier
+    bool CompRiveGetBoneID(RiveComponent* component, dmhash_t bone_name, dmhash_t* id);
+
     // bool CompRiveSetIKTargetInstance(RiveComponent* component, dmhash_t constraint_id, float mix, dmhash_t instance_id);
     // bool CompRiveSetIKTargetPosition(RiveComponent* component, dmhash_t constraint_id, float mix, Vectormath::Aos::Point3 position);
     // bool CompRiveResetIKTarget(RiveComponent* component, dmhash_t constraint_id);

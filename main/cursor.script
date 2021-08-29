@@ -1,0 +1,18 @@
+function init(self)
+	self.url = "#rivemodel"
+	go.set(self.url, "cursor", 1.0)
+	go.animate(self.url, "cursor", go.PLAYBACK_LOOP_FORWARD, 0.0, go.EASING_LINEAR, 1)
+end
+
+function update(self, dt)
+	print("cursor", go.get(self.url, "cursor"))
+end
+
+function on_message(self, message_id, message, sender)
+end
+
+function on_input(self, action_id, action)
+end
+
+function on_reload(self)
+end

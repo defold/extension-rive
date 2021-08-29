@@ -13,6 +13,11 @@
 #ifndef DM_RES_RIVE_DATA_H
 #define DM_RES_RIVE_DATA_H
 
+#include <stdint.h>
+#include <dmsdk/dlib/array.h>
+
+#include <common/bones.h>
+
 namespace dmRive
 {
 	struct RiveLinearAnimationEntry
@@ -26,6 +31,9 @@ namespace dmRive
 		rive::File*               m_File;
 		RiveLinearAnimationEntry* m_LinearAnimations;
 		uint8_t                   m_LinearAnimationCount;
+
+	    dmArray<dmRive::RiveBone*>  m_Roots;
+	    dmArray<dmRive::RiveBone*>  m_Bones;
 	};
 }
 

@@ -24,6 +24,29 @@
 
 namespace dmRive
 {
+    static void SetupBones(RiveSceneData* scene_data, const char* path)
+    {
+        scene_data->m_Roots.SetSize(0);
+        scene_data->m_Bones.SetSize(0);
+
+        rive::Artboard* artboard = scene_data->m_File->artboard();
+        if (!artboard) {
+            return;
+        }
+
+        dmRive::BuildBoneHierarchy(artboard, &scene_data->m_Roots, &scene_data->m_Bones);
+
+        //dmRive::DebugBoneHierarchy(&scene_data->m_Roots);
+
+        bool bones_ok = dmRive::ValidateBoneNames(&scene_data->m_Bones);
+        if (!bones_ok) {
+            dmLogWarning("Failed to validate bones for %s", path);
+            dmRive::FreeBones(&scene_data->m_Bones);
+            scene_data->m_Bones.SetSize(0);
+            scene_data->m_Roots.SetSize(0);
+        }
+    }
+
     static dmResource::Result ResourceType_RiveData_Create(const dmResource::ResourceCreateParams& params)
     {
         rive::File* file          = 0;
@@ -56,6 +79,11 @@ namespace dmRive
                 entry.m_AnimationIndex          = i;
                 entry.m_NameHash                = dmHashString64(animation->name().c_str());
             }
+        }
+
+        if (artboard)
+        {
+            SetupBones(scene_data, params.m_Filename);
         }
 
         params.m_Resource->m_Resource     = (void*) scene_data;
