@@ -18,7 +18,7 @@
 
 namespace dmRive
 {
-#if defined(DM_PLATFORM_OSX)
+#if 0 // defined(DM_PLATFORM_OSX)
 
     static const int SIGNAL_MAX = 64;
     static struct sigaction sigdfl[SIGNAL_MAX];

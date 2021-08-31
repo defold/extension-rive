@@ -278,7 +278,7 @@
 
 ; Node defs
 (g/defnk produce-rivescene-save-value [rive-file-resource]
-  (prn "RIVE" "produce-rivescene-save-value" rive-file-resource)
+  ; rive-file-resource may be nil if the :scene isn't set (as seen in the template.rivescene)
   {:scene (resource/resource->proj-path rive-file-resource)})
    ;:atlas (resource/resource->proj-path atlas-resource)
 
@@ -294,7 +294,6 @@
 ;   (prop-resource-error :fatal _node-id :atlas atlas "Atlas"))
 
 (defn- validate-rivescene-riv-file [_node-id rive-file]
-  ;(prn "RIVE" "validate-rivescene-riv-file" rive-file)
   (prop-resource-error :fatal _node-id :scene rive-file "Riv File"))
 
 (g/defnk produce-rivescene-own-build-errors [_node-id rive-file]
@@ -499,13 +498,12 @@
 
 ; .rivescene
 (defn load-rive-scene [project self resource rivescene]
-  (let [rive-resource (workspace/resolve-resource resource (:scene rivescene))] ; File/ZipResource type
+  (let [rive-file (workspace/resolve-resource resource (:scene rivescene))] ; File/ZipResource type
         ;atlas          (workspace/resolve-resource resource (:atlas rivescene))
-
     (concat
      (g/connect project :default-tex-params self :default-tex-params)
      (g/set-property self
-                     :rive-file rive-resource))))
+                     :rive-file rive-file))))
                       ;:atlas atlas
 
 
@@ -674,7 +672,6 @@
 
 ; The plugin
 (defn load-plugin-rive [workspace]
-  (prn "RIVE" "load-plugin-rive")
   (g/transact (concat (register-resource-types workspace))))
 
 (defn return-plugin []

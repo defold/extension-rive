@@ -173,7 +173,7 @@ static void SetupBones(RiveFile* file)
 
     dmRive::BuildBoneHierarchy(artboard, &file->m_Roots, &file->m_Bones);
 
-    dmRive::DebugBoneHierarchy(&file->m_Roots);
+    //dmRive::DebugBoneHierarchy(&file->m_Roots);
 
     bool bones_ok = dmRive::ValidateBoneNames(&file->m_Bones);
     if (!bones_ok) {
@@ -235,10 +235,18 @@ extern "C" DM_DLLEXPORT void* RIVE_LoadFromPath(const char* path) {
 
 extern "C" DM_DLLEXPORT void RIVE_Destroy(void* _rive_file) {
     RiveFile* file = (RiveFile*)_rive_file;
+    if (file == 0)
+    {
+        return;
+    }
+
     if (file->m_Renderer) {
         rive::destroyRenderer(file->m_Renderer);
     }
     free((void*)file->m_Path);
+
+    dmRive::FreeBones(&file->m_Bones);
+
     delete file->m_File;
     delete file;
 }
