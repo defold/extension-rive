@@ -49,7 +49,7 @@
 (def rive-file-icon "/defold-rive/editor/resources/icons/32/Icons_17-Rive-file.png")
 (def rive-scene-icon "/defold-rive/editor/resources/icons/32/Icons_16-Rive-scene.png")
 (def rive-model-icon "/defold-rive/editor/resources/icons/32/Icons_15-Rive-model.png")
-;(def rive-bone-icon "icons/32/Icons_S_13_radiocircle.png")
+(def rive-bone-icon "/defold-rive/editor/resources/icons/32/Icons_18-Rive-bone.png")
 
 (def rive-file-ext "riv")
 (def rive-scene-ext "rivescene")
@@ -76,33 +76,35 @@
                            (math/euler-z->quat rotation)
                            (Vector3d. (double-array scale))))
 
-; (g/defnode SpineBone
-;   (inherits outline/OutlineNode)
-;   (property name g/Str (dynamic read-only? (g/constantly true)))
-;   (property position types/Vec3
-;             (dynamic edit-type (g/constantly (properties/vec3->vec2 0.0)))
-;             (dynamic read-only? (g/constantly true)))
-;   (property rotation g/Num (dynamic read-only? (g/constantly true)))
-;   (property scale types/Vec3
-;             (dynamic edit-type (g/constantly (properties/vec3->vec2 1.0)))
-;             (dynamic read-only? (g/constantly true)))
-;   (property length g/Num
-;             (dynamic read-only? (g/constantly true)))
+(g/defnode RiveBone
+  (inherits outline/OutlineNode)
+  (property name g/Str (dynamic read-only? (g/constantly true)))
+  (property position types/Vec3
+            (dynamic edit-type (g/constantly (properties/vec3->vec2 0.0)))
+            (dynamic read-only? (g/constantly true)))
+  (property rotation g/Num (dynamic read-only? (g/constantly true)))
+  (property scale types/Vec3
+            (dynamic edit-type (g/constantly (properties/vec3->vec2 1.0)))
+            (dynamic read-only? (g/constantly true)))
+  (property length g/Num
+            (dynamic read-only? (g/constantly true)))
 
-;   (input child-bones g/Any :array)
+  (input nodes g/Any :array)
+  (input child-bones g/Any :array)
+  (input child-outlines g/Any :array)
 
-;   (output transform Matrix4d :cached produce-transform)
-;   (output bone g/Any (g/fnk [name transform child-bones]
-;                             {:name name
-;                              :local-transform transform
-;                              :children child-bones}))
-;   (output node-outline outline/OutlineData (g/fnk [_node-id name child-outlines]
-;                                                   {:node-id _node-id
-;                                                    :node-outline-key name
-;                                                    :label name
-;                                                    :icon rive-bone-icon
-;                                                    :children child-outlines
-;                                                    :read-only true})))
+  (output transform Matrix4d :cached produce-transform)
+  (output bone g/Any (g/fnk [name transform child-bones]
+                            {:name name
+                             :local-transform transform
+                             :children child-bones}))
+  (output node-outline outline/OutlineData (g/fnk [_node-id name child-outlines]
+                                                  {:node-id _node-id
+                                                   :node-outline-key name
+                                                   :label name
+                                                   :icon rive-bone-icon
+                                                   :children child-outlines
+                                                   :read-only true})))
 
 ; (defn- update-transforms [^Matrix4d parent bone]
 ;   (let [t ^Matrix4d (:local-transform bone)
@@ -146,6 +148,9 @@
   (property animations g/Any)
   (property aabb g/Any)
   (property vertices g/Any)
+  (property bones g/Any)
+  
+  (input child-bones g/Any :array)
 
   (output build-targets g/Any :cached produce-rive-file-build-targets))
 
@@ -178,6 +183,7 @@
 (defn- plugin-get-animation ^String [handle index]
   (plugin-invoke-static rive-plugin-cls "RIVE_GetAnimation" (into-array Class [rive-plugin-pointer-cls Integer/TYPE]) [handle (int index)]))
 
+;(defn- plugin-get-aabb ^"com.dynamo.bob.pipeline.Rive$AABB" [handle]
 (defn- plugin-get-aabb [handle]
   (plugin-invoke-static rive-plugin-cls "RIVE_GetAABB" (into-array Class [rive-plugin-pointer-cls]) [handle]))
 
@@ -192,6 +198,10 @@
 
 (defn- plugin-get-vertices [handle buffer]
   (plugin-invoke-static rive-plugin-cls "RIVE_GetVertices" (into-array Class [rive-plugin-pointer-cls float-array-cls]) [handle buffer]))
+
+;(defn- plugin-get-bones ^"[Lcom.dynamo.bob.pipeline.Rive$Bone;" [handle]
+(defn- plugin-get-bones [handle]
+  (plugin-invoke-static rive-plugin-cls "RIVE_GetBones" (into-array Class [rive-plugin-pointer-cls]) [handle]))
 
 (defn- get-animations [handle]
   (let [num-animations (plugin-get-num-animations handle)
@@ -214,6 +224,51 @@
         vertices (partition vtx-size (vec vtx-buffer))]
     vertices))
 
+; Creates the bone hierarcy
+(defn- is-root-bone? [bone]
+  (= -1 (.-parent bone)))
+
+(defn- create-bone [project parent-id rive-bone]
+  (let [name (.-name rive-bone)
+               ;parent (.-parent rive-bone)
+        x (.-posX rive-bone)
+        y (.-posY rive-bone)
+        rotation (.-rotation rive-bone)
+        scale-x (.-scaleX rive-bone)
+        scale-y (.-scaleY rive-bone)
+        length (.-length rive-bone)
+        parent-graph-id (g/node-id->graph-id parent-id)
+        bone-tx-data (g/make-nodes parent-graph-id [bone [RiveBone :name name :position [x y 0] :rotation rotation :scale [scale-x scale-y 1.0] :length length]]
+                                   ; Hook this node into the parent's lists
+                                   (g/connect bone :_node-id parent-id :nodes)
+                                          ;(if-let [parent (get bone-ids parent)]
+                                   (g/connect bone :node-outline parent-id :child-outlines)
+                                   (g/connect bone :bone parent-id :child-bones))
+                                            ;; (concat
+                                            ;;   (g/connect bone :node-outline scene-id :source-outline)
+                                            ;;   (g/connect bone :bone scene-id :skeleton))
+                                            ;)
+        ]
+    (prn "MAWE create-bone" name x y scale-x scale-x rotation length)
+    bone-tx-data))
+
+(defn- tx-first-created [tx-data]
+  (get-in (first tx-data) [:node :_node-id]))
+
+(defn- create-bone-hierarchy [project parent-id bones bone]
+  (let [bone-tx-data (create-bone project parent-id bone)
+        bone-id (tx-first-created bone-tx-data)
+        child-bones (map (fn [index] (get bones index)) (.-children bone))
+        children-tx-data (mapcat (fn [child] (create-bone-hierarchy project bone-id bones child)) child-bones)]
+    (prn "CHILD_BONES" child-bones)
+    (concat bone-tx-data children-tx-data)))
+
+(defn- create-bones [project parent-id bones]
+  (let [root-bones (filter is-root-bone? bones)
+        tx-data (mapcat (fn [bone] (create-bone-hierarchy project parent-id bones bone)) root-bones)]
+    tx-data))
+
+
 ; Loads the .riv file
 (defn- load-rive-file
   [project node-id resource]
@@ -222,17 +277,18 @@
         animations (get-animations rive-handle)
         aabb (get-aabb rive-handle)
         vertices (rive-file->vertices rive-handle 0.0)
+        bones (plugin-get-bones rive-handle)
 
         tx-data (concat
                  (g/set-property node-id :content content)
                  (g/set-property node-id :rive-handle rive-handle)
                  (g/set-property node-id :animations animations)
                  (g/set-property node-id :aabb aabb)
-                 (g/set-property node-id :vertices vertices))]
-    tx-data))
-
-; (defn- tx-first-created [tx-data]
-;   (get-in (first tx-data) [:node :_node-id]))
+                 (g/set-property node-id :vertices vertices)
+                 (g/set-property node-id :bones bones))
+        
+        all-tx-data (concat tx-data (create-bones project node-id bones))]
+    all-tx-data))
 
 
   ; (let [bones (get content "bones")
