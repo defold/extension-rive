@@ -1,7 +1,7 @@
 name: "rive-test"
 tags: "rive"
-vertex_program: "/assets/rive.vp"
-fragment_program: "/assets/rive.fp"
+vertex_program: "/defold-rive/assets/rive.vp"
+fragment_program: "/defold-rive/assets/rive.fp"
 vertex_space: VERTEX_SPACE_WORLD
 vertex_constants {
   name: "view_proj"
