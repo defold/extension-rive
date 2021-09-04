@@ -62,18 +62,21 @@ namespace dmRive
 
         if (top > 3) // table with args
         {
-            luaL_checktype(L, 4, LUA_TTABLE);
-            lua_pushvalue(L, 4);
+            if (lua_istable(L, 4))
+            {
+                luaL_checktype(L, 4, LUA_TTABLE);
+                lua_pushvalue(L, 4);
 
-            lua_getfield(L, -1, "offset");
-            offset = lua_isnil(L, -1) ? 0.0 : luaL_checknumber(L, -1);
-            lua_pop(L, 1);
+                lua_getfield(L, -1, "offset");
+                offset = lua_isnil(L, -1) ? 0.0 : luaL_checknumber(L, -1);
+                lua_pop(L, 1);
 
-            lua_getfield(L, -1, "playback_rate");
-            playback_rate = lua_isnil(L, -1) ? 1.0 : luaL_checknumber(L, -1);
-            lua_pop(L, 1);
+                lua_getfield(L, -1, "playback_rate");
+                playback_rate = lua_isnil(L, -1) ? 1.0 : luaL_checknumber(L, -1);
+                lua_pop(L, 1);
 
-            lua_pop(L, 1);
+                lua_pop(L, 1);
+            }
         }
 
         if (top > 4) // completed cb
