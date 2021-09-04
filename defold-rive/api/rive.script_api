@@ -30,8 +30,36 @@
             desc: The normalized initial value of the animation cursor when the animation starts playing
 
           - name: playback_rate
-            type: number
+            type: constant
             desc: The rate with which the animation will be played. Must be positive.
+
+      - name: complete_function
+        type: function
+        desc: function to call when the animation has completed
+        parameters:
+          - name: self
+            type: object
+            desc: The context of the calling script
+
+          - name: message_id
+            type: hash
+            desc: The name of the completion message ("rive_animation_done")
+
+          - name: message
+            type: table
+            desc: A table that contains the response
+            parameters:
+              - name: animation_id
+                type: hash
+                desc: the animation that was completed
+
+              - name: playback
+                type: constant
+                desc: the playback mode for the animation
+
+          - name: sender
+            type: url
+            desc: The invoker of the callback: the Rive model component
 
 #*****************************************************************************************************
 
