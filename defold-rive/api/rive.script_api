@@ -1,0 +1,65 @@
+- name: rive
+  type: table
+  desc: Functions and constants for interacting with Rive models
+
+  members:
+
+  - name: play_anim
+    type: function
+    desc: Plays the specified animation on a Rive model
+
+    parameters:
+      - name: url
+        type: url
+        desc: The Rive model for which to play an animation
+
+      - name: anim_id
+        type: hash
+        desc: Id of the animation to play
+
+      - name: playback
+        type: number
+        desc: Playback mode of the animation (from go.PLAYBACK_*)
+
+      - name: options
+        type: table
+        desc: Playback options
+        parameters:
+          - name: offset
+            type: number
+            desc: The normalized initial value of the animation cursor when the animation starts playing
+
+          - name: playback_rate
+            type: number
+            desc: The rate with which the animation will be played. Must be positive.
+
+#*****************************************************************************************************
+
+  - name: cancel
+    type: function
+    desc: Cancels all running animations on a specified spine model component
+
+    parameters:
+      - name: url
+        type: url
+        desc: The Rive model for which to cancel the animation
+
+#*****************************************************************************************************
+
+  - name: get_go
+    type: function
+    desc: Returns the id of the game object that corresponds to a specified skeleton bone.
+
+    parameters:
+      - name: url
+        type: url
+        desc: The Rive model to query
+
+      - name: bone_id
+        type: hash
+        desc: Id of the corresponding bone
+
+    return:
+      - name: id
+        type: hash
+        desc: Id of the game object
