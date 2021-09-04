@@ -59,7 +59,7 @@
 
           - name: sender
             type: url
-            desc: The invoker of the callback: the Rive model component
+            desc: The invoker of the callback - the Rive model component
 
 #*****************************************************************************************************
 
