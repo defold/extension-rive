@@ -14,6 +14,8 @@
 
 #include <rive/animation/linear_animation.hpp>
 #include <rive/animation/linear_animation_instance.hpp>
+#include <rive/animation/state_machine.hpp>
+#include <rive/animation/state_machine_instance.hpp>
 
 #include <dmsdk/sdk.h>
 #include <dmsdk/dlib/hash.h>
@@ -40,7 +42,7 @@ namespace dmRive
      */
 
     /*# play an animation on a rive model
-     * Plays a specified animation on a spine model component with specified playback
+     * Plays a specified animation on a rive model component with specified playback
      * mode and parameters.
      */
     static int RiveComp_PlayAnim(lua_State* L)
@@ -90,15 +92,78 @@ namespace dmRive
         }
 
         dmRiveDDF::RivePlayAnimation msg;
-        msg.m_AnimationId  = anim_id;
-        msg.m_Playback     = playback;
-        msg.m_Offset       = offset;
-        msg.m_PlaybackRate = playback_rate;
+        msg.m_AnimationId       = anim_id;
+        msg.m_Playback          = playback;
+        msg.m_Offset            = offset;
+        msg.m_PlaybackRate      = playback_rate;
+        msg.m_IsStateMachine    = false;
 
         dmMessage::Post(&sender, &receiver, dmRiveDDF::RivePlayAnimation::m_DDFDescriptor->m_NameHash, (uintptr_t)instance, (uintptr_t)functionref, (uintptr_t)dmRiveDDF::RivePlayAnimation::m_DDFDescriptor, &msg, sizeof(msg), 0);
         return 0;
     }
 
+    /*# play a state machine on a rive model
+     * Plays a specified state machine on a rive model component with specified playback
+     * mode and parameters.
+     */
+    static int RiveComp_PlayStateMachine(lua_State* L)
+    {
+        DM_LUA_STACK_CHECK(L, 0);
+        int top = lua_gettop(L);
+
+        dmGameObject::HInstance instance = dmScript::CheckGOInstance(L);
+
+        dmhash_t anim_id          = dmScript::CheckHashOrString(L, 2);
+        lua_Number offset         = 0.0;
+        lua_Number playback_rate  = 1.0;
+        int functionref           = 0;
+
+        dmMessage::URL receiver;
+        dmMessage::URL sender;
+        dmScript::ResolveURL(L, 1, &receiver, &sender);
+
+        if (top > 2) // table with args
+        {
+            if (lua_istable(L, 3))
+            {
+                luaL_checktype(L, 3, LUA_TTABLE);
+                lua_pushvalue(L, 3);
+
+                lua_getfield(L, -1, "offset");
+                offset = lua_isnil(L, -1) ? 0.0 : luaL_checknumber(L, -1);
+                lua_pop(L, 1);
+
+                lua_getfield(L, -1, "playback_rate");
+                playback_rate = lua_isnil(L, -1) ? 1.0 : luaL_checknumber(L, -1);
+                lua_pop(L, 1);
+
+                lua_pop(L, 1);
+            }
+        }
+
+        // Not supported yet
+        // if (top > 3) // completed cb
+        // {
+        //     if (lua_isfunction(L, 4))
+        //     {
+        //         lua_pushvalue(L, 4);
+        //         // NOTE: By convention m_FunctionRef is offset by LUA_NOREF, see message.h in dlib
+        //         functionref = dmScript::RefInInstance(L) - LUA_NOREF;
+        //     }
+        // }
+
+        dmRiveDDF::RivePlayAnimation msg;
+        msg.m_AnimationId       = anim_id;
+        msg.m_Playback          = 0;
+        msg.m_Offset            = 0;
+        msg.m_PlaybackRate      = playback_rate;
+        msg.m_IsStateMachine    = true;
+
+        dmMessage::Post(&sender, &receiver, dmRiveDDF::RivePlayAnimation::m_DDFDescriptor->m_NameHash, (uintptr_t)instance, (uintptr_t)functionref, (uintptr_t)dmRiveDDF::RivePlayAnimation::m_DDFDescriptor, &msg, sizeof(msg), 0);
+        return 0;
+    }
+
+    // Can cancel both a single animation and a state machine playing
     static int RiveComp_Cancel(lua_State* L)
     {
         DM_LUA_STACK_CHECK(L, 0);
@@ -157,9 +222,10 @@ namespace dmRive
 
     static const luaL_reg RIVE_FUNCTIONS[] =
     {
-        {"play_anim", RiveComp_PlayAnim},
-        {"cancel",    RiveComp_Cancel},
-        {"get_go",    RiveComp_GetGO},
+        {"play_anim",           RiveComp_PlayAnim},
+        {"play_state_machine",  RiveComp_PlayStateMachine},
+        {"cancel",              RiveComp_Cancel},
+        {"get_go",              RiveComp_GetGO},
         {0, 0}
     };
 

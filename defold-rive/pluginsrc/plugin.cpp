@@ -19,6 +19,10 @@ __declspec(dllexport) int dummyFunc()
 #include <rive/file.hpp>
 #include <rive/animation/linear_animation_instance.hpp>
 #include <rive/animation/linear_animation.hpp>
+#include <rive/animation/state_machine.hpp>
+#include <rive/animation/state_machine_bool.hpp>
+#include <rive/animation/state_machine_number.hpp>
+#include <rive/animation/state_machine_trigger.hpp>
 
 #include <riverender/rive_render_api.h>
 
@@ -67,12 +71,17 @@ struct Matrix4
     float m[16];
 };
 
-
 struct BoneInteral
 {
     const char* name;
     int parent;
     float posX, posY, rotation, scaleX, scaleY, length;
+};
+
+struct StateMachineInput
+{
+    const char* name;
+    const char* type;
 };
 
 struct RiveFile
@@ -154,10 +163,21 @@ static RiveFile* ToRiveFile(void* _rive_file, const char* fnname)
         return 0; \
     }
 
+#define CHECK_FILE_RETURN_VALUE(_P_, _VALUE_) \
+    if (!(_P_) || !(_P_)->m_File) { \
+        return (_VALUE_); \
+    }
+
 #define CHECK_ARTBOARD_RETURN(_P_) \
     if (!(_P_)) { \
         dmLogError("%s: File has no artboard", __FUNCTION__); \
         return 0; \
+    }
+
+#define CHECK_ARTBOARD_RETURN_VALUE(_P_, _VALUE_) \
+    if (!(_P_)) { \
+        dmLogError("%s: File has no artboard", __FUNCTION__); \
+        return (_VALUE_); \
     }
 
 
@@ -239,6 +259,9 @@ extern "C" DM_DLLEXPORT void RIVE_Destroy(void* _rive_file) {
     {
         return;
     }
+
+    printf("Destroying %s\n", file->m_Path ? file->m_Path : "null");
+    fflush(stdout);
 
     if (file->m_Renderer) {
         rive::destroyRenderer(file->m_Renderer);
@@ -329,20 +352,122 @@ extern "C" DM_DLLEXPORT int RIVE_GetChildBone(void* _rive_file, int bone_index, 
     CHECK_FILE_RETURN(file);
 
     if (bone_index < 0 || bone_index >= (int)file->m_Bones.Size()) {
-        dmLogError("%s: Bone index %d is not in range [0, %u]", __FUNCTION__, bone_index, (uint32_t)file->m_Bones.Size());
+        dmLogError("%s: Bone index %d is not in range [0, %u)", __FUNCTION__, bone_index, (uint32_t)file->m_Bones.Size());
         return -1;
     }
 
     dmRive::RiveBone* bone = file->m_Bones[bone_index];
 
     if (child_index < 0 || child_index >= (int)bone->m_Children.Size()) {
-        dmLogError("%s: Child index %d is not in range [0, %u]", __FUNCTION__, child_index, (uint32_t)bone->m_Children.Size());
+        dmLogError("%s: Child index %d is not in range [0, %u)", __FUNCTION__, child_index, (uint32_t)bone->m_Children.Size());
         return -1;
     }
 
     dmRive::RiveBone* child = bone->m_Children[child_index];
     return dmRive::GetBoneIndex(child);
 }
+
+///////////////////////////////////////////////////////////////////////////////
+// State machines
+
+extern "C" DM_DLLEXPORT int RIVE_GetNumStateMachines(void* _rive_file)
+{
+    RiveFile* file = TO_RIVE_FILE(_rive_file);
+    CHECK_FILE_RETURN_VALUE(file, 0);
+
+    rive::Artboard* artboard = file->m_File->artboard();
+    CHECK_ARTBOARD_RETURN_VALUE(artboard, 0);
+
+    return (int)artboard->stateMachineCount();
+}
+
+extern "C" DM_DLLEXPORT const char* RIVE_GetStateMachineName(void* _rive_file, int index)
+{
+    RiveFile* file = TO_RIVE_FILE(_rive_file);
+    CHECK_FILE_RETURN_VALUE(file, "null");
+
+    rive::Artboard* artboard = file->m_File->artboard();
+    CHECK_ARTBOARD_RETURN_VALUE(artboard, "null");
+
+    if (index < 0 || index >= (int)artboard->stateMachineCount()) {
+        dmLogError("%s: State machine index %d is not in range [0, %d)", __FUNCTION__, index, (int)artboard->stateMachineCount());
+        return "null";
+    }
+
+    rive::StateMachine* state_machine = artboard->stateMachine(index);
+    return state_machine->name().c_str();
+}
+
+extern "C" DM_DLLEXPORT int RIVE_GetNumStateMachineInputs(void* _rive_file, int index)
+{
+    RiveFile* file = TO_RIVE_FILE(_rive_file);
+    CHECK_FILE_RETURN_VALUE(file, 0);
+
+    rive::Artboard* artboard = file->m_File->artboard();
+    CHECK_ARTBOARD_RETURN_VALUE(artboard, 0);
+
+    if (index < 0 || index >= (int)artboard->stateMachineCount()) {
+        dmLogError("%s: State machine index %d is not in range [0, %d)", __FUNCTION__, index, (int)artboard->stateMachineCount());
+        return 0;
+    }
+
+    rive::StateMachine* state_machine = artboard->stateMachine(index);
+    return (int)state_machine->inputCount();
+}
+
+static const char* INPUT_TYPE_BOOL="bool";
+static const char* INPUT_TYPE_NUMBER="number";
+static const char* INPUT_TYPE_TRIGGER="trigger";
+static const char* INPUT_TYPE_UNKNOWN="unknown";
+
+extern "C" DM_DLLEXPORT int RIVE_GetStateMachineInput(void* _rive_file, int index, int input_index, StateMachineInput* input)
+{
+    RiveFile* file = TO_RIVE_FILE(_rive_file);
+    CHECK_FILE_RETURN_VALUE(file, 0);
+
+    rive::Artboard* artboard = file->m_File->artboard();
+    CHECK_ARTBOARD_RETURN_VALUE(artboard, 0);
+
+    if (index < 0 || index >= (int)artboard->stateMachineCount()) {
+        dmLogError("%s: State machine index %d is not in range [0, %d)", __FUNCTION__, index, (int)artboard->stateMachineCount());
+        return 0;
+    }
+
+    rive::StateMachine* state_machine = artboard->stateMachine(index);
+
+    if (input_index < 0 || input_index >= (int)state_machine->inputCount()) {
+        dmLogError("%s: State machine index %d is not in range [0, %d)", __FUNCTION__, input_index, (int)state_machine->inputCount());
+        return 0;
+    }
+
+    const rive::StateMachineInput* state_machine_input = state_machine->input(input_index);
+    if (state_machine_input == 0) {
+        printf("state_machine_input == 0\n");
+        fflush(stdout);
+    }
+    assert(state_machine_input != 0);
+
+    if (input == 0) {
+        printf("input == 0\n");
+        fflush(stdout);
+    }
+
+    input->name = state_machine_input->name().c_str();
+
+    if (state_machine_input->is<rive::StateMachineBool>())
+        input->type = INPUT_TYPE_BOOL;
+    else if (state_machine_input->is<rive::StateMachineNumber>())
+        input->type = INPUT_TYPE_NUMBER;
+    else if (state_machine_input->is<rive::StateMachineTrigger>())
+        input->type = INPUT_TYPE_TRIGGER;
+    else
+        input->type = INPUT_TYPE_UNKNOWN;
+
+    return 1;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 
 
 // static rive::LinearAnimation* FindAnimation(rive::File* riv, const char* name)

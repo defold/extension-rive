@@ -140,6 +140,53 @@ public class Rive {
 
     ////////////////////////////////////////////////////////////////////////////////
 
+    static public class StateMachineInput extends Structure {
+        public String name;
+        public String type;
+
+        protected List getFieldOrder() {
+            return Arrays.asList(new String[] {"name", "type"});
+        }
+    }
+
+    static public class StateMachine {
+        public String name;
+        public int index;
+        public StateMachineInput[] inputs;
+    }
+
+    public static native int RIVE_GetNumStateMachines(RivePointer rive);
+    public static native String RIVE_GetStateMachineName(RivePointer rive, int index);
+    public static native int RIVE_GetNumStateMachineInputs(RivePointer rive, int index);
+    public static native int RIVE_GetStateMachineInput(RivePointer rive, int index, int input_index, StateMachineInput out);
+
+    protected static StateMachine RIVE_GetStateMachine(RivePointer rive, int index) {
+        StateMachine sm = new StateMachine();
+        sm.index = index;
+        sm.name = RIVE_GetStateMachineName(rive, index);
+
+        int num_inputs = RIVE_GetNumStateMachineInputs(rive, index);
+        sm.inputs = new StateMachineInput[num_inputs];
+
+        for (int i = 0; i < num_inputs; ++i) {
+            StateMachineInput input = new StateMachineInput();
+            RIVE_GetStateMachineInput(rive, index, i, input);
+            sm.inputs[i] = input;
+        }
+        return sm;
+    }
+
+    public static StateMachine[] RIVE_GetStateMachines(RivePointer rive) {
+        int count = RIVE_GetNumStateMachines(rive);
+        StateMachine[] arr = new StateMachine[count];
+        for (int i = 0; i < count; ++i){
+            arr[i] = RIVE_GetStateMachine(rive, i);
+        }
+        return arr;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////
+
     public static native void RIVE_UpdateVertices(RivePointer rive, float dt);
     public static native int RIVE_GetVertexSize(); // size in bytes per vertex
     public static native int RIVE_GetVertexCount(RivePointer rive);
@@ -206,11 +253,20 @@ public class Rive {
 
         for (int i = 0; i < RIVE_GetNumAnimations(p); ++i) {
             String name = RIVE_GetAnimation(p, i);
-            System.out.printf("Java: Animation %d: %s\n", i, name);
+            System.out.printf("Animation %d: %s\n", i, name);
         }
 
         Bone[] bones = RIVE_GetBones(p);
         DebugPrintBones(bones);
+
+        StateMachine[] sms = RIVE_GetStateMachines(p);
+        for (StateMachine sm : sms) {
+            System.out.printf("StateMachine '%s'\n", sm.name);
+            for (StateMachineInput input : sm.inputs) {
+                System.out.printf("  input: name: %s  type: %s\n", input.name, input.type);
+            }
+        }
+
 
         RIVE_UpdateVertices(p, 0.0f);
     }

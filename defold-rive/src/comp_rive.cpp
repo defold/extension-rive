@@ -11,6 +11,12 @@
 // specific language governing permissions and limitations under the License.
 
 #include <rive/animation/linear_animation_instance.hpp>
+#include <rive/animation/state_machine_instance.hpp>
+#include <rive/animation/state_machine_input.hpp>
+#include <rive/animation/state_machine_input_instance.hpp>
+#include <rive/animation/state_machine_trigger.hpp>
+#include <rive/animation/state_machine_bool.hpp>
+#include <rive/animation/state_machine_number.hpp>
 #include <rive/animation/loop.hpp>
 #include <rive/bones/bone.hpp>
 #include <rive/file.hpp>
@@ -81,6 +87,7 @@ namespace dmRive
     static void CompRiveAnimationReset(RiveComponent* component);
     static bool PlayAnimation(RiveComponent* component, dmRive::RiveSceneData* data, dmhash_t anim_id,
                     dmGameObject::Playback playback_mode, float offset, float playback_rate);
+    static bool PlayStateMachine(RiveComponent* component, dmRive::RiveSceneData* data, dmhash_t anim_id, float playback_rate);
     static bool CreateBones(struct RiveWorld* world, RiveComponent* component, dmRive::RiveSceneData* data);
     static void DeleteBones(RiveComponent* component);
     static void UpdateBones(RiveComponent* component);
@@ -280,10 +287,23 @@ namespace dmRive
 
         CreateBones(world, component, data);
 
+        dmhash_t empty_id = dmHashString64("");
         dmhash_t anim_id = dmHashString64(component->m_Resource->m_DDF->m_DefaultAnimation);
-        if (!PlayAnimation(component, data, anim_id, dmGameObject::PLAYBACK_LOOP_FORWARD, 0.0f, 1.0f))
+        dmhash_t state_machine_id = dmHashString64(component->m_Resource->m_DDF->m_DefaultStateMachine);
+
+        if (empty_id != state_machine_id)
         {
-            dmLogError("Couldn't play animation named '%s'", dmHashReverseSafe64(anim_id));
+            if (!PlayStateMachine(component, data, state_machine_id, 1.0f))
+            {
+                dmLogError("Couldn't play state machine named '%s'", dmHashReverseSafe64(state_machine_id));
+            }
+        }
+        else if (empty_id != anim_id)
+        {
+            if (!PlayAnimation(component, data, anim_id, dmGameObject::PLAYBACK_LOOP_FORWARD, 0.0f, 1.0f))
+            {
+                dmLogError("Couldn't play animation named '%s'", dmHashReverseSafe64(anim_id));
+            }
         }
 
         component->m_ReHash = 1;
@@ -744,7 +764,6 @@ namespace dmRive
 
     static void CompRiveAnimationReset(RiveComponent* component)
     {
-        component->m_AnimationInstance     = 0;
         component->m_AnimationIndex        = 0xff;
         component->m_AnimationCallbackRef  = 0;
         component->m_AnimationPlaybackRate = 1.0f;
@@ -752,6 +771,12 @@ namespace dmRive
 
         if (component->m_AnimationInstance)
             delete component->m_AnimationInstance;
+        component->m_AnimationInstance = 0;
+
+        if (component->m_StateMachineInstance)
+            delete component->m_StateMachineInstance;
+        component->m_StateMachineInstance = 0;
+        component->m_StateMachineInputs.SetSize(0);
     }
 
     static void CompRiveAnimationDoneCallback(RiveComponent& component)
@@ -770,7 +795,7 @@ namespace dmRive
         dmhash_t message_id         = dmRiveDDF::RiveAnimationDone::m_DDFDescriptor->m_NameHash;
 
         dmRiveDDF::RiveAnimationDone message;
-        message.m_AnimationId = data->m_LinearAnimations[component.m_AnimationIndex].m_NameHash;
+        message.m_AnimationId = data->m_LinearAnimations[component.m_AnimationIndex];
         message.m_Playback    = component.m_AnimationPlayback;
 
         uintptr_t descriptor = (uintptr_t)dmRiveDDF::RiveAnimationDone::m_DDFDescriptor;
@@ -823,7 +848,11 @@ namespace dmRive
             }
             rive::AABB artboard_bounds  = artboard->bounds();
 
-            if (component.m_AnimationInstance)
+            if (component.m_StateMachineInstance)
+            {
+                component.m_StateMachineInstance->advance(artboard, dt * component.m_AnimationPlaybackRate);
+            }
+            else if (component.m_AnimationInstance)
             {
                 component.m_AnimationInstance->advance(dt * component.m_AnimationPlaybackRate);
                 component.m_AnimationInstance->apply(artboard, 1.0f);
@@ -983,32 +1012,45 @@ namespace dmRive
         component->m_ReHash = 1;
     }
 
+    static int FindAnimationIndex(dmhash_t* entries, uint32_t num_entries, dmhash_t anim_id)
+    {
+        for (int i = 0; i < num_entries; ++i)
+        {
+            if (entries[i] == anim_id)
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     static rive::LinearAnimation* FindAnimation(dmRive::RiveSceneData* data, int* animation_index, dmhash_t anim_id)
     {
         rive::Artboard* artboard = data->m_File->artboard();
-        if (animation_index) {
-            *animation_index = -1;
+        int index = FindAnimationIndex(data->m_LinearAnimations.Begin(), data->m_LinearAnimations.Size(), anim_id);
+        if (index == -1) {
+            return 0;
         }
+        *animation_index = index;
+        return artboard->animation(index);
+    }
 
-        for (int i = 0; i < data->m_LinearAnimationCount; ++i)
-        {
-            if (data->m_LinearAnimations[i].m_NameHash == anim_id)
-            {
-                if (animation_index) {
-                    *animation_index = i;
-                }
-
-                return artboard->animation(data->m_LinearAnimations[i].m_AnimationIndex);
-            }
+    static rive::StateMachine* FindStateMachine(dmRive::RiveSceneData* data, int* state_machine_index, dmhash_t anim_id)
+    {
+        rive::Artboard* artboard = data->m_File->artboard();
+        int index = FindAnimationIndex(data->m_StateMachines.Begin(), data->m_StateMachines.Size(), anim_id);
+        if (index == -1) {
+            return 0;
         }
-        return 0;
+        *state_machine_index = index;
+        return artboard->stateMachine(index);
     }
 
     static bool PlayAnimation(RiveComponent* component, dmRive::RiveSceneData* data, dmhash_t anim_id,
-                        dmGameObject::Playback playback_mode, float offset, float playback_rate)
+                                dmGameObject::Playback playback_mode, float offset, float playback_rate)
     {
         int animation_index;
-        rive::LinearAnimation* animation  = FindAnimation(data, &animation_index, anim_id);
+        rive::LinearAnimation* animation = FindAnimation(data, &animation_index, anim_id);
 
         if (!animation) {
             return false;
@@ -1060,6 +1102,36 @@ namespace dmRive
         return true;
     }
 
+    static bool PlayStateMachine(RiveComponent* component, dmRive::RiveSceneData* data, dmhash_t anim_id, float playback_rate)
+    {
+        int state_machine_index;
+        rive::StateMachine* state_machine = FindStateMachine(data, &state_machine_index, anim_id);
+
+        if (!state_machine) {
+            return false;
+        }
+
+        CompRiveAnimationReset(component);
+
+        component->m_StateMachineInstance = new rive::StateMachineInstance(state_machine);
+        component->m_AnimationPlaybackRate = playback_rate;
+
+        // update the list of current state machine inputs
+        uint32_t count = state_machine->inputCount();
+        if (count > component->m_StateMachineInputs.Capacity())
+        {
+            component->m_StateMachineInputs.SetCapacity(count);
+        }
+        component->m_StateMachineInputs.SetSize(count);
+
+        for (uint32_t i = 0; i < count; ++i)
+        {
+            const rive::StateMachineInput* input = state_machine->input(i);
+            component->m_StateMachineInputs[i] = dmHashString64(input->name().c_str());
+        }
+        return true;
+    }
+
     dmGameObject::UpdateResult CompRiveOnMessage(const dmGameObject::ComponentOnMessageParams& params)
     {
         RiveWorld* world = (RiveWorld*)params.m_World;
@@ -1080,42 +1152,31 @@ namespace dmRive
                 dmRive::RiveSceneData* data       = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
 
                 dmhash_t anim_id = ddf->m_AnimationId;
-                bool result = PlayAnimation(component, data, anim_id, (dmGameObject::Playback)ddf->m_Playback, ddf->m_Offset, ddf->m_PlaybackRate);
-                if (result) {
-                    component->m_AnimationCallbackRef  = params.m_Message->m_UserData2;
-                    component->m_Listener              = params.m_Message->m_Sender;
-                } else {
-                    dmLogError("Couldn't play animation named '%s'", dmHashReverseSafe64(anim_id));
-                }
 
+                if (ddf->m_IsStateMachine)
+                {
+                    bool result = PlayStateMachine(component, data, anim_id, ddf->m_PlaybackRate);
+                    if (result) {
+                        //component->m_AnimationCallbackRef  = params.m_Message->m_UserData2;
+                        //component->m_Listener              = params.m_Message->m_Sender;
+                    } else {
+                        dmLogError("Couldn't play state machine named '%s'", dmHashReverseSafe64(anim_id));
+                    }
+
+                } else {
+                    bool result = PlayAnimation(component, data, anim_id, (dmGameObject::Playback)ddf->m_Playback, ddf->m_Offset, ddf->m_PlaybackRate);
+                    if (result) {
+                        component->m_AnimationCallbackRef  = params.m_Message->m_UserData2;
+                        component->m_Listener              = params.m_Message->m_Sender;
+                    } else {
+                        dmLogError("Couldn't play animation named '%s'", dmHashReverseSafe64(anim_id));
+                    }
+                }
             }
             else if (params.m_Message->m_Id == dmRiveDDF::RiveCancelAnimation::m_DDFDescriptor->m_NameHash)
             {
                 CompRiveAnimationReset(component);
             }
-            // else if (params.m_Message->m_Id == dmRiveDDF::SetConstantSpineModel::m_DDFDescriptor->m_NameHash)
-            // {
-            //     dmRiveDDF::SetConstantSpineModel* ddf = (dmRiveDDF::SetConstantSpineModel*)params.m_Message->m_Data;
-            //     dmGameObject::PropertyResult result = dmGameSystem::SetMaterialConstant(GetMaterial(component, component->m_Resource), ddf->m_NameHash,
-            //             dmGameObject::PropertyVar(ddf->m_Value), CompRiveSetConstantCallback, component);
-            //     if (result == dmGameObject::PROPERTY_RESULT_NOT_FOUND)
-            //     {
-            //         dmMessage::URL& receiver = params.m_Message->m_Receiver;
-            //         dmLogError("'%s:%s#%s' has no constant named '%s'",
-            //                 dmMessage::GetSocketName(receiver.m_Socket),
-            //                 dmHashReverseSafe64(receiver.m_Path),
-            //                 dmHashReverseSafe64(receiver.m_Fragment),
-            //                 dmHashReverseSafe64(ddf->m_NameHash));
-            //     }
-            // }
-            // else if (params.m_Message->m_Id == dmRiveDDF::ResetConstantSpineModel::m_DDFDescriptor->m_NameHash)
-            // {
-            //     dmRiveDDF::ResetConstantSpineModel* ddf = (dmRiveDDF::ResetConstantSpineModel*)params.m_Message->m_Data;
-            //     if (component->m_RenderConstants)
-            //     {
-            //         component->m_ReHash |= dmGameSystem::ClearRenderConstant(component->m_RenderConstants, ddf->m_NameHash);
-            //     }
-            // }
         }
 
         return dmGameObject::UPDATE_RESULT_OK;
@@ -1137,6 +1198,95 @@ namespace dmRive
         (void)OnResourceReloaded(world, component, index);
     }
 
+    static int FindStateMachineInputIndex(RiveComponent* component, dmhash_t property_name)
+    {
+        uint32_t count = component->m_StateMachineInputs.Size();
+        for (uint32_t i = 0; i < count; ++i)
+        {
+            if (component->m_StateMachineInputs[i] == property_name)
+            {
+                return (int)i;
+            }
+        }
+        return -1;
+    }
+
+    static dmGameObject::PropertyResult SetStateMachineInput(RiveComponent* component, int index, const dmGameObject::ComponentSetPropertyParams& params)
+    {
+        const rive::StateMachine* state_machine = component->m_StateMachineInstance->stateMachine();
+        const rive::StateMachineInput* input = state_machine->input(index);
+        rive::SMIInput* input_instance = component->m_StateMachineInstance->input(index);
+
+        if (input->is<rive::StateMachineTrigger>())
+        {
+            if (params.m_Value.m_Type != dmGameObject::PROPERTY_TYPE_BOOLEAN)
+            {
+                dmLogError("Found property %s of type trigger, but didn't receive a boolean", input->name().c_str());
+                return dmGameObject::PROPERTY_RESULT_TYPE_MISMATCH;
+            }
+
+            // The trigger can only respond to the value "true"
+            if (!params.m_Value.m_Bool)
+            {
+                dmLogError("Found property %s of type trigger, but didn't receive a boolean of true", input->name().c_str());
+                return dmGameObject::PROPERTY_RESULT_TYPE_MISMATCH;
+            }
+
+            rive::SMITrigger* trigger = (rive::SMITrigger*)input_instance;
+            trigger->fire();
+        }
+        else if (input->is<rive::StateMachineBool>())
+        {
+            if (params.m_Value.m_Type != dmGameObject::PROPERTY_TYPE_BOOLEAN)
+            {
+                dmLogError("Found property %s of type bool, but didn't receive a boolean", input->name().c_str());
+                return dmGameObject::PROPERTY_RESULT_TYPE_MISMATCH;
+            }
+
+            rive::SMIBool* v = (rive::SMIBool*)input_instance;
+            v->value(params.m_Value.m_Bool);
+        }
+        else if (input->is<rive::StateMachineNumber>())
+        {
+            if (params.m_Value.m_Type != dmGameObject::PROPERTY_TYPE_NUMBER)
+            {
+                dmLogError("Found property %s of type number, but didn't receive a number", input->name().c_str());
+                return dmGameObject::PROPERTY_RESULT_TYPE_MISMATCH;
+            }
+
+            rive::SMINumber* v = (rive::SMINumber*)input_instance;
+            v->value(params.m_Value.m_Number);
+        }
+
+        return dmGameObject::PROPERTY_RESULT_OK;
+    }
+
+    static dmGameObject::PropertyResult GetStateMachineInput(RiveComponent* component, int index,
+            const dmGameObject::ComponentGetPropertyParams& params, dmGameObject::PropertyDesc& out_value)
+    {
+        const rive::StateMachine* state_machine = component->m_StateMachineInstance->stateMachine();
+        const rive::StateMachineInput* input = state_machine->input(index);
+        rive::SMIInput* input_instance = component->m_StateMachineInstance->input(index);
+
+        if (input->is<rive::StateMachineTrigger>())
+        {
+            dmLogError("Cannot get value of input type trigger ( %s )", input->name().c_str());
+            return dmGameObject::PROPERTY_RESULT_TYPE_MISMATCH;
+        }
+        else if (input->is<rive::StateMachineBool>())
+        {
+            rive::SMIBool* v = (rive::SMIBool*)input_instance;
+            out_value.m_Variant = dmGameObject::PropertyVar(v->value());
+        }
+        else if (input->is<rive::StateMachineNumber>())
+        {
+            rive::SMINumber* v = (rive::SMINumber*)input_instance;
+            out_value.m_Variant = dmGameObject::PropertyVar(v->value());
+        }
+
+        return dmGameObject::PROPERTY_RESULT_OK;
+    }
+
     dmGameObject::PropertyResult CompRiveGetProperty(const dmGameObject::ComponentGetPropertyParams& params, dmGameObject::PropertyDesc& out_value)
     {
         CompRiveContext* context = (CompRiveContext*)params.m_Context;
@@ -1146,9 +1296,9 @@ namespace dmRive
 
         if (params.m_PropertyId == PROP_ANIMATION)
         {
-            if (component->m_AnimationInstance && component->m_AnimationIndex < data->m_LinearAnimationCount)
+            if (component->m_AnimationInstance && component->m_AnimationIndex < data->m_LinearAnimations.Size())
             {
-                out_value.m_Variant = dmGameObject::PropertyVar(data->m_LinearAnimations[component->m_AnimationIndex].m_NameHash);
+                out_value.m_Variant = dmGameObject::PropertyVar(data->m_LinearAnimations[component->m_AnimationIndex]);
             }
             return dmGameObject::PROPERTY_RESULT_OK;
         }
@@ -1171,6 +1321,15 @@ namespace dmRive
         {
             dmRender::HMaterial material = GetMaterial(component, component->m_Resource);
             return dmGameSystem::GetResourceProperty(context->m_Factory, material, out_value);
+        } else {
+            if (component->m_StateMachineInstance)
+            {
+                int index = FindStateMachineInputIndex(component, params.m_PropertyId);
+                if (index >= 0)
+                {
+                    return GetStateMachineInput(component, index, params, out_value);
+                }
+            }
         }
         return dmGameSystem::GetMaterialConstant(GetMaterial(component, component->m_Resource), params.m_PropertyId, out_value, true, CompRiveGetConstantCallback, component);
     }
@@ -1207,6 +1366,15 @@ namespace dmRive
             dmGameObject::PropertyResult res = dmGameSystem::SetResourceProperty(context->m_Factory, params.m_Value, MATERIAL_EXT_HASH, (void**)&component->m_Material);
             component->m_ReHash |= res == dmGameObject::PROPERTY_RESULT_OK;
             return res;
+        } else {
+            if (component->m_StateMachineInstance)
+            {
+                int index = FindStateMachineInputIndex(component, params.m_PropertyId);
+                if (index >= 0)
+                {
+                    return SetStateMachineInput(component, index, params);
+                }
+            }
         }
         return dmGameSystem::SetMaterialConstant(GetMaterial(component, component->m_Resource), params.m_PropertyId, params.m_Value, CompRiveSetConstantCallback, component);
     }

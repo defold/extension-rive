@@ -19,8 +19,10 @@
 #include <rive/file.hpp>
 #include <rive/animation/linear_animation_instance.hpp>
 #include <rive/animation/linear_animation.hpp>
+#include <rive/animation/state_machine.hpp>
 
 #include "res_rive_data.h"
+#include <common/bones.h>
 
 namespace dmRive
 {
@@ -47,6 +49,46 @@ namespace dmRive
         }
     }
 
+    static void SetupData(RiveSceneData* scene_data, rive::File* file, const char* path)
+    {
+        scene_data->m_File = file;
+
+        rive::Artboard* artboard = file->artboard();
+
+        uint32_t animation_count = (uint32_t)artboard->animationCount();
+        if (artboard && animation_count > 0)
+        {
+            scene_data->m_LinearAnimations.SetCapacity(animation_count);
+            scene_data->m_LinearAnimations.SetSize(animation_count);
+
+            for (int i = 0; i < animation_count; ++i)
+            {
+                rive::LinearAnimation* animation = artboard->animation(i);
+                assert(animation);
+                scene_data->m_LinearAnimations[i] = dmHashString64(animation->name().c_str());
+            }
+        }
+
+        uint32_t state_machine_count = (uint32_t)artboard->stateMachineCount();
+        if (artboard && state_machine_count > 0)
+        {
+            scene_data->m_StateMachines.SetCapacity(state_machine_count);
+            scene_data->m_StateMachines.SetSize(state_machine_count);
+
+            for (int i = 0; i < state_machine_count; ++i)
+            {
+                rive::StateMachine* state_machine = artboard->stateMachine(i);
+                assert(state_machine);
+                scene_data->m_StateMachines[i] = dmHashString64(state_machine->name().c_str());
+            }
+        }
+
+        if (artboard)
+        {
+            SetupBones(scene_data, path);
+        }
+    }
+
     static dmResource::Result ResourceType_RiveData_Create(const dmResource::ResourceCreateParams& params)
     {
         rive::File* file          = 0;
@@ -59,32 +101,9 @@ namespace dmRive
             return  dmResource::RESULT_INVALID_DATA;
         }
 
-        RiveSceneData* scene_data          = new RiveSceneData();
-        scene_data->m_File                 = file;
-        scene_data->m_LinearAnimations     = 0;
-        scene_data->m_LinearAnimationCount = 0;
+        RiveSceneData* scene_data = new RiveSceneData();
 
-        rive::Artboard* artboard = file->artboard();
-
-        if (artboard && artboard->animationCount() > 0)
-        {
-            scene_data->m_LinearAnimationCount = artboard->animationCount();
-            scene_data->m_LinearAnimations     = new RiveLinearAnimationEntry[scene_data->m_LinearAnimationCount];
-
-            for (int i = 0; i < artboard->animationCount(); ++i)
-            {
-                rive::LinearAnimation* animation = artboard->animation(i);
-                assert(animation);
-                RiveLinearAnimationEntry& entry = scene_data->m_LinearAnimations[i];
-                entry.m_AnimationIndex          = i;
-                entry.m_NameHash                = dmHashString64(animation->name().c_str());
-            }
-        }
-
-        if (artboard)
-        {
-            SetupBones(scene_data, params.m_Filename);
-        }
+        SetupData(scene_data, file, params.m_Filename);
 
         params.m_Resource->m_Resource     = (void*) scene_data;
         params.m_Resource->m_ResourceSize = 0;
@@ -92,60 +111,41 @@ namespace dmRive
         return dmResource::RESULT_OK;
     }
 
+    static void DeleteData(RiveSceneData* scene_data)
+    {
+        delete scene_data->m_File;
+        delete scene_data;
+    }
+
     static dmResource::Result ResourceType_RiveData_Destroy(const dmResource::ResourceDestroyParams& params)
     {
         RiveSceneData* scene_data = (RiveSceneData*)params.m_Resource->m_Resource;
-
-        delete scene_data->m_LinearAnimations;
-        delete scene_data->m_File;
-        delete scene_data;
-
+        DeleteData(scene_data);
         return dmResource::RESULT_OK;
     }
 
     static dmResource::Result ResourceType_RiveData_Recreate(const dmResource::ResourceRecreateParams& params)
     {
-        if (params.m_Resource->m_Resource != 0)
-        {
-            RiveSceneData* data = (RiveSceneData*) params.m_Resource->m_Resource;
-            if (data->m_File)
-                delete data->m_File;
-            if (data->m_LinearAnimations)
-                delete [] data->m_LinearAnimations;
-            delete data;
-            params.m_Resource->m_Resource = 0;
-        }
-
         rive::File* file          = 0;
         rive::BinaryReader reader = rive::BinaryReader((uint8_t*) params.m_Buffer, params.m_BufferSize);
         rive::ImportResult result = rive::File::import(reader, &file);
 
         if (result != rive::ImportResult::success)
         {
-            return  dmResource::RESULT_INVALID_DATA;
+            // If we cannot load the new file, let's keep the old one
+            return dmResource::RESULT_INVALID_DATA;
         }
 
-        RiveSceneData* scene_data          = new RiveSceneData();
-        scene_data->m_File                 = file;
-        scene_data->m_LinearAnimations     = 0;
-        scene_data->m_LinearAnimationCount = 0;
-
-        rive::Artboard* artboard = file->artboard();
-
-        if (artboard && artboard->animationCount() > 0)
+        if (params.m_Resource->m_Resource != 0)
         {
-            scene_data->m_LinearAnimationCount = artboard->animationCount();
-            scene_data->m_LinearAnimations     = new RiveLinearAnimationEntry[scene_data->m_LinearAnimationCount];
-
-            for (int i = 0; i < artboard->animationCount(); ++i)
-            {
-                rive::LinearAnimation* animation = artboard->animation(i);
-                assert(animation);
-                RiveLinearAnimationEntry& entry = scene_data->m_LinearAnimations[i];
-                entry.m_AnimationIndex          = i;
-                entry.m_NameHash                = dmHashString64(animation->name().c_str());
-            }
+            RiveSceneData* data = (RiveSceneData*) params.m_Resource->m_Resource;
+            params.m_Resource->m_Resource = 0;
+            DeleteData(data);
         }
+
+        RiveSceneData* scene_data = new RiveSceneData();
+
+        SetupData(scene_data, file, params.m_Filename);
 
         params.m_Resource->m_Resource     = (void*) scene_data;
         params.m_Resource->m_ResourceSize = 0;

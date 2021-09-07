@@ -23,10 +23,11 @@ message RiveModelDesc
         BLEND_MODE_SCREEN    = 4 [(displayName) = "Screen"];
     }
 
-    required string scene               = 1 [(resource)=true];
-    required string default_animation   = 2;
-    optional string material            = 3 [(resource)=true, default="/builtins/materials/rive.material"];
-    optional BlendMode blend_mode       = 4 [default = BLEND_MODE_ALPHA];
+    required string scene                   = 1 [(resource)=true];
+    required string default_animation       = 2;
+    optional string material                = 3 [(resource)=true, default="/builtins/materials/rive.material"];
+    optional BlendMode blend_mode           = 4 [default = BLEND_MODE_ALPHA];
+    optional string default_state_machine   = 5;
 
     // E.g. various per-instance tesselation options
     //optional float tesselation_option1    = 4 [default = 0.0];
@@ -38,6 +39,7 @@ message RivePlayAnimation
     required uint32 playback     = 2; // matches dmGameObject::Playback in gameobject.h
     optional float offset        = 3 [default = 0.0];
     optional float playback_rate = 4 [default = 1.0];
+    optional bool is_state_machine = 5 [default = false];
 }
 
 message RiveCancelAnimation

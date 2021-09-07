@@ -63,6 +63,29 @@
 
 #*****************************************************************************************************
 
+  - name: play_state_machine
+    type: function
+    desc: Plays the specified animation on a Rive model
+
+    parameters:
+      - name: url
+        type: url
+        desc: The Rive model for which to play an animation
+
+      - name: state_machine_id
+        type: hash
+        desc: Id of the state machine to play
+
+      - name: options
+        type: table
+        desc: Playback options
+        parameters:
+          - name: playback_rate
+            type: constant
+            desc: The rate with which the animation will be played. Must be positive.
+
+#*****************************************************************************************************
+
   - name: cancel
     type: function
     desc: Cancels all running animations on a specified spine model component

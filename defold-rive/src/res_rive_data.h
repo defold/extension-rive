@@ -15,23 +15,22 @@
 
 #include <stdint.h>
 #include <dmsdk/dlib/array.h>
+#include <dmsdk/dlib/hash.h>
 
-#include <common/bones.h>
+namespace rive
+{
+	class File;
+}
 
 namespace dmRive
 {
-	struct RiveLinearAnimationEntry
-	{
-		dmhash_t m_NameHash;
-		uint8_t  m_AnimationIndex;
-	};
+	struct RiveBone;
 
 	struct RiveSceneData
 	{
-		rive::File*               m_File;
-		RiveLinearAnimationEntry* m_LinearAnimations;
-		uint8_t                   m_LinearAnimationCount;
-
+		rive::File*               	m_File;
+	    dmArray<dmhash_t> 			m_LinearAnimations;
+	    dmArray<dmhash_t> 			m_StateMachines;
 	    dmArray<dmRive::RiveBone*>  m_Roots;
 	    dmArray<dmRive::RiveBone*>  m_Bones;
 	};

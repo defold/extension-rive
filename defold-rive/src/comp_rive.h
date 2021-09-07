@@ -20,6 +20,12 @@
 #include <dmsdk/gameobject/gameobject.h>
 #include <dmsdk/gamesys/render_constants.h>
 
+namespace rive
+{
+    class StateMachineInstance;
+    class LinearAnimationInstance;
+}
+
 namespace dmRive
 {
     static const char* RIVE_MODEL_EXT = "rivemodelc";
@@ -37,12 +43,14 @@ namespace dmRive
         dmGameSystem::HComponentRenderConstants m_RenderConstants;
         dmRender::HMaterial                     m_Material;
 
+        rive::StateMachineInstance*             m_StateMachineInstance;
         rive::LinearAnimationInstance*          m_AnimationInstance;
         dmGameObject::Playback                  m_AnimationPlayback;
         float                                   m_AnimationPlaybackRate;
         int                                     m_AnimationCallbackRef;
 
         dmArray<dmGameObject::HInstance>        m_BoneGOs;
+        dmArray<dmhash_t>                       m_StateMachineInputs; // A list of the hashed names for the state machine inputs. Index corresponds 1:1 to the statemachine inputs
 
         uint32_t                                m_VertexCount;
         uint32_t                                m_IndexCount;

@@ -1,0 +1,20 @@
+function init(self)
+	msg.post(".", "acquire_input_focus")
+	self.press = false
+
+	rive.play_state_machine("#rivemodel", "Button", {})
+end
+
+function update(self, dt)
+	--print("press", go.get("#rivemodel", "Press"))
+end
+
+
+function on_input(self, action_id, action)
+	if action_id == hash("touch") and action.pressed then
+		print("touch")
+
+		self.press = not self.press
+		go.set("#rivemodel", "Press", self.press)
+	end	
+end
