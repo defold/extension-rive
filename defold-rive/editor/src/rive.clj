@@ -105,6 +105,10 @@
 (defn- plugin-get-bones [handle]
   (plugin-invoke-static rive-plugin-cls "RIVE_GetBones" (into-array Class [rive-plugin-pointer-cls]) [handle]))
 
+;(defn- plugin-get-state-machines ^"[Lcom.dynamo.bob.pipeline.Rive$StateMachine;" [handle]
+(defn- plugin-get-state-machines [handle]
+  (plugin-invoke-static rive-plugin-cls "RIVE_GetStateMachines" (into-array Class [rive-plugin-pointer-cls]) [handle]))
+
 
 ; .rivemodel
 (defn load-rive-model [project self resource content]
@@ -187,6 +191,7 @@
   (property content g/Any)
   (property rive-handle g/Any) ; The cpp pointer
   (property animations g/Any)
+  (property state-machines g/Any)
   (property aabb g/Any)
   (property vertices g/Any)
   (property bones g/Any)
@@ -199,7 +204,12 @@
   (let [num-animations (plugin-get-num-animations handle)
         indices (range num-animations)
         animations (map (fn [index] (plugin-get-animation handle index)) indices)]
-    animations))
+    (concat [""] animations)))
+
+(defn- get-state-machines [handle]
+  (let [state-machines (plugin-get-state-machines handle)
+        names (map (fn [sm] (.-name sm)) state-machines)]
+    (concat [""] names)))
 
 (defn- get-aabb [handle]
   (let [paabb (plugin-get-aabb handle)
@@ -258,6 +268,7 @@
   (let [content (resource->bytes resource)
         rive-handle (plugin-load-file content (resource/resource->proj-path resource))
         animations (get-animations rive-handle)
+        state-machines (get-state-machines rive-handle)
         aabb (get-aabb rive-handle)
         vertices (rive-file->vertices rive-handle 0.0)
         bones (plugin-get-bones rive-handle)
@@ -266,6 +277,7 @@
                  (g/set-property node-id :content content)
                  (g/set-property node-id :rive-handle rive-handle)
                  (g/set-property node-id :animations animations)
+                 (g/set-property node-id :state-machines state-machines)
                  (g/set-property node-id :aabb aabb)
                  (g/set-property node-id :vertices vertices)
                  (g/set-property node-id :bones bones))
@@ -465,6 +477,7 @@
                                             [:rive-handle :rive-file-handle]
                                             [:structure :scene-structure]
                                             [:animations :rive-anim-ids]
+                                            [:state-machines :rive-state-machine-ids]
                                             [:aabb :aabb]
                                             [:node-outline :source-outline]
                                             [:build-targets :dep-build-targets])))
@@ -475,6 +488,7 @@
   (input rive-file-resource resource/Resource)
   (input rive-file-handle g/Any)
   (input rive-anim-ids g/Any)
+  (input rive-state-machine-ids g/Any)
   (input aabb g/Any)
   ;(input atlas-resource resource/Resource)
 
@@ -494,6 +508,7 @@
   (output scene-structure g/Any (gu/passthrough scene-structure))
   (output rive-file-handle g/Any :cached (gu/passthrough rive-file-handle))
   (output rive-anim-ids g/Any :cached (gu/passthrough rive-anim-ids))
+  (output rive-state-machine-ids g/Any :cached (gu/passthrough rive-state-machine-ids))
   (output aabb g/Any :cached (gu/passthrough aabb)))
 
 ; .rivescene
@@ -511,9 +526,10 @@
 ; .rivemodel (The "instance" file)
 ;
 
-(g/defnk produce-rivemodel-pb [rive-scene-resource default-animation material-resource blend-mode]
+(g/defnk produce-rivemodel-pb [rive-scene-resource default-animation default-state-machine material-resource blend-mode]
   (let [pb {:scene (resource/resource->proj-path rive-scene-resource)
             :default-animation default-animation
+            :default-state-machine default-state-machine
             :material (resource/resource->proj-path material-resource)
             :blend-mode blend-mode}]
     pb))
@@ -527,17 +543,27 @@
                            default-animation
                            (set rive-anim-ids))))
 
+(defn- validate-model-default-state-machine [node-id rive-scene rive-state-machine-ids default-state-machine]
+  (when (and rive-scene (not-empty default-state-machine))
+    (validation/prop-error :fatal node-id :default-state-machine
+                           (fn [anim ids]
+                             (when-not (contains? ids anim)
+                               (format "state machine '%s' could not be found in the specified rive scene" anim)))
+                           default-state-machine
+                           (set rive-state-machine-ids))))
+
 (defn- validate-model-material [node-id material]
   (prop-resource-error :fatal node-id :material material "Material"))
 
 (defn- validate-model-rive-scene [node-id rive-scene]
   (prop-resource-error :fatal node-id :scene rive-scene "Rive Scene"))
 
-(g/defnk produce-model-own-build-errors [_node-id default-animation material rive-anim-ids rive-scene scene-structure]
+(g/defnk produce-model-own-build-errors [_node-id default-animation default-state-machine material rive-anim-ids rive-state-machine-ids rive-scene scene-structure]
   (g/package-errors _node-id
                     (validate-model-material _node-id material)
                     (validate-model-rive-scene _node-id rive-scene)
-                    (validate-model-default-animation _node-id rive-scene rive-anim-ids default-animation)))
+                    (validate-model-default-animation _node-id rive-scene rive-anim-ids default-animation)
+                    (validate-model-default-state-machine _node-id rive-scene rive-state-machine-ids default-state-machine)))
 
 (defn- build-rive-model [resource dep-resources user-data]
   (let [pb (:proto-msg user-data)
@@ -567,6 +593,7 @@
                                             [:resource :rive-scene-resource]
                                             [:main-scene :rive-main-scene]
                                             [:rive-anim-ids :rive-anim-ids]
+                                            [:rive-state-machine-ids :rive-state-machine-ids]
                                             [:build-targets :dep-build-targets]
                                             [:anim-data :anim-data]
                                             [:scene-structure :scene-structure])))
@@ -587,6 +614,10 @@
             (dynamic edit-type (g/constantly {:type resource/Resource :ext "material"}))
             (dynamic error (g/fnk [_node-id material]
                                   (validate-model-material _node-id material))))
+  (property default-state-machine g/Str
+            (dynamic error (g/fnk [_node-id rive-state-machine-ids default-state-machine rive-scene]
+                                  (validate-model-default-state-machine _node-id rive-scene rive-state-machine-ids default-state-machine)))
+            (dynamic edit-type (g/fnk [rive-state-machine-ids] (properties/->choicebox rive-state-machine-ids))))
   (property default-animation g/Str
             (dynamic error (g/fnk [_node-id rive-anim-ids default-animation rive-scene]
                                   (validate-model-default-animation _node-id rive-scene rive-anim-ids default-animation)))
@@ -597,6 +628,7 @@
   (input rive-main-scene g/Any)
   (input scene-structure g/Any)
   (input rive-anim-ids g/Any)
+  (input rive-state-machine-ids g/Any)
   (input material-resource resource/Resource)
   (input material-shader ShaderLifecycle)
   (input material-samplers g/Any)
@@ -607,6 +639,7 @@
   ;                            (or (some-> material-samplers first material/sampler->tex-params)
   ;                                default-tex-params)))
   (output anim-ids g/Any :cached (g/fnk [anim-data] (vec (sort (keys anim-data)))))
+  (output state-machine-ids g/Any :cached (g/fnk [anim-data] (vec (sort (keys anim-data)))))
   (output material-shader ShaderLifecycle (gu/passthrough material-shader))
   (output scene g/Any :cached (g/fnk [_node-id rive-main-scene material-shader]
                                      (if (and (some? material-shader) (some? (:renderable rive-main-scene)))

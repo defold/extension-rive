@@ -2,7 +2,7 @@ function init(self)
 	msg.post(".", "acquire_input_focus")
 	self.press = false
 
-	rive.play_state_machine("#rivemodel", "Button", {})
+	--rive.play_state_machine("#rivemodel", "Button", {})
 end
 
 function update(self, dt)
