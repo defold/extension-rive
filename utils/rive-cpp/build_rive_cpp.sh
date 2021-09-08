@@ -11,7 +11,8 @@ PLATFORM=$1
 if [ ! -z "${PLATFORM}" ]; then
     shift
 else
-    export PLATFORM=$(uname | awk '{print tolower($0)}')
+    echo "You must specify a target platform!"
+    exit 1
 fi
 
 BUILD_DIR=./build/${PLATFORM}

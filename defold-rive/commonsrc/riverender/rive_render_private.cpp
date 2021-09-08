@@ -4,6 +4,7 @@
 #include <jc/array.h>
 
 #include <rive/artboard.hpp>
+#include <rive/contour_render_path.hpp>
 
 #include "riverender/rive_render_api.h"
 #include "riverender/rive_render_private.h"
@@ -374,7 +375,6 @@ namespace rive
         Context* ctx = new Context;
         return (HContext) ctx;
     }
-
 
     void resetClipping(HRenderer renderer)
     {

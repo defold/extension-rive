@@ -130,9 +130,6 @@ void BuildBoneHierarchy(rive::Artboard* artboard, dmArray<RiveBone*>* outroots, 
 {
     InstallSignalHandler();
 
-    const std::vector<rive::Core*>& objects = artboard->objects();
-    uint32_t num_objects = (uint32_t)objects.size();
-
     dmArray<rive::Bone*> bones;
     GetAllBones(artboard, &bones);
 

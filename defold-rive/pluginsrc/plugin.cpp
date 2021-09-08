@@ -524,8 +524,6 @@ extern "C" DM_DLLEXPORT void* RIVE_GetVertices(void* _rive_file, void* _buffer, 
     RiveFile* file = TO_RIVE_FILE(_rive_file);
     CHECK_FILE_RETURN(file);
 
-    float* buffer = (float*)_buffer;
-
     size_t sz = sizeof(RivePluginVertex) * file->m_Vertices.Size();
     if (sz > buffer_size) {
         dmLogWarning("The output vertex buffer (%u bytes) is smaller than the current buffer (%u bytes)", (uint32_t)buffer_size, (uint32_t)sz);
@@ -746,7 +744,7 @@ static void GenerateVertices(RiveFile* file)
                 {
                     RiveInternalVertex* vx_data_ptr = (RiveInternalVertex*) vxBuffer->m_Data;
                     int*                ix_data_ptr = (int*) ixBuffer->m_Data;
-                    uint32_t vx_count = vxBuffer->m_Size / sizeof(RiveInternalVertex);
+                    //uint32_t vx_count = vxBuffer->m_Size / sizeof(RiveInternalVertex);
                     uint32_t ix_count = ixBuffer->m_Size / sizeof(int);
 
                     if ((file->m_Vertices.Size() + ix_count) > file->m_Vertices.Capacity())
