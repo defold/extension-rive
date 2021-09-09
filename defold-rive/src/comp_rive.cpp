@@ -407,7 +407,6 @@ namespace dmRive
 
     static void GenerateVertexData(RiveWorld*   world,
         dmRender::HRenderContext                render_context,
-        dmGameSystem::HComponentRenderConstants render_constants,
         dmRender::HMaterial                     material,
         dmRiveDDF::RiveModelDesc::BlendMode     blend_mode,
         rive::HContext                          rive_ctx,
@@ -521,9 +520,7 @@ namespace dmRive
                             ro.m_FaceWinding = dmGraphics::FACE_WINDING_CCW;
                         }
 
-                        dmGameObject::PropertyVar apply_clipping_var(Vectormath::Aos::Vector4(0.0f, 0.0f, 0.0f, 0.0f));
-                        dmGameSystem::SetRenderConstant(render_constants, ro.m_Material, UNIFORM_COVER, 0, apply_clipping_var);
-                        dmGameSystem::EnableRenderObjectConstants(&ro, render_constants);
+                        dmRender::EnableRenderObjectConstant(&ro, UNIFORM_COVER, Vector4(0.0f, 0.0f, 0.0f, 0.0f));
 
                         Mat2DToMat4(evt.m_TransformWorld, ro.m_WorldTransform);
                         dmRender::AddToRender(render_context, &ro);
@@ -607,15 +604,15 @@ namespace dmRive
 
                             const rive::PaintData draw_entry_paint = rive::getPaintData(paint);
                             const float* color                     = &draw_entry_paint.m_Colors[0];
-                            dmGameObject::PropertyVar colorVar(Vectormath::Aos::Vector4(color[0], color[1], color[2], color[3]));
-                            dmGameSystem::SetRenderConstant(render_constants, ro.m_Material, UNIFORM_COLOR, 0, colorVar);
+
+                            dmRender::EnableRenderObjectConstant(&ro, UNIFORM_COLOR, Vector4(color[0], color[1], color[2], color[3]));
+
                         }
 
                         // If we are fullscreen-covering, we don't transform the vertices
                         float no_projection = (float) evt.m_IsClipping && is_applying_clipping;
-                        dmGameObject::PropertyVar apply_clipping_var(Vectormath::Aos::Vector4(no_projection, 0.0f, 0.0f, 0.0f));
-                        dmGameSystem::SetRenderConstant(render_constants, ro.m_Material, UNIFORM_COVER, 0, apply_clipping_var);
-                        dmGameSystem::EnableRenderObjectConstants(&ro, render_constants);
+
+                        dmRender::EnableRenderObjectConstant(&ro, UNIFORM_COVER, Vector4(no_projection, 0.0f, 0.0f, 0.0f));
 
                         if (last_face_winding != dmGraphics::FACE_WINDING_CCW)
                         {
@@ -689,12 +686,7 @@ namespace dmRive
         int* ix_end   = ix_begin;
         index_buffer.SetSize(index_buffer.Capacity());
 
-        if (!first->m_RenderConstants)
-        {
-            first->m_RenderConstants = dmGameSystem::CreateRenderConstants();
-        }
-
-        GenerateVertexData(world, render_context, first->m_RenderConstants,
+        GenerateVertexData(world, render_context,
             GetMaterial(first, resource), resource->m_DDF->m_BlendMode,
             ctx, renderer, vb_end, ix_end, ro_index);
     }
