@@ -107,14 +107,6 @@ namespace dmRive
         unsigned int m_Size;
     };
 
-    // JG: Do we need this or can we loop through events in render batch instead?
-    struct RiveDrawEntry
-    {
-        rive::DrawBuffers  m_Buffers;
-        rive::HRenderPaint m_Paint;
-        Matrix4            m_WorldTransform;
-    };
-
     // For the entire app's life cycle
     struct CompRiveContext
     {
@@ -141,7 +133,6 @@ namespace dmRive
         dmArray<RiveVertex>                 m_VertexBufferData;
         dmGraphics::HIndexBuffer            m_IndexBuffer;
         dmArray<int>                        m_IndexBufferData;
-        dmArray<RiveDrawEntry>              m_DrawEntries;
     };
 
     static inline void Mat4ToMat2D(const Matrix4 m4, rive::Mat2D& m2)
@@ -187,7 +178,6 @@ namespace dmRive
         world->m_Ctx = context;
         world->m_Components.SetCapacity(context->m_MaxInstanceCount);
         world->m_RenderObjects.SetCapacity(context->m_MaxInstanceCount);
-        world->m_DrawEntries.SetCapacity(context->m_MaxInstanceCount);
 
         dmGraphics::VertexElement ve[] =
         {
@@ -821,8 +811,6 @@ namespace dmRive
 
         dmArray<RiveComponent*>& components = world->m_Components.m_Objects;
         const uint32_t count = components.Size();
-
-        world->m_DrawEntries.SetSize(0);
 
         //const rive::RenderMode render_mode = rive::getRenderMode(ctx);
 
