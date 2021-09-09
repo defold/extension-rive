@@ -661,9 +661,9 @@ namespace dmRive
         GetRiveDrawParams(ctx, renderer, vertex_count, index_count, ro_count);
         uint32_t ro_size = world->m_RenderObjects.Size() + ro_count;
 
-        if (world->m_RenderObjects.Remaining() < ro_size)
+        if (world->m_RenderObjects.Remaining() < ro_count)
         {
-            world->m_RenderObjects.OffsetCapacity(ro_size - world->m_RenderObjects.Remaining());
+            world->m_RenderObjects.OffsetCapacity(ro_count - world->m_RenderObjects.Remaining());
         }
 
         uint32_t ro_index = world->m_RenderObjects.Size();
