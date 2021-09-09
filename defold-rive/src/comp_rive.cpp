@@ -675,17 +675,19 @@ namespace dmRive
             vertex_buffer.OffsetCapacity(vertex_count - vertex_buffer.Remaining());
         }
 
+        RiveVertex* vb_begin = vertex_buffer.End();
+        RiveVertex* vb_end = vb_begin;
+        vertex_buffer.SetSize(vertex_buffer.Capacity());
+
         dmArray<int> &index_buffer = world->m_IndexBufferData;
         if (index_buffer.Remaining() < index_count)
         {
             index_buffer.OffsetCapacity(index_count - index_buffer.Remaining());
         }
 
-        RiveVertex* vb_begin = vertex_buffer.End();
-        RiveVertex* vb_end = vb_begin;
-
         int* ix_begin = index_buffer.End();
         int* ix_end   = ix_begin;
+        index_buffer.SetSize(index_buffer.Capacity());
 
         if (!first->m_RenderConstants)
         {
@@ -695,9 +697,6 @@ namespace dmRive
         GenerateVertexData(world, render_context, first->m_RenderConstants,
             GetMaterial(first, resource), resource->m_DDF->m_BlendMode,
             ctx, renderer, vb_end, ix_end, ro_index);
-
-        vertex_buffer.SetSize(vb_end - vertex_buffer.Begin());
-        index_buffer.SetSize(ix_end - index_buffer.Begin());
     }
 
     void UpdateTransforms(RiveWorld* world)
