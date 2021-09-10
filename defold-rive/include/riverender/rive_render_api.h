@@ -1,8 +1,15 @@
 #ifndef _RIVE_RENDER_API_H_
 #define _RIVE_RENDER_API_H_
 
+#include <stdint.h>
+#include <rive/math/mat2d.hpp>
+
 namespace rive
 {
+    class RenderPaint;
+    class RenderPath;
+    class Renderer;
+
     typedef uintptr_t    HContext;
     typedef uintptr_t    HBuffer;
     typedef RenderPaint* HRenderPaint;
