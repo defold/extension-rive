@@ -7,6 +7,7 @@
 #include "rive_ddf.h"
 
 #include <rive/math/mat2d.hpp>
+#include <riverender/rive_render_api.h>
 
 namespace rive
 {
@@ -69,18 +70,35 @@ namespace dmRive
     void CopyVertices(RiveVertex* dst, const RiveVertex* src, uint32_t count);
     void CopyIndices(int* dst, const int* src, uint32_t count, int index_offset);
     void SetStencilDrawState(dmRender::StencilTestParams* params, bool is_clipping, bool clear_clipping_flag);
+    void SetStencilCoverState(dmRender::StencilTestParams* params, bool is_clipping, bool is_applying_clipping);
     void GetBlendFactorsFromBlendMode(dmRiveDDF::RiveModelDesc::BlendMode blend_mode, dmGraphics::BlendFactor* src, dmGraphics::BlendFactor* dst);
     void GetRiveDrawParams(rive::HContext ctx, rive::HRenderer renderer, uint32_t& vertex_count, uint32_t& index_count, uint32_t& render_object_count);
 
+    // Used when processing the events
+    struct RiveEventsContext
+    {
+        void*                   m_UserContext; // the context passed into ProcessRiveEvents
 
-    uint32_t GenerateRenderData(
-        dmRiveDDF::RiveModelDesc::BlendMode     blend_mode,
-        rive::HContext                          rive_ctx,
-        rive::HRenderer                         renderer,
-        RiveVertex*                             vx_ptr,
-        int*                                    ix_ptr,
-        RenderObject*                           render_objects, uint32_t ro_count);
+        rive::HContext          m_Ctx;
+        rive::HRenderer         m_Renderer;
+        rive::PathDrawEvent     m_Event;
 
+        rive::HRenderPaint      m_Paint;
+        uint32_t                m_Index;
+
+        bool                    m_ClearClippingFlag;
+        bool                    m_IsApplyingClipping;
+
+        uint32_t                m_IndexOffsetBytes;
+        uint32_t                m_IndexCount;
+
+        dmGraphics::FaceWinding m_FaceWinding;
+    };
+
+    typedef void (*FRiveEventCallback)(RiveEventsContext* ctx);
+
+    uint32_t ProcessRiveEvents(rive::HContext ctx, rive::HRenderer renderer, RiveVertex* vx_ptr, int* ix_ptr,
+                                FRiveEventCallback callback, void* user_ctx);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////
     inline void Mat2DToMat4(const rive::Mat2D m2, dmVMath::Matrix4& m4)
