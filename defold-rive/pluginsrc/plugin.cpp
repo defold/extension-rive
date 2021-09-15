@@ -37,6 +37,7 @@ __declspec(dllexport) int dummyFunc()
 #include <stdint.h>
 
 #include <common/bones.h>
+#include <common/vertices.h>
 
 struct RiveBuffer
 {
@@ -658,29 +659,6 @@ static void GenerateAABB(RiveFile* file)
     ++v;
 }
 
-static inline void Mat2DToMat4(const rive::Mat2D m2, dmVMath::Matrix4& m4)
-{
-    m4[0][0] = m2[0];
-    m4[0][1] = m2[1];
-    m4[0][2] = 0.0;
-    m4[0][3] = 0.0;
-
-    m4[1][0] = m2[2];
-    m4[1][1] = m2[3];
-    m4[1][2] = 0.0;
-    m4[1][3] = 0.0;
-
-    m4[2][0] = 0.0;
-    m4[2][1] = 0.0;
-    m4[2][2] = 1.0;
-    m4[2][3] = 0.0;
-
-    m4[3][0] = m2[4];
-    m4[3][1] = m2[5];
-    m4[3][2] = 0.0;
-    m4[3][3] = 1.0;
-}
-
 static void GenerateVertices(RiveFile* file)
 {
     file->m_Vertices.SetSize(0); // Clear the vertices
@@ -753,7 +731,7 @@ static void GenerateVertices(RiveFile* file)
                     }
 
                     dmVMath::Matrix4 transform;
-                    Mat2DToMat4(evt.m_TransformWorld, transform);
+                    dmRive::Mat2DToMat4(evt.m_TransformWorld, transform);
 
                     const float white[] = {1, 1, 1, 0.0f};
                     const float* color = white;

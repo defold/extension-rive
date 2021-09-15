@@ -2,9 +2,8 @@
 #include <stdint.h>
 #include <dmsdk/dlib/vmath.h>
 #include <dmsdk/dlib/hash.h>
-#include <dmsdk/dlib/hash.h>
-
-#include "rive_ddf.h"
+#include <dmsdk/graphics/graphics.h>
+#include <dmsdk/render/render.h>
 
 #include <rive/math/mat2d.hpp>
 #include <riverender/rive_render_api.h>
@@ -71,7 +70,6 @@ namespace dmRive
     void CopyIndices(int* dst, const int* src, uint32_t count, int index_offset);
     void SetStencilDrawState(dmRender::StencilTestParams* params, bool is_clipping, bool clear_clipping_flag);
     void SetStencilCoverState(dmRender::StencilTestParams* params, bool is_clipping, bool is_applying_clipping);
-    void GetBlendFactorsFromBlendMode(dmRiveDDF::RiveModelDesc::BlendMode blend_mode, dmGraphics::BlendFactor* src, dmGraphics::BlendFactor* dst);
     void GetRiveDrawParams(rive::HContext ctx, rive::HRenderer renderer, uint32_t& vertex_count, uint32_t& index_count, uint32_t& render_object_count);
 
     // Used when processing the events
