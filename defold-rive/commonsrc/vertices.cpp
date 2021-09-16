@@ -10,8 +10,6 @@
 
 namespace dmRive
 {
-static const dmhash_t UNIFORM_COLOR      = dmHashString64("color");
-static const dmhash_t UNIFORM_COVER      = dmHashString64("cover");
 
 
 void CopyVertices(RiveVertex* dst, const RiveVertex* src, uint32_t count)

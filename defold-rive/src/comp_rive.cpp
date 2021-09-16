@@ -93,10 +93,6 @@ namespace dmRive
     static void DeleteBones(RiveComponent* component);
     static void UpdateBones(RiveComponent* component);
 
-    static rive::HBuffer RiveRequestBufferCallback(rive::HBuffer buffer, rive::BufferType type, void* data, unsigned int dataSize, void* userData);
-    static void          RiveDestroyBufferCallback(rive::HBuffer buffer, void* userData);
-
-
     // For the entire app's life cycle
     struct CompRiveContext
     {
@@ -349,7 +345,7 @@ namespace dmRive
     }
 
 
-    void RiveEventCallback_RenderObject(RiveEventsContext* ctx)
+    static void RiveEventCallback_RenderObject(RiveEventsContext* ctx)
     {
         RiveEventsDrawcallContext* engine_ctx = (RiveEventsDrawcallContext*)ctx->m_UserContext;
 
@@ -1195,7 +1191,7 @@ namespace dmRive
 
         rive::g_Ctx = rivectx->m_RiveContext;
         rive::setRenderMode(rivectx->m_RiveContext, rive::MODE_STENCIL_TO_COVER);
-        rive::setBufferCallbacks(rivectx->m_RiveContext, RiveRequestBufferCallback, RiveDestroyBufferCallback, 0x0);
+        rive::setBufferCallbacks(rivectx->m_RiveContext, dmRive::RequestBufferCallback, dmRive::DestroyBufferCallback, 0x0);
 
         rivectx->m_RiveRenderer = rive::createRenderer(rivectx->m_RiveContext);
         rive::setContourQuality(rivectx->m_RiveRenderer, 0.8888888888888889f);
@@ -1344,40 +1340,6 @@ namespace dmRive
         UpdateBones(component);
 
         return true;
-    }
-
-    static rive::HBuffer RiveRequestBufferCallback(rive::HBuffer buffer, rive::BufferType type, void* data, unsigned int dataSize, void* userData)
-    {
-        RiveBuffer* buf = (RiveBuffer*) buffer;
-        if (dataSize == 0)
-        {
-            return 0;
-        }
-
-        if (buf == 0)
-        {
-            buf = new RiveBuffer();
-        }
-
-        buf->m_Data = realloc(buf->m_Data, dataSize);
-        buf->m_Size = dataSize;
-        memcpy(buf->m_Data, data, dataSize);
-
-        return (rive::HBuffer) buf;
-    }
-
-    static void RiveDestroyBufferCallback(rive::HBuffer buffer, void* userData)
-    {
-        RiveBuffer* buf = (RiveBuffer*) buffer;
-        if (buf != 0)
-        {
-            if (buf->m_Data != 0)
-            {
-                free(buf->m_Data);
-            }
-
-            delete buf;
-        }
     }
 
     // ******************************************************************************
