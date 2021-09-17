@@ -109,6 +109,17 @@
 (defn- plugin-get-state-machines [handle]
   (plugin-invoke-static rive-plugin-cls "RIVE_GetStateMachines" (into-array Class [rive-plugin-pointer-cls]) [handle]))
 
+;(defn- plugin-get-vertex-buffer-data ^"[Lcom.dynamo.bob.pipeline.Rive$RiveVertex;" [handle]
+(defn- plugin-get-vertex-buffer-data [handle]
+  (plugin-invoke-static rive-plugin-cls "RIVE_GetVertexBuffer" (into-array Class [rive-plugin-pointer-cls]) [handle]))
+
+(defn- plugin-get-index-buffer-data ^"[I" [handle]
+  (plugin-invoke-static rive-plugin-cls "RIVE_GetIndexBuffer" (into-array Class [rive-plugin-pointer-cls]) [handle]))
+
+;(defn- plugin-get-render-objects ^"[Lcom.dynamo.bob.pipeline.Rive$RenderObject;" [handle]
+(defn- plugin-get-render-objects [handle]
+  (plugin-invoke-static rive-plugin-cls "RIVE_GetVertexBuffer" (into-array Class [rive-plugin-pointer-cls]) [handle]))
+
 
 ; .rivemodel
 (defn load-rive-model [project self resource content]
