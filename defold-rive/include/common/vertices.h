@@ -69,7 +69,9 @@ namespace dmRive
     };
 
     // See dmsdk/render/render.h for the actual implementation
-    struct RenderObject // similar to dmRender::RenderObject, but used for the Editor
+    // similar to dmRender::RenderObject, but used for the Editor
+    // Matches 1:1 with the Java implementation in Rive.java
+    struct RenderObject
     {
         void Init();
         void AddConstant(dmhash_t name_hash, const dmVMath::Vector4& value);
@@ -80,9 +82,9 @@ namespace dmRive
         dmVMath::Matrix4                m_WorldTransform;
         dmRive::ShaderConstant          m_Constants[MAX_CONSTANT_COUNT];
         // 256 bytes
+        uint32_t                        m_NumConstants;
         uint32_t                        m_VertexStart;
         uint32_t                        m_VertexCount;
-        uint32_t                        m_NumConstants;
         uint32_t                        : 32;
 
         bool                            m_SetBlendFactors;

@@ -98,7 +98,7 @@ struct RiveFile
 
 typedef RiveFile* HRiveFile;
 
-static void          UpdateRenderData(RiveFile* file);
+static void UpdateRenderData(RiveFile* file);
 
 
 // Need to free() the buffer

@@ -299,13 +299,14 @@ public class Rive {
         }
     }
 
+    // Matching the layout 1:1 with the struct in vertices.h
     static public class RenderObject extends Structure {
         public StencilTestParams    m_StencilTestParams;
         public Matrix4              m_WorldTransform; // 16 byte alignment for simd
         public ShaderConstant[]     m_Constants = new ShaderConstant[4];
+        public int                  m_NumConstants;
         public int                  m_VertexStart;
         public int                  m_VertexCount;
-        public int                  m_NumConstants;
         public int                  pad1;
         public byte                 m_SetBlendFactors;
         public byte                 m_SetStencilTest;
@@ -316,7 +317,7 @@ public class Rive {
         protected List getFieldOrder() {
             return Arrays.asList(new String[] {
                 "m_StencilTestParams", "m_WorldTransform", "m_Constants",
-                "m_VertexStart", "m_VertexCount", "m_NumConstants", "pad1",
+                "m_NumConstants", "m_VertexStart", "m_VertexCount", "pad1",
                 "m_SetBlendFactors", "m_SetStencilTest", "m_SetFaceWinding", "m_FaceWindingCCW", "pad2"});
         }
 
@@ -336,7 +337,7 @@ public class Rive {
         if (first == null)
         {
             System.out.printf("Vertex buffer is empty!");
-            return null;
+            return new RiveVertex[0];
         }
         return (RiveVertex[])first.toArray(pcount.getValue());
     }
@@ -347,7 +348,7 @@ public class Rive {
         if (pcount == null || p == null)
         {
             System.out.printf("Index buffer is empty!");
-            return null;
+            return new int[0];
         }
         return p.getPointer().getIntArray(0, pcount.getValue());
     }
@@ -358,9 +359,14 @@ public class Rive {
         if (first == null)
         {
             System.out.printf("Render object buffer is empty!");
-            return null;
+            return new RenderObject[0];
         }
 
+        int ro_size = 288;
+        if (first.size() != ro_size) {
+            System.out.printf("RenderObject size is not %d, it was %d\n", ro_size, first.size());
+            return new RenderObject[0];
+        }
 
         return (RenderObject[])first.toArray(pcount.getValue());
     }
