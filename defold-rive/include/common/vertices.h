@@ -32,10 +32,41 @@ namespace dmRive
     // We use a simpler version here, since we don't know the location of the variable in the shader
     struct ShaderConstant
     {
-        dmVMath::Vector4                        m_Value;
-        dmhash_t                                m_NameHash;
+        dmVMath::Vector4 m_Value;
+        dmhash_t         m_NameHash;
     };
 
+    // Due to the fact that the struct has bit fields, it's not possible to get a 1:1 mapping using JNA
+    // See dmsdk/render/render.h for the actual implementation
+    struct StencilTestParams
+    {
+        void Init();
+
+        struct
+        {
+            dmGraphics::CompareFunc m_Func;
+            dmGraphics::StencilOp   m_OpSFail;
+            dmGraphics::StencilOp   m_OpDPFail;
+            dmGraphics::StencilOp   m_OpDPPass;
+        } m_Front;
+
+        struct
+        {
+            dmGraphics::CompareFunc m_Func;
+            dmGraphics::StencilOp   m_OpSFail;
+            dmGraphics::StencilOp   m_OpDPFail;
+            dmGraphics::StencilOp   m_OpDPPass;
+        } m_Back;
+
+        uint8_t m_Ref;
+        uint8_t m_RefMask;
+        uint8_t m_BufferMask;
+        bool    m_ColorBufferMask;
+        bool    m_ClearBuffer;
+        bool    m_SeparateFaceStates;
+    };
+
+    // See dmsdk/render/render.h for the actual implementation
     struct RenderObject // similar to dmRender::RenderObject, but used for the Editor
     {
         void Init();
@@ -57,14 +88,16 @@ namespace dmRive
         dmRender::StencilTestParams     m_StencilTestParams;
         uint32_t                        m_VertexStart;
         uint32_t                        m_VertexCount;
-        uint8_t                         m_SetBlendFactors : 1;
-        uint8_t                         m_SetStencilTest : 1;
-        uint8_t                         m_SetFaceWinding : 1;
+        bool                            m_SetBlendFactors;
+        bool                            m_SetStencilTest;
+        bool                            m_SetFaceWinding;
     };
 
+    // Used by both editor and runtime
     inline void Mat2DToMat4(const rive::Mat2D m2, dmVMath::Matrix4& m4);
 
-    // Used by both editor and runtime
+    rive::HBuffer   RequestBufferCallback(rive::HBuffer buffer, rive::BufferType type, void* data, unsigned int dataSize, void* userData);
+    void            DestroyBufferCallback(rive::HBuffer buffer, void* userData);
 
     void CopyVertices(RiveVertex* dst, const RiveVertex* src, uint32_t count);
     void CopyIndices(int* dst, const int* src, uint32_t count, int index_offset);

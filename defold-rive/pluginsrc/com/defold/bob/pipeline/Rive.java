@@ -20,6 +20,7 @@ import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 import com.sun.jna.PointerType;
 import com.sun.jna.Structure;
+import com.sun.jna.ptr.IntByReference;
 
 public class Rive {
 
@@ -192,6 +193,47 @@ public class Rive {
     public static native int RIVE_GetVertexCount(RivePointer rive);
     public static native void RIVE_GetVertices(RivePointer rive, Buffer buffer, int bufferSize); // buffer size must be at least VertexSize * VertexCount bytes long
 
+
+    ////////////////////////////////////////////////////////////////////////////////
+    // Vertices
+
+    static public class RiveVertex extends Structure {
+        public float x, y;
+        public RiveVertex() {
+            this.x = this.y = -1;
+        }
+        protected List getFieldOrder() {
+            return Arrays.asList(new String[] {"x", "y"});
+        }
+    }
+    public static native RiveVertex RIVE_GetVertexBufferData(RivePointer rive, IntByReference vertexCount);
+    public static native IntByReference RIVE_GetIndexBufferData(RivePointer rive, IntByReference indexCount);
+
+    // idea from https://stackoverflow.com/a/15431595/468516
+    public static RiveVertex[] RIVE_GetVertexBuffer(RivePointer rive) {
+        IntByReference pcount = new IntByReference();
+        RiveVertex first = RIVE_GetVertexBufferData(rive, pcount);
+        if (first == null)
+        {
+            System.out.printf("Vertex buffer is empty!");
+            return null;
+        }
+        return (RiveVertex[])first.toArray(pcount.getValue());
+    }
+
+    public static int[] RIVE_GetIndexBuffer(RivePointer rive) {
+        IntByReference pcount = new IntByReference();
+        IntByReference p = RIVE_GetIndexBufferData(rive, pcount);
+        if (pcount == null || p == null)
+        {
+            System.out.printf("Index buffer is empty!");
+            return null;
+        }
+        return p.getPointer().getIntArray(0, pcount.getValue());
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////
+
     public static RivePointer RIVE_LoadFileFromBuffer(byte[] buffer, String path) {
         Buffer b = ByteBuffer.wrap(buffer);
         Pointer p = RIVE_LoadFromBuffer(b, b.capacity(), path);
@@ -269,5 +311,23 @@ public class Rive {
 
 
         RIVE_UpdateVertices(p, 0.0f);
+
+        int count = 0;
+        for (RiveVertex vertex : RIVE_GetVertexBuffer(p)) {
+            if (count > 10) {
+                System.out.printf(" ...\n");
+                break;
+            }
+            System.out.printf(" vertex %d: %.4f, %.4f\n", count++, vertex.x, vertex.y);
+        }
+
+        count = 0;
+        for (int index : RIVE_GetIndexBuffer(p)) {
+            if (count > 10) {
+                System.out.printf(" ...\n");
+                break;
+            }
+            System.out.printf(" index %d: %d\n", count++, index);
+        }
     }
 }
