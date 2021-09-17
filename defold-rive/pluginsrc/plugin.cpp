@@ -33,11 +33,17 @@ __declspec(dllexport) int dummyFunc()
 #include <dmsdk/dlib/array.h>
 #include <dmsdk/dlib/log.h>
 #include <dmsdk/dlib/shared_library.h>
+#include <dmsdk/dlib/static_assert.h>
 #include <stdio.h>
 #include <stdint.h>
 
 #include <common/bones.h>
 #include <common/vertices.h>
+
+// We map these to ints on the java side (See Rive.java)
+DM_STATIC_ASSERT(sizeof(dmGraphics::CompareFunc) == sizeof(int), Invalid_struct_size);
+DM_STATIC_ASSERT(sizeof(dmGraphics::StencilOp) == sizeof(int), Invalid_struct_size);
+
 
 struct RivePluginVertex
 {
@@ -549,6 +555,14 @@ extern "C" DM_DLLEXPORT int* RIVE_GetIndexBufferData(void* _rive_file, int* pcou
     return file->m_IndexBuffer.Begin();
 }
 
+extern "C" DM_DLLEXPORT dmRive::RenderObject* RIVE_GetRenderObjectData(void* _rive_file, int* pcount)
+{
+    RiveFile* file = TO_RIVE_FILE(_rive_file);
+    CHECK_FILE_RETURN(file);
+    *pcount = (int)file->m_RenderObjects.Size();
+    return file->m_RenderObjects.Begin();
+}
+
 extern "C" DM_DLLEXPORT void RIVE_GetAABBInternal(void* _rive_file, AABB* aabb)
 {
     RiveFile* file = TO_RIVE_FILE(_rive_file);
@@ -659,15 +673,12 @@ static void RiveEventCallback_Plugin(dmRive::RiveEventsContext* ctx)
         {
             dmRive::RenderObject& ro = plugin_ctx->m_RenderObjects[ctx->m_Index];
             ro.Init();
-            ro.m_VertexBuffer      = plugin_ctx->m_VertexBuffer;
-            ro.m_IndexBuffer       = plugin_ctx->m_IndexBuffer;
+
             ro.m_VertexStart       = ctx->m_IndexOffsetBytes; // byte offset
             ro.m_VertexCount       = ctx->m_IndexCount;
-            ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_INT;
-            ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
             ro.m_SetStencilTest    = 1;
             ro.m_SetFaceWinding    = 1;
-            ro.m_FaceWinding       = ctx->m_FaceWinding;
+            ro.m_FaceWindingCCW    = ctx->m_FaceWinding == dmGraphics::FACE_WINDING_CCW;
 
             dmRive::SetStencilDrawState(&ro.m_StencilTestParams, ctx->m_Event.m_IsClipping, ctx->m_ClearClippingFlag);
 
@@ -681,16 +692,12 @@ static void RiveEventCallback_Plugin(dmRive::RiveEventsContext* ctx)
         {
             dmRive::RenderObject& ro = plugin_ctx->m_RenderObjects[ctx->m_Index];
             ro.Init();
-            ro.m_VertexBuffer      = plugin_ctx->m_VertexBuffer;
-            ro.m_IndexBuffer       = plugin_ctx->m_IndexBuffer;
             ro.m_VertexStart       = ctx->m_IndexOffsetBytes; // byte offset
             ro.m_VertexCount       = ctx->m_IndexCount;
-            ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_INT;
-            ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
             ro.m_SetStencilTest    = 1;
 
             ro.m_SetFaceWinding    = 1;
-            ro.m_FaceWinding       = ctx->m_FaceWinding;
+            ro.m_FaceWindingCCW    = ctx->m_FaceWinding == dmGraphics::FACE_WINDING_CCW;
 
             dmRive::SetStencilCoverState(&ro.m_StencilTestParams, ctx->m_Event.m_IsClipping, ctx->m_IsApplyingClipping);
 

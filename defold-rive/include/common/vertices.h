@@ -34,6 +34,7 @@ namespace dmRive
     {
         dmVMath::Vector4 m_Value;
         dmhash_t         m_NameHash;
+        uint8_t          pad[8];
     };
 
     // Due to the fact that the struct has bit fields, it's not possible to get a 1:1 mapping using JNA
@@ -57,13 +58,14 @@ namespace dmRive
             dmGraphics::StencilOp   m_OpDPFail;
             dmGraphics::StencilOp   m_OpDPPass;
         } m_Back;
-
+        // 32 bytes
         uint8_t m_Ref;
         uint8_t m_RefMask;
         uint8_t m_BufferMask;
         bool    m_ColorBufferMask;
         bool    m_ClearBuffer;
         bool    m_SeparateFaceStates;
+        uint8_t pad[32 - 6];
     };
 
     // See dmsdk/render/render.h for the actual implementation
@@ -74,23 +76,20 @@ namespace dmRive
 
         static const uint32_t MAX_CONSTANT_COUNT = 4;
 
-        ShaderConstant                  m_Constants[MAX_CONSTANT_COUNT];
-        uint32_t                        m_NumConstants;
-
+        dmRive::StencilTestParams       m_StencilTestParams;
         dmVMath::Matrix4                m_WorldTransform;
-        RiveVertex*                     m_VertexBuffer;
-        int*                            m_IndexBuffer;
-        dmGraphics::PrimitiveType       m_PrimitiveType;
-        dmGraphics::Type                m_IndexType;
-        dmGraphics::BlendFactor         m_SourceBlendFactor;
-        dmGraphics::BlendFactor         m_DestinationBlendFactor;
-        dmGraphics::FaceWinding         m_FaceWinding;
-        dmRender::StencilTestParams     m_StencilTestParams;
+        dmRive::ShaderConstant          m_Constants[MAX_CONSTANT_COUNT];
+        // 256 bytes
         uint32_t                        m_VertexStart;
         uint32_t                        m_VertexCount;
+        uint32_t                        m_NumConstants;
+        uint32_t                        : 32;
+
         bool                            m_SetBlendFactors;
         bool                            m_SetStencilTest;
         bool                            m_SetFaceWinding;
+        bool                            m_FaceWindingCCW;
+        uint8_t                         pad[(4*4) - 4];
     };
 
     // Used by both editor and runtime
@@ -101,8 +100,6 @@ namespace dmRive
 
     void CopyVertices(RiveVertex* dst, const RiveVertex* src, uint32_t count);
     void CopyIndices(int* dst, const int* src, uint32_t count, int index_offset);
-    void SetStencilDrawState(dmRender::StencilTestParams* params, bool is_clipping, bool clear_clipping_flag);
-    void SetStencilCoverState(dmRender::StencilTestParams* params, bool is_clipping, bool is_applying_clipping);
     void GetRiveDrawParams(rive::HContext ctx, rive::HRenderer renderer, uint32_t& vertex_count, uint32_t& index_count, uint32_t& render_object_count);
 
     // Used when processing the events
@@ -155,4 +152,83 @@ namespace dmRive
         m4[3][3] = 1.0;
     }
 
+    template<typename T>
+    void SetStencilDrawState(T* params, bool is_clipping, bool clear_clipping_flag)
+    {
+        params->m_Front = {
+            .m_Func     = dmGraphics::COMPARE_FUNC_ALWAYS,
+            .m_OpSFail  = dmGraphics::STENCIL_OP_KEEP,
+            .m_OpDPFail = dmGraphics::STENCIL_OP_KEEP,
+            .m_OpDPPass = dmGraphics::STENCIL_OP_INCR_WRAP,
+        };
+
+        params->m_Back = {
+            .m_Func     = dmGraphics::COMPARE_FUNC_ALWAYS,
+            .m_OpSFail  = dmGraphics::STENCIL_OP_KEEP,
+            .m_OpDPFail = dmGraphics::STENCIL_OP_KEEP,
+            .m_OpDPPass = dmGraphics::STENCIL_OP_DECR_WRAP,
+        };
+
+        params->m_Ref                = 0x00;
+        params->m_RefMask            = 0xFF;
+        params->m_BufferMask         = 0xFF;
+        params->m_ColorBufferMask    = 0x00;
+        params->m_ClearBuffer        = 0;
+        params->m_SeparateFaceStates = 1;
+
+        if (is_clipping)
+        {
+            params->m_Front.m_Func = dmGraphics::COMPARE_FUNC_EQUAL;
+            params->m_Back.m_Func  = dmGraphics::COMPARE_FUNC_EQUAL;
+            params->m_Ref          = 0x80;
+            params->m_RefMask      = 0x80;
+            params->m_BufferMask   = 0x7F;
+        }
+
+        if (clear_clipping_flag)
+        {
+            params->m_ClearBuffer = 1;
+        }
+    }
+
+    template<typename T>
+    void SetStencilCoverState(T* params, bool is_clipping, bool is_applying_clipping)
+    {
+        params->m_ClearBuffer = 0;
+
+        if (is_applying_clipping)
+        {
+            params->m_Front = {
+                .m_Func     = dmGraphics::COMPARE_FUNC_NOTEQUAL,
+                .m_OpSFail  = dmGraphics::STENCIL_OP_ZERO,
+                .m_OpDPFail = dmGraphics::STENCIL_OP_ZERO,
+                .m_OpDPPass = dmGraphics::STENCIL_OP_REPLACE,
+            };
+
+            params->m_Ref             = 0x80;
+            params->m_RefMask         = 0x7F;
+            params->m_BufferMask      = 0xFF;
+            params->m_ColorBufferMask = 0x00;
+        }
+        else
+        {
+            params->m_Front = {
+                .m_Func     = dmGraphics::COMPARE_FUNC_NOTEQUAL,
+                .m_OpSFail  = dmGraphics::STENCIL_OP_ZERO,
+                .m_OpDPFail = dmGraphics::STENCIL_OP_ZERO,
+                .m_OpDPPass = dmGraphics::STENCIL_OP_ZERO,
+            };
+
+            params->m_Ref             = 0x00;
+            params->m_RefMask         = 0xFF;
+            params->m_BufferMask      = 0xFF;
+            params->m_ColorBufferMask = 0x0F;
+
+            if (is_clipping)
+            {
+                params->m_RefMask    = 0x7F;
+                params->m_BufferMask = 0x7F;
+            }
+        }
+    }
 }

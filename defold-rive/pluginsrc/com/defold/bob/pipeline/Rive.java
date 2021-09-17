@@ -195,19 +195,139 @@ public class Rive {
 
 
     ////////////////////////////////////////////////////////////////////////////////
-    // Vertices
+    // Render data
 
+    // Matching the struct in vertices.h
     static public class RiveVertex extends Structure {
         public float x, y;
-        public RiveVertex() {
-            this.x = this.y = -1;
-        }
         protected List getFieldOrder() {
             return Arrays.asList(new String[] {"x", "y"});
         }
     }
+
+    // The enums come straight from https://github.com/defold/defold/blob/dev/engine/graphics/src/dmsdk/graphics/graphics.h
+    public enum CompareFunc
+    {
+        COMPARE_FUNC_NEVER    (0),
+        COMPARE_FUNC_LESS     (1),
+        COMPARE_FUNC_LEQUAL   (2),
+        COMPARE_FUNC_GREATER  (3),
+        COMPARE_FUNC_GEQUAL   (4),
+        COMPARE_FUNC_EQUAL    (5),
+        COMPARE_FUNC_NOTEQUAL (6),
+        COMPARE_FUNC_ALWAYS   (7);
+
+        private final int value;
+        private CompareFunc(int v) { this.value = v; }
+        public int getValue() { return this.value; }
+    };
+
+    public enum FaceWinding
+    {
+        FACE_WINDING_CCW (0),
+        FACE_WINDING_CW  (1);
+
+        private final int value;
+        private FaceWinding(int v) { this.value = v; }
+        public int getValue() { return this.value; }
+    };
+
+    public enum StencilOp
+    {
+        STENCIL_OP_KEEP      (0),
+        STENCIL_OP_ZERO      (1),
+        STENCIL_OP_REPLACE   (2),
+        STENCIL_OP_INCR      (3),
+        STENCIL_OP_INCR_WRAP (4),
+        STENCIL_OP_DECR      (5),
+        STENCIL_OP_DECR_WRAP (6),
+        STENCIL_OP_INVERT    (7);
+
+        private final int value;
+        private StencilOp(int v) { this.value = v; }
+        public int getValue() { return this.value; }
+    };
+
+    static public class StencilTestFunc extends Structure {
+        public int m_Func;      // dmGraphics::CompareFunc
+        public int m_OpSFail;   // dmGraphics::StencilOp
+        public int m_OpDPFail;  // dmGraphics::StencilOp
+        public int m_OpDPPass;  // dmGraphics::StencilOp
+        protected List getFieldOrder() {
+            return Arrays.asList(new String[] {"m_Func", "m_OpSFail", "m_OpDPFail", "m_OpDPPass"});
+        }
+    }
+
+    static public class StencilTestParams extends Structure {
+        public StencilTestFunc m_Front;
+        public StencilTestFunc m_Back;
+        public byte    m_Ref;
+        public byte    m_RefMask;
+        public byte    m_BufferMask;
+        public byte    m_ColorBufferMask; // bool
+        public byte    m_ClearBuffer;      // bool
+        public byte    m_SeparateFaceStates; // bool
+        public byte[]  pad = new byte[32 - 6];
+        protected List getFieldOrder() {
+            return Arrays.asList(new String[] {
+                "m_Front", "m_Back",
+                "m_Ref", "m_RefMask", "m_BufferMask",
+                "m_ColorBufferMask", "m_ClearBuffer", "m_SeparateFaceStates", "pad"});
+        }
+    }
+
+    static public class Matrix4 extends Structure {
+        public float[] m = new float[16];
+        protected List getFieldOrder() {
+            return Arrays.asList(new String[] {"m"});
+        }
+    }
+
+    static public class Vector4 extends Structure {
+        public float x, y, z, w;
+        protected List getFieldOrder() {
+            return Arrays.asList(new String[] {"x","y","z","w"});
+        }
+    }
+
+    static public class ShaderConstant extends Structure {
+        public Vector4 m_Value;
+        public long m_NameHash;
+        public long pad1;
+        protected List getFieldOrder() {
+            return Arrays.asList(new String[] {"m_NameHash", "m_Value", "pad1"});
+        }
+    }
+
+    static public class RenderObject extends Structure {
+        public StencilTestParams    m_StencilTestParams;
+        public Matrix4              m_WorldTransform; // 16 byte alignment for simd
+        public ShaderConstant[]     m_Constants = new ShaderConstant[4];
+        public int                  m_VertexStart;
+        public int                  m_VertexCount;
+        public int                  m_NumConstants;
+        public int                  pad1;
+        public byte                 m_SetBlendFactors;
+        public byte                 m_SetStencilTest;
+        public byte                 m_SetFaceWinding;
+        public byte                 m_FaceWindingCCW;
+        public byte[]               pad2 = new byte[(4*4) - 4];
+
+        protected List getFieldOrder() {
+            return Arrays.asList(new String[] {
+                "m_StencilTestParams", "m_WorldTransform", "m_Constants",
+                "m_VertexStart", "m_VertexCount", "m_NumConstants", "pad1",
+                "m_SetBlendFactors", "m_SetStencilTest", "m_SetFaceWinding", "m_FaceWindingCCW", "pad2"});
+        }
+
+        public int getOffset(String name) {
+            return super.fieldOffset(name);
+        }
+    }
+
     public static native RiveVertex RIVE_GetVertexBufferData(RivePointer rive, IntByReference vertexCount);
     public static native IntByReference RIVE_GetIndexBufferData(RivePointer rive, IntByReference indexCount);
+    public static native RenderObject RIVE_GetRenderObjectData(RivePointer rive, IntByReference indexCount);
 
     // idea from https://stackoverflow.com/a/15431595/468516
     public static RiveVertex[] RIVE_GetVertexBuffer(RivePointer rive) {
@@ -230,6 +350,19 @@ public class Rive {
             return null;
         }
         return p.getPointer().getIntArray(0, pcount.getValue());
+    }
+
+    public static RenderObject[] RIVE_GetRenderObjects(RivePointer rive) {
+        IntByReference pcount = new IntByReference();
+        RenderObject first = RIVE_GetRenderObjectData(rive, pcount);
+        if (first == null)
+        {
+            System.out.printf("Render object buffer is empty!");
+            return null;
+        }
+
+
+        return (RenderObject[])first.toArray(pcount.getValue());
     }
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -312,6 +445,7 @@ public class Rive {
 
         RIVE_UpdateVertices(p, 0.0f);
 
+        System.out.printf("Vertices:\n");
         int count = 0;
         for (RiveVertex vertex : RIVE_GetVertexBuffer(p)) {
             if (count > 10) {
@@ -321,6 +455,7 @@ public class Rive {
             System.out.printf(" vertex %d: %.4f, %.4f\n", count++, vertex.x, vertex.y);
         }
 
+        System.out.printf("Indices:\n");
         count = 0;
         for (int index : RIVE_GetIndexBuffer(p)) {
             if (count > 10) {
@@ -328,6 +463,16 @@ public class Rive {
                 break;
             }
             System.out.printf(" index %d: %d\n", count++, index);
+        }
+
+        System.out.printf("Render Objects:\n");
+        count = 0;
+        for (RenderObject ro : RIVE_GetRenderObjects(p)) {
+            if (count > 10) {
+                System.out.printf(" ...\n");
+                break;
+            }
+            System.out.printf(" ro %d: fw(ccw): %b  offset: %d  count: %d \n", count++, ro.m_FaceWindingCCW, ro.m_VertexStart, ro.m_VertexCount);
         }
     }
 }
