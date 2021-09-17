@@ -43,6 +43,8 @@ __declspec(dllexport) int dummyFunc()
 // We map these to ints on the java side (See Rive.java)
 DM_STATIC_ASSERT(sizeof(dmGraphics::CompareFunc) == sizeof(int), Invalid_struct_size);
 DM_STATIC_ASSERT(sizeof(dmGraphics::StencilOp) == sizeof(int), Invalid_struct_size);
+// Making sure the size is the same for both C++ and Java
+DM_STATIC_ASSERT(sizeof(dmRive::RenderObject) == 288, Invalid_struct_size);
 
 
 struct RivePluginVertex
