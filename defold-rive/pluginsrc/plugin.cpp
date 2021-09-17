@@ -39,11 +39,6 @@ __declspec(dllexport) int dummyFunc()
 #include <common/bones.h>
 #include <common/vertices.h>
 
-struct RiveVertex
-{
-    float x, y;
-};
-
 struct RivePluginVertex
 {
     float x, y, z;
@@ -538,12 +533,12 @@ extern "C" DM_DLLEXPORT void* RIVE_GetVertices(void* _rive_file, void* _buffer, 
     return 0;
 }
 
-extern "C" DM_DLLEXPORT RiveVertex* RIVE_GetVertexBufferData(void* _rive_file, int* pcount)
+extern "C" DM_DLLEXPORT dmRive::RiveVertex* RIVE_GetVertexBufferData(void* _rive_file, int* pcount)
 {
     RiveFile* file = TO_RIVE_FILE(_rive_file);
     CHECK_FILE_RETURN(file);
     *pcount = (int)file->m_VertexBuffer.Size();
-    return (RiveVertex*)file->m_VertexBuffer.Begin();
+    return file->m_VertexBuffer.Begin();
 }
 
 extern "C" DM_DLLEXPORT int* RIVE_GetIndexBufferData(void* _rive_file, int* pcount)
