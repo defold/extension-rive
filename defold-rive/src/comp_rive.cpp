@@ -132,18 +132,6 @@ namespace dmRive
         dmRiveDDF::RiveModelDesc::BlendMode m_BlendMode;
     };
 
-    static inline void Mat4ToMat2D(const Matrix4 m4, rive::Mat2D& m2)
-    {
-        m2[0] = m4[0][0];
-        m2[1] = m4[0][1];
-
-        m2[2] = m4[1][0];
-        m2[3] = m4[1][1];
-
-        m2[4] = m4[3][0];
-        m2[5] = m4[3][1];
-    }
-
     dmGameObject::CreateResult CompRiveNewWorld(const dmGameObject::ComponentNewWorldParams& params)
     {
         CompRiveContext* context = (CompRiveContext*)params.m_Context;

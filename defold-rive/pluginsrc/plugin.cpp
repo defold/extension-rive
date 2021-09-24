@@ -503,13 +503,37 @@ extern "C" DM_DLLEXPORT void RIVE_UpdateVertices(void* _rive_file, float dt) {
         return;
     }
 
-
     rive::newFrame(file->m_Renderer);
-    file->m_Renderer->save();
+
+
+    rive::Mat2D transform;
+    rive::Mat2D::identity(transform);
+
+    // dmVMath::Matrix4 mat = dmVMath::Matrix4::identity();
+    // dmRive::Mat4ToMat2D(mat, transform);
+
+    // JG: Rive is using a different coordinate system than Defold,
+    //     in their examples they flip the projection but that isn't
+    //     really compatible with our setup I don't think?
+    rive::Vec2D yflip(1.0f,-1.0f);
+    rive::Mat2D::scale(transform, transform, yflip);
+    rive::setTransform(file->m_Renderer, transform);
+    rive::resetClipping(file->m_Renderer);
+
+    rive::Renderer* rive_renderer = (rive::Renderer*) file->m_Renderer;
+
+    rive::AABB artboard_bounds  = artboard->bounds();
+    rive_renderer->align(rive::Fit::none,
+        rive::Alignment::center,
+        rive::AABB(-artboard_bounds.width(), -artboard_bounds.height(),
+        artboard_bounds.width(), artboard_bounds.height()),
+        artboard_bounds);
+
+    rive_renderer->save();
 
     artboard->advance(dt);
-    artboard->draw(file->m_Renderer);
-    file->m_Renderer->restore();
+    artboard->draw(rive_renderer);
+    rive_renderer->restore();
 
     // calculate the vertices and store in buffers for later retrieval
     if (file->m_Vertices.Empty()) {
@@ -771,7 +795,10 @@ static void UpdateRenderData(RiveFile* file)
     plugin_ctx.m_RenderObjects = ro_begin;
 
     uint32_t num_ros_used = ProcessRiveEvents(rive::g_Ctx, file->m_Renderer, vb_begin, ix_begin, RiveEventCallback_Plugin, &plugin_ctx);
+    if (num_ros_used < ro_count) {
+        file->m_RenderObjects.SetSize(num_ros_used);
+    }
 
-    dmLogWarning("ro_count: %u  vertex_count: %u  index_count: %u", ro_count, vertex_count, index_count)
+    dmLogWarning("ro_count: %u (used: %u)  vertex_count: %u  index_count: %u", ro_count, num_ros_used, vertex_count, index_count)
 }
 

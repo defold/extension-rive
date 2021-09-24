@@ -264,7 +264,7 @@ public class Rive {
         public byte    m_Ref;
         public byte    m_RefMask;
         public byte    m_BufferMask;
-        public byte    m_ColorBufferMask; // bool
+        public byte    m_ColorBufferMask;
         public byte    m_ClearBuffer;      // bool
         public byte    m_SeparateFaceStates; // bool
         public byte[]  pad = new byte[32 - 6];
@@ -295,7 +295,7 @@ public class Rive {
         public long m_NameHash;
         public long pad1;
         protected List getFieldOrder() {
-            return Arrays.asList(new String[] {"m_NameHash", "m_Value", "pad1"});
+            return Arrays.asList(new String[] {"m_Value", "m_NameHash", "pad1"});
         }
     }
 
@@ -451,9 +451,12 @@ public class Rive {
 
         RIVE_UpdateVertices(p, 0.0f);
 
-        System.out.printf("Vertices:\n");
         int count = 0;
-        for (RiveVertex vertex : RIVE_GetVertexBuffer(p)) {
+        RiveVertex[] vertices = RIVE_GetVertexBuffer(p);
+
+        System.out.printf("Vertices: count: %d  size: %d bytes\n", vertices.length, vertices.length>0 ? vertices.length * vertices[0].size() : 0);
+
+        for (RiveVertex vertex : vertices) {
             if (count > 10) {
                 System.out.printf(" ...\n");
                 break;
@@ -461,9 +464,12 @@ public class Rive {
             System.out.printf(" vertex %d: %.4f, %.4f\n", count++, vertex.x, vertex.y);
         }
 
-        System.out.printf("Indices:\n");
         count = 0;
-        for (int index : RIVE_GetIndexBuffer(p)) {
+
+        int[] indices = RIVE_GetIndexBuffer(p);
+
+        System.out.printf("Indices: count: %d  size: %d bytes\n", indices.length, indices.length * 4);
+        for (int index : indices) {
             if (count > 10) {
                 System.out.printf(" ...\n");
                 break;
@@ -471,14 +477,22 @@ public class Rive {
             System.out.printf(" index %d: %d\n", count++, index);
         }
 
-        System.out.printf("Render Objects:\n");
         count = 0;
-        for (RenderObject ro : RIVE_GetRenderObjects(p)) {
+        RenderObject[] ros = RIVE_GetRenderObjects(p);
+
+        System.out.printf("Render Objects: count %d\n", ros.length);
+        for (RenderObject ro : ros) {
             if (count > 10) {
                 System.out.printf(" ...\n");
                 break;
             }
-            System.out.printf(" ro %d: fw(ccw): %b  offset: %d  count: %d \n", count++, ro.m_FaceWindingCCW, ro.m_VertexStart, ro.m_VertexCount);
+
+            System.out.printf(" ro %d: fw(ccw): %b  offset: %d  count: %d  constants: %d\n", count++, ro.m_FaceWindingCCW, ro.m_VertexStart, ro.m_VertexCount, ro.m_NumConstants);
+
+            for (int i = 0; i < ro.m_NumConstants && i < 2; ++i)
+            {
+                System.out.printf("    var %d: %s %.3f, %.3f, %.3f, %.3f\n", i, Long.toUnsignedString(ro.m_Constants[i].m_NameHash), ro.m_Constants[i].m_Value.x, ro.m_Constants[i].m_Value.y, ro.m_Constants[i].m_Value.z, ro.m_Constants[i].m_Value.w);
+            }
         }
     }
 }
