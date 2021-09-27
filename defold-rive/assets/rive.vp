@@ -1,10 +1,9 @@
-uniform highp mat4 view_proj;
-uniform highp mat4 world;
+uniform highp mat4 world_view_proj;
 uniform lowp vec4 cover;
 
 attribute highp vec4 position;
 
 void main()
 {
-    gl_Position = view_proj * world * vec4(position.xy, 0.0, 1.0) * (1.0 - cover.x) + cover.x * vec4(position.xy, 0.0, 1.0);
+    gl_Position = world_view_proj * vec4(position.xy, 0.0, 1.0) * (1.0 - cover.x) + cover.x * vec4(position.xy, 0.0, 1.0);
 }

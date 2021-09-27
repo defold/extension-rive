@@ -197,15 +197,14 @@ static void SetupBones(RiveFile* file)
 
     //dmRive::DebugBoneHierarchy(&file->m_Roots);
 
-    bool bones_ok = dmRive::ValidateBoneNames(&file->m_Bones);
-    if (!bones_ok) {
-        dmLogWarning("Failed to validate bones for %s", file->m_Path);
-        dmRive::FreeBones(&file->m_Bones);
-        file->m_Bones.SetSize(0);
-        file->m_Roots.SetSize(0);
-    }
+    // bool bones_ok = dmRive::ValidateBoneNames(&file->m_Bones);
+    // if (!bones_ok) {
+    //     dmLogWarning("Failed to validate bones for %s", file->m_Path);
+    //     dmRive::FreeBones(&file->m_Bones);
+    //     file->m_Bones.SetSize(0);
+    //     file->m_Roots.SetSize(0);
+    // }
 }
-
 
 extern "C" DM_DLLEXPORT void* RIVE_LoadFromBuffer(void* buffer, size_t buffer_size, const char* path) {
     InitRiveContext();
@@ -509,9 +508,6 @@ extern "C" DM_DLLEXPORT void RIVE_UpdateVertices(void* _rive_file, float dt) {
     rive::Mat2D transform;
     rive::Mat2D::identity(transform);
 
-    // dmVMath::Matrix4 mat = dmVMath::Matrix4::identity();
-    // dmRive::Mat4ToMat2D(mat, transform);
-
     // JG: Rive is using a different coordinate system than Defold,
     //     in their examples they flip the projection but that isn't
     //     really compatible with our setup I don't think?
@@ -530,7 +526,6 @@ extern "C" DM_DLLEXPORT void RIVE_UpdateVertices(void* _rive_file, float dt) {
         artboard_bounds);
 
     rive_renderer->save();
-
     artboard->advance(dt);
     artboard->draw(rive_renderer);
     rive_renderer->restore();
@@ -538,8 +533,8 @@ extern "C" DM_DLLEXPORT void RIVE_UpdateVertices(void* _rive_file, float dt) {
     // calculate the vertices and store in buffers for later retrieval
     if (file->m_Vertices.Empty()) {
         GenerateAABB(file);
-        //GenerateVertices(file);
     }
+
     UpdateRenderData(file); // Update the draw call list
 }
 
@@ -798,7 +793,5 @@ static void UpdateRenderData(RiveFile* file)
     if (num_ros_used < ro_count) {
         file->m_RenderObjects.SetSize(num_ros_used);
     }
-
-    dmLogWarning("ro_count: %u (used: %u)  vertex_count: %u  index_count: %u", ro_count, num_ros_used, vertex_count, index_count)
 }
 
