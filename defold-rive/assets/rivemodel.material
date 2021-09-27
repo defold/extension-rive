@@ -4,18 +4,8 @@ vertex_program: "/defold-rive/assets/rive.vp"
 fragment_program: "/defold-rive/assets/rive.fp"
 vertex_space: VERTEX_SPACE_WORLD
 vertex_constants {
-  name: "view_proj"
-  type: CONSTANT_TYPE_VIEWPROJ
-  value {
-    x: 0.0
-    y: 0.0
-    z: 0.0
-    w: 0.0
-  }
-}
-vertex_constants {
-  name: "world"
-  type: CONSTANT_TYPE_WORLD
+  name: "world_view_proj"
+  type: CONSTANT_TYPE_WORLDVIEWPROJ
   value {
     x: 0.0
     y: 0.0
