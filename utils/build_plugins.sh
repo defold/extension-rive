@@ -6,7 +6,7 @@ set -e
 
 PROJECT=defold-rive
 
-BOB=~/work/defold/tmp/dynamo_home/share/java/bob.jar
+BOB=~/dev/defold/tmp/dynamo_home/share/java/bob.jar
 SERVER=https://build.defold.com
 SERVER=http://localhost:9000
 VARIANT=debug

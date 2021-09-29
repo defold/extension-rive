@@ -1,10 +1,10 @@
 #ifndef _RIVE_RENDER_PRIVATE_H_
 #define _RIVE_RENDER_PRIVATE_H_
 
-#include <rive/contour_render_path.hpp>
-
 namespace rive
 {
+    // TODO: We get compiler warnings when copying this in the arrays, fix it?
+    //       -> moving an object of non-trivially copyable type 'struct rive::PathDescriptor' 
     struct PathDescriptor
     {
         RenderPath* m_Path;
@@ -44,27 +44,38 @@ namespace rive
         void*           m_BufferCbUserData;
     };
 
+    class SharedRenderer;
+    class SharedRenderPath;
     class SharedRenderPaint : public RenderPaint
     {
     public:
-        SharedRenderPaint();
+        SharedRenderPaint(Context* ctx);
+        ~SharedRenderPaint();
         void color(unsigned int value)                              override;
-        void style(RenderPaintStyle value)                          override { m_Style = value; }
-        void thickness(float value)                                 override {}
-        void join(StrokeJoin value)                                 override {}
-        void cap(StrokeCap value)                                   override {}
-        void blendMode(BlendMode value)                             override {}
+        void style(RenderPaintStyle value)                          override;
+        void thickness(float value)                                 override;
+        void join(StrokeJoin value)                                 override;
+        void cap(StrokeCap value)                                   override;
+        void blendMode(BlendMode value)                             override;
         void linearGradient(float sx, float sy, float ex, float ey) override;
         void radialGradient(float sx, float sy, float ex, float ey) override;
         void addStop(unsigned int color, float stop)                override;
         void completeGradient()                                     override;
-        void invalidateStroke()                                     override {}
-        inline RenderPaintStyle      getStyle()  { return m_Style; }
-        inline bool                  isVisible() { return m_IsVisible; }
+        void invalidateStroke()                                     override;
+        bool isVisible();
+        RenderPaintStyle getStyle();
+        void virtual drawPaint(SharedRenderer* renderer, const Mat2D& transform, SharedRenderPath* path);
 
+        Context*                  m_Context;
         SharedRenderPaintBuilder* m_Builder;
+        ContourStroke*            m_Stroke;
+        HBuffer                   m_StrokeBuffer;
         PaintData                 m_Data;
         RenderPaintStyle          m_Style;
+        float                     m_StrokeThickness;
+        StrokeJoin                m_StrokeJoin;
+        StrokeCap                 m_StrokeCap;
+        bool                      m_StrokeDirty;
         bool                      m_IsVisible;
     };
 
@@ -73,6 +84,8 @@ namespace rive
     public:
         Context* m_Context;
         SharedRenderPath(Context* ctx);
+        void renderStroke(SharedRenderer* renderer, SharedRenderPaint* paint,
+            const Mat2D& transform, const Mat2D& localTransform = Mat2D::identity());
     };
 
     class SharedRenderer : public Renderer
@@ -117,6 +130,13 @@ namespace rive
     // Stencil To Cover
     ////////////////////////////////////////////////////
     class StencilToCoverRenderPath;
+    class StencilToCoverRenderPaint : public SharedRenderPaint
+    {
+    public:
+        StencilToCoverRenderPaint(Context* ctx);
+        void drawPaint(SharedRenderer* renderer, const Mat2D& transform, SharedRenderPath* path);
+    };
+
     class StencilToCoverRenderer : public SharedRenderer
     {
     public:

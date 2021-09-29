@@ -64,6 +64,7 @@ embedded_instances {
   "default_animation: \\\"Dart_board\\\"\\n"
   "material: \\\"/defold-rive/assets/rivemodel.material\\\"\\n"
   "blend_mode: BLEND_MODE_ALPHA\\n"
+  "default_state_machine: \\\"\\\"\\n"
   "\"\n"
   "  position {\n"
   "    x: 0.0\n"

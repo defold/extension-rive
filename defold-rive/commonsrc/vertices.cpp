@@ -115,9 +115,10 @@ void CopyIndices(int* dst, const int* src, uint32_t count, int index_offset)
 
 void GetRiveDrawParams(rive::HContext ctx, rive::HRenderer renderer, uint32_t& vertex_count, uint32_t& index_count, uint32_t& render_object_count)
 {
-    vertex_count        = 0;
-    index_count         = 0;
-    render_object_count = 0;
+    vertex_count                    = 0;
+    index_count                     = 0;
+    render_object_count             = 0;
+    rive::HRenderPaint render_paint = 0;
 
     for (int i = 0; i < rive::getDrawEventCount(renderer); ++i)
     {
@@ -125,6 +126,10 @@ void GetRiveDrawParams(rive::HContext ctx, rive::HRenderer renderer, uint32_t& v
 
         switch(evt.m_Type)
         {
+            case rive::EVENT_SET_PAINT:
+            {
+                render_paint = evt.m_Paint;
+            } break;
             case rive::EVENT_DRAW_STENCIL:
             {
                 rive::DrawBuffers buffers = rive::getDrawBuffers(ctx, renderer, evt.m_Path);
@@ -150,6 +155,17 @@ void GetRiveDrawParams(rive::HContext ctx, rive::HRenderer renderer, uint32_t& v
                     render_object_count++;
                 }
             } break;
+            case rive::EVENT_DRAW_STROKE:
+            {
+                rive::DrawBuffers buffers = rive::getDrawBuffers(ctx, renderer, render_paint);
+                RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_VertexBuffer;
+
+                if (vxBuffer != 0)
+                {
+                    vertex_count += vxBuffer->m_Size / sizeof(RiveVertex);
+                    render_object_count++;
+                }
+            } break;
             default:break;
         }
     }
@@ -169,7 +185,7 @@ uint32_t ProcessRiveEvents(rive::HContext ctx, rive::HRenderer renderer, RiveVer
     // The index buffer is used for all render paths (as it's generic)
     // The first 6 indices forms are used for a quad for the Cover case. (i.e. 0,1,2,2,3,0)
     // The remaining indices form a triangle list for the Stencil case
-    rive::DrawBuffers buffers_renderer = rive::getDrawBuffers(ctx, renderer, 0);
+    rive::DrawBuffers buffers_renderer = rive::getDrawBuffers(ctx, renderer, (rive::HRenderPath) 0);
     RiveBuffer* ixBuffer               = (RiveBuffer*) buffers_renderer.m_IndexBuffer;
 
     if (!ixBuffer)
@@ -236,7 +252,6 @@ uint32_t ProcessRiveEvents(rive::HContext ctx, rive::HRenderer renderer, RiveVer
                     cbk_ctx.m_FaceWinding = dmGraphics::FACE_WINDING_CCW;
                 }
 
-
                 cbk_ctx.m_IndexOffsetBytes = last_ix;
                 cbk_ctx.m_IndexCount = ix_count;
 
@@ -249,14 +264,13 @@ uint32_t ProcessRiveEvents(rive::HContext ctx, rive::HRenderer renderer, RiveVer
                 vx_offset         += vx_count;
 
                 clear_clipping_flag = 0;
-
             } break;
             case rive::EVENT_DRAW_COVER:
             {
                 rive::DrawBuffers buffers = rive::getDrawBuffers(ctx, renderer, evt.m_Path);
                 RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_VertexBuffer;
 
-                if ( vxBuffer == 0 || ixBuffer == 0)
+                if (vxBuffer == 0 || ixBuffer == 0)
                 {
                     continue;
                 }
@@ -281,7 +295,30 @@ uint32_t ProcessRiveEvents(rive::HContext ctx, rive::HRenderer renderer, RiveVer
                 ix_ptr    += ix_count;
                 last_ix   += ix_count * sizeof(int);
                 vx_offset += vx_count;
+            } break;
+            case rive::EVENT_DRAW_STROKE:
+            {
+                rive::DrawBuffers buffers = rive::getDrawBuffers(ctx, renderer, cbk_ctx.m_Paint);
+                RiveBuffer* vxBuffer      = (RiveBuffer*) buffers.m_VertexBuffer;
 
+                if (vxBuffer == 0)
+                {
+                    continue;
+                }
+
+                uint32_t vx_count = vxBuffer->m_Size / sizeof(RiveVertex);
+                CopyVertices(vx_ptr, (RiveVertex*)vxBuffer->m_Data, vx_count);
+
+                uint32_t vx_buffer_offset  = vx_offset;
+                cbk_ctx.m_Index            = ro_index++;
+                cbk_ctx.m_IndexOffsetBytes = vx_buffer_offset + evt.m_OffsetStart;
+                cbk_ctx.m_IndexCount       = evt.m_OffsetEnd - evt.m_OffsetStart;
+                cbk_ctx.m_FaceWinding      = dmGraphics::FACE_WINDING_CCW;
+
+                callback(&cbk_ctx);
+
+                vx_ptr    += vx_count;
+                vx_offset += vx_count;
             } break;
             case rive::EVENT_CLIPPING_BEGIN:
                 is_applying_clipping = true;

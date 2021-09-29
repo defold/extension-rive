@@ -5,12 +5,17 @@
 
 #include <rive/artboard.hpp>
 #include <rive/contour_render_path.hpp>
+#include <rive/contour_stroke.hpp>
 
 #include "riverender/rive_render_api.h"
 #include "riverender/rive_render_private.h"
 
 namespace rive
 {
+    ////////////////////////////////////////////////////////
+    // Misc / Utility functions
+    ////////////////////////////////////////////////////////
+
     static void getColorArrayFromUint(unsigned int colorIn, float* rgbaOut)
     {
         rgbaOut[0] = (float)((0x00ff0000 & colorIn) >> 16) / 255.0f;
@@ -19,10 +24,108 @@ namespace rive
         rgbaOut[3] = (float)((0xff000000 & colorIn) >> 24) / 255.0f;
     }
 
-    SharedRenderPaint::SharedRenderPaint()
-    : m_Builder(0)
+    ////////////////////////////////////////////////////////
+    // SharedRenderPaint
+    ////////////////////////////////////////////////////////
+
+    SharedRenderPaint::SharedRenderPaint(Context* ctx)
+    : m_Context(ctx)
+    , m_Builder(0)
+    , m_Stroke(0)
+    , m_StrokeBuffer(0)
     , m_Data({})
     {}
+
+    SharedRenderPaint::~SharedRenderPaint()
+    {
+        delete m_Builder;
+        delete m_Stroke;
+        if (m_StrokeBuffer)
+        {
+            m_Context->m_DestroyBufferCb(m_StrokeBuffer, m_Context->m_BufferCbUserData);
+        }
+    }
+
+
+    RenderPaintStyle SharedRenderPaint::getStyle()
+    {
+        return m_Style;
+    }
+
+    void SharedRenderPaint::thickness(float value)
+    {
+        m_StrokeThickness = value;
+    }
+
+    void SharedRenderPaint::join(StrokeJoin value)
+    {
+        m_StrokeJoin = value;
+    }
+
+    void SharedRenderPaint::cap(StrokeCap value)
+    {
+        m_StrokeCap = value;
+    }
+
+    void SharedRenderPaint::blendMode(BlendMode value)
+    {
+        // NOP
+    }
+
+    void SharedRenderPaint::style(RenderPaintStyle value)
+    {
+        m_Style = value;
+        delete m_Stroke;
+
+        if (m_Style == RenderPaintStyle::stroke)
+        {
+            m_Stroke = new ContourStroke();
+            m_StrokeDirty = true;
+        }
+        else
+        {
+            m_Stroke = 0;
+            m_StrokeDirty = false;
+        }
+    }
+
+    void SharedRenderPaint::invalidateStroke()
+    {
+        if (m_Stroke != 0)
+        {
+            m_StrokeDirty = true;
+        }
+    }
+
+    void SharedRenderPaint::drawPaint(SharedRenderer* renderer, const Mat2D& transform, SharedRenderPath* path)
+    {
+        if (m_Stroke != 0)
+        {
+            if (m_StrokeDirty)
+            {
+                static Mat2D identity;
+                m_Stroke->reset();
+                path->extrudeStroke(m_Stroke,
+                                    m_StrokeJoin,
+                                    m_StrokeCap,
+                                    m_StrokeThickness / 2.0f,
+                                    identity);
+                m_StrokeDirty = false;
+            }
+            const std::vector<Vec2D>& strip = m_Stroke->triangleStrip();
+            size_t size = strip.size();
+            if (size == 0)
+            {
+                return;
+            }
+
+            m_StrokeBuffer = renderer->m_Context->m_RequestBufferCb(m_StrokeBuffer, BUFFER_TYPE_VERTEX_BUFFER,
+                (void*) &strip[0][0], size * 2 * sizeof(float), renderer->m_Context->m_BufferCbUserData);
+
+            m_Stroke->resetRenderOffset();
+            path->renderStroke(renderer, this, transform);
+        }
+    }
 
     void SharedRenderPaint::color(unsigned int value)
     {
@@ -97,14 +200,55 @@ namespace rive
         m_Builder->m_Stops.SetSize(0);
         m_Builder->m_Stops.SetCapacity(0);
         delete m_Builder;
+        m_Builder = 0;
     }
 
-    /* Shared render path */
+    bool SharedRenderPaint::isVisible()
+    {
+        return m_IsVisible;
+    }
+
+    ////////////////////////////////////////////////////////
+    // Shared render path
+    ////////////////////////////////////////////////////////
     SharedRenderPath::SharedRenderPath(Context* ctx)
     : m_Context(ctx)
     {}
 
-    /* Shared Renderer */
+    void SharedRenderPath::renderStroke(SharedRenderer* renderer, SharedRenderPaint* renderPaint,
+        const Mat2D& transform, const Mat2D& localTransform)
+    {
+        if (isContainer())
+        {
+            for (size_t i = 0; i < m_SubPaths.size(); ++i)
+            {
+                ((SharedRenderPath*)m_SubPaths[i].path())->renderStroke(renderer, renderPaint, transform, localTransform);
+            }
+            return;
+        }
+
+        ContourStroke* stroke = renderPaint->m_Stroke;
+
+        size_t start, end;
+        stroke->nextRenderOffset(start, end);
+
+        renderer->setPaint(renderPaint);
+
+        PathDrawEvent evt = {
+            .m_Type           = EVENT_DRAW_STROKE,
+            .m_TransformWorld = transform,
+            .m_TransformLocal = localTransform,
+            .m_OffsetStart    = (uint32_t) start,
+            .m_OffsetEnd      = (uint32_t) end,
+        };
+
+        renderer->pushDrawEvent(evt);
+    }
+
+    ////////////////////////////////////////////////////////
+    // Shared Renderer
+    ////////////////////////////////////////////////////////
+
     SharedRenderer::SharedRenderer()
     : m_IndexBuffer(0)
     {
@@ -217,7 +361,10 @@ namespace rive
         }
     }
 
-    /* Misc functions */
+    ////////////////////////////////////////////////////////
+    // API Functions
+    ////////////////////////////////////////////////////////
+
     float getContourError(HRenderer renderer)
     {
         SharedRenderer* r = (SharedRenderer*) renderer;
@@ -272,13 +419,19 @@ namespace rive
 
     RenderMode getRenderMode(HContext ctx)
     {
-        Context* c = (Context*) ctx;
-        return c->m_RenderMode;
+        return ((Context*) ctx)->m_RenderMode;
     }
 
     RenderPaint* createRenderPaint(HContext ctx)
     {
-        return new SharedRenderPaint;
+        Context* c = (Context*) ctx;
+        switch(c->m_RenderMode)
+        {
+            case MODE_TESSELLATION:     return new SharedRenderPaint(c);
+            case MODE_STENCIL_TO_COVER: return new StencilToCoverRenderPaint(c);
+            default:break;
+        }
+        return 0;
     }
 
     RenderPath* createRenderPath(HContext ctx)
@@ -362,6 +515,14 @@ namespace rive
         }
 
         return buffers;
+    }
+
+
+    const DrawBuffers getDrawBuffers(HContext ctx, HRenderer renderer, HRenderPaint paint)
+    {
+        Context* c               = (Context*) ctx;
+        SharedRenderPaint* rp    = (SharedRenderPaint*) paint;
+        return { .m_VertexBuffer = rp->m_StrokeBuffer };
     }
 
     void destroyContext(HContext ctx)
