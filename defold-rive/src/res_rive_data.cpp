@@ -39,14 +39,6 @@ namespace dmRive
         dmRive::BuildBoneHierarchy(artboard, &scene_data->m_Roots, &scene_data->m_Bones);
 
         //dmRive::DebugBoneHierarchy(&scene_data->m_Roots);
-
-        bool bones_ok = dmRive::ValidateBoneNames(&scene_data->m_Bones);
-        if (!bones_ok) {
-            dmLogWarning("Failed to validate bones for %s", path);
-            dmRive::FreeBones(&scene_data->m_Bones);
-            scene_data->m_Bones.SetSize(0);
-            scene_data->m_Roots.SetSize(0);
-        }
     }
 
     static void SetupData(RiveSceneData* scene_data, rive::File* file, const char* path)
