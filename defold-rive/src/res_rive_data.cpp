@@ -39,6 +39,8 @@ namespace dmRive
         dmRive::BuildBoneHierarchy(artboard, &scene_data->m_Roots, &scene_data->m_Bones);
 
         //dmRive::DebugBoneHierarchy(&scene_data->m_Roots);
+
+        dmRive::ValidateBoneNames(&scene_data->m_Bones);
     }
 
     static void SetupData(RiveSceneData* scene_data, rive::File* file, const char* path)
