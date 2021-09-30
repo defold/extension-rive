@@ -1,4 +1,5 @@
 scene: "/assets/test.rivescene"
 default_animation: ""
-material: "/assets/test.material"
+material: "/defold-rive/assets/rivemodel.material"
 blend_mode: BLEND_MODE_ALPHA
+default_state_machine: ""

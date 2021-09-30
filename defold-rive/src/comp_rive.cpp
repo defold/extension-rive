@@ -407,6 +407,28 @@ namespace dmRive
                 Mat2DToMat4(ctx->m_Event.m_TransformWorld, ro.m_WorldTransform);
             }
             break;
+        case rive::EVENT_DRAW_STROKE:
+            {
+                dmRender::RenderObject& ro = engine_ctx->m_RenderObjects[ctx->m_Index];
+                ro.Init();
+                ro.m_StencilTestParams.Init();
+                ro.m_VertexDeclaration = engine_ctx->m_VertexDeclaration;
+                ro.m_VertexBuffer      = engine_ctx->m_VertexBuffer;
+                ro.m_IndexBuffer       = 0;
+                ro.m_Material          = engine_ctx->m_Material;
+                ro.m_VertexStart       = ctx->m_IndexOffsetBytes; // NOT byte offset for glDrawArray!
+                ro.m_VertexCount       = ctx->m_IndexCount;
+                ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLE_STRIP;
+                ro.m_SetStencilTest    = 1;
+
+                const rive::PaintData draw_entry_paint = rive::getPaintData(ctx->m_Paint);
+                const float* color                     = &draw_entry_paint.m_Colors[0];
+
+                dmRender::EnableRenderObjectConstant(&ro, UNIFORM_COLOR, dmVMath::Vector4(color[0], color[1], color[2], color[3]));
+                dmRender::EnableRenderObjectConstant(&ro, UNIFORM_COVER, Vector4(0.0f, 0.0f, 0.0f, 0.0f));
+
+                Mat2DToMat4(ctx->m_Event.m_TransformWorld, ro.m_WorldTransform);
+            } break;
 
         default:
             break;
