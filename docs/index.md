@@ -1,6 +1,6 @@
 ---
 title: Rive documentation
-brief: This manual describes how to show Rive artboards using the Rive extension.
+brief: This manual describes how to show Rive animations using the Rive extension.
 ---
 
 # Rive animation
