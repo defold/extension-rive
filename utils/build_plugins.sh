@@ -6,16 +6,32 @@ set -e
 
 PROJECT=defold-rive
 
-BOB=~/dev/defold/tmp/dynamo_home/share/java/bob.jar
-SERVER=https://build.defold.com
-SERVER=http://localhost:9000
-VARIANT=debug
+if [ "" == "${BOB}" ]; then
+    BOB=~/work/defold/tmp/dynamo_home/share/java/bob.jar
+
+    # comment out when you want to use the bob version instead!
+    DEFOLDSDK="--defoldsdk=eb061db73144081bd125b4a028a5ae9a180fc9b6"
+fi
+
+echo "Using BOB=${BOB}"
+
+echo "Using DEFOLDSDK=${DEFOLDSDK}"
+
+if [ "" == "${SERVER}" ]; then
+    SERVER=https://build.defold.com
+fi
+#SERVER=http://localhost:9000
+
+echo "Using SERVER=${SERVER}"
+
+if [ "" == "${VARIANT}" ]; then
+    VARIANT=release
+fi
+
+echo "Using VARIANT=${VARIANT}"
 
 TARGET_DIR=./$PROJECT/plugins
 mkdir -p $TARGET_DIR
-
-# comment out when you want to use the bob version instead!
-DEFOLDSDK="--defoldsdk=afa49790f992cb8cdd8de64be0c1cb53f06a9a1a"
 
 function copyfile() {
     local path=$1
