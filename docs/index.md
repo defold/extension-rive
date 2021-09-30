@@ -8,6 +8,11 @@ brief: This manual describes how to show Rive artboards using the Rive extension
 
 ![Rive editor](rive-editor.png)
 
+
+## Requirements
+In order to use Rive animations you need to run Defold 1.2.188 or higher.
+
+
 ## Installation
 Rive animation support in Defold is provided through an official Rive extension. To use Rive animations in a Defold project, add the following URL to the list of `game.project` dependencies:
 
