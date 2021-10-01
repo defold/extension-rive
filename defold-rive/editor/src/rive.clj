@@ -504,6 +504,7 @@
         renderable-transform (Matrix4d. (:world-transform renderable)) ; make a copy so we don't alter the original
         ro-matrix (doto (Matrix4d. ro-transform) (.transpose))
         shader-world-transform (doto renderable-transform (.mul ro-matrix))
+        is-tri-strip (not= (.m_IsTriangleStrip ro) 0)
         render-args (merge render-args
                            (math/derive-render-transforms shader-world-transform
                                                           (:view render-args)
@@ -517,7 +518,10 @@
       (gl/gl-front-face gl face-winding))
     (when (not= (.m_SetStencilTest ro) 0)
       (set-stencil-test-params! gl (.m_StencilTestParams ro)))
-    (gl/gl-draw-elements gl GL/GL_TRIANGLES start count)))
+    (when is-tri-strip
+      (gl/gl-draw-arrays gl GL/GL_TRIANGLE_STRIP start count))
+    (when (not is-tri-strip)
+      (gl/gl-draw-elements gl GL/GL_TRIANGLES start count))))
 
   (set! *warn-on-reflection* true)
 

@@ -312,13 +312,14 @@ public class Rive {
         public byte                 m_SetStencilTest;
         public byte                 m_SetFaceWinding;
         public byte                 m_FaceWindingCCW;
-        public byte[]               pad2 = new byte[(4*4) - 4];
+        public byte                 m_IsTriangleStrip;
+        public byte[]               pad2 = new byte[(4*4) - 5];
 
         protected List getFieldOrder() {
             return Arrays.asList(new String[] {
                 "m_StencilTestParams", "m_WorldTransform", "m_Constants",
                 "m_NumConstants", "m_VertexStart", "m_VertexCount", "pad1",
-                "m_SetBlendFactors", "m_SetStencilTest", "m_SetFaceWinding", "m_FaceWindingCCW", "pad2"});
+                "m_SetBlendFactors", "m_SetStencilTest", "m_SetFaceWinding", "m_FaceWindingCCW", "m_IsTriangleStrip", "pad2"});
         }
 
         public int getOffset(String name) {

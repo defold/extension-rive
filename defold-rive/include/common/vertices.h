@@ -91,7 +91,8 @@ namespace dmRive
         bool                            m_SetStencilTest;
         bool                            m_SetFaceWinding;
         bool                            m_FaceWindingCCW;
-        uint8_t                         pad[(4*4) - 4];
+        bool                            m_IsTriangleStrip;
+        uint8_t                         pad[(4*4) - 5];
     };
 
     // Used by both editor and runtime
