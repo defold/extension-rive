@@ -596,10 +596,11 @@
                 :batch-key ::outline
                 :passes [pass/outline]}})
 
-(g/defnk produce-rivescene [_node-id aabb main-scene gpu-texture scene-structure]
-  (if (some? main-scene)
-    (assoc main-scene :children [(make-rive-outline-scene _node-id aabb)])
-    {:node-id _node-id :aabb aabb}))
+(g/defnk produce-rivescene [_node-id rive-file-handle aabb main-scene gpu-texture scene-structure]
+  (when rive-file-handle
+    (if (some? main-scene)
+      (assoc main-scene :children [(make-rive-outline-scene _node-id aabb)])
+      {:node-id _node-id :aabb aabb})))
 
 (g/defnode RiveSceneNode
   (inherits resource-node/ResourceNode)
@@ -806,7 +807,7 @@
 
                                        (merge {:node-id _node-id
                                                :renderable {:passes [pass/selection]}
-                                               :aabb (:aabb rive-main-scene)}
+                                               :aabb (if rive-main-scene (:aabb rive-main-scene) geom/null-aabb)}
                                               rive-main-scene))))
   (output node-outline outline/OutlineData :cached (g/fnk [_node-id own-build-errors scene]
                                                           (cond-> {:node-id _node-id
