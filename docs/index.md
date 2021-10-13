@@ -16,7 +16,7 @@ In order to use Rive animations you need to run Defold 1.2.188 or higher.
 ## Installation
 Rive animation support in Defold is provided through an official Rive extension. To use Rive animations in a Defold project, add the following URL to the list of `game.project` dependencies:
 
-https://github.com/defold/extension-rive/archive/master.zip
+[https://github.com/defold/extension-rive/archive/main.zip](https://github.com/defold/extension-rive/archive/main.zip)
 
 We recommend using a link to a zip file of a [specific release](https://github.com/defold/extension-rive/releases).
 
