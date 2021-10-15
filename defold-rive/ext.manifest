@@ -9,3 +9,8 @@ platforms:
     x86_64-linux:
         context:
             flags: ["-std=c++17"]
+
+
+    x86_64-osx:
+        context:
+            flags: ["-std=c++17"]
