@@ -10,6 +10,12 @@
 #include "riverender/rive_render_api.h"
 #include "riverender/rive_render_private.h"
 
+#if defined(DM_DISABLE_LIBTESS)
+    #define RIVE_HAS_LIBTESS 0
+#else
+    #define RIVE_HAS_LIBTESS 1
+#endif
+
 namespace rive
 {
     ////////////////////////////////////////////////////////
@@ -427,7 +433,9 @@ namespace rive
         Context* c = (Context*) ctx;
         switch(c->m_RenderMode)
         {
+#if RIVE_HAS_LIBTESS == 1
             case MODE_TESSELLATION:     return new SharedRenderPaint(c);
+#endif
             case MODE_STENCIL_TO_COVER: return new StencilToCoverRenderPaint(c);
             default:break;
         }
@@ -439,7 +447,9 @@ namespace rive
         Context* c = (Context*) ctx;
         switch(c->m_RenderMode)
         {
+#if RIVE_HAS_LIBTESS == 1
             case MODE_TESSELLATION:     return new TessellationRenderPath(c);
+#endif
             case MODE_STENCIL_TO_COVER: return new StencilToCoverRenderPath(c);
             default:break;
         }
@@ -451,7 +461,9 @@ namespace rive
         Context* c = (Context*) ctx;
         switch(c->m_RenderMode)
         {
+#if RIVE_HAS_LIBTESS == 1
             case MODE_TESSELLATION:     return (HRenderer) new TessellationRenderer(c);
+#endif
             case MODE_STENCIL_TO_COVER: return (HRenderer) new StencilToCoverRenderer(c);
             default:break;
         }
@@ -504,6 +516,7 @@ namespace rive
                 buffers.m_VertexBuffer = p->m_VertexBuffer;
             }
         }
+#if RIVE_HAS_LIBTESS == 1
         else if (c->m_RenderMode == MODE_TESSELLATION)
         {
             TessellationRenderPath* p = (TessellationRenderPath*) path;
@@ -513,6 +526,7 @@ namespace rive
                 buffers.m_VertexBuffer    = p->m_VertexBuffer;
             }
         }
+#endif
 
         return buffers;
     }

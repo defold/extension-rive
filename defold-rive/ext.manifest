@@ -3,8 +3,17 @@ name: RiveExt
 platforms:
     common:
         context:
-            symbols:   ["ResourceTypeRiveScene", "ResourceTypeRiveModel", "ResourceTypeRiveData", "ComponentTypeRive"]
+            defines:    ["DM_DISABLE_LIBTESS"]
+            symbols:    ["ResourceTypeRiveScene", "ResourceTypeRiveModel", "ResourceTypeRiveData", "ComponentTypeRive"]
 
+
+    x86_64-osx:
+        context:
+            flags: ["-std=c++17"]
+
+    ios:
+        context:
+            flags: ["-std=c++17", "-fno-aligned-allocation"]
 
     x86_64-linux:
         context:

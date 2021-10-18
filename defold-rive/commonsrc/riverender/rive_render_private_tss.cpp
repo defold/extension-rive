@@ -1,3 +1,5 @@
+#if !defined(DM_DISABLE_LIBTESS)
+
 #include <float.h>
 #include <string.h>
 
@@ -248,3 +250,5 @@ namespace rive
         }
     }
 }
+
+#endif // RIVE_HAS_LIBTESS

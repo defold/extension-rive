@@ -32,8 +32,10 @@ namespace rive
 
     enum RenderMode
     {
-        MODE_TESSELLATION     = 0,
-        MODE_STENCIL_TO_COVER = 1,
+        MODE_STENCIL_TO_COVER,
+#if RIVE_HAS_LIBTESS == 1
+        MODE_TESSELLATION,
+#endif
     };
 
     enum PathDrawEventType
