@@ -16,9 +16,21 @@ In order to use Rive animations you need to run Defold 1.2.188 or higher.
 ## Installation
 Rive animation support in Defold is provided through an official Rive extension. To use Rive animations in a Defold project, add the following URL to the list of `game.project` dependencies:
 
-https://github.com/defold/extension-rive/archive/master.zip
+[https://github.com/defold/extension-rive/archive/main.zip](https://github.com/defold/extension-rive/archive/main.zip)
 
 We recommend using a link to a zip file of a [specific release](https://github.com/defold/extension-rive/releases).
+
+
+## Render script setup
+Rive components are rendered using a method called "Stencil, then cover" (StC). This requires Rive components to render with the stencil buffer enabled in the render script:
+
+```
+render.enable_state(render.STATE_STENCIL_TEST)
+render.draw(self.rive_pred)
+render.disable_state(render.STATE_STENCIL_TEST)
+```
+
+For convenience, there is a modified render script included with this extension. Open your *game.project* file and modify the `Render` field in the `Bootstrap` section to use the `defold-rive/lua/rive.render` file from this extension.
 
 
 ## Concepts
