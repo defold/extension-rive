@@ -113,7 +113,8 @@ namespace dmRive
     {
         CompRiveContext*                    m_Ctx; // JG: Is this a bad idea?
         dmObjectPool<RiveComponent*>        m_Components;
-        dmArray<dmRender::RenderObject>     m_RenderObjects;
+        dmArray<dmRender::RenderObject>                     m_RenderObjects;
+        dmArray<dmGameSystem::HComponentRenderConstants>    m_RenderConstants; // 1:1 mapping with the render objects
         dmGraphics::HVertexDeclaration      m_VertexDeclaration;
         dmGraphics::HVertexBuffer           m_VertexBuffer;
         dmArray<RiveVertex>                 m_VertexBufferData;
@@ -124,12 +125,14 @@ namespace dmRive
     // Used when processing the Rive draw events, to produce draw calls
     struct RiveEventsDrawcallContext
     {
-        dmGraphics::HVertexDeclaration      m_VertexDeclaration;
-        dmGraphics::HVertexBuffer           m_VertexBuffer;
-        dmGraphics::HIndexBuffer            m_IndexBuffer;
-        dmRender::HMaterial                 m_Material;
-        dmRender::RenderObject*             m_RenderObjects;
-        dmRiveDDF::RiveModelDesc::BlendMode m_BlendMode;
+        dmGraphics::HVertexDeclaration              m_VertexDeclaration;
+        dmGraphics::HVertexBuffer                   m_VertexBuffer;
+        dmGraphics::HIndexBuffer                    m_IndexBuffer;
+        dmRender::HMaterial                         m_Material;
+        dmRender::RenderObject*                     m_RenderObjects;
+        dmGameSystem::HComponentRenderConstants*    m_RenderConstants;
+        dmGameSystem::HComponentRenderConstants     m_CompRenderConstants; // the constants for the current component
+        dmRiveDDF::RiveModelDesc::BlendMode         m_BlendMode;
     };
 
     dmGameObject::CreateResult CompRiveNewWorld(const dmGameObject::ComponentNewWorldParams& params)
@@ -140,6 +143,9 @@ namespace dmRive
         world->m_Ctx = context;
         world->m_Components.SetCapacity(context->m_MaxInstanceCount);
         world->m_RenderObjects.SetCapacity(context->m_MaxInstanceCount);
+        world->m_RenderConstants.SetCapacity(context->m_MaxInstanceCount);
+        world->m_RenderConstants.SetSize(context->m_MaxInstanceCount);
+        memset(world->m_RenderConstants.Begin(), 0, sizeof(dmGameSystem::HComponentRenderConstants)*world->m_RenderConstants.Capacity());
 
         dmGraphics::VertexElement ve[] =
         {
@@ -169,6 +175,12 @@ namespace dmRive
         dmGraphics::DeleteIndexBuffer(world->m_IndexBuffer);
 
         dmResource::UnregisterResourceReloadedCallback(((CompRiveContext*)params.m_Context)->m_Factory, ResourceReloadedCallback, world);
+
+        for (uint32_t i = 0; i < world->m_RenderConstants.Size(); ++i)
+        {
+            if (world->m_RenderConstants[i])
+                dmGameSystem::DestroyRenderConstants(world->m_RenderConstants[i]);
+        }
 
         delete world;
         return dmGameObject::CREATE_RESULT_OK;
@@ -337,6 +349,11 @@ namespace dmRive
     {
         RiveEventsDrawcallContext* engine_ctx = (RiveEventsDrawcallContext*)ctx->m_UserContext;
 
+        if (!engine_ctx->m_RenderConstants[ctx->m_Index])
+            engine_ctx->m_RenderConstants[ctx->m_Index] = dmGameSystem::CreateRenderConstants();
+
+        dmGameSystem::HComponentRenderConstants render_constants = engine_ctx->m_RenderConstants[ctx->m_Index];
+
         switch(ctx->m_Event.m_Type)
         {
         case rive::EVENT_DRAW_STENCIL:
@@ -360,7 +377,8 @@ namespace dmRive
 
                 SetStencilDrawState(&ro.m_StencilTestParams, ctx->m_Event.m_IsClipping, ctx->m_ClearClippingFlag);
 
-                dmRender::EnableRenderObjectConstant(&ro, UNIFORM_COVER, Vector4(0.0f, 0.0f, 0.0f, 0.0f));
+                dmVMath::Vector4 zero(0,0,0,0);
+                dmGameSystem::SetRenderConstant(render_constants, UNIFORM_COVER, &zero, 1);
 
                 Mat2DToMat4(ctx->m_Event.m_TransformWorld, ro.m_WorldTransform);
             }
@@ -396,13 +414,15 @@ namespace dmRive
                     const rive::PaintData draw_entry_paint = rive::getPaintData(ctx->m_Paint);
                     const float* color                     = &draw_entry_paint.m_Colors[0];
 
-                    dmRender::EnableRenderObjectConstant(&ro, UNIFORM_COLOR, dmVMath::Vector4(color[0], color[1], color[2], color[3]));
+                    dmVMath::Vector4 vcolor(color[0], color[1], color[2], color[3]);
+                    dmGameSystem::SetRenderConstant(render_constants, UNIFORM_COLOR, &vcolor, 1);
                 }
 
                 // If we are fullscreen-covering, we don't transform the vertices
                 float no_projection = (float) ctx->m_Event.m_IsClipping && ctx->m_IsApplyingClipping;
 
-                dmRender::EnableRenderObjectConstant(&ro, UNIFORM_COVER, Vector4(no_projection, 0.0f, 0.0f, 0.0f));
+                dmVMath::Vector4 cover(no_projection, 0, 0, 0);
+                dmGameSystem::SetRenderConstant(render_constants, UNIFORM_COVER, &cover, 1);
 
                 Mat2DToMat4(ctx->m_Event.m_TransformWorld, ro.m_WorldTransform);
             }
@@ -424,15 +444,41 @@ namespace dmRive
                 const rive::PaintData draw_entry_paint = rive::getPaintData(ctx->m_Paint);
                 const float* color                     = &draw_entry_paint.m_Colors[0];
 
-                dmRender::EnableRenderObjectConstant(&ro, UNIFORM_COLOR, dmVMath::Vector4(color[0], color[1], color[2], color[3]));
-                dmRender::EnableRenderObjectConstant(&ro, UNIFORM_COVER, Vector4(0.0f, 0.0f, 0.0f, 0.0f));
+                dmVMath::Vector4 vcolor(color[0], color[1], color[2], color[3]);
+                dmGameSystem::SetRenderConstant(render_constants, UNIFORM_COLOR, &vcolor, 1);
+
+                dmVMath::Vector4 cover(0, 0, 0, 0);
+                dmGameSystem::SetRenderConstant(render_constants, UNIFORM_COVER, &cover, 1);
 
                 Mat2DToMat4(ctx->m_Event.m_TransformWorld, ro.m_WorldTransform);
             } break;
 
         default:
+            return;
             break;
         }
+
+
+        dmRender::RenderObject& ro = engine_ctx->m_RenderObjects[ctx->m_Index];
+
+        // TODO: See if we can add an easier copy step
+        dmGameSystem::HComponentRenderConstants comp_constants = engine_ctx->m_CompRenderConstants;
+        if (comp_constants)
+        {
+            uint32_t num_constants = GetRenderConstantCount(comp_constants);
+            for (uint32_t i = 0; i < num_constants; ++i)
+            {
+                dmRender::HConstant constant = dmGameSystem::GetRenderConstant(comp_constants, i);
+                dmhash_t name_hash = dmRender::GetConstantName(constant);
+                uint32_t num_values;
+                dmVMath::Vector4* values = dmRender::GetConstantValues(constant, &num_values);
+
+                dmGameSystem::SetRenderConstant(render_constants, name_hash, values, num_values);
+            }
+        }
+
+        // Finally set the merged render constants to the render object
+        dmGameSystem::EnableRenderObjectConstants(&ro, render_constants);
     }
 
 
@@ -451,7 +497,15 @@ namespace dmRive
         // Make sure we have enough free render objects
         if (world->m_RenderObjects.Remaining() < ro_count)
         {
-            world->m_RenderObjects.OffsetCapacity(ro_count - world->m_RenderObjects.Remaining());
+            uint32_t grow = ro_count - world->m_RenderObjects.Remaining();
+            world->m_RenderObjects.OffsetCapacity(grow);
+
+            uint32_t prev_size = world->m_RenderConstants.Size();
+            world->m_RenderConstants.OffsetCapacity(grow);
+            world->m_RenderConstants.SetSize(world->m_RenderConstants.Capacity());
+            memset(world->m_RenderConstants.Begin() + prev_size, 0, sizeof(dmGameSystem::HComponentRenderConstants)*grow);
+
+            assert(world->m_RenderObjects.Capacity() == world->m_RenderConstants.Capacity());
         }
 
         uint32_t ro_index = world->m_RenderObjects.Size();
@@ -478,8 +532,11 @@ namespace dmRive
         int* ix_end   = ix_begin;
         index_buffer.SetSize(index_buffer.Capacity());
 
-        dmRender::RenderObject* render_objects = world->m_RenderObjects.End();
+        uint32_t ro_offset = world->m_RenderObjects.Size();
         world->m_RenderObjects.SetSize(world->m_RenderObjects.Size() + ro_count);
+
+        dmRender::RenderObject* render_objects = world->m_RenderObjects.Begin() + ro_offset;
+        dmGameSystem::HComponentRenderConstants* render_constants = world->m_RenderConstants.Begin() + ro_offset;
 
         dmRender::HMaterial material = GetMaterial(first, resource);
 
@@ -490,6 +547,8 @@ namespace dmRive
         engine_ctx.m_Material = material;
         engine_ctx.m_BlendMode = resource->m_DDF->m_BlendMode;
         engine_ctx.m_RenderObjects = render_objects;
+        engine_ctx.m_RenderConstants = render_constants;
+        engine_ctx.m_CompRenderConstants = first->m_RenderConstants;
 
         uint32_t num_ros_used = ProcessRiveEvents(ctx, renderer, vb_begin, ix_begin, RiveEventCallback_RenderObject, &engine_ctx);
 
@@ -793,12 +852,12 @@ namespace dmRive
         return component->m_RenderConstants && dmGameSystem::GetRenderConstant(component->m_RenderConstants, name_hash, out_constant);
     }
 
-    static void CompRiveSetConstantCallback(void* user_data, dmhash_t name_hash, uint32_t* element_index, const dmGameObject::PropertyVar& var)
+    static void CompRiveSetConstantCallback(void* user_data, dmhash_t name_hash, int32_t value_index, uint32_t* element_index, const dmGameObject::PropertyVar& var)
     {
         RiveComponent* component = (RiveComponent*)user_data;
         if (!component->m_RenderConstants)
             component->m_RenderConstants = dmGameSystem::CreateRenderConstants();
-        dmGameSystem::SetRenderConstant(component->m_RenderConstants, GetMaterial(component, component->m_Resource), name_hash, element_index, var);
+        dmGameSystem::SetRenderConstant(component->m_RenderConstants, GetMaterial(component, component->m_Resource), name_hash, value_index, element_index, var);
         component->m_ReHash = 1;
     }
 
@@ -1121,7 +1180,7 @@ namespace dmRive
                 }
             }
         }
-        return dmGameSystem::GetMaterialConstant(GetMaterial(component, component->m_Resource), params.m_PropertyId, out_value, true, CompRiveGetConstantCallback, component);
+        return dmGameSystem::GetMaterialConstant(GetMaterial(component, component->m_Resource), params.m_PropertyId, params.m_Options.m_Index, out_value, true, CompRiveGetConstantCallback, component);
     }
 
     dmGameObject::PropertyResult CompRiveSetProperty(const dmGameObject::ComponentSetPropertyParams& params)
@@ -1166,7 +1225,7 @@ namespace dmRive
                 }
             }
         }
-        return dmGameSystem::SetMaterialConstant(GetMaterial(component, component->m_Resource), params.m_PropertyId, params.m_Value, CompRiveSetConstantCallback, component);
+        return dmGameSystem::SetMaterialConstant(GetMaterial(component, component->m_Resource), params.m_PropertyId, params.m_Value, params.m_Options.m_Index, CompRiveSetConstantCallback, component);
     }
 
     static void ResourceReloadedCallback(const dmResource::ResourceReloadedParams& params)
