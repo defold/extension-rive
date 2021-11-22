@@ -10,8 +10,7 @@ on:
 env:
   VERSION_FILENAME: 'info.json'
   BUILD_SERVER: 'https://build-stage.defold.com'
-  EDITOR_CHANNEL: 'alpha'
-  ENGINE_CHANNEL: 'dev'
+  CHANNEL: 'alpha'
   PLUGIN_SO: './defold-rive/plugins/lib/x86_64-linux/libRiveExt.so'
 
 jobs:
@@ -30,13 +29,13 @@ jobs:
 
       - name: Get Defold version
         run: |
-          TMPVAR=`curl -s http://d.defold.com/${{env.EDITOR_CHANNEL}}/${{env.VERSION_FILENAME}} | jq -r '.sha1'`
+          TMPVAR=`curl -s http://d.defold.com/${{env.CHANNEL}}/${{env.VERSION_FILENAME}} | jq -r '.sha1'`
           echo "DEFOLD_VERSION=${TMPVAR}" >> $GITHUB_ENV
           echo "Found version ${TMPVAR}"
 
       - name: Download bob.jar
         run: |
-          wget -q http://d.defold.com/archive/${{env.ENGINE_CHANNEL}}/${{env.DEFOLD_VERSION}}/bob/bob.jar
+          wget -q http://d.defold.com/archive/${{env.CHANNEL}}/${{env.DEFOLD_VERSION}}/bob/bob.jar
           java -jar bob.jar --version
 
       - name: Installing Shared Library Dependencies
@@ -73,13 +72,13 @@ jobs:
 
       - name: Get Defold version
         run: |
-          TMPVAR=`curl -s http://d.defold.com/${{env.EDITOR_CHANNEL}}/${{env.VERSION_FILENAME}} | jq -r '.sha1'`
+          TMPVAR=`curl -s http://d.defold.com/${{env.CHANNEL}}/${{env.VERSION_FILENAME}} | jq -r '.sha1'`
           echo "DEFOLD_VERSION=${TMPVAR}" >> $GITHUB_ENV
           echo "Found version ${TMPVAR}"
 
       - name: Download bob.jar
         run: |
-          curl -s -o bob.jar http://d.defold.com/archive/${{env.ENGINE_CHANNEL}}/${{env.DEFOLD_VERSION}}/bob/bob.jar
+          curl -s -o bob.jar http://d.defold.com/archive/${{env.CHANNEL}}/${{env.DEFOLD_VERSION}}/bob/bob.jar
           java -jar bob.jar --version
 
       - name: Resolve libraries
@@ -105,13 +104,13 @@ jobs:
 
       - name: Get Defold version
         run: |
-          TMPVAR=`curl -s http://d.defold.com/${{env.EDITOR_CHANNEL}}/${{env.VERSION_FILENAME}} | jq -r '.sha1'`
+          TMPVAR=`curl -s http://d.defold.com/${{env.CHANNEL}}/${{env.VERSION_FILENAME}} | jq -r '.sha1'`
           echo "DEFOLD_VERSION=${TMPVAR}" >> $GITHUB_ENV
           echo "Found version ${TMPVAR}"
 
       - name: Download bob.jar
         run: |
-          wget -q http://d.defold.com/archive/${{env.ENGINE_CHANNEL}}/${{env.DEFOLD_VERSION}}/bob/bob.jar
+          wget -q http://d.defold.com/archive/${{env.CHANNEL}}/${{env.DEFOLD_VERSION}}/bob/bob.jar
           java -jar bob.jar --version
 
       - name: Resolve libraries
