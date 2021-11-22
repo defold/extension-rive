@@ -10,6 +10,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#if !defined(DM_RIVE_UNSUPPORTED)
+
 #include <rive/animation/linear_animation_instance.hpp>
 #include <rive/animation/state_machine_instance.hpp>
 #include <rive/animation/state_machine_input.hpp>
@@ -1442,3 +1444,5 @@ namespace dmRive
 }
 
 DM_DECLARE_COMPONENT_TYPE(ComponentTypeRive, "rivemodelc", dmRive::CompRiveRegister);
+
+#endif

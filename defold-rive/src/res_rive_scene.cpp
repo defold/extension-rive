@@ -10,6 +10,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#if !defined(DM_RIVE_UNSUPPORTED)
+
 #include "res_rive_scene.h"
 
 #include <dmsdk/dlib/log.h>
@@ -112,3 +114,5 @@ namespace dmRive
 }
 
 DM_DECLARE_RESOURCE_TYPE(ResourceTypeRiveScene, "rivescenec", dmRive::RegisterResourceType, 0);
+
+#endif // DM_RIVE_UNSUPPORTED

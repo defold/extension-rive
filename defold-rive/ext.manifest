@@ -15,6 +15,10 @@ platforms:
         context:
             flags: ["-std=c++17", "-fno-aligned-allocation"]
 
+    armv7-ios:
+        context:
+            defines: ["DM_RIVE_UNSUPPORTED"]
+
     x86_64-linux:
         context:
             flags: ["-std=c++17"]
