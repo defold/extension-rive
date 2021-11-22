@@ -4,18 +4,21 @@ on:
   push:
   pull_request_target:
   schedule:
-    # nightly at 05:00 on the 1st and 15th
-    - cron: 0 5 1,15 * *
+    # nightly at 06:00 on the 1st and 15th
+    - cron: 0 6 1,15 * *
 
 env:
   VERSION_FILENAME: 'info.json'
-  BUILD_SERVER: 'https://build.defold.com'
+  BUILD_SERVER: 'https://build-stage.defold.com'
+  CHANNEL: 'dev'
+  PLUGIN_SO: './defold-rive/plugins/lib/x86_64-linux/libRiveExt.so'
+  DEFOLD_VERSION: 'e253adc93019c6b36572eab2f5a87849e9b78e2e'
 
 jobs:
   build_with_bob:
     strategy:
       matrix:
-        platform: [armv7-android, x86_64-linux, x86_64-win32, x86-win32, js-web]
+        platform: [armv7-android, x86_64-linux, js-web]
     runs-on: ubuntu-latest
 
     name: Build
@@ -23,17 +26,60 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-java@v1
         with:
-          java-version: '11.0.2'
+          java-version: '16.0.1'
 
-      - name: Get Defold version
-        run: |
-          TMPVAR=`curl -s http://d.defold.com/stable/${{env.VERSION_FILENAME}} | jq -r '.sha1'`
-          echo "DEFOLD_VERSION=${TMPVAR}" >> $GITHUB_ENV
-          echo "Found version ${TMPVAR}"
+      # - name: Get Defold version
+      #   run: |
+      #     TMPVAR=`curl -s http://d.defold.com/${{env.CHANNEL}}/${{env.VERSION_FILENAME}} | jq -r '.sha1'`
+      #     echo "DEFOLD_VERSION=${TMPVAR}" >> $GITHUB_ENV
+      #     echo "Found version ${TMPVAR}"
 
       - name: Download bob.jar
         run: |
-          wget -q http://d.defold.com/archive/stable/${{env.DEFOLD_VERSION}}/bob/bob.jar
+          wget -q http://d.defold.com/archive/${{env.CHANNEL}}/${{env.DEFOLD_VERSION}}/bob/bob.jar
+          java -jar bob.jar --version
+
+      - name: Installing Shared Library Dependencies
+        run: |
+          echo "Remove after we've fixed the headless build for plugins"
+          sudo add-apt-repository ppa:apt-fast/stable
+          sudo apt-get update
+          sudo apt-fast install -y --no-install-recommends libopenal-dev libgl1-mesa-dev libglw1-mesa-dev freeglut3-dev
+
+      - name: Check shared dependencies
+        run: |
+          ldd ${PLUGIN_SO}
+          if ldd ${PLUGIN_SO} | grep -e 'not found' ; then (exit 1); fi
+
+      - name: Resolve libraries
+        run: java -jar bob.jar resolve --email a@b.com --auth 123456
+      - name: Build
+        run: java -jar bob.jar --platform=${{ matrix.platform }} build --archive --build-server=${{env.BUILD_SERVER}}
+      - name: Bundle
+        run: java -jar bob.jar --platform=${{ matrix.platform }} bundle
+
+  build_with_bob_windows:
+    strategy:
+      matrix:
+        platform: [x86_64-win32, x86-win32]
+    runs-on: windows-latest
+
+    name: Build
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-java@v1
+        with:
+          java-version: '16.0.1'
+
+      # - name: Get Defold version
+      #   run: |
+      #     TMPVAR=`curl -s http://d.defold.com/${{env.CHANNEL}}/${{env.VERSION_FILENAME}} | jq -r '.sha1'`
+      #     echo "DEFOLD_VERSION=${TMPVAR}" >> $GITHUB_ENV
+      #     echo "Found version ${TMPVAR}"
+
+      - name: Download bob.jar
+        run: |
+          curl -s -o bob.jar http://d.defold.com/archive/${{env.CHANNEL}}/${{env.DEFOLD_VERSION}}/bob/bob.jar
           java -jar bob.jar --version
 
       - name: Resolve libraries
@@ -57,15 +103,15 @@ jobs:
         with:
           java-version: '11.0.2'
 
-      - name: Get Defold version
-        run: |
-          TMPVAR=`curl -s http://d.defold.com/stable/${{env.VERSION_FILENAME}} | jq -r '.sha1'`
-          echo "DEFOLD_VERSION=${TMPVAR}" >> $GITHUB_ENV
-          echo "Found version ${TMPVAR}"
+      # - name: Get Defold version
+      #   run: |
+      #     TMPVAR=`curl -s http://d.defold.com/${{env.CHANNEL}}/${{env.VERSION_FILENAME}} | jq -r '.sha1'`
+      #     echo "DEFOLD_VERSION=${TMPVAR}" >> $GITHUB_ENV
+      #     echo "Found version ${TMPVAR}"
 
       - name: Download bob.jar
         run: |
-          wget -q http://d.defold.com/archive/stable/${{env.DEFOLD_VERSION}}/bob/bob.jar
+          wget -q http://d.defold.com/archive/${{env.CHANNEL}}/${{env.DEFOLD_VERSION}}/bob/bob.jar
           java -jar bob.jar --version
 
       - name: Resolve libraries
