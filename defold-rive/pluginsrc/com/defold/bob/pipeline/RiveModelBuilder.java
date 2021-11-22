@@ -37,8 +37,6 @@ public class RiveModelBuilder extends ProtoBuilder<RiveModelDesc.Builder> {
             BuilderUtil.checkResource(this.project, resource, "material", builder.getMaterial());
         }
         builder.setMaterial(BuilderUtil.replaceExt(builder.getMaterial(), ".material", ".materialc"));
-
-        System.out.printf("MAWE: OUTPUT FROM EXTENSION RiveModelBuilder!\n");
         return builder;
     }
 }
