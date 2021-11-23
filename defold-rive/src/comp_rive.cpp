@@ -669,7 +669,7 @@ namespace dmRive
     {
         RiveWorld* world         = (RiveWorld*)params.m_World;
         rive::HContext ctx       = world->m_Ctx->m_RiveContext;
-        rive::HRenderer renderer = world->m_Ctx->m_RiveRenderer;
+        rive::HRenderer renderer = world->m_RiveRenderer;
 
         rive::newFrame(renderer);
         rive::Renderer* rive_renderer = (rive::Renderer*) renderer;
