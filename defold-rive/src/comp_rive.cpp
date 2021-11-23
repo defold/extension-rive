@@ -823,6 +823,10 @@ namespace dmRive
 
         dmArray<RiveComponent*>& components = world->m_Components.m_Objects;
         const uint32_t count = components.Size();
+        if (!count)
+        {
+            return dmGameObject::UPDATE_RESULT_OK;
+        }
 
         // Prepare list submit
         dmRender::RenderListEntry* render_list = dmRender::RenderListAlloc(render_context, count);
