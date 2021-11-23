@@ -1,0 +1,26 @@
+local function load(self, proxy_url)
+	if self.current_proxy then
+		msg.post(self.current_proxy, "unload")
+	end
+	self.current_proxy = proxy_url
+	msg.post(proxy_url, "async_load")
+end
+
+
+function init(self)
+	self.current_proxy = nil
+	msg.post(".", "acquire_input_focus")
+	msg.post("#", "show_main")
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("proxy_loaded") then
+		print("Loaded", sender)
+		msg.post(sender, "init")
+		msg.post(sender, "enable")
+	elseif message_id == hash("proxy_unloaded") then
+		print("Unloaded", sender)
+	elseif message_id == hash("show_main") then
+		load(self, "#mainproxy")
+	end
+end
