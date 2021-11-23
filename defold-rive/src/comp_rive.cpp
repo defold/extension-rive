@@ -492,7 +492,7 @@ namespace dmRive
         RiveComponent* first        = (RiveComponent*) buf[*begin].m_UserData;
         RiveModelResource* resource = first->m_Resource;
         rive::HContext ctx          = world->m_Ctx->m_RiveContext;
-        rive::HRenderer renderer    = world->m_Ctx->m_RiveRenderer;
+        rive::HRenderer renderer    = world->m_RiveRenderer;
 
         uint32_t ro_count         = 0;
         uint32_t vertex_count     = 0;
