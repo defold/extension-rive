@@ -1,9 +1,19 @@
 uniform highp mat4 world_view_proj;
+uniform highp vec4 transform_local[4];
 uniform lowp vec4 cover;
 
 attribute highp vec4 position;
 
+varying vec2 vx_position;
+
+mat4 get_local_mat()
+{
+    return mat4(transform_local[0], transform_local[1], transform_local[2], transform_local[3]);
+}
+
 void main()
 {
-    gl_Position = world_view_proj * vec4(position.xy, 0.0, 1.0) * (1.0 - cover.x) + cover.x * vec4(position.xy, 0.0, 1.0);
+    vec4 p = vec4(position.xy, 0.0, 1.0);
+    vx_position  = (get_local_mat() * p).xy;
+    gl_Position = world_view_proj * p * (1.0 - cover.x) + cover.x * p;
 }
