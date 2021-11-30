@@ -10,6 +10,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#if !defined(DM_RIVE_UNSUPPORTED)
+
 #include <assert.h>
 
 #include <rive/animation/linear_animation.hpp>
@@ -235,3 +237,5 @@ namespace dmRive
         lua_pop(L, 1);
     }
 }
+
+#endif // DM_RIVE_UNSUPPORTED

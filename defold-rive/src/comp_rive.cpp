@@ -10,6 +10,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#if !defined(DM_RIVE_UNSUPPORTED)
+
 #include <rive/animation/linear_animation_instance.hpp>
 #include <rive/animation/state_machine_instance.hpp>
 #include <rive/animation/state_machine_input.hpp>
@@ -104,7 +106,6 @@ namespace dmRive
         {
             memset(this, 0, sizeof(*this));
         }
-        rive::HRenderer          m_RiveRenderer;
         rive::HContext           m_RiveContext;
         dmResource::HFactory     m_Factory;
         dmRender::HRenderContext m_RenderContext;
@@ -116,6 +117,7 @@ namespace dmRive
     struct RiveWorld
     {
         CompRiveContext*                    m_Ctx; // JG: Is this a bad idea?
+        rive::HRenderer                     m_RiveRenderer;
         dmObjectPool<RiveComponent*>        m_Components;
         dmArray<dmRender::RenderObject>                     m_RenderObjects;
         dmArray<dmGameSystem::HComponentRenderConstants>    m_RenderConstants; // 1:1 mapping with the render objects
@@ -144,6 +146,9 @@ namespace dmRive
         CompRiveContext* context = (CompRiveContext*)params.m_Context;
         RiveWorld* world         = new RiveWorld();
 
+        world->m_RiveRenderer = rive::createRenderer(context->m_RiveContext);
+        rive::setContourQuality(world->m_RiveRenderer, 0.8888888888888889f);
+        rive::setClippingSupport(world->m_RiveRenderer, true);
         world->m_Ctx = context;
         world->m_Components.SetCapacity(context->m_MaxInstanceCount);
         world->m_RenderObjects.SetCapacity(context->m_MaxInstanceCount);
@@ -504,7 +509,7 @@ namespace dmRive
         RiveComponent* first        = (RiveComponent*) buf[*begin].m_UserData;
         RiveModelResource* resource = first->m_Resource;
         rive::HContext ctx          = world->m_Ctx->m_RiveContext;
-        rive::HRenderer renderer    = world->m_Ctx->m_RiveRenderer;
+        rive::HRenderer renderer    = world->m_RiveRenderer;
 
         uint32_t ro_count         = 0;
         uint32_t vertex_count     = 0;
@@ -681,7 +686,7 @@ namespace dmRive
     {
         RiveWorld* world         = (RiveWorld*)params.m_World;
         rive::HContext ctx       = world->m_Ctx->m_RiveContext;
-        rive::HRenderer renderer = world->m_Ctx->m_RiveRenderer;
+        rive::HRenderer renderer = world->m_RiveRenderer;
 
         rive::newFrame(renderer);
         rive::Renderer* rive_renderer = (rive::Renderer*) renderer;
@@ -835,6 +840,10 @@ namespace dmRive
 
         dmArray<RiveComponent*>& components = world->m_Components.m_Objects;
         const uint32_t count = components.Size();
+        if (!count)
+        {
+            return dmGameObject::UPDATE_RESULT_OK;
+        }
 
         // Prepare list submit
         dmRender::RenderListEntry* render_list = dmRender::RenderListAlloc(render_context, count);
@@ -1279,10 +1288,6 @@ namespace dmRive
         rive::setRenderMode(rivectx->m_RiveContext, rive::MODE_STENCIL_TO_COVER);
         rive::setBufferCallbacks(rivectx->m_RiveContext, dmRive::RequestBufferCallback, dmRive::DestroyBufferCallback, 0x0);
 
-        rivectx->m_RiveRenderer = rive::createRenderer(rivectx->m_RiveContext);
-        rive::setContourQuality(rivectx->m_RiveRenderer, 0.8888888888888889f);
-        rive::setClippingSupport(rivectx->m_RiveRenderer, true);
-
         // after script/anim/gui, before collisionobject
         // the idea is to let the scripts/animations update the game object instance,
         // and then let the component update its bones, allowing them to influence collision objects in the same frame
@@ -1459,3 +1464,5 @@ namespace dmRive
 }
 
 DM_DECLARE_COMPONENT_TYPE(ComponentTypeRive, "rivemodelc", dmRive::CompRiveRegister);
+
+#endif
