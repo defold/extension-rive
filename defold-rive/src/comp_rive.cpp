@@ -1258,7 +1258,7 @@ namespace dmRive
         }
     }
 
-    static dmGameObject::Result CompRiveRegister(const dmGameObject::ComponentTypeCreateCtx* ctx, dmGameObject::ComponentType* type)
+    static dmGameObject::Result ComponentTypeCreate(const dmGameObject::ComponentTypeCreateCtx* ctx, dmGameObject::ComponentType* type)
     {
         CompRiveContext* rivectx    = new CompRiveContext;
         rivectx->m_Factory          = ctx->m_Factory;
@@ -1297,6 +1297,12 @@ namespace dmRive
         return dmGameObject::RESULT_OK;
     }
 
+    static dmGameObject::Result ComponentTypeDestroy(const dmGameObject::ComponentTypeCreateCtx* ctx, dmGameObject::ComponentType* type)
+    {
+        CompRiveContext* rivectx = (CompRiveContext*)ComponentTypeGetContext(type);
+        delete rivectx;
+        return dmGameObject::RESULT_OK;
+    }
 
     static void DeleteBones(RiveComponent* component)
     {
@@ -1446,6 +1452,6 @@ namespace dmRive
     }
 }
 
-DM_DECLARE_COMPONENT_TYPE(ComponentTypeRive, "rivemodelc", dmRive::CompRiveRegister);
+DM_DECLARE_COMPONENT_TYPE(ComponentTypeRive, "rivemodelc", dmRive::ComponentTypeCreate, dmRive::ComponentTypeDestroy);
 
 #endif
