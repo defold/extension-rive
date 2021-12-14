@@ -466,7 +466,6 @@ namespace dmRive
                 const rive::PaintData draw_entry_paint = rive::getPaintData(ctx->m_Paint);
                 const float* color                     = &draw_entry_paint.m_Colors[0];
 
-                //dmVMath::Vector4 vcolor(color[0], color[1], color[2], color[3]);
                 dmGameSystem::SetRenderConstant(render_constants, UNIFORM_COLOR, (dmVMath::Vector4*) color, rive::PaintData::MAX_STOPS);
 
                 dmVMath::Vector4 cover(0, 0, 0, 0);
@@ -694,8 +693,6 @@ namespace dmRive
 
         dmArray<RiveComponent*>& components = world->m_Components.m_Objects;
         const uint32_t count = components.Size();
-
-        //const rive::RenderMode render_mode = rive::getRenderMode(ctx);
 
         for (uint32_t i = 0; i < count; ++i)
         {
