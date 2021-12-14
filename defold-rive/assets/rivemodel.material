@@ -24,10 +24,10 @@ vertex_constants {
   }
 }
 fragment_constants {
-  name: "color"
+  name: "colors"
   type: CONSTANT_TYPE_USER
   value {
-    x: 0.25
+    x: 1.0
     y: 0.25
     z: 0.25
     w: 1.0

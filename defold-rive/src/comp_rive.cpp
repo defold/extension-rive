@@ -77,13 +77,17 @@ namespace dmRive
 {
     using namespace dmVMath;
 
-    static const dmhash_t PROP_ANIMATION     = dmHashString64("animation");
-    static const dmhash_t PROP_CURSOR        = dmHashString64("cursor");
-    static const dmhash_t PROP_PLAYBACK_RATE = dmHashString64("playback_rate");
-    static const dmhash_t PROP_MATERIAL      = dmHashString64("material");
-    static const dmhash_t MATERIAL_EXT_HASH  = dmHashString64("materialc");
-    static const dmhash_t UNIFORM_COLOR      = dmHashString64("color");
-    static const dmhash_t UNIFORM_COVER      = dmHashString64("cover");
+    static const dmhash_t PROP_ANIMATION          = dmHashString64("animation");
+    static const dmhash_t PROP_CURSOR             = dmHashString64("cursor");
+    static const dmhash_t PROP_PLAYBACK_RATE      = dmHashString64("playback_rate");
+    static const dmhash_t PROP_MATERIAL           = dmHashString64("material");
+    static const dmhash_t MATERIAL_EXT_HASH       = dmHashString64("materialc");
+    static const dmhash_t UNIFORM_COLOR           = dmHashString64("colors");
+    static const dmhash_t UNIFORM_TRANSFORM_LOCAL = dmHashString64("transform_local");
+    static const dmhash_t UNIFORM_COVER           = dmHashString64("cover");
+    static const dmhash_t UNIFORM_STOPS           = dmHashString64("stops");
+    static const dmhash_t UNIFORM_GRADIENT_LIMITS = dmHashString64("gradientLimits");
+    static const dmhash_t UNIFORM_PROPERTIES      = dmHashString64("properties");
 
     static void ResourceReloadedCallback(const dmResource::ResourceReloadedParams& params);
     static void DestroyComponent(struct RiveWorld* world, uint32_t index);
@@ -419,8 +423,21 @@ namespace dmRive
                     const rive::PaintData draw_entry_paint = rive::getPaintData(ctx->m_Paint);
                     const float* color                     = &draw_entry_paint.m_Colors[0];
 
-                    dmVMath::Vector4 vcolor(color[0], color[1], color[2], color[3]);
-                    dmGameSystem::SetRenderConstant(render_constants, UNIFORM_COLOR, &vcolor, 1);
+                    dmVMath::Vector4 properties((float)draw_entry_paint.m_FillType, (float)draw_entry_paint.m_StopCount, 0.0f, 0.0f);
+                    dmVMath::Matrix4 local_matrix;
+                    Mat2DToMat4(ctx->m_Event.m_TransformLocal, local_matrix);
+
+                    dmVMath::Vector4 stops[rive::PaintData::MAX_STOPS];
+                    for (int i = 0; i < (int) draw_entry_paint.m_StopCount; ++i)
+                    {
+                        stops[i][0] = draw_entry_paint.m_Stops[i];
+                    }
+
+                    dmGameSystem::SetRenderConstant(render_constants, UNIFORM_COLOR, (dmVMath::Vector4*) color, draw_entry_paint.m_StopCount);
+                    dmGameSystem::SetRenderConstant(render_constants, UNIFORM_TRANSFORM_LOCAL, (dmVMath::Vector4*) &local_matrix, 4);
+                    dmGameSystem::SetRenderConstant(render_constants, UNIFORM_GRADIENT_LIMITS, (dmVMath::Vector4*) draw_entry_paint.m_GradientLimits, 1);
+                    dmGameSystem::SetRenderConstant(render_constants, UNIFORM_PROPERTIES, (dmVMath::Vector4*) &properties, 1);
+                    dmGameSystem::SetRenderConstant(render_constants, UNIFORM_STOPS, (dmVMath::Vector4*) &stops, draw_entry_paint.m_StopCount);
                 }
 
                 // If we are fullscreen-covering, we don't transform the vertices
@@ -449,8 +466,7 @@ namespace dmRive
                 const rive::PaintData draw_entry_paint = rive::getPaintData(ctx->m_Paint);
                 const float* color                     = &draw_entry_paint.m_Colors[0];
 
-                dmVMath::Vector4 vcolor(color[0], color[1], color[2], color[3]);
-                dmGameSystem::SetRenderConstant(render_constants, UNIFORM_COLOR, &vcolor, 1);
+                dmGameSystem::SetRenderConstant(render_constants, UNIFORM_COLOR, (dmVMath::Vector4*) color, rive::PaintData::MAX_STOPS);
 
                 dmVMath::Vector4 cover(0, 0, 0, 0);
                 dmGameSystem::SetRenderConstant(render_constants, UNIFORM_COVER, &cover, 1);
@@ -677,8 +693,6 @@ namespace dmRive
 
         dmArray<RiveComponent*>& components = world->m_Components.m_Objects;
         const uint32_t count = components.Size();
-
-        //const rive::RenderMode render_mode = rive::getRenderMode(ctx);
 
         for (uint32_t i = 0; i < count; ++i)
         {
