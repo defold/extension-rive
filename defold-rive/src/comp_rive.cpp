@@ -466,7 +466,32 @@ namespace dmRive
                 const rive::PaintData draw_entry_paint = rive::getPaintData(ctx->m_Paint);
                 const float* color                     = &draw_entry_paint.m_Colors[0];
 
-                dmGameSystem::SetRenderConstant(render_constants, UNIFORM_COLOR, (dmVMath::Vector4*) color, rive::PaintData::MAX_STOPS);
+                SetStencilCoverState(&ro.m_StencilTestParams, ctx->m_Event.m_IsClipping, ctx->m_IsApplyingClipping);
+
+                if (!ctx->m_IsApplyingClipping)
+                {
+                    GetBlendFactorsFromBlendMode(engine_ctx->m_BlendMode, &ro.m_SourceBlendFactor, &ro.m_DestinationBlendFactor);
+                    ro.m_SetBlendFactors = 1;
+
+                    const rive::PaintData draw_entry_paint = rive::getPaintData(ctx->m_Paint);
+                    const float* color                     = &draw_entry_paint.m_Colors[0];
+
+                    dmVMath::Vector4 properties((float)draw_entry_paint.m_FillType, (float)draw_entry_paint.m_StopCount, 0.0f, 0.0f);
+                    dmVMath::Matrix4 local_matrix;
+                    Mat2DToMat4(ctx->m_Event.m_TransformLocal, local_matrix);
+
+                    dmVMath::Vector4 stops[rive::PaintData::MAX_STOPS];
+                    for (int i = 0; i < (int) draw_entry_paint.m_StopCount; ++i)
+                    {
+                        stops[i][0] = draw_entry_paint.m_Stops[i];
+                    }
+
+                    dmGameSystem::SetRenderConstant(render_constants, UNIFORM_COLOR, (dmVMath::Vector4*) color, draw_entry_paint.m_StopCount);
+                    dmGameSystem::SetRenderConstant(render_constants, UNIFORM_TRANSFORM_LOCAL, (dmVMath::Vector4*) &local_matrix, 4);
+                    dmGameSystem::SetRenderConstant(render_constants, UNIFORM_GRADIENT_LIMITS, (dmVMath::Vector4*) draw_entry_paint.m_GradientLimits, 1);
+                    dmGameSystem::SetRenderConstant(render_constants, UNIFORM_PROPERTIES, (dmVMath::Vector4*) &properties, 1);
+                    dmGameSystem::SetRenderConstant(render_constants, UNIFORM_STOPS, (dmVMath::Vector4*) &stops, draw_entry_paint.m_StopCount);
+                }
 
                 dmVMath::Vector4 cover(0, 0, 0, 0);
                 dmGameSystem::SetRenderConstant(render_constants, UNIFORM_COVER, &cover, 1);
