@@ -14,8 +14,8 @@ void main()
 {
     vec2 gradientStart = gradientLimits.xy;
     vec2 gradientStop = gradientLimits.zw;
-    int iStopCount = int(properties.x);
-    int iFillType  = int(properties.y);
+    int iStopCount = int(properties.y);
+    int iFillType  = int(properties.x);
 
     vec4 fragColor = vec4(vec3(0.0), 1.0);
 
