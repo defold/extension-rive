@@ -1,4 +1,4 @@
-scene: "/assets/lights.rivescene"
+scene: "/assets/nested_artboards/lights.rivescene"
 default_animation: "Light_1"
 material: "/defold-rive/assets/rivemodel.material"
 blend_mode: BLEND_MODE_ALPHA
