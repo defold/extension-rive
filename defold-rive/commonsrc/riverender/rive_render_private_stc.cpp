@@ -134,6 +134,10 @@ namespace rive
 
         m_IsClipping = true;
     }
+    void StencilToCoverRenderer::drawImage(RenderImage* image, BlendMode value, float opacity)
+    {
+        
+    }
 
     void StencilToCoverRenderer::drawPath(RenderPath* path, RenderPaint* paint)
     {

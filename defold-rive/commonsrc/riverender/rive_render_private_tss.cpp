@@ -138,7 +138,7 @@ namespace rive
     {
         updateTesselation();
     }
-    
+
     ////////////////////////////////////////////////////////
     // Tessellation - Renderer
     ////////////////////////////////////////////////////////
@@ -214,6 +214,11 @@ namespace rive
             PathDrawEvent evtClippingDisable = { .m_Type = EVENT_CLIPPING_DISABLE };
             pushDrawEvent(evtClippingDisable);
         }
+    }
+
+    void TessellationRenderer::drawImage(RenderImage* image, BlendMode value, float opacity)
+    {
+
     }
 
     void TessellationRenderer::drawPath(RenderPath* path, RenderPaint* paint)

@@ -31,6 +31,23 @@ namespace rive
     }
 
     ////////////////////////////////////////////////////////
+    // SharedRenderImage
+    ////////////////////////////////////////////////////////
+
+    SharedRenderImage::SharedRenderImage(Context* ctx)
+    : m_Context(ctx)
+    {}
+
+    SharedRenderImage::~SharedRenderImage()
+    {}
+
+    bool SharedRenderImage::decode(const uint8_t* bytes, std::size_t size)
+    {
+        printf("SharedRenderImage::decode\n");
+        return false;
+    }
+
+    ////////////////////////////////////////////////////////
     // SharedRenderPaint
     ////////////////////////////////////////////////////////
 
@@ -454,6 +471,13 @@ namespace rive
             default:break;
         }
         return 0;
+    }
+
+    RenderImage* createRenderImage(HContext ctx)
+    {
+        printf("createRenderImage()\n");
+        Context* c = (Context*) ctx;
+        return new SharedRenderImage(c);
     }
 
     HRenderer createRenderer(HContext ctx)

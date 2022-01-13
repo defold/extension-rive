@@ -5,6 +5,8 @@
 set -e
 
 PROJECT=defold-rive
+BOB=bob.jar
+SERVER=https://build.defold.com
 
 if [ "" == "${BOB}" ]; then
     BOB=~/work/defold/tmp/dynamo_home/share/java/bob.jar
@@ -78,9 +80,8 @@ function build_plugin() {
     copy_results $platform $platform_ne
 }
 
-
 PLATFORMS=$1
-if [ "" == "${PLATFORM}" ]; then
+if [ "" == "${PLATFORMS}" ]; then
     PLATFORMS="x86_64-darwin x86_64-linux x86_64-win32"
 fi
 
