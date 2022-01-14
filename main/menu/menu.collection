@@ -1,10 +1,10 @@
-name: "default"
+name: "menu"
 scale_along_z: 0
 embedded_instances {
   id: "go"
   data: "components {\n"
-  "  id: \"lights1\"\n"
-  "  component: \"/assets/nested_artboards/lights.rivemodel\"\n"
+  "  id: \"menu\"\n"
+  "  component: \"/main/menu/menu.gui\"\n"
   "  position {\n"
   "    x: 0.0\n"
   "    y: 0.0\n"
@@ -19,8 +19,8 @@ embedded_instances {
   "}\n"
   ""
   position {
-    x: 480.0
-    y: 320.0
+    x: 0.0
+    y: 0.0
     z: 0.0
   }
   rotation {

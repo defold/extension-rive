@@ -1,4 +1,4 @@
-script: "/main/gui.gui_script"
+script: "/main/car/gui.gui_script"
 background_color {
   x: 0.0
   y: 0.0

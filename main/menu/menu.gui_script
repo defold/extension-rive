@@ -1,0 +1,37 @@
+local dirtylarry = require "dirtylarry/dirtylarry"
+
+
+local BUTTONS = { "car", "nested", "bones", "cursor", "state", "stroke" }
+local COLUMNS = 3
+local WIDTH = 220
+local HEIGHT = 70
+
+function init(self)
+	msg.post(".", "acquire_input_focus")
+	local node = gui.get_node("template/larrybutton")
+	for i,id in ipairs(BUTTONS) do
+		local clone = gui.clone_tree(node)
+		local larrylabel = clone[hash("template/larrylabel")]
+		local larrybutton = clone[hash("template/larrybutton")]
+		gui.set_id(larrylabel, id .. "/larrylabel")
+		gui.set_id(larrybutton, id .. "/larrybutton")
+		gui.set_text(larrylabel, id:upper())
+
+		local x = 280 + ((i - 1) % COLUMNS) * WIDTH
+		local y = 580 - math.floor((i - 1) / COLUMNS) * HEIGHT
+		gui.set_position(larrybutton, vmath.vector3(x, y, 0))
+	end
+	gui.delete_node(node)
+end
+
+local function show_screen(id)
+	msg.post("loader:/loader", "show_screen", { id = id })
+end
+
+function on_input(self, action_id, action)
+	for _,id in ipairs(BUTTONS) do
+		dirtylarry:button(id, action_id, action, function ()
+			show_screen(id)
+		end)
+	end
+end

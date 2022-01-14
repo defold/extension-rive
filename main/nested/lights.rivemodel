@@ -1,0 +1,5 @@
+scene: "/main/nested/lights.rivescene"
+default_animation: "Animation 1"
+material: "/defold-rive/assets/rivemodel.material"
+blend_mode: BLEND_MODE_ALPHA
+default_state_machine: ""
