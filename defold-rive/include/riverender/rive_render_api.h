@@ -5,12 +5,14 @@ namespace rive
 {
     class RenderPaint;
     class RenderPath;
+    class RenderImage;
     class Renderer;
 
     typedef uintptr_t    HContext;
     typedef uintptr_t    HBuffer;
     typedef RenderPaint* HRenderPaint;
     typedef RenderPath*  HRenderPath;
+    typedef RenderImage* HRenderImage;
     typedef Renderer*    HRenderer;
 
     enum BufferType
@@ -89,6 +91,7 @@ namespace rive
     void                setRenderMode(HContext ctx, RenderMode mode);
     RenderPath*         createRenderPath(HContext ctx);
     RenderPaint*        createRenderPaint(HContext ctx);
+    RenderImage*        createRenderImage(HContext ctx);
 
     HRenderer           createRenderer(HContext ctx);
     void                destroyRenderer(HRenderer renderer);

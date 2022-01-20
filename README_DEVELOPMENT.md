@@ -57,3 +57,7 @@ You need to have a clang++ (10´) installed. Generally it doesn't work well with
 
 NOTE: Currently, the resulting library may not work 100% with the pipeline.
 You may need to build this using the instructions found in the rive-cpp repository.
+
+It's possible to generate a Visual Studio solution by using `premake5.exe vs2019`.
+Note however that it only contains a Win32 build, so first thing needed is to duplicate that config and modify the copy to produce x64 content.
+Make sure the configs have "Multi-threaded (/MT)" set under project properties: "C/C++ -> Code Generation -> Runtime Library: Multi-threaded (/MT)"

@@ -4,7 +4,7 @@
 namespace rive
 {
     // TODO: We get compiler warnings when copying this in the arrays, fix it?
-    //       -> moving an object of non-trivially copyable type 'struct rive::PathDescriptor' 
+    //       -> moving an object of non-trivially copyable type 'struct rive::PathDescriptor'
     struct PathDescriptor
     {
         RenderPath* m_Path;
@@ -42,6 +42,16 @@ namespace rive
         RequestBufferCb m_RequestBufferCb;
         DestroyBufferCb m_DestroyBufferCb;
         void*           m_BufferCbUserData;
+    };
+
+    class SharedRenderImage : public RenderImage
+    {
+    public:
+        SharedRenderImage(Context* ctx);
+        ~SharedRenderImage();
+        bool decode(const uint8_t* bytes, std::size_t size) override;
+
+        Context* m_Context;
     };
 
     class SharedRenderer;
@@ -143,6 +153,7 @@ namespace rive
         StencilToCoverRenderPath* m_FullscreenPath;
         StencilToCoverRenderer(Context* ctx);
         ~StencilToCoverRenderer();
+        void drawImage(RenderImage* image, BlendMode value, float opacity) override;
         void drawPath(RenderPath* path, RenderPaint* paint) override;
         void applyClipping();
         void applyClipPath(StencilToCoverRenderPath* path, const Mat2D& transform);
@@ -173,6 +184,7 @@ namespace rive
     {
     public:
         TessellationRenderer(Context* ctx);
+        void drawImage(RenderImage* image, BlendMode value, float opacity) override;
         void drawPath(RenderPath* path, RenderPaint* paint) override;
         void applyClipping();
     };

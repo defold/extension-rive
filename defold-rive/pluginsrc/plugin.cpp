@@ -17,6 +17,7 @@ __declspec(dllexport) int dummyFunc()
 // Rive includes
 #include <rive/artboard.hpp>
 #include <rive/file.hpp>
+#include <rive/file_asset_resolver.hpp>
 #include <rive/animation/linear_animation_instance.hpp>
 #include <rive/animation/linear_animation.hpp>
 #include <rive/animation/state_machine.hpp>
@@ -140,6 +141,11 @@ namespace rive
     {
         return createRenderPaint(g_Ctx);
     }
+
+    RenderImage* makeRenderImage()
+    {
+        return createRenderImage(g_Ctx);
+    }
 }
 
 static void InitRiveContext() {
@@ -211,7 +217,7 @@ extern "C" DM_DLLEXPORT void* RIVE_LoadFromBuffer(void* buffer, size_t buffer_si
 
     rive::File* file          = 0;
     rive::BinaryReader reader = rive::BinaryReader((uint8_t*)buffer, buffer_size);
-    rive::ImportResult result = rive::File::import(reader, &file);
+    rive::ImportResult result = rive::File::import(reader, &file, 0);
 
     if (result != rive::ImportResult::success) {
         file = 0;
@@ -813,4 +819,3 @@ static void UpdateRenderData(RiveFile* file)
         file->m_RenderObjects.SetSize(num_ros_used);
     }
 }
-

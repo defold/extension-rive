@@ -71,6 +71,11 @@ namespace rive
     {
         return createRenderPaint(g_Ctx);
     }
+
+    RenderImage* makeRenderImage()
+    {
+        return createRenderImage(g_Ctx);
+    }
 }
 
 namespace dmRive
