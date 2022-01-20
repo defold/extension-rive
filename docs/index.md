@@ -52,7 +52,7 @@ Create a Rive scene by (<kbd>right click</kbd> a location in the *Assets* browse
 Once a Rive file has been selected a preview will be shown in the main *Editor* scene view and the bone hierarchy (see below) will be shown in the *Outline* panel.
 
 ::: important
-If your Rive scene contains multiple [Artboards](https://help.rive.app/editor/fundamentals/artboards) the Rive integration in Defold will automatically select the Main Artbord from your Rive scene.
+If your Rive scene contains multiple [Artboards](https://help.rive.app/editor/fundamentals/artboards) the Rive integration in Defold will automatically select the Main Artboard from your Rive scene.
 :::
 
 ## Creating Rive model components
