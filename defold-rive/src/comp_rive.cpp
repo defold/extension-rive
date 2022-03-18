@@ -426,11 +426,19 @@ namespace dmRive
                     ro.m_SetBlendFactors = 1;
 
                     const rive::PaintData draw_entry_paint = rive::getPaintData(ctx->m_Paint);
-                    const float* color                     = &draw_entry_paint.m_Colors[0];
 
                     dmVMath::Vector4 properties((float)draw_entry_paint.m_FillType, (float)draw_entry_paint.m_StopCount, 0.0f, 0.0f);
                     dmVMath::Matrix4 local_matrix;
                     Mat2DToMat4(ctx->m_Event.m_TransformLocal, local_matrix);
+
+                    dmVMath::Vector4 colors[rive::PaintData::MAX_STOPS];
+                    for (int i = 0; i < (int) draw_entry_paint.m_StopCount; ++i)
+                    {
+                        colors[i] = dmVMath::Vector4(draw_entry_paint.m_Colors[i*4+0],
+                                                     draw_entry_paint.m_Colors[i*4+1],
+                                                     draw_entry_paint.m_Colors[i*4+2],
+                                                     draw_entry_paint.m_Colors[i*4+3]);
+                    }
 
                     dmVMath::Vector4 stops[rive::PaintData::MAX_STOPS];
                     for (int i = 0; i < (int) draw_entry_paint.m_StopCount; ++i)
@@ -438,11 +446,13 @@ namespace dmRive
                         stops[i][0] = draw_entry_paint.m_Stops[i];
                     }
 
-                    dmGameSystem::SetRenderConstant(render_constants, UNIFORM_COLOR, (dmVMath::Vector4*) color, draw_entry_paint.m_StopCount);
+                    dmVMath::Vector4 gradient_limits(draw_entry_paint.m_GradientLimits[0], draw_entry_paint.m_GradientLimits[1], draw_entry_paint.m_GradientLimits[2], draw_entry_paint.m_GradientLimits[3]);
+
+                    dmGameSystem::SetRenderConstant(render_constants, UNIFORM_COLOR, colors, draw_entry_paint.m_StopCount);
                     dmGameSystem::SetRenderConstant(render_constants, UNIFORM_TRANSFORM_LOCAL, (dmVMath::Vector4*) &local_matrix, 4);
-                    dmGameSystem::SetRenderConstant(render_constants, UNIFORM_GRADIENT_LIMITS, (dmVMath::Vector4*) draw_entry_paint.m_GradientLimits, 1);
+                    dmGameSystem::SetRenderConstant(render_constants, UNIFORM_GRADIENT_LIMITS, &gradient_limits, 1);
                     dmGameSystem::SetRenderConstant(render_constants, UNIFORM_PROPERTIES, (dmVMath::Vector4*) &properties, 1);
-                    dmGameSystem::SetRenderConstant(render_constants, UNIFORM_STOPS, (dmVMath::Vector4*) &stops, draw_entry_paint.m_StopCount);
+                    dmGameSystem::SetRenderConstant(render_constants, UNIFORM_STOPS, stops, draw_entry_paint.m_StopCount);
                 }
 
                 // If we are fullscreen-covering, we don't transform the vertices
@@ -468,9 +478,6 @@ namespace dmRive
                 ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLE_STRIP;
                 ro.m_SetStencilTest    = 1;
 
-                const rive::PaintData draw_entry_paint = rive::getPaintData(ctx->m_Paint);
-                const float* color                     = &draw_entry_paint.m_Colors[0];
-
                 SetStencilCoverState(&ro.m_StencilTestParams, ctx->m_Event.m_IsClipping, ctx->m_IsApplyingClipping);
 
                 if (!ctx->m_IsApplyingClipping)
@@ -479,11 +486,19 @@ namespace dmRive
                     ro.m_SetBlendFactors = 1;
 
                     const rive::PaintData draw_entry_paint = rive::getPaintData(ctx->m_Paint);
-                    const float* color                     = &draw_entry_paint.m_Colors[0];
 
                     dmVMath::Vector4 properties((float)draw_entry_paint.m_FillType, (float)draw_entry_paint.m_StopCount, 0.0f, 0.0f);
                     dmVMath::Matrix4 local_matrix;
                     Mat2DToMat4(ctx->m_Event.m_TransformLocal, local_matrix);
+
+                    dmVMath::Vector4 colors[rive::PaintData::MAX_STOPS];
+                    for (int i = 0; i < (int) draw_entry_paint.m_StopCount; ++i)
+                    {
+                        colors[i] = dmVMath::Vector4(draw_entry_paint.m_Colors[i*4+0],
+                                                     draw_entry_paint.m_Colors[i*4+1],
+                                                     draw_entry_paint.m_Colors[i*4+2],
+                                                     draw_entry_paint.m_Colors[i*4+3]);
+                    }
 
                     dmVMath::Vector4 stops[rive::PaintData::MAX_STOPS];
                     for (int i = 0; i < (int) draw_entry_paint.m_StopCount; ++i)
@@ -491,11 +506,13 @@ namespace dmRive
                         stops[i][0] = draw_entry_paint.m_Stops[i];
                     }
 
-                    dmGameSystem::SetRenderConstant(render_constants, UNIFORM_COLOR, (dmVMath::Vector4*) color, draw_entry_paint.m_StopCount);
+                    dmVMath::Vector4 gradient_limits(draw_entry_paint.m_GradientLimits[0], draw_entry_paint.m_GradientLimits[1], draw_entry_paint.m_GradientLimits[2], draw_entry_paint.m_GradientLimits[3]);
+
+                    dmGameSystem::SetRenderConstant(render_constants, UNIFORM_COLOR, colors, draw_entry_paint.m_StopCount);
                     dmGameSystem::SetRenderConstant(render_constants, UNIFORM_TRANSFORM_LOCAL, (dmVMath::Vector4*) &local_matrix, 4);
-                    dmGameSystem::SetRenderConstant(render_constants, UNIFORM_GRADIENT_LIMITS, (dmVMath::Vector4*) draw_entry_paint.m_GradientLimits, 1);
-                    dmGameSystem::SetRenderConstant(render_constants, UNIFORM_PROPERTIES, (dmVMath::Vector4*) &properties, 1);
-                    dmGameSystem::SetRenderConstant(render_constants, UNIFORM_STOPS, (dmVMath::Vector4*) &stops, draw_entry_paint.m_StopCount);
+                    dmGameSystem::SetRenderConstant(render_constants, UNIFORM_GRADIENT_LIMITS, &gradient_limits, 1);
+                    dmGameSystem::SetRenderConstant(render_constants, UNIFORM_PROPERTIES, &properties, 1);
+                    dmGameSystem::SetRenderConstant(render_constants, UNIFORM_STOPS, stops, draw_entry_paint.m_StopCount);
                 }
 
                 dmVMath::Vector4 cover(0, 0, 0, 0);

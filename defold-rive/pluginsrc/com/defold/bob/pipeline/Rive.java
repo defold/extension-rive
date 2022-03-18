@@ -291,11 +291,12 @@ public class Rive {
     }
 
     static public class ShaderConstant extends Structure {
-        public Vector4 m_Value;
+        public Vector4[] m_Values = new Vector4[32];
         public long m_NameHash;
-        public long pad1;
+        public int m_Count;
+        public int pad1;
         protected List getFieldOrder() {
-            return Arrays.asList(new String[] {"m_Value", "m_NameHash", "pad1"});
+            return Arrays.asList(new String[] {"m_Values", "m_NameHash", "m_Count", "pad1"});
         }
     }
 
@@ -303,7 +304,7 @@ public class Rive {
     static public class RenderObject extends Structure {
         public StencilTestParams    m_StencilTestParams;
         public Matrix4              m_WorldTransform; // 16 byte alignment for simd
-        public ShaderConstant[]     m_Constants = new ShaderConstant[4];
+        public ShaderConstant[]     m_Constants = new ShaderConstant[16];
         public int                  m_NumConstants;
         public int                  m_VertexStart;
         public int                  m_VertexCount;
@@ -363,7 +364,7 @@ public class Rive {
             return new RenderObject[0];
         }
 
-        int ro_size = 288;
+        int ro_size = 8608;
         if (first.size() != ro_size) {
             System.out.printf("RenderObject size is not %d, it was %d\n", ro_size, first.size());
             return new RenderObject[0];
@@ -490,9 +491,15 @@ public class Rive {
 
             System.out.printf(" ro %d: fw(ccw): %b  offset: %d  count: %d  constants: %d\n", count++, ro.m_FaceWindingCCW, ro.m_VertexStart, ro.m_VertexCount, ro.m_NumConstants);
 
-            for (int i = 0; i < ro.m_NumConstants && i < 2; ++i)
+            for (int c = 0; c < ro.m_NumConstants && c < 2; ++c)
             {
-                System.out.printf("    var %d: %s %.3f, %.3f, %.3f, %.3f\n", i, Long.toUnsignedString(ro.m_Constants[i].m_NameHash), ro.m_Constants[i].m_Value.x, ro.m_Constants[i].m_Value.y, ro.m_Constants[i].m_Value.z, ro.m_Constants[i].m_Value.w);
+                ShaderConstant constant = ro.m_Constants[c];
+                System.out.printf("    var %d: %s: ", c, Long.toUnsignedString(ro.m_Constants[c].m_NameHash));
+                for (int i = 0; i < constant.m_Count; ++i)
+                {
+                    System.out.printf("(%.3f, %.3f, %.3f, %.3f)  ", constant.m_Values[i].x, constant.m_Values[i].y, constant.m_Values[i].z, constant.m_Values[i].w);
+                }
+                System.out.printf("\n");
             }
         }
     }

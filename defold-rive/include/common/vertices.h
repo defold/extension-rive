@@ -32,9 +32,11 @@ namespace dmRive
     // We use a simpler version here, since we don't know the location of the variable in the shader
     struct ShaderConstant
     {
-        dmVMath::Vector4 m_Value;
+        static const uint32_t MAX_VALUES_COUNT = 32;
+        dmVMath::Vector4 m_Values[MAX_VALUES_COUNT];
         dmhash_t         m_NameHash;
-        uint8_t          pad[8];
+        uint32_t         m_Count;
+        uint8_t          pad[4];
     };
 
     // Due to the fact that the struct has bit fields, it's not possible to get a 1:1 mapping using JNA
@@ -74,9 +76,9 @@ namespace dmRive
     struct RenderObject
     {
         void Init();
-        void AddConstant(dmhash_t name_hash, const dmVMath::Vector4& value);
+        void AddConstant(dmhash_t name_hash, const dmVMath::Vector4* values, uint32_t count);
 
-        static const uint32_t MAX_CONSTANT_COUNT = 4;
+        static const uint32_t MAX_CONSTANT_COUNT = 16;
 
         dmRive::StencilTestParams       m_StencilTestParams;
         dmVMath::Matrix4                m_WorldTransform;

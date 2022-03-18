@@ -411,13 +411,21 @@
 (defn collect-render-groups [renderables]
   (map renderable->render-objects renderables))
 
-(def constant-color (murmur/hash64 "color"))
+(def constant-colors (murmur/hash64 "colors"))
+(def constant-transform_local (murmur/hash64 "transform_local"))
 (def constant-cover (murmur/hash64 "cover"))
+(def constant-stops (murmur/hash64 "stops"))
+(def constant-gradientLimits (murmur/hash64 "gradientLimits"))
+(def constant-properties (murmur/hash64 "properties"))
 
 (defn- constant-hash->name [hash]
   (condp = hash
-    constant-color "color"
+    constant-colors "colors"
+    constant-transform_local "transform_local"
     constant-cover "cover"
+    constant-stops "stops"
+    constant-gradientLimits "gradientLimits"
+    constant-properties "properties"
     "unknown"))
 
 (defn- do-mask [mask count]
@@ -485,15 +493,31 @@
     (set-stencil-func! gl GL/GL_FRONT ref ref-mask state-front)
     (set-stencil-func! gl GL/GL_BACK ref ref-mask state-back)))
 
+(defn- to-vector4d [v]
+  (Vector4d. (.x v) (.y v) (.z v) (.w v)))
+
+(defn- vector4d-to-floats [^Vector4d val]
+  (list (.x val) (.y val) (.z val) (.w val)))
+
+(def my-atom (atom {}))
+
 (defn- set-constant! [^GL2 gl shader constant]
-  (let [name-hash (.m_NameHash constant)]
+  (reset! my-atom constant)
+
+  (let [name-hash (.m_NameHash constant)
+        name (constant-hash->name name-hash)
+        count (.m_Count constant)
+        values (take count (vec (.m_Values constant)))
+        vec4-vals (map to-vector4d values)
+        dbl-vals (mapcat vector4d-to-floats vec4-vals)
+        flt-vals (float-array dbl-vals)]
     (when (not= name-hash 0)
-      (let [v (.m_Value constant)
-            value (Vector4d. (.x v) (.y v) (.z v) (.w v))]
-        (shader/set-uniform shader gl (constant-hash->name name-hash) value)))))
+      (let []
+        (shader/set-uniform-array shader gl name count flt-vals)))))
 
 (defn- set-constants! [^GL2 gl shader ro]
-  (doall (map (fn [constant] (set-constant! gl shader constant)) (.m_Constants ro))))
+  (let [constants (take (.m_NumConstants ro) (.m_Constants ro))]
+    (doall (map (fn [constant] (set-constant! gl shader constant)) constants))))
 
 (defn- do-render-object! [^GL2 gl render-args shader renderable ro]
   (let [start (.m_VertexStart ro) ; the name is from the engine, but in this case refers to the index
