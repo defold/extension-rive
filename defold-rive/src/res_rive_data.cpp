@@ -94,7 +94,7 @@ namespace dmRive
     static dmResource::Result ResourceType_RiveData_Create(const dmResource::ResourceCreateParams& params)
     {
         rive::File* file          = 0;
-        rive::BinaryReader reader = rive::BinaryReader((uint8_t*) params.m_Buffer, params.m_BufferSize);
+        rive::BinaryReader reader = rive::BinaryReader((uint8_t*) params.m_Buffer, (size_t)params.m_BufferSize);
         rive::ImportResult result = rive::File::import(reader, &file);
 
         if (result != rive::ImportResult::success)

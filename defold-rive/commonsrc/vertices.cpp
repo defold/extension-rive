@@ -1,7 +1,9 @@
 #include <string.h> // memcpy
 #include <stdlib.h> // realloc
 
+#include <dmsdk/dlib/array.h>
 #include <dmsdk/dlib/log.h>
+#include <dmsdk/dlib/math.h>
 #include <dmsdk/dlib/vmath.h>
 #include <dmsdk/render/render.h>
 
@@ -75,7 +77,7 @@ void RenderObject::Init()
     //m_TextureTransform = dmVMath::Matrix4::identity();
 }
 
-void RenderObject::AddConstant(dmhash_t name_hash, const dmVMath::Vector4& value)
+void RenderObject::AddConstant(dmhash_t name_hash, const dmVMath::Vector4* values, uint32_t count)
 {
     uint32_t index = RenderObject::MAX_CONSTANT_COUNT;
     for (uint32_t i = 0; i < RenderObject::MAX_CONSTANT_COUNT; ++i)
@@ -91,12 +93,17 @@ void RenderObject::AddConstant(dmhash_t name_hash, const dmVMath::Vector4& value
         if (m_Constants[index].m_NameHash == 0)
             m_NumConstants++;
         m_Constants[index].m_NameHash = name_hash;
-        m_Constants[index].m_Value = value;
+
+        m_Constants[index].m_Count = dmMath::Min(count, ShaderConstant::MAX_VALUES_COUNT);
+        for (uint32_t i = 0; i < m_Constants[index].m_Count; ++i)
+        {
+            m_Constants[index].m_Values[i] = values[i];
+        }
     }
     else
     {
-        dmLogWarning("Failed to add shader constant %s: %.3f, %.3f, %.3f, %.3f  this: %p  index: %u  num_c: %u",
-            dmHashReverseSafe64(name_hash), value.getX(),value.getY(),value.getZ(),value.getW(), this, index, m_NumConstants);
+        dmLogWarning("Failed to add shader constant %s: %.3f, %.3f, %.3f, %.3f  count: %u this: %p  index: %u  num_c: %u",
+            dmHashReverseSafe64(name_hash), values[0].getX(),values[0].getY(),values[0].getZ(),values[0].getW(), count, this, index, m_NumConstants);
     }
 }
 

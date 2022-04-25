@@ -45,7 +45,8 @@ __declspec(dllexport) int dummyFunc()
 DM_STATIC_ASSERT(sizeof(dmGraphics::CompareFunc) == sizeof(int), Invalid_struct_size);
 DM_STATIC_ASSERT(sizeof(dmGraphics::StencilOp) == sizeof(int), Invalid_struct_size);
 // Making sure the size is the same for both C++ and Java
-DM_STATIC_ASSERT(sizeof(dmRive::RenderObject) == 288, Invalid_struct_size);
+DM_STATIC_ASSERT(sizeof(dmRive::ShaderConstant) <= 528, Invalid_struct_size);
+DM_STATIC_ASSERT(sizeof(dmRive::RenderObject) <= 8608, Invalid_struct_size);
 
 
 struct RivePluginVertex
@@ -455,6 +456,7 @@ extern "C" DM_DLLEXPORT int RIVE_GetStateMachineInput(void* _rive_file, int inde
         printf("input == 0\n");
         fflush(stdout);
     }
+    assert(input != 0);
 
     input->name = state_machine_input->name().c_str();
 
@@ -689,8 +691,12 @@ struct RiveEventsDrawcallContext
 
 static void RiveEventCallback_Plugin(dmRive::RiveEventsContext* ctx)
 {
-    static const dmhash_t UNIFORM_COLOR = dmHashString64("color");
-    static const dmhash_t UNIFORM_COVER = dmHashString64("cover");
+    static const dmhash_t UNIFORM_COLORS          = dmHashString64("colors");
+    static const dmhash_t UNIFORM_TRANSFORM_LOCAL = dmHashString64("transform_local");
+    static const dmhash_t UNIFORM_COVER           = dmHashString64("cover");
+    static const dmhash_t UNIFORM_STOPS           = dmHashString64("stops");
+    static const dmhash_t UNIFORM_GRADIENT_LIMITS = dmHashString64("gradientLimits");
+    static const dmhash_t UNIFORM_PROPERTIES      = dmHashString64("properties");
 
     RiveEventsDrawcallContext* plugin_ctx = (RiveEventsDrawcallContext*)ctx->m_UserContext;
 
@@ -709,7 +715,8 @@ static void RiveEventCallback_Plugin(dmRive::RiveEventsContext* ctx)
 
             dmRive::SetStencilDrawState(&ro.m_StencilTestParams, ctx->m_Event.m_IsClipping, ctx->m_ClearClippingFlag);
 
-            ro.AddConstant(UNIFORM_COVER, dmVMath::Vector4(0.0f, 0.0f, 0.0f, 0.0f));
+            dmVMath::Vector4 zero(0,0,0,0);
+            ro.AddConstant(UNIFORM_COVER, &zero, 1);
 
             dmRive::Mat2DToMat4(ctx->m_Event.m_TransformWorld, ro.m_WorldTransform);
         }
@@ -734,15 +741,40 @@ static void RiveEventCallback_Plugin(dmRive::RiveEventsContext* ctx)
                 // ro.m_SetBlendFactors = 1;
 
                 const rive::PaintData draw_entry_paint = rive::getPaintData(ctx->m_Paint);
-                const float* color                     = &draw_entry_paint.m_Colors[0];
 
-                ro.AddConstant(UNIFORM_COLOR, dmVMath::Vector4(color[0], color[1], color[2], color[3]));
+                dmVMath::Vector4 properties((float)draw_entry_paint.m_FillType, (float)draw_entry_paint.m_StopCount, 0.0f, 0.0f);
+                dmVMath::Matrix4 local_matrix;
+                dmRive::Mat2DToMat4(ctx->m_Event.m_TransformLocal, local_matrix);
+
+                dmVMath::Vector4 colors[rive::PaintData::MAX_STOPS];
+                for (int i = 0; i < (int) draw_entry_paint.m_StopCount; ++i)
+                {
+                    colors[i] = dmVMath::Vector4(draw_entry_paint.m_Colors[i*4+0],
+                                                 draw_entry_paint.m_Colors[i*4+1],
+                                                 draw_entry_paint.m_Colors[i*4+2],
+                                                 draw_entry_paint.m_Colors[i*4+3]);
+                }
+
+                dmVMath::Vector4 stops[rive::PaintData::MAX_STOPS];
+                for (int i = 0; i < (int) draw_entry_paint.m_StopCount; ++i)
+                {
+                    stops[i][0] = draw_entry_paint.m_Stops[i];
+                }
+
+                dmVMath::Vector4 gradient_limits(draw_entry_paint.m_GradientLimits[0], draw_entry_paint.m_GradientLimits[1], draw_entry_paint.m_GradientLimits[2], draw_entry_paint.m_GradientLimits[3]);
+
+                ro.AddConstant(UNIFORM_COLORS, colors, draw_entry_paint.m_StopCount);
+                ro.AddConstant(UNIFORM_TRANSFORM_LOCAL, (dmVMath::Vector4*) &local_matrix, 4);
+                ro.AddConstant(UNIFORM_GRADIENT_LIMITS, &gradient_limits, 1);
+                ro.AddConstant(UNIFORM_PROPERTIES, &properties, 1);
+                ro.AddConstant(UNIFORM_STOPS, stops, draw_entry_paint.m_StopCount);
             }
 
             // If we are fullscreen-covering, we don't transform the vertices
             float no_projection = (float) ctx->m_Event.m_IsClipping && ctx->m_IsApplyingClipping;
 
-            ro.AddConstant(UNIFORM_COVER, dmVMath::Vector4(no_projection, 0.0f, 0.0f, 0.0f));
+            dmVMath::Vector4 cover(no_projection, 0.0f, 0.0f, 0.0f);
+            ro.AddConstant(UNIFORM_COVER, &cover, 1);
 
             dmRive::Mat2DToMat4(ctx->m_Event.m_TransformWorld, ro.m_WorldTransform);
         }
@@ -757,11 +789,46 @@ static void RiveEventCallback_Plugin(dmRive::RiveEventsContext* ctx)
             ro.m_SetStencilTest    = 1;
             ro.m_IsTriangleStrip   = 1;
 
-            const rive::PaintData draw_entry_paint = rive::getPaintData(ctx->m_Paint);
-            const float* color                     = &draw_entry_paint.m_Colors[0];
+            SetStencilCoverState(&ro.m_StencilTestParams, ctx->m_Event.m_IsClipping, ctx->m_IsApplyingClipping);
 
-            ro.AddConstant(UNIFORM_COLOR, dmVMath::Vector4(color[0], color[1], color[2], color[3]));
-            ro.AddConstant(UNIFORM_COVER, dmVMath::Vector4(0.0f, 0.0f, 0.0f, 0.0f));
+            if (!ctx->m_IsApplyingClipping)
+            {
+                // GetBlendFactorsFromBlendMode(engine_ctx->m_BlendMode, &ro.m_SourceBlendFactor, &ro.m_DestinationBlendFactor);
+                // ro.m_SetBlendFactors = 1;
+
+                const rive::PaintData draw_entry_paint = rive::getPaintData(ctx->m_Paint);
+                const float* color                     = &draw_entry_paint.m_Colors[0];
+
+                dmVMath::Vector4 properties((float)draw_entry_paint.m_FillType, (float)draw_entry_paint.m_StopCount, 0.0f, 0.0f);
+                dmVMath::Matrix4 local_matrix;
+                dmRive::Mat2DToMat4(ctx->m_Event.m_TransformLocal, local_matrix);
+
+                dmVMath::Vector4 colors[rive::PaintData::MAX_STOPS];
+                for (int i = 0; i < (int) draw_entry_paint.m_StopCount; ++i)
+                {
+                    colors[i] = dmVMath::Vector4(draw_entry_paint.m_Colors[i*4+0],
+                                                 draw_entry_paint.m_Colors[i*4+1],
+                                                 draw_entry_paint.m_Colors[i*4+2],
+                                                 draw_entry_paint.m_Colors[i*4+3]);
+                }
+
+                dmVMath::Vector4 stops[rive::PaintData::MAX_STOPS];
+                for (int i = 0; i < (int) draw_entry_paint.m_StopCount; ++i)
+                {
+                    stops[i][0] = draw_entry_paint.m_Stops[i];
+                }
+
+                dmVMath::Vector4 gradient_limits(draw_entry_paint.m_GradientLimits[0], draw_entry_paint.m_GradientLimits[1], draw_entry_paint.m_GradientLimits[2], draw_entry_paint.m_GradientLimits[3]);
+
+                ro.AddConstant(UNIFORM_COLORS, colors, draw_entry_paint.m_StopCount);
+                ro.AddConstant(UNIFORM_TRANSFORM_LOCAL, (dmVMath::Vector4*) &local_matrix, 4);
+                ro.AddConstant(UNIFORM_GRADIENT_LIMITS, &gradient_limits, 1);
+                ro.AddConstant(UNIFORM_PROPERTIES, &properties, 1);
+                ro.AddConstant(UNIFORM_STOPS, stops, draw_entry_paint.m_StopCount);
+            }
+
+            dmVMath::Vector4 cover(0, 0, 0, 0);
+            ro.AddConstant(UNIFORM_COVER, &cover, 1);
 
             dmRive::Mat2DToMat4(ctx->m_Event.m_TransformWorld, ro.m_WorldTransform);
         }

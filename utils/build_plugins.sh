@@ -6,7 +6,7 @@ set -e
 
 PROJECT=defold-rive
 BOB=bob.jar
-SERVER=https://build.defold.com
+DEFAULT_SERVER=https://build.defold.com
 
 if [ "" == "${BOB}" ]; then
     BOB=~/work/defold/tmp/dynamo_home/share/java/bob.jar
@@ -21,7 +21,7 @@ fi
 echo "Using DEFOLDSDK=${DEFOLDSDK}"
 
 if [ "" == "${SERVER}" ]; then
-    SERVER=https://build-stage.defold.com
+    SERVER=${DEFAULT_SERVER}
 fi
 #SERVER=http://localhost:9000
 
