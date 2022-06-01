@@ -93,7 +93,7 @@ jobs:
   build_with_bob_macos:
     strategy:
       matrix:
-        platform: [armv7-darwin, x86_64-darwin]
+        platform: [arm64-darwin, x86_64-darwin]
     runs-on: macOS-latest
 
     name: Build
