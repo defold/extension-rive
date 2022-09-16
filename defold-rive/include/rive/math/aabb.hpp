@@ -1,67 +1,85 @@
 #ifndef _RIVE_AABB_HPP_
 #define _RIVE_AABB_HPP_
 
+#include "rive/span.hpp"
 #include "rive/math/mat2d.hpp"
 #include "rive/math/vec2d.hpp"
 #include <cstddef>
 #include <limits>
 
-namespace rive
-{
-	class AABB
-	{
-	public:
-		union
-		{
-			float buffer[4];
-			struct
-			{
-				float minX, minY, maxX, maxY;
-			};
-		};
+namespace rive {
+struct IAABB {
+    int32_t left, top, right, bottom;
 
-	public:
-		AABB();
-		AABB(const AABB& copy);
-		AABB(float minX, float minY, float maxX, float maxY);
+    constexpr int width() const { return right - left; }
+    constexpr int height() const { return bottom - top; }
+    constexpr bool empty() const { return width() <= 0 || height() <= 0; }
 
-		inline const float* values() const { return buffer; }
+    IAABB inset(int dx, int dy) const { return {left + dx, top + dy, right - dx, bottom - dy}; }
+    IAABB offset(int dx, int dy) const { return {left + dx, top + dy, right + dx, bottom + dy}; }
+};
 
-		float& operator[](std::size_t idx) { return buffer[idx]; }
-		const float& operator[](std::size_t idx) const { return buffer[idx]; }
+class AABB {
+public:
+    float minX, minY, maxX, maxY;
 
-		static void center(Vec2D& out, const AABB& a);
-		static void size(Vec2D& out, const AABB& a);
-		static void extents(Vec2D& out, const AABB& a);
-		static void combine(AABB& out, const AABB& a, const AABB& b);
-		static bool contains(const AABB& a, const AABB& b);
-		static bool isValid(const AABB& a);
-		static bool testOverlap(const AABB& a, const AABB& b);
-		static bool areIdentical(const AABB& a, const AABB& b);
-		static void transform(AABB& out, const AABB& a, const Mat2D& matrix);
-		static void copy(AABB& out, const AABB& a);
+    AABB() : minX(0), minY(0), maxX(0), maxY(0) {}
+    AABB(const AABB& o) : minX(o.minX), minY(o.minY), maxX(o.maxX), maxY(o.maxY) {}
 
-		///
-		/// Grow the AABB to fit the point.
-		///
-		static void expandTo(AABB& out, const Vec2D& point);
-		static void expandTo(AABB& out, float x, float y);
+    AABB(float minX, float minY, float maxX, float maxY) :
+        minX(minX), minY(minY), maxX(maxX), maxY(maxY) {}
 
-		float width() const;
-		float height() const;
-		float perimeter() const;
+    AABB(const IAABB& o) : AABB((float)o.left, (float)o.top, (float)o.right, (float)o.bottom) {}
 
-		///
-		/// Initialize an AABB to values that represent an invalid/collapsed
-		/// AABB that can then expand to points that are added to it.
-		///
-		inline static AABB forExpansion()
-		{
-			return AABB(std::numeric_limits<float>::max(),
-			            std::numeric_limits<float>::max(),
-			            -std::numeric_limits<float>::max(),
-			            -std::numeric_limits<float>::max());
-		}
-	};
+    AABB(Span<Vec2D>); // computes the union of all points, or 0,0,0,0
+
+    bool operator==(const AABB& o) const {
+        return minX == o.minX && minY == o.minY && maxX == o.maxX && maxY == o.maxY;
+    }
+    bool operator!=(const AABB& o) const { return !(*this == o); }
+
+    float left() const { return minX; }
+    float top() const { return minY; }
+    float right() const { return maxX; }
+    float bottom() const { return maxY; }
+
+    float width() const { return maxX - minX; }
+    float height() const { return maxY - minY; }
+    Vec2D size() const { return {width(), height()}; }
+    Vec2D center() const { return {(minX + maxX) * 0.5f, (minY + maxY) * 0.5f}; }
+
+    AABB inset(float dx, float dy) const {
+        AABB r = {minX + dx, minY + dy, maxX - dx, maxY - dy};
+        assert(r.width() >= 0);
+        assert(r.height() >= 0);
+        return r;
+    }
+    AABB offset(float dx, float dy) const { return {minX + dx, minY + dy, maxX + dx, maxY + dy}; }
+
+    IAABB round() const;
+
+    ///
+    /// Initialize an AABB to values that represent an invalid/collapsed
+    /// AABB that can then expand to points that are added to it.
+    ///
+    inline static AABB forExpansion() {
+        return AABB(std::numeric_limits<float>::max(),
+                    std::numeric_limits<float>::max(),
+                    -std::numeric_limits<float>::max(),
+                    -std::numeric_limits<float>::max());
+    }
+
+    ///
+    /// Grow the AABB to fit the point.
+    ///
+    static void expandTo(AABB& out, const Vec2D& point);
+    static void expandTo(AABB& out, float x, float y);
+
+    /// Join two AABBs.
+    static void join(AABB& out, const AABB& a, const AABB& b);
+
+    void expand(const AABB& other) { join(*this, *this, other); }
+};
+
 } // namespace rive
 #endif

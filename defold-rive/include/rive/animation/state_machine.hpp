@@ -4,37 +4,42 @@
 #include <stdio.h>
 #include <vector>
 
-namespace rive
-{
-	class StateMachineLayer;
-	class StateMachineInput;
-	class StateMachineImporter;
-	class StateMachine : public StateMachineBase
-	{
-		friend class StateMachineImporter;
+namespace rive {
+class StateMachineLayer;
+class StateMachineInput;
+class StateMachineListener;
+class StateMachineImporter;
+class StateMachine : public StateMachineBase {
+    friend class StateMachineImporter;
 
-	private:
-		std::vector<StateMachineLayer*> m_Layers;
-		std::vector<StateMachineInput*> m_Inputs;
+private:
+    std::vector<std::unique_ptr<StateMachineLayer>> m_Layers;
+    std::vector<std::unique_ptr<StateMachineInput>> m_Inputs;
+    std::vector<std::unique_ptr<StateMachineListener>> m_Listeners;
 
-		void addLayer(StateMachineLayer* layer);
-		void addInput(StateMachineInput* input);
+    void addLayer(std::unique_ptr<StateMachineLayer>);
+    void addInput(std::unique_ptr<StateMachineInput>);
+    void addListener(std::unique_ptr<StateMachineListener>);
 
-	public:
-		~StateMachine();
-		StatusCode import(ImportStack& importStack) override;
+public:
+    StateMachine();
+    ~StateMachine() override;
 
-		size_t layerCount() const { return m_Layers.size(); }
-		size_t inputCount() const { return m_Inputs.size(); }
+    StatusCode import(ImportStack& importStack) override;
 
-		const StateMachineInput* input(std::string name) const;
-		const StateMachineInput* input(size_t index) const;
-		const StateMachineLayer* layer(std::string name) const;
-		const StateMachineLayer* layer(size_t index) const;
+    size_t layerCount() const { return m_Layers.size(); }
+    size_t inputCount() const { return m_Inputs.size(); }
+    size_t listenerCount() const { return m_Listeners.size(); }
 
-		StatusCode onAddedDirty(CoreContext* context) override;
-		StatusCode onAddedClean(CoreContext* context) override;
-	};
+    const StateMachineInput* input(std::string name) const;
+    const StateMachineInput* input(size_t index) const;
+    const StateMachineLayer* layer(std::string name) const;
+    const StateMachineLayer* layer(size_t index) const;
+    const StateMachineListener* listener(size_t index) const;
+
+    StatusCode onAddedDirty(CoreContext* context) override;
+    StatusCode onAddedClean(CoreContext* context) override;
+};
 } // namespace rive
 
 #endif

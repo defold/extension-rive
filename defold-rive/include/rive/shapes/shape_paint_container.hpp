@@ -4,32 +4,37 @@
 #include "rive/shapes/path_space.hpp"
 #include <vector>
 
-namespace rive
-{
-	class ShapePaint;
-	class Component;
+namespace rive {
+class Artboard;
+class ShapePaint;
+class Component;
 
-	class CommandPath;
+class CommandPath;
 
-	class ShapePaintContainer
-	{
-		friend class ShapePaint;
+class ShapePaintContainer {
+    friend class ShapePaint;
 
-	protected:
-		PathSpace m_DefaultPathSpace = PathSpace::Neither;
-		std::vector<ShapePaint*> m_ShapePaints;
-		void addPaint(ShapePaint* paint);
+protected:
+    // Need this to access our artboard. We are treated as a mixin, either
+    // as a Shape or Artboard, so both of those will override this.
+    virtual Artboard* getArtboard() = 0;
 
-		// TODO: void draw(Renderer* renderer, PathComposer& composer);
-	public:
-		static ShapePaintContainer* from(Component* component);
+    PathSpace m_DefaultPathSpace = PathSpace::Neither;
+    std::vector<ShapePaint*> m_ShapePaints;
+    void addPaint(ShapePaint* paint);
 
-		PathSpace pathSpace() const;
+    // TODO: void draw(Renderer* renderer, PathComposer& composer);
+public:
+    static ShapePaintContainer* from(Component* component);
 
-		void invalidateStroke();
+    virtual ~ShapePaintContainer() {}
 
-		CommandPath* makeCommandPath(PathSpace space);
-	};
+    PathSpace pathSpace() const;
+
+    void invalidateStrokeEffects();
+
+    std::unique_ptr<CommandPath> makeCommandPath(PathSpace space);
+};
 } // namespace rive
 
 #endif

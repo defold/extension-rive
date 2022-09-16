@@ -2,23 +2,22 @@
 #define _RIVE_ANIMATION_STATE_HPP_
 #include "rive/generated/animation/animation_state_base.hpp"
 #include <stdio.h>
-namespace rive
-{
-	class LinearAnimation;
-	class Artboard;
-	class StateMachineLayerImporter;
+namespace rive {
+class LinearAnimation;
+class ArtboardInstance;
+class StateMachineLayerImporter;
 
-	class AnimationState : public AnimationStateBase
-	{
-		friend class StateMachineLayerImporter;
+class AnimationState : public AnimationStateBase {
+    friend class StateMachineLayerImporter;
 
-	private:
-		LinearAnimation* m_Animation = nullptr;
+private:
+    LinearAnimation* m_Animation = nullptr;
 
-	public:
-		const LinearAnimation* animation() const { return m_Animation; }
-		StateInstance* makeInstance() const override;
-	};
+public:
+    const LinearAnimation* animation() const { return m_Animation; }
+
+    std::unique_ptr<StateInstance> makeInstance(ArtboardInstance*) const override;
+};
 } // namespace rive
 
 #endif

@@ -5,19 +5,16 @@
 #include "rive/animation/blend_state_1d.hpp"
 #include "rive/animation/blend_animation_1d.hpp"
 
-namespace rive
-{
-	class BlendState1DInstance
-	    : public BlendStateInstance<BlendState1D, BlendAnimation1D>
-	{
-	private:
-		BlendStateAnimationInstance<BlendAnimation1D>* m_From = nullptr;
-		BlendStateAnimationInstance<BlendAnimation1D>* m_To = nullptr;
-		int animationIndex(float value);
+namespace rive {
+class BlendState1DInstance : public BlendStateInstance<BlendState1D, BlendAnimation1D> {
+private:
+    BlendStateAnimationInstance<BlendAnimation1D>* m_From = nullptr;
+    BlendStateAnimationInstance<BlendAnimation1D>* m_To = nullptr;
+    int animationIndex(float value);
 
-	public:
-		BlendState1DInstance(const BlendState1D* blendState);
-		void advance(float seconds, SMIInput** inputs) override;
-	};
+public:
+    BlendState1DInstance(const BlendState1D* blendState, ArtboardInstance* instance);
+    void advance(float seconds, Span<SMIInput*> inputs) override;
+};
 } // namespace rive
 #endif

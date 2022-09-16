@@ -1,26 +1,29 @@
 #ifndef _RIVE_SKINNABLE_HPP_
 #define _RIVE_SKINNABLE_HPP_
 
-namespace rive
-{
-	class Skin;
-	class Component;
+#include "rive/rive_types.hpp"
 
-	class Skinnable
-	{
-		friend class Skin;
+namespace rive {
+class Skin;
+class Component;
 
-	private:
-		Skin* m_Skin = nullptr;
+class Skinnable {
+    friend class Skin;
 
-	protected:
-		void skin(Skin* skin);
-	public:
-		Skin* skin() const { return m_Skin; }
-		virtual void markSkinDirty() = 0;
+private:
+    Skin* m_Skin = nullptr;
 
-		static Skinnable* from(Component* component);
-	};
+protected:
+    void skin(Skin* skin);
+
+public:
+    virtual ~Skinnable() {}
+
+    Skin* skin() const { return m_Skin; }
+    virtual void markSkinDirty() = 0;
+
+    static Skinnable* from(Component* component);
+};
 } // namespace rive
 
 #endif

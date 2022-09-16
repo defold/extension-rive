@@ -3,22 +3,20 @@
 
 #include "rive/importers/import_stack.hpp"
 
-namespace rive
-{
-	class LayerState;
-	class StateTransition;
-	class BlendAnimation;
+namespace rive {
+class LayerState;
+class StateTransition;
+class BlendAnimation;
 
-	class LayerStateImporter : public ImportStackObject
-	{
-	private:
-		LayerState* m_State;
+class LayerStateImporter : public ImportStackObject {
+private:
+    LayerState* m_State;
 
-	public:
-		LayerStateImporter(LayerState* state);
-		void addTransition(StateTransition* transition);
-		bool addBlendAnimation(BlendAnimation* animation);
-		StatusCode resolve() override;
-	};
+public:
+    LayerStateImporter(LayerState* state);
+    void addTransition(StateTransition* transition);
+    bool addBlendAnimation(BlendAnimation* animation);
+    StatusCode resolve() override;
+};
 } // namespace rive
 #endif

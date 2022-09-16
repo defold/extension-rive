@@ -2,10 +2,14 @@
 
 set -e
 
-#URL=https://github.com/rive-app/rive-cpp/archive/refs/heads/master.zip
-#UNPACK_FOLDER="rive-cpp-master"
-URL=https://github.com/rive-app/rive-cpp/archive/refs/heads/low_level_rendering.zip
-UNPACK_FOLDER="rive-cpp-low_level_rendering"
+URL=https://github.com/rive-app/rive-cpp/archive/refs/heads/master.zip
+UNPACK_FOLDER="rive-cpp-master"
+
+EARCUT_URL=https://github.com/mapbox/earcut.hpp/archive/refs/heads/master.zip
+EARCUT_UNPACK_FOLDER="earcut.hpp-master"
+
+LIBTESS2_URL=https://github.com/memononen/libtess2/archive/refs/heads/master.zip
+LIBTESS2_UNPACK_FOLDER="libtess2-master"
 
 PLATFORM=$1
 if [ ! -z "${PLATFORM}" ]; then
@@ -17,12 +21,14 @@ fi
 
 BUILD_DIR=./build/${PLATFORM}
 SOURCE_DIR="${UNPACK_FOLDER}/src"
+TESS_DIR="${UNPACK_FOLDER}/tess"
 TARGET_INCLUDE_DIR="../../defold-rive/include/rive"
 TARGET_LIBRARY_DIR="../../defold-rive/lib/${PLATFORM}"
-TARGET_NAME=librivecpp
-TARGET_NAME_SUFFIX=.a
+TARGET_NAME_RIVE=librivecpp
+TARGET_NAME_TESS=librivetess
+TARGET_LIB_SUFFIX=.a
 OPT="-O2"
-CXXFLAGS="${CXXFLAGS} -DLOW_LEVEL_RENDERING -DCONTOUR_RECURSIVE -g -Werror=format"
+CXXFLAGS="${CXXFLAGS} -g -Werror=format "
 
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
@@ -33,7 +39,7 @@ function download_package
     local basename=$(basename $url)
 
     if [ ! -e ${basename} ]; then
-        wget $URL
+        wget ${url}
     else
         echo "Found ${basename}, skipping."
     fi
@@ -42,15 +48,23 @@ function download_package
 function unpack_package
 {
     local package=$1
+    local folder=$2
     if [ ! -e ${package} ]; then
         echo "Cannot unpack! Package ${package} was not found!" && exit 1
     fi
 
-    if [ -e "${UNPACK_FOLDER}" ]; then
-        echo "Folder already exists ${UNPACK_FOLDER}"
+    if [ -e "${folder}" ]; then
+        echo "Folder already exists ${folder}"
     else
         unzip -q ${package}
     fi
+}
+
+function remove_package
+{
+    local url=$1
+    local basename=$(basename $url)
+    rm ${basename}
 }
 
 function copy_headers
@@ -68,7 +82,6 @@ function copy_library
     if [ ! -d "${target_dir}" ]; then
         mkdir -p ${target_dir}
     fi
-    echo "Copying library to ${target_dir}"
     cp -v ${library} ${target_dir}
 }
 
@@ -91,6 +104,10 @@ function link_library
 {
     local out=$1
     local object_files=$2
+
+    if [ -e "${out}" ]; then
+        rm ${out}
+    fi
     run_cmd "${AR} -rcs ${out} ${object_files}"
 
     if [ ! -z "${RANLIB}" ]; then
@@ -113,9 +130,13 @@ function build_library
 
     object_files=""
 
+    OBJ_DIR=${BUILD_DIR}/obj
+
+    mkdir -p ${OBJ_DIR}
+
     for f in ${files}
     do
-        local tgt=${BUILD_DIR}/$(basename ${f}).o
+        local tgt=${OBJ_DIR}/$(basename ${f}).o
 
         object_files="$object_files $tgt"
 
@@ -123,6 +144,9 @@ function build_library
     done
 
     link_library ${library_target} "${object_files}"
+
+    echo "Removing .o files"
+    rm -rf ${OBJ_DIR}
 
     echo ""
     echo "Wrote ${library_target}"
@@ -154,7 +178,7 @@ if [ ! -z "${DYNAMO_HOME}" ]; then
 fi
 
 
-CXXFLAGS="${CXXFLAGS} -std=c++17 -I./${UNPACK_FOLDER}/include"
+CXXFLAGS="${CXXFLAGS} -std=c++17 -fno-exceptions -fno-rtti -Werror=format -g -I./${UNPACK_FOLDER}/include -I./${UNPACK_FOLDER}/tess/include/ -I./${EARCUT_UNPACK_FOLDER}/include/mapbox -I./${LIBTESS2_UNPACK_FOLDER}/Include"
 
 case $PLATFORM in
     arm64-ios)
@@ -185,11 +209,16 @@ case $PLATFORM in
         [ ! -e "${DARWIN_TOOLCHAIN_ROOT}" ] && echo "No SDK found at DARWIN_TOOLCHAIN_ROOT=${DARWIN_TOOLCHAIN_ROOT}" && exit 1
         [ ! -e "${OSX_SDK_ROOT}" ] && echo "No SDK found at OSX_SDK_ROOT=${OSX_SDK_ROOT}" && exit 1
         export SDKROOT="${OSX_SDK_ROOT}"
-        export CXX=$DARWIN_TOOLCHAIN_ROOT/usr/bin/clang++
-        export AR=$DARWIN_TOOLCHAIN_ROOT/usr/bin/ar
-        export RANLIB=$DARWIN_TOOLCHAIN_ROOT/usr/bin/ranlib
+        #export CXX=$DARWIN_TOOLCHAIN_ROOT/usr/bin/clang++
+        #export AR=$DARWIN_TOOLCHAIN_ROOT/usr/bin/ar
+        #export RANLIB=$DARWIN_TOOLCHAIN_ROOT/usr/bin/ranlib
 
-        export CXXFLAGS="${CXXFLAGS} -stdlib=libc++ "
+        export CXX=/usr/bin/clang++
+        export AR=/usr/bin/ar
+        export RANLIB=/usr/bin/ranlib
+
+        # self.env.append_value(f, ['-target', '%s-apple-darwin19' % arch])
+        export CXXFLAGS="${CXXFLAGS} -stdlib=libc++ -target x86_64-apple-darwin21.2.0"
 
         if [ -z "${OSX_MIN_SDK_VERSION}" ]; then
             OSX_MIN_SDK_VERSION="10.7"
@@ -220,7 +249,7 @@ case $PLATFORM in
         [ ! -e "${WIN32_MSVC_INCLUDE_DIR}" ] && echo "No SDK found at WIN32_MSVC_INCLUDE_DIR=${WIN32_MSVC_INCLUDE_DIR}" && exit 1
         [ ! -e "${WIN32_SDK_INCLUDE_DIR}" ] && echo "No SDK found at WIN32_SDK_INCLUDE_DIR=${WIN32_SDK_INCLUDE_DIR}" && exit 1
 
-        TARGET_NAME_SUFFIX=.lib
+        TARGET_LIB_SUFFIX=.lib
 
         export host_platform=`uname | awk '{print tolower($0)}'`
         if [ "darwin" == "${host_platform}" ] || [ "linux" == "${host_platform}" ]; then
@@ -233,7 +262,7 @@ case $PLATFORM in
         [ ! -e "${WIN32_MSVC_INCLUDE_DIR}" ] && echo "No SDK found at WIN32_MSVC_INCLUDE_DIR=${WIN32_MSVC_INCLUDE_DIR}" && exit 1
         [ ! -e "${WIN32_SDK_INCLUDE_DIR}" ] && echo "No SDK found at WIN32_SDK_INCLUDE_DIR=${WIN32_SDK_INCLUDE_DIR}" && exit 1
 
-        TARGET_NAME_SUFFIX=.lib
+        TARGET_LIB_SUFFIX=.lib
 
         export host_platform=`uname | awk '{print tolower($0)}'`
         if [ "darwin" == "${host_platform}" ] || [ "linux" == "${host_platform}" ]; then
@@ -332,14 +361,33 @@ if [ ! -d "${BUILD_DIR}" ]; then
     mkdir -p ${BUILD_DIR}
 fi
 
-download_package $URL
-unpack_package $(basename $URL)
+download_package ${URL}
+unpack_package $(basename ${URL}) ${UNPACK_FOLDER}
+remove_package ${URL}
+rm -rf ${TESS_DIR}/test
+rm -rf ${TESS_DIR}/src/sokol
+
+download_package ${EARCUT_URL}
+unpack_package $(basename ${EARCUT_URL}) ${EARCUT_UNPACK_FOLDER}
+remove_package ${EARCUT_URL}
+
+download_package ${LIBTESS2_URL}
+unpack_package $(basename ${LIBTESS2_URL}) ${LIBTESS2_UNPACK_FOLDER}
+remove_package ${LIBTESS2_URL}
 
 copy_headers ${TARGET_INCLUDE_DIR}
 
-TARGET_LIBRARY=${BUILD_DIR}/${TARGET_NAME}${TARGET_NAME_SUFFIX}
-build_library ${PLATFORM} ${TARGET_LIBRARY} ${SOURCE_DIR}
+TARGET_LIBRARY_RIVE=${BUILD_DIR}/${TARGET_NAME_RIVE}${TARGET_LIB_SUFFIX}
+build_library ${PLATFORM} ${TARGET_LIBRARY_RIVE} ${SOURCE_DIR}
 
-copy_library ${TARGET_LIBRARY} ${TARGET_LIBRARY_DIR}
+TARGET_LIBRARY_TESS=${BUILD_DIR}/${TARGET_NAME_TESS}${TARGET_LIB_SUFFIX}
+build_library ${PLATFORM} ${TARGET_LIBRARY_TESS} ${TESS_DIR}
+
+copy_library ${TARGET_LIBRARY_RIVE} ${TARGET_LIBRARY_DIR}
+copy_library ${TARGET_LIBRARY_TESS} ${TARGET_LIBRARY_DIR}
+
+rm -rf ${UNPACK_FOLDER}
+rm -rf ${EARCUT_UNPACK_FOLDER}
+rm -rf ${LIBTESS2_UNPACK_FOLDER}
 
 popd
