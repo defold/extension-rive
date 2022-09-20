@@ -82,7 +82,7 @@ function build_plugin() {
 
 PLATFORMS=$1
 if [ "" == "${PLATFORMS}" ]; then
-    PLATFORMS="x86_64-darwin x86_64-linux x86_64-win32"
+    PLATFORMS="x86_64-macos x86_64-linux x86_64-win32"
 fi
 
 echo "Building ${PLATFORMS}"
@@ -95,7 +95,7 @@ for platform in $PLATFORMS; do
 
     platform_ne=$platform
 
-    if [ "$platform" == "x86_64-darwin" ]; then
+    if [ "$platform" == "x86_64-macos" ]; then
         platform_ne="x86_64-osx"
     fi
 
