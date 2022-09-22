@@ -56,6 +56,7 @@ function unpack_package
     if [ -e "${folder}" ]; then
         echo "Folder already exists ${folder}"
     else
+        echo "Unpacking ${package}"
         unzip -q ${package}
     fi
 }
@@ -70,8 +71,12 @@ function remove_package
 function copy_headers
 {
     local target_dir=$1
-    echo "Copying header files to ${target_dir}"
+    echo "Removing old headers from ${target_dir}"
+    rm -rf ${target_dir}
+    echo "Copying rive header files to ${target_dir}"
     cp -r ${UNPACK_FOLDER}/include/rive/ ${target_dir}
+    echo "Copying tess header files to ${target_dir}"
+    cp -r ${UNPACK_FOLDER}/tess/include/rive/ ${target_dir}
 }
 
 function copy_library
