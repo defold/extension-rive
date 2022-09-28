@@ -25,7 +25,7 @@ __declspec(dllexport) int dummyFunc()
 #include <rive/animation/state_machine_number.hpp>
 #include <rive/animation/state_machine_trigger.hpp>
 
-#include <riverender/rive_render_api.h>
+//#include <riverender/rive_render_api.h>
 
 
 // Due to an X11.h issue (Likely Ubuntu 16.04 issue) we include the Rive/C++17 includes first
@@ -38,6 +38,8 @@ __declspec(dllexport) int dummyFunc()
 #include <stdio.h>
 #include <stdint.h>
 
+#include <common/factory.h>
+#include <common/atlas.h>
 #include <common/bones.h>
 #include <common/vertices.h>
 
@@ -86,9 +88,10 @@ struct StateMachineInput
 
 struct RiveFile
 {
-    rive::HRenderer     m_Renderer; // Separate renderer for multi threading
-    rive::File*         m_File;
-    const char*         m_Path;
+    //rive::HRenderer     m_Renderer; // Separate renderer for multi threading
+    dmRive::DefoldFactory*  m_Factory;
+    rive::File*             m_File;
+    const char*             m_Path;
     dmArray<RivePluginVertex> m_Vertices;
     dmArray<dmRive::RiveBone*>  m_Roots;
     dmArray<dmRive::RiveBone*>  m_Bones;
@@ -132,29 +135,29 @@ static uint8_t* ReadFile(const char* path, size_t* file_size) {
 // TODO: Make this part optional, via some function setters
 namespace rive
 {
-    HContext g_Ctx = 0;
-    RenderPath* makeRenderPath()
-    {
-        return createRenderPath(g_Ctx);
-    }
+    // HContext g_Ctx = 0;
+    // RenderPath* makeRenderPath()
+    // {
+    //     return createRenderPath(g_Ctx);
+    // }
 
-    RenderPaint* makeRenderPaint()
-    {
-        return createRenderPaint(g_Ctx);
-    }
+    // RenderPaint* makeRenderPaint()
+    // {
+    //     return createRenderPaint(g_Ctx);
+    // }
 
-    RenderImage* makeRenderImage()
-    {
-        return createRenderImage(g_Ctx);
-    }
+    // RenderImage* makeRenderImage()
+    // {
+    //     return createRenderImage(g_Ctx);
+    // }
 }
 
 static void InitRiveContext() {
-    if (!rive::g_Ctx) {
-        rive::g_Ctx = rive::createContext();
-        rive::setRenderMode(rive::g_Ctx, rive::MODE_STENCIL_TO_COVER);
-        rive::setBufferCallbacks(rive::g_Ctx, dmRive::RequestBufferCallback, dmRive::DestroyBufferCallback, 0x0);
-    }
+    // if (!rive::g_Ctx) {
+    //     rive::g_Ctx = rive::createContext();
+    //     rive::setRenderMode(rive::g_Ctx, rive::MODE_STENCIL_TO_COVER);
+    //     rive::setBufferCallbacks(rive::g_Ctx, dmRive::RequestBufferCallback, dmRive::DestroyBufferCallback, 0x0);
+    // }
 }
 
 static RiveFile* ToRiveFile(void* _rive_file, const char* fnname)
@@ -216,26 +219,34 @@ static void SetupBones(RiveFile* file)
 extern "C" DM_DLLEXPORT void* RIVE_LoadFromBuffer(void* buffer, size_t buffer_size, const char* path) {
     InitRiveContext();
 
-    rive::File* file          = 0;
-    rive::BinaryReader reader = rive::BinaryReader((uint8_t*)buffer, buffer_size);
-    rive::ImportResult result = rive::File::import(reader, &file, 0);
+    dmRive::DefoldFactory* factory = new dmRive::DefoldFactory();
+
+    dmRive::AtlasNameResolver atlas_resolver = dmRive::AtlasNameResolver();
+
+    rive::ImportResult result;
+    std::unique_ptr<rive::File> file = rive::File::import(rive::Span((uint8_t*)buffer, buffer_size),
+                                                    factory,
+                                                    &result,
+                                                    &atlas_resolver);
 
     if (result != rive::ImportResult::success) {
-        file = 0;
+        //file = 0;
     }
 
     RiveFile* out = new RiveFile;
     out->m_Path = 0;
     out->m_File = 0;
-    out->m_Renderer = 0;
+    //out->m_Renderer = 0;
+    out->m_Factory = factory;
 
     if (file) {
         out->m_Path = strdup(path);
-        out->m_File = file;
-        out->m_Renderer = rive::createRenderer(rive::g_Ctx);
+        out->m_File = file.release();
+        dmLogError("MAWE RENDERER IS NOT IMPLEMENTED YET! %s %d", __FUNCTION__, __LINE__);
+        // out->m_Renderer = rive::createRenderer(rive::g_Ctx);
 
-        rive::setContourQuality(out->m_Renderer, 0.8888888888888889f);
-        rive::setClippingSupport(out->m_Renderer, true);
+        // rive::setContourQuality(out->m_Renderer, 0.8888888888888889f);
+        // rive::setClippingSupport(out->m_Renderer, true);
 
         SetupBones(out);
     }
@@ -268,14 +279,15 @@ extern "C" DM_DLLEXPORT void RIVE_Destroy(void* _rive_file) {
     printf("Destroying %s\n", file->m_Path ? file->m_Path : "null");
     fflush(stdout);
 
-    if (file->m_Renderer) {
-        rive::destroyRenderer(file->m_Renderer);
-    }
+    // if (file->m_Renderer) {
+    //     rive::destroyRenderer(file->m_Renderer);
+    // }
     free((void*)file->m_Path);
 
     dmRive::FreeBones(&file->m_Bones);
 
     delete file->m_File;
+    delete file->m_Factory;
     delete file;
 }
 
@@ -510,40 +522,40 @@ extern "C" DM_DLLEXPORT void RIVE_UpdateVertices(void* _rive_file, float dt) {
         return;
     }
 
-    rive::newFrame(file->m_Renderer);
+    // rive::newFrame(file->m_Renderer);
 
 
-    rive::Mat2D transform;
-    rive::Mat2D::identity(transform);
+    // rive::Mat2D transform;
+    // rive::Mat2D::identity(transform);
 
-    // JG: Rive is using a different coordinate system than Defold,
-    //     in their examples they flip the projection but that isn't
-    //     really compatible with our setup I don't think?
-    rive::Vec2D yflip(1.0f,-1.0f);
-    rive::Mat2D::scale(transform, transform, yflip);
-    rive::setTransform(file->m_Renderer, transform);
-    rive::resetClipping(file->m_Renderer);
+    // // JG: Rive is using a different coordinate system than Defold,
+    // //     in their examples they flip the projection but that isn't
+    // //     really compatible with our setup I don't think?
+    // rive::Vec2D yflip(1.0f,-1.0f);
+    // rive::Mat2D::scale(transform, transform, yflip);
+    // rive::setTransform(file->m_Renderer, transform);
+    // rive::resetClipping(file->m_Renderer);
 
-    rive::Renderer* rive_renderer = (rive::Renderer*) file->m_Renderer;
+    // rive::Renderer* rive_renderer = (rive::Renderer*) file->m_Renderer;
 
-    rive::AABB artboard_bounds  = artboard->bounds();
-    rive_renderer->align(rive::Fit::none,
-        rive::Alignment::center,
-        rive::AABB(-artboard_bounds.width(), -artboard_bounds.height(),
-        artboard_bounds.width(), artboard_bounds.height()),
-        artboard_bounds);
+    // rive::AABB artboard_bounds  = artboard->bounds();
+    // rive_renderer->align(rive::Fit::none,
+    //     rive::Alignment::center,
+    //     rive::AABB(-artboard_bounds.width(), -artboard_bounds.height(),
+    //     artboard_bounds.width(), artboard_bounds.height()),
+    //     artboard_bounds);
 
-    rive_renderer->save();
-    artboard->advance(dt);
-    artboard->draw(rive_renderer);
-    rive_renderer->restore();
+    // rive_renderer->save();
+    // artboard->advance(dt);
+    // artboard->draw(rive_renderer);
+    // rive_renderer->restore();
 
-    // calculate the vertices and store in buffers for later retrieval
-    if (file->m_Vertices.Empty()) {
-        GenerateAABB(file);
-    }
+    // // calculate the vertices and store in buffers for later retrieval
+    // if (file->m_Vertices.Empty()) {
+    //     GenerateAABB(file);
+    // }
 
-    UpdateRenderData(file); // Update the draw call list
+    // UpdateRenderData(file); // Update the draw call list
 }
 
 extern "C" DM_DLLEXPORT int RIVE_GetVertexCount(void* _rive_file) {
@@ -689,155 +701,156 @@ struct RiveEventsDrawcallContext
     //dmRiveDDF::RiveModelDesc::BlendMode m_BlendMode;
 };
 
-static void RiveEventCallback_Plugin(dmRive::RiveEventsContext* ctx)
-{
-    static const dmhash_t UNIFORM_COLORS          = dmHashString64("colors");
-    static const dmhash_t UNIFORM_TRANSFORM_LOCAL = dmHashString64("transform_local");
-    static const dmhash_t UNIFORM_COVER           = dmHashString64("cover");
-    static const dmhash_t UNIFORM_STOPS           = dmHashString64("stops");
-    static const dmhash_t UNIFORM_GRADIENT_LIMITS = dmHashString64("gradientLimits");
-    static const dmhash_t UNIFORM_PROPERTIES      = dmHashString64("properties");
+// static void RiveEventCallback_Plugin(dmRive::RiveEventsContext* ctx)
+// {
 
-    RiveEventsDrawcallContext* plugin_ctx = (RiveEventsDrawcallContext*)ctx->m_UserContext;
+//     static const dmhash_t UNIFORM_COLORS          = dmHashString64("colors");
+//     static const dmhash_t UNIFORM_TRANSFORM_LOCAL = dmHashString64("transform_local");
+//     static const dmhash_t UNIFORM_COVER           = dmHashString64("cover");
+//     static const dmhash_t UNIFORM_STOPS           = dmHashString64("stops");
+//     static const dmhash_t UNIFORM_GRADIENT_LIMITS = dmHashString64("gradientLimits");
+//     static const dmhash_t UNIFORM_PROPERTIES      = dmHashString64("properties");
 
-    switch(ctx->m_Event.m_Type)
-    {
-    case rive::EVENT_DRAW_STENCIL:
-        {
-            dmRive::RenderObject& ro = plugin_ctx->m_RenderObjects[ctx->m_Index];
-            ro.Init();
+//     RiveEventsDrawcallContext* plugin_ctx = (RiveEventsDrawcallContext*)ctx->m_UserContext;
 
-            ro.m_VertexStart       = ctx->m_IndexOffsetBytes; // byte offset
-            ro.m_VertexCount       = ctx->m_IndexCount;
-            ro.m_SetStencilTest    = 1;
-            ro.m_SetFaceWinding    = 1;
-            ro.m_FaceWindingCCW    = ctx->m_FaceWinding == dmGraphics::FACE_WINDING_CCW;
+//     switch(ctx->m_Event.m_Type)
+//     {
+//     case rive::EVENT_DRAW_STENCIL:
+//         {
+//             dmRive::RenderObject& ro = plugin_ctx->m_RenderObjects[ctx->m_Index];
+//             ro.Init();
 
-            dmRive::SetStencilDrawState(&ro.m_StencilTestParams, ctx->m_Event.m_IsClipping, ctx->m_ClearClippingFlag);
+//             ro.m_VertexStart       = ctx->m_IndexOffsetBytes; // byte offset
+//             ro.m_VertexCount       = ctx->m_IndexCount;
+//             ro.m_SetStencilTest    = 1;
+//             ro.m_SetFaceWinding    = 1;
+//             ro.m_FaceWindingCCW    = ctx->m_FaceWinding == dmGraphics::FACE_WINDING_CCW;
 
-            dmVMath::Vector4 zero(0,0,0,0);
-            ro.AddConstant(UNIFORM_COVER, &zero, 1);
+//             dmRive::SetStencilDrawState(&ro.m_StencilTestParams, ctx->m_Event.m_IsClipping, ctx->m_ClearClippingFlag);
 
-            dmRive::Mat2DToMat4(ctx->m_Event.m_TransformWorld, ro.m_WorldTransform);
-        }
-        break;
+//             dmVMath::Vector4 zero(0,0,0,0);
+//             ro.AddConstant(UNIFORM_COVER, &zero, 1);
 
-    case rive::EVENT_DRAW_COVER:
-        {
-            dmRive::RenderObject& ro = plugin_ctx->m_RenderObjects[ctx->m_Index];
-            ro.Init();
-            ro.m_VertexStart       = ctx->m_IndexOffsetBytes; // byte offset
-            ro.m_VertexCount       = ctx->m_IndexCount;
-            ro.m_SetStencilTest    = 1;
+//             dmRive::Mat2DToMat4(ctx->m_Event.m_TransformWorld, ro.m_WorldTransform);
+//         }
+//         break;
 
-            ro.m_SetFaceWinding    = 1;
-            ro.m_FaceWindingCCW    = ctx->m_FaceWinding == dmGraphics::FACE_WINDING_CCW;
+//     case rive::EVENT_DRAW_COVER:
+//         {
+//             dmRive::RenderObject& ro = plugin_ctx->m_RenderObjects[ctx->m_Index];
+//             ro.Init();
+//             ro.m_VertexStart       = ctx->m_IndexOffsetBytes; // byte offset
+//             ro.m_VertexCount       = ctx->m_IndexCount;
+//             ro.m_SetStencilTest    = 1;
 
-            dmRive::SetStencilCoverState(&ro.m_StencilTestParams, ctx->m_Event.m_IsClipping, ctx->m_IsApplyingClipping);
+//             ro.m_SetFaceWinding    = 1;
+//             ro.m_FaceWindingCCW    = ctx->m_FaceWinding == dmGraphics::FACE_WINDING_CCW;
 
-            if (!ctx->m_IsApplyingClipping)
-            {
-                // GetBlendFactorsFromBlendMode(plugin_ctx->m_BlendMode, &ro.m_SourceBlendFactor, &ro.m_DestinationBlendFactor);
-                // ro.m_SetBlendFactors = 1;
+//             dmRive::SetStencilCoverState(&ro.m_StencilTestParams, ctx->m_Event.m_IsClipping, ctx->m_IsApplyingClipping);
 
-                const rive::PaintData draw_entry_paint = rive::getPaintData(ctx->m_Paint);
+//             if (!ctx->m_IsApplyingClipping)
+//             {
+//                 // GetBlendFactorsFromBlendMode(plugin_ctx->m_BlendMode, &ro.m_SourceBlendFactor, &ro.m_DestinationBlendFactor);
+//                 // ro.m_SetBlendFactors = 1;
 
-                dmVMath::Vector4 properties((float)draw_entry_paint.m_FillType, (float)draw_entry_paint.m_StopCount, 0.0f, 0.0f);
-                dmVMath::Matrix4 local_matrix;
-                dmRive::Mat2DToMat4(ctx->m_Event.m_TransformLocal, local_matrix);
+//                 const rive::PaintData draw_entry_paint = rive::getPaintData(ctx->m_Paint);
 
-                dmVMath::Vector4 colors[rive::PaintData::MAX_STOPS];
-                for (int i = 0; i < (int) draw_entry_paint.m_StopCount; ++i)
-                {
-                    colors[i] = dmVMath::Vector4(draw_entry_paint.m_Colors[i*4+0],
-                                                 draw_entry_paint.m_Colors[i*4+1],
-                                                 draw_entry_paint.m_Colors[i*4+2],
-                                                 draw_entry_paint.m_Colors[i*4+3]);
-                }
+//                 dmVMath::Vector4 properties((float)draw_entry_paint.m_FillType, (float)draw_entry_paint.m_StopCount, 0.0f, 0.0f);
+//                 dmVMath::Matrix4 local_matrix;
+//                 dmRive::Mat2DToMat4(ctx->m_Event.m_TransformLocal, local_matrix);
 
-                dmVMath::Vector4 stops[rive::PaintData::MAX_STOPS];
-                for (int i = 0; i < (int) draw_entry_paint.m_StopCount; ++i)
-                {
-                    stops[i][0] = draw_entry_paint.m_Stops[i];
-                }
+//                 dmVMath::Vector4 colors[rive::PaintData::MAX_STOPS];
+//                 for (int i = 0; i < (int) draw_entry_paint.m_StopCount; ++i)
+//                 {
+//                     colors[i] = dmVMath::Vector4(draw_entry_paint.m_Colors[i*4+0],
+//                                                  draw_entry_paint.m_Colors[i*4+1],
+//                                                  draw_entry_paint.m_Colors[i*4+2],
+//                                                  draw_entry_paint.m_Colors[i*4+3]);
+//                 }
 
-                dmVMath::Vector4 gradient_limits(draw_entry_paint.m_GradientLimits[0], draw_entry_paint.m_GradientLimits[1], draw_entry_paint.m_GradientLimits[2], draw_entry_paint.m_GradientLimits[3]);
+//                 dmVMath::Vector4 stops[rive::PaintData::MAX_STOPS];
+//                 for (int i = 0; i < (int) draw_entry_paint.m_StopCount; ++i)
+//                 {
+//                     stops[i][0] = draw_entry_paint.m_Stops[i];
+//                 }
 
-                ro.AddConstant(UNIFORM_COLORS, colors, draw_entry_paint.m_StopCount);
-                ro.AddConstant(UNIFORM_TRANSFORM_LOCAL, (dmVMath::Vector4*) &local_matrix, 4);
-                ro.AddConstant(UNIFORM_GRADIENT_LIMITS, &gradient_limits, 1);
-                ro.AddConstant(UNIFORM_PROPERTIES, &properties, 1);
-                ro.AddConstant(UNIFORM_STOPS, stops, draw_entry_paint.m_StopCount);
-            }
+//                 dmVMath::Vector4 gradient_limits(draw_entry_paint.m_GradientLimits[0], draw_entry_paint.m_GradientLimits[1], draw_entry_paint.m_GradientLimits[2], draw_entry_paint.m_GradientLimits[3]);
 
-            // If we are fullscreen-covering, we don't transform the vertices
-            float no_projection = (float) ctx->m_Event.m_IsClipping && ctx->m_IsApplyingClipping;
+//                 ro.AddConstant(UNIFORM_COLORS, colors, draw_entry_paint.m_StopCount);
+//                 ro.AddConstant(UNIFORM_TRANSFORM_LOCAL, (dmVMath::Vector4*) &local_matrix, 4);
+//                 ro.AddConstant(UNIFORM_GRADIENT_LIMITS, &gradient_limits, 1);
+//                 ro.AddConstant(UNIFORM_PROPERTIES, &properties, 1);
+//                 ro.AddConstant(UNIFORM_STOPS, stops, draw_entry_paint.m_StopCount);
+//             }
 
-            dmVMath::Vector4 cover(no_projection, 0.0f, 0.0f, 0.0f);
-            ro.AddConstant(UNIFORM_COVER, &cover, 1);
+//             // If we are fullscreen-covering, we don't transform the vertices
+//             float no_projection = (float) ctx->m_Event.m_IsClipping && ctx->m_IsApplyingClipping;
 
-            dmRive::Mat2DToMat4(ctx->m_Event.m_TransformWorld, ro.m_WorldTransform);
-        }
-        break;
+//             dmVMath::Vector4 cover(no_projection, 0.0f, 0.0f, 0.0f);
+//             ro.AddConstant(UNIFORM_COVER, &cover, 1);
 
-    case rive::EVENT_DRAW_STROKE:
-        {
-            dmRive::RenderObject& ro = plugin_ctx->m_RenderObjects[ctx->m_Index];
-            ro.Init();
-            ro.m_VertexStart       = ctx->m_IndexOffsetBytes;
-            ro.m_VertexCount       = ctx->m_IndexCount;
-            ro.m_SetStencilTest    = 1;
-            ro.m_IsTriangleStrip   = 1;
+//             dmRive::Mat2DToMat4(ctx->m_Event.m_TransformWorld, ro.m_WorldTransform);
+//         }
+//         break;
 
-            SetStencilCoverState(&ro.m_StencilTestParams, ctx->m_Event.m_IsClipping, ctx->m_IsApplyingClipping);
+//     case rive::EVENT_DRAW_STROKE:
+//         {
+//             dmRive::RenderObject& ro = plugin_ctx->m_RenderObjects[ctx->m_Index];
+//             ro.Init();
+//             ro.m_VertexStart       = ctx->m_IndexOffsetBytes;
+//             ro.m_VertexCount       = ctx->m_IndexCount;
+//             ro.m_SetStencilTest    = 1;
+//             ro.m_IsTriangleStrip   = 1;
 
-            if (!ctx->m_IsApplyingClipping)
-            {
-                // GetBlendFactorsFromBlendMode(engine_ctx->m_BlendMode, &ro.m_SourceBlendFactor, &ro.m_DestinationBlendFactor);
-                // ro.m_SetBlendFactors = 1;
+//             SetStencilCoverState(&ro.m_StencilTestParams, ctx->m_Event.m_IsClipping, ctx->m_IsApplyingClipping);
 
-                const rive::PaintData draw_entry_paint = rive::getPaintData(ctx->m_Paint);
-                const float* color                     = &draw_entry_paint.m_Colors[0];
+//             if (!ctx->m_IsApplyingClipping)
+//             {
+//                 // GetBlendFactorsFromBlendMode(engine_ctx->m_BlendMode, &ro.m_SourceBlendFactor, &ro.m_DestinationBlendFactor);
+//                 // ro.m_SetBlendFactors = 1;
 
-                dmVMath::Vector4 properties((float)draw_entry_paint.m_FillType, (float)draw_entry_paint.m_StopCount, 0.0f, 0.0f);
-                dmVMath::Matrix4 local_matrix;
-                dmRive::Mat2DToMat4(ctx->m_Event.m_TransformLocal, local_matrix);
+//                 const rive::PaintData draw_entry_paint = rive::getPaintData(ctx->m_Paint);
+//                 const float* color                     = &draw_entry_paint.m_Colors[0];
 
-                dmVMath::Vector4 colors[rive::PaintData::MAX_STOPS];
-                for (int i = 0; i < (int) draw_entry_paint.m_StopCount; ++i)
-                {
-                    colors[i] = dmVMath::Vector4(draw_entry_paint.m_Colors[i*4+0],
-                                                 draw_entry_paint.m_Colors[i*4+1],
-                                                 draw_entry_paint.m_Colors[i*4+2],
-                                                 draw_entry_paint.m_Colors[i*4+3]);
-                }
+//                 dmVMath::Vector4 properties((float)draw_entry_paint.m_FillType, (float)draw_entry_paint.m_StopCount, 0.0f, 0.0f);
+//                 dmVMath::Matrix4 local_matrix;
+//                 dmRive::Mat2DToMat4(ctx->m_Event.m_TransformLocal, local_matrix);
 
-                dmVMath::Vector4 stops[rive::PaintData::MAX_STOPS];
-                for (int i = 0; i < (int) draw_entry_paint.m_StopCount; ++i)
-                {
-                    stops[i][0] = draw_entry_paint.m_Stops[i];
-                }
+//                 dmVMath::Vector4 colors[rive::PaintData::MAX_STOPS];
+//                 for (int i = 0; i < (int) draw_entry_paint.m_StopCount; ++i)
+//                 {
+//                     colors[i] = dmVMath::Vector4(draw_entry_paint.m_Colors[i*4+0],
+//                                                  draw_entry_paint.m_Colors[i*4+1],
+//                                                  draw_entry_paint.m_Colors[i*4+2],
+//                                                  draw_entry_paint.m_Colors[i*4+3]);
+//                 }
 
-                dmVMath::Vector4 gradient_limits(draw_entry_paint.m_GradientLimits[0], draw_entry_paint.m_GradientLimits[1], draw_entry_paint.m_GradientLimits[2], draw_entry_paint.m_GradientLimits[3]);
+//                 dmVMath::Vector4 stops[rive::PaintData::MAX_STOPS];
+//                 for (int i = 0; i < (int) draw_entry_paint.m_StopCount; ++i)
+//                 {
+//                     stops[i][0] = draw_entry_paint.m_Stops[i];
+//                 }
 
-                ro.AddConstant(UNIFORM_COLORS, colors, draw_entry_paint.m_StopCount);
-                ro.AddConstant(UNIFORM_TRANSFORM_LOCAL, (dmVMath::Vector4*) &local_matrix, 4);
-                ro.AddConstant(UNIFORM_GRADIENT_LIMITS, &gradient_limits, 1);
-                ro.AddConstant(UNIFORM_PROPERTIES, &properties, 1);
-                ro.AddConstant(UNIFORM_STOPS, stops, draw_entry_paint.m_StopCount);
-            }
+//                 dmVMath::Vector4 gradient_limits(draw_entry_paint.m_GradientLimits[0], draw_entry_paint.m_GradientLimits[1], draw_entry_paint.m_GradientLimits[2], draw_entry_paint.m_GradientLimits[3]);
 
-            dmVMath::Vector4 cover(0, 0, 0, 0);
-            ro.AddConstant(UNIFORM_COVER, &cover, 1);
+//                 ro.AddConstant(UNIFORM_COLORS, colors, draw_entry_paint.m_StopCount);
+//                 ro.AddConstant(UNIFORM_TRANSFORM_LOCAL, (dmVMath::Vector4*) &local_matrix, 4);
+//                 ro.AddConstant(UNIFORM_GRADIENT_LIMITS, &gradient_limits, 1);
+//                 ro.AddConstant(UNIFORM_PROPERTIES, &properties, 1);
+//                 ro.AddConstant(UNIFORM_STOPS, stops, draw_entry_paint.m_StopCount);
+//             }
 
-            dmRive::Mat2DToMat4(ctx->m_Event.m_TransformWorld, ro.m_WorldTransform);
-        }
-        break;
+//             dmVMath::Vector4 cover(0, 0, 0, 0);
+//             ro.AddConstant(UNIFORM_COVER, &cover, 1);
 
-    default:
-        break;
-    }
-}
+//             dmRive::Mat2DToMat4(ctx->m_Event.m_TransformWorld, ro.m_WorldTransform);
+//         }
+//         break;
+
+//     default:
+//         break;
+//     }
+// }
 
 template<typename T>
 static T* AdjustArraySize(dmArray<T>& array, uint32_t count)
@@ -857,32 +870,32 @@ static void UpdateRenderData(RiveFile* file)
     uint32_t ro_count         = 0;
     uint32_t vertex_count     = 0;
     uint32_t index_count      = 0;
-    dmRive::GetRiveDrawParams(rive::g_Ctx, file->m_Renderer, vertex_count, index_count, ro_count);
+    //dmRive::GetRiveDrawParams(rive::g_Ctx, file->m_Renderer, vertex_count, index_count, ro_count);
 
     if (!ro_count || !vertex_count || !index_count)
     {
         return;
     }
 
-    // reset the buffers (corresponding to the dmRender::RENDER_LIST_OPERATION_BEGIN)
-    // we don't need to share the index/vertex buffer with another instance so
-    file->m_RenderObjects.SetSize(0);
-    file->m_VertexBuffer.SetSize(0);
-    file->m_IndexBuffer.SetSize(0);
+    // // reset the buffers (corresponding to the dmRender::RENDER_LIST_OPERATION_BEGIN)
+    // // we don't need to share the index/vertex buffer with another instance so
+    // file->m_RenderObjects.SetSize(0);
+    // file->m_VertexBuffer.SetSize(0);
+    // file->m_IndexBuffer.SetSize(0);
 
-    // Make sure we have enough free render objects
-    dmRive::RenderObject*   ro_begin = AdjustArraySize(file->m_RenderObjects, ro_count);
-    dmRive::RiveVertex*     vb_begin = AdjustArraySize(file->m_VertexBuffer, vertex_count);
-    int*                    ix_begin = AdjustArraySize(file->m_IndexBuffer, index_count);
+    // // Make sure we have enough free render objects
+    // dmRive::RenderObject*   ro_begin = AdjustArraySize(file->m_RenderObjects, ro_count);
+    // dmRive::RiveVertex*     vb_begin = AdjustArraySize(file->m_VertexBuffer, vertex_count);
+    // int*                    ix_begin = AdjustArraySize(file->m_IndexBuffer, index_count);
 
-    RiveEventsDrawcallContext plugin_ctx;
+    // RiveEventsDrawcallContext plugin_ctx;
 
-    plugin_ctx.m_VertexBuffer = vb_begin;
-    plugin_ctx.m_IndexBuffer = ix_begin;
-    plugin_ctx.m_RenderObjects = ro_begin;
+    // plugin_ctx.m_VertexBuffer = vb_begin;
+    // plugin_ctx.m_IndexBuffer = ix_begin;
+    // plugin_ctx.m_RenderObjects = ro_begin;
 
-    uint32_t num_ros_used = ProcessRiveEvents(rive::g_Ctx, file->m_Renderer, vb_begin, ix_begin, RiveEventCallback_Plugin, &plugin_ctx);
-    if (num_ros_used < ro_count) {
-        file->m_RenderObjects.SetSize(num_ros_used);
-    }
+    // uint32_t num_ros_used = ProcessRiveEvents(rive::g_Ctx, file->m_Renderer, vb_begin, ix_begin, RiveEventCallback_Plugin, &plugin_ctx);
+    // if (num_ros_used < ro_count) {
+    //     file->m_RenderObjects.SetSize(num_ros_used);
+    // }
 }

@@ -1,8 +1,8 @@
+syntax = "proto2";
 package dmRiveDDF;
 
 import "ddf/ddf_extensions.proto";
 import "ddf/ddf_math.proto";
-import "script/ddf_script.proto";
 
 option java_package = "com.dynamo.rive.proto";
 option java_outer_classname = "Rive";
@@ -10,7 +10,7 @@ option java_outer_classname = "Rive";
 message RiveSceneDesc
 {
     required string scene         = 1 [(resource)=true];
-    //required string atlas         = 2 [(resource)=true];
+    optional string atlas         = 2 [(resource)=true];
 }
 
 message RiveModelDesc
