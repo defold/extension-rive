@@ -28,7 +28,7 @@ namespace dmRive
 
 	struct RiveSceneData
 	{
-		rive::File*               	m_File;
+		rive::File* 				m_File;
 	    dmArray<dmhash_t> 			m_LinearAnimations;
 	    dmArray<dmhash_t> 			m_StateMachines;
 	    dmArray<dmRive::RiveBone*>  m_Roots;

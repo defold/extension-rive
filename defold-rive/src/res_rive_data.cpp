@@ -25,6 +25,8 @@
 
 #include "res_rive_data.h"
 #include <common/bones.h>
+#include <common/atlas.h>
+#include <common/factory.h>
 
 namespace dmRive
 {
@@ -56,9 +58,11 @@ namespace dmRive
         scene_data->m_File = file;
 
         rive::Artboard* artboard = file->artboard();
+        if (!artboard)
+            return;
 
         uint32_t animation_count = (uint32_t)artboard->animationCount();
-        if (artboard && animation_count > 0)
+        if (animation_count > 0)
         {
             scene_data->m_LinearAnimations.SetCapacity(animation_count);
             scene_data->m_LinearAnimations.SetSize(animation_count);
@@ -72,7 +76,7 @@ namespace dmRive
         }
 
         uint32_t state_machine_count = (uint32_t)artboard->stateMachineCount();
-        if (artboard && state_machine_count > 0)
+        if (state_machine_count > 0)
         {
             scene_data->m_StateMachines.SetCapacity(state_machine_count);
             scene_data->m_StateMachines.SetSize(state_machine_count);
@@ -85,17 +89,22 @@ namespace dmRive
             }
         }
 
-        if (artboard)
-        {
-            SetupBones(scene_data, path);
-        }
+        SetupBones(scene_data, path);
     }
 
     static dmResource::Result ResourceType_RiveData_Create(const dmResource::ResourceCreateParams& params)
     {
-        rive::File* file          = 0;
-        rive::BinaryReader reader = rive::BinaryReader((uint8_t*) params.m_Buffer, (size_t)params.m_BufferSize);
-        rive::ImportResult result = rive::File::import(reader, &file);
+        dmRive::DefoldFactory* rive_factory = (dmRive::DefoldFactory*)params.m_Context;
+        rive::Span<uint8_t> data((uint8_t*)params.m_Buffer, params.m_BufferSize);
+
+        // Creates DefoldRenderImage with a hashed name for each image resource
+        AtlasNameResolver atlas_resolver = AtlasNameResolver();
+
+        rive::ImportResult result;
+        std::unique_ptr<rive::File> file = rive::File::import(data,
+                                                        rive_factory,
+                                                        &result,
+                                                        &atlas_resolver);
 
         if (result != rive::ImportResult::success)
         {
@@ -105,7 +114,7 @@ namespace dmRive
 
         RiveSceneData* scene_data = new RiveSceneData();
 
-        SetupData(scene_data, file, params.m_Filename);
+        SetupData(scene_data, file.release(), params.m_Filename);
 
         params.m_Resource->m_Resource     = (void*) scene_data;
         params.m_Resource->m_ResourceSize = 0;
@@ -128,9 +137,16 @@ namespace dmRive
 
     static dmResource::Result ResourceType_RiveData_Recreate(const dmResource::ResourceRecreateParams& params)
     {
-        rive::File* file          = 0;
-        rive::BinaryReader reader = rive::BinaryReader((uint8_t*) params.m_Buffer, params.m_BufferSize);
-        rive::ImportResult result = rive::File::import(reader, &file);
+        dmRive::DefoldFactory* rive_factory = (dmRive::DefoldFactory*)params.m_Context;
+        rive::Span<uint8_t> data((uint8_t*)params.m_Buffer, params.m_BufferSize);
+
+        AtlasNameResolver atlas_resolver = AtlasNameResolver();
+
+        rive::ImportResult result;
+        std::unique_ptr<rive::File> file = rive::File::import(data,
+                                                        rive_factory,
+                                                        &result,
+                                                        &atlas_resolver);
 
         if (result != rive::ImportResult::success)
         {
@@ -147,7 +163,7 @@ namespace dmRive
 
         RiveSceneData* scene_data = new RiveSceneData();
 
-        SetupData(scene_data, file, params.m_Filename);
+        SetupData(scene_data, file.release(), params.m_Filename);
 
         params.m_Resource->m_Resource     = (void*) scene_data;
         params.m_Resource->m_ResourceSize = 0;
@@ -157,9 +173,11 @@ namespace dmRive
 
     static dmResource::Result RegisterResourceType_RiveData(dmResource::ResourceTypeRegisterContext& ctx)
     {
+        dmRive::DefoldFactory* rive_ext_context = new dmRive::DefoldFactory();
+        ctx.m_Contexts->Put(ctx.m_NameHash, rive_ext_context);
         return dmResource::RegisterType(ctx.m_Factory,
                                            ctx.m_Name,
-                                           0, // context
+                                           rive_ext_context,
                                            0, // preload
                                            ResourceType_RiveData_Create,
                                            0, // post create
@@ -167,9 +185,16 @@ namespace dmRive
                                            ResourceType_RiveData_Recreate);
 
     }
+
+    static dmResource::Result DeregisterResourceType_RiveData(dmResource::ResourceTypeRegisterContext& ctx)
+    {
+        dmRive::DefoldFactory** context = (dmRive::DefoldFactory**)ctx.m_Contexts->Get(ctx.m_NameHash);
+        delete *context;
+        return dmResource::RESULT_OK;
+    }
 }
 
 
-DM_DECLARE_RESOURCE_TYPE(ResourceTypeRiveData, "rivc", dmRive::RegisterResourceType_RiveData, 0);
+DM_DECLARE_RESOURCE_TYPE(ResourceTypeRiveData, "rivc", dmRive::RegisterResourceType_RiveData, dmRive::DeregisterResourceType_RiveData);
 
 #endif // DM_RIVE_UNSUPPORTED

@@ -43,8 +43,11 @@ namespace dmRive
         dmGameSystem::HComponentRenderConstants m_RenderConstants;
         dmRender::HMaterial                     m_Material;
 
-        rive::StateMachineInstance*             m_StateMachineInstance;
-        rive::LinearAnimationInstance*          m_AnimationInstance;
+
+        std::unique_ptr<rive::ArtboardInstance>         m_ArtboardInstance;
+        std::unique_ptr<rive::LinearAnimationInstance>  m_AnimationInstance;
+        std::unique_ptr<rive::StateMachineInstance>     m_StateMachineInstance;
+
         dmGameObject::Playback                  m_AnimationPlayback;
         float                                   m_AnimationPlaybackRate;
         int                                     m_AnimationCallbackRef;

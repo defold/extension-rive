@@ -26,11 +26,16 @@ namespace dmRive
         if (result != dmResource::RESULT_OK)
             return result;
 
-        // result = dmResource::Get(factory, resource->m_DDF->m_Atlas, (void**) &resource->m_Texture);
-        // if (result != dmResource::RESULT_OK)
-        // {
-        //     return result;
-        // }
+        resource->m_Texture = 0;
+
+        if (resource->m_DDF->m_Atlas[0] != 0)
+        {
+            result = dmResource::Get(factory, resource->m_DDF->m_Atlas, (void**) &resource->m_Texture);
+            if (result != dmResource::RESULT_OK)
+            {
+                return result;
+            }
+        }
         return dmResource::RESULT_OK;
     }
 
@@ -54,7 +59,7 @@ namespace dmRive
         }
 
         dmResource::PreloadHint(params.m_HintInfo, ddf->m_Scene); // the .riv file
-        //dmResource::PreloadHint(params.m_HintInfo, ddf->m_Atlas);
+        dmResource::PreloadHint(params.m_HintInfo, ddf->m_Atlas);
 
         *params.m_PreloadData = ddf;
         return dmResource::RESULT_OK;
