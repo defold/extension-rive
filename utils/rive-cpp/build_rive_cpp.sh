@@ -22,13 +22,16 @@ fi
 BUILD_DIR=./build/${PLATFORM}
 SOURCE_DIR="${UNPACK_FOLDER}/src"
 TESS_DIR="${UNPACK_FOLDER}/tess"
+TESS2_DIR="${LIBTESS2_UNPACK_FOLDER}/Source"
 TARGET_INCLUDE_DIR="../../defold-rive/include/rive"
 TARGET_LIBRARY_DIR="../../defold-rive/lib/${PLATFORM}"
 TARGET_NAME_RIVE=librivecpp
 TARGET_NAME_TESS=librivetess
+TARGET_NAME_TESS2=libtess2
 TARGET_LIB_SUFFIX=.a
 OPT="-O2"
-CXXFLAGS="${CXXFLAGS} -g -Werror=format "
+CCFLAGS=" -g -Werror=format"
+CXXFLAGS="${CXXFLAGS} ${CCFLAGS}"
 
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
@@ -97,12 +100,20 @@ function run_cmd
     ${args}
 }
 
-function compile_file
+function compile_cpp_file
 {
     local src=$1
     local tgt=$2
 
     run_cmd "${CXX} ${OPT} ${SYSROOT} ${CXXFLAGS} -c ${src} -o ${tgt}"
+}
+
+function compile_c_file
+{
+    local src=$1
+    local tgt=$2
+
+    run_cmd "${CC} ${OPT} ${SYSROOT} ${CCFLAGS} -c ${src} -o ${tgt}"
 }
 
 function link_library
@@ -120,12 +131,14 @@ function link_library
     fi
 }
 
+
 function build_library
 {
     local platform=$1
     local library_target=$2
     local source_dir=$3
-    local files=$(find ${source_dir} -iname "*.cpp")
+    local pattern=$4
+    local files=$(find "${source_dir}" -iname "${pattern}")
 
     echo "Building library for platform ${platform}"
 
@@ -145,7 +158,11 @@ function build_library
 
         object_files="$object_files $tgt"
 
-        compile_file ${f} ${tgt}
+        if [ "*.cpp" == "${pattern}" ]; then
+            compile_cpp_file ${f} ${tgt}
+        else
+            compile_c_file ${f} ${tgt}
+        fi
     done
 
     link_library ${library_target} "${object_files}"
@@ -155,6 +172,16 @@ function build_library
 
     echo ""
     echo "Wrote ${library_target}"
+}
+
+function build_cpp_library
+{
+    build_library $1 $2 $3 "*.cpp"
+}
+
+function build_c_library
+{
+    build_library $1 $2 $3 "*.c"
 }
 
 function find_latest_sdk
@@ -182,8 +209,8 @@ if [ ! -z "${DYNAMO_HOME}" ]; then
     echo ""
 fi
 
-
-CXXFLAGS="${CXXFLAGS} -std=c++17 -fno-exceptions -fno-rtti -Werror=format -g -I./${UNPACK_FOLDER}/include -I./${UNPACK_FOLDER}/tess/include/ -I./${EARCUT_UNPACK_FOLDER}/include/mapbox -I./${LIBTESS2_UNPACK_FOLDER}/Include"
+CCFLAGS="${CCFLAGS} -Werror=format -I./${UNPACK_FOLDER}/include -I./${UNPACK_FOLDER}/tess/include/ -I./${EARCUT_UNPACK_FOLDER}/include/mapbox -I./${LIBTESS2_UNPACK_FOLDER}/Include"
+CXXFLAGS="${CXXFLAGS} ${CCFLAGS} -std=c++17 -fno-exceptions -fno-rtti"
 
 case $PLATFORM in
     arm64-ios)
@@ -225,15 +252,15 @@ case $PLATFORM in
         # self.env.append_value(f, ['-target', '%s-apple-darwin19' % arch])
         export CXXFLAGS="${CXXFLAGS} -stdlib=libc++ -target x86_64-apple-darwin21.2.0"
 
-        if [ -z "${OSX_MIN_SDK_VERSION}" ]; then
+        #if [ -z "${OSX_MIN_SDK_VERSION}" ]; then
             OSX_MIN_SDK_VERSION="10.7"
-        fi
+        #fi
 
-        if [ ! -z "${OSX_MIN_SDK_VERSION}" ]; then
+        #if [ ! -z "${OSX_MIN_SDK_VERSION}" ]; then
             export MACOSX_DEPLOYMENT_TARGET=${OSX_MIN_SDK_VERSION}
             export CXXFLAGS="${CXXFLAGS} -mmacosx-version-min=${OSX_MIN_SDK_VERSION} "
             export LDFLAGS="${LDFLAGS} -mmacosx-version-min=${OSX_MIN_SDK_VERSION}"
-        fi
+        #fi
 
         ;;
 
@@ -351,6 +378,9 @@ fi
 if [ -z "${CXX}" ]; then
     export CXX=${CROSS_TOOLS_PREFIX}clang++
 fi
+if [ -z "${CC}" ]; then
+    export CC=${CROSS_TOOLS_PREFIX}clang
+fi
 if [ -z "${AR}" ]; then
     export AR=${CROSS_TOOLS_PREFIX}ar
 fi
@@ -383,13 +413,17 @@ remove_package ${LIBTESS2_URL}
 copy_headers ${TARGET_INCLUDE_DIR}
 
 TARGET_LIBRARY_RIVE=${BUILD_DIR}/${TARGET_NAME_RIVE}${TARGET_LIB_SUFFIX}
-build_library ${PLATFORM} ${TARGET_LIBRARY_RIVE} ${SOURCE_DIR}
+build_cpp_library ${PLATFORM} ${TARGET_LIBRARY_RIVE} ${SOURCE_DIR}
 
 TARGET_LIBRARY_TESS=${BUILD_DIR}/${TARGET_NAME_TESS}${TARGET_LIB_SUFFIX}
-build_library ${PLATFORM} ${TARGET_LIBRARY_TESS} ${TESS_DIR}
+build_cpp_library ${PLATFORM} ${TARGET_LIBRARY_TESS} ${TESS_DIR}
+
+TARGET_LIBRARY_TESS2=${BUILD_DIR}/${TARGET_NAME_TESS2}${TARGET_LIB_SUFFIX}
+build_c_library ${PLATFORM} ${TARGET_LIBRARY_TESS2} ${TESS2_DIR}
 
 copy_library ${TARGET_LIBRARY_RIVE} ${TARGET_LIBRARY_DIR}
 copy_library ${TARGET_LIBRARY_TESS} ${TARGET_LIBRARY_DIR}
+copy_library ${TARGET_LIBRARY_TESS2} ${TARGET_LIBRARY_DIR}
 
 rm -rf ${UNPACK_FOLDER}
 rm -rf ${EARCUT_UNPACK_FOLDER}

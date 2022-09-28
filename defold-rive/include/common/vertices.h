@@ -6,7 +6,7 @@
 #include <dmsdk/render/render.h>
 
 #include <rive/math/mat2d.hpp>
-#include <riverender/rive_render_api.h>
+#include <rive/renderer.hpp>
 
 namespace rive
 {
@@ -21,6 +21,8 @@ namespace dmRive
     {
         float x;
         float y;
+        float u;
+        float v;
     };
 
     struct RiveBuffer
@@ -100,38 +102,38 @@ namespace dmRive
     // Used by both editor and runtime
     inline void Mat2DToMat4(const rive::Mat2D m2, dmVMath::Matrix4& m4);
 
-    rive::HBuffer   RequestBufferCallback(rive::HBuffer buffer, rive::BufferType type, void* data, unsigned int dataSize, void* userData);
-    void            DestroyBufferCallback(rive::HBuffer buffer, void* userData);
+    // rive::HBuffer   RequestBufferCallback(rive::HBuffer buffer, rive::BufferType type, void* data, unsigned int dataSize, void* userData);
+    // void            DestroyBufferCallback(rive::HBuffer buffer, void* userData);
 
-    void CopyVertices(RiveVertex* dst, const RiveVertex* src, uint32_t count);
-    void CopyIndices(int* dst, const int* src, uint32_t count, int index_offset);
-    void GetRiveDrawParams(rive::HContext ctx, rive::HRenderer renderer, uint32_t& vertex_count, uint32_t& index_count, uint32_t& render_object_count);
+    // void CopyVertices(RiveVertex* dst, const RiveVertex* src, uint32_t count);
+    // void CopyIndices(int* dst, const int* src, uint32_t count, int index_offset);
+    // void GetRiveDrawParams(rive::HContext ctx, rive::HRenderer renderer, uint32_t& vertex_count, uint32_t& index_count, uint32_t& render_object_count);
 
-    // Used when processing the events
-    struct RiveEventsContext
-    {
-        void*                   m_UserContext; // the context passed into ProcessRiveEvents
+    // // Used when processing the events
+    // struct RiveEventsContext
+    // {
+    //     void*                   m_UserContext; // the context passed into ProcessRiveEvents
 
-        rive::HContext          m_Ctx;
-        rive::HRenderer         m_Renderer;
-        rive::PathDrawEvent     m_Event;
+    //     rive::HContext          m_Ctx;
+    //     rive::HRenderer         m_Renderer;
+    //     rive::PathDrawEvent     m_Event;
 
-        rive::HRenderPaint      m_Paint;
-        uint32_t                m_Index;
+    //     rive::HRenderPaint      m_Paint;
+    //     uint32_t                m_Index;
 
-        bool                    m_ClearClippingFlag;
-        bool                    m_IsApplyingClipping;
+    //     bool                    m_ClearClippingFlag;
+    //     bool                    m_IsApplyingClipping;
 
-        uint32_t                m_IndexOffsetBytes;
-        uint32_t                m_IndexCount;
+    //     uint32_t                m_IndexOffsetBytes;
+    //     uint32_t                m_IndexCount;
 
-        dmGraphics::FaceWinding m_FaceWinding;
-    };
+    //     dmGraphics::FaceWinding m_FaceWinding;
+    // };
 
-    typedef void (*FRiveEventCallback)(RiveEventsContext* ctx);
+    // typedef void (*FRiveEventCallback)(RiveEventsContext* ctx);
 
-    uint32_t ProcessRiveEvents(rive::HContext ctx, rive::HRenderer renderer, RiveVertex* vx_ptr, int* ix_ptr,
-                                FRiveEventCallback callback, void* user_ctx);
+    // uint32_t ProcessRiveEvents(rive::HContext ctx, rive::HRenderer renderer, RiveVertex* vx_ptr, int* ix_ptr,
+    //                             FRiveEventCallback callback, void* user_ctx);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////
     inline void Mat2DToMat4(const rive::Mat2D m2, dmVMath::Matrix4& m4)
@@ -208,44 +210,44 @@ namespace dmRive
         }
     }
 
-    template<typename T>
-    void SetStencilCoverState(T* params, bool is_clipping, bool is_applying_clipping)
-    {
-        params->m_ClearBuffer = 0;
+    // template<typename T>
+    // void SetStencilCoverState(T* params, bool is_clipping, bool is_applying_clipping)
+    // {
+    //     params->m_ClearBuffer = 0;
 
-        if (is_applying_clipping)
-        {
-            params->m_Front = {
-                .m_Func     = dmGraphics::COMPARE_FUNC_NOTEQUAL,
-                .m_OpSFail  = dmGraphics::STENCIL_OP_ZERO,
-                .m_OpDPFail = dmGraphics::STENCIL_OP_ZERO,
-                .m_OpDPPass = dmGraphics::STENCIL_OP_REPLACE,
-            };
+    //     if (is_applying_clipping)
+    //     {
+    //         params->m_Front = {
+    //             .m_Func     = dmGraphics::COMPARE_FUNC_NOTEQUAL,
+    //             .m_OpSFail  = dmGraphics::STENCIL_OP_ZERO,
+    //             .m_OpDPFail = dmGraphics::STENCIL_OP_ZERO,
+    //             .m_OpDPPass = dmGraphics::STENCIL_OP_REPLACE,
+    //         };
 
-            params->m_Ref             = 0x80;
-            params->m_RefMask         = 0x7F;
-            params->m_BufferMask      = 0xFF;
-            params->m_ColorBufferMask = 0x00;
-        }
-        else
-        {
-            params->m_Front = {
-                .m_Func     = dmGraphics::COMPARE_FUNC_NOTEQUAL,
-                .m_OpSFail  = dmGraphics::STENCIL_OP_ZERO,
-                .m_OpDPFail = dmGraphics::STENCIL_OP_ZERO,
-                .m_OpDPPass = dmGraphics::STENCIL_OP_ZERO,
-            };
+    //         params->m_Ref             = 0x80;
+    //         params->m_RefMask         = 0x7F;
+    //         params->m_BufferMask      = 0xFF;
+    //         params->m_ColorBufferMask = 0x00;
+    //     }
+    //     else
+    //     {
+    //         params->m_Front = {
+    //             .m_Func     = dmGraphics::COMPARE_FUNC_NOTEQUAL,
+    //             .m_OpSFail  = dmGraphics::STENCIL_OP_ZERO,
+    //             .m_OpDPFail = dmGraphics::STENCIL_OP_ZERO,
+    //             .m_OpDPPass = dmGraphics::STENCIL_OP_ZERO,
+    //         };
 
-            params->m_Ref             = 0x00;
-            params->m_RefMask         = 0xFF;
-            params->m_BufferMask      = 0xFF;
-            params->m_ColorBufferMask = 0x0F;
+    //         params->m_Ref             = 0x00;
+    //         params->m_RefMask         = 0xFF;
+    //         params->m_BufferMask      = 0xFF;
+    //         params->m_ColorBufferMask = 0x0F;
 
-            if (is_clipping)
-            {
-                params->m_RefMask    = 0x7F;
-                params->m_BufferMask = 0x7F;
-            }
-        }
-    }
+    //         if (is_clipping)
+    //         {
+    //             params->m_RefMask    = 0x7F;
+    //             params->m_BufferMask = 0x7F;
+    //         }
+    //     }
+    // }
 }
