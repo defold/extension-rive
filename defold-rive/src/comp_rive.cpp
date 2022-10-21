@@ -633,7 +633,7 @@ namespace dmRive
     {
         //DM_PROFILE(RiveModel, "UpdateTransforms");
 
-        dmArray<RiveComponent*>& components = world->m_Components.m_Objects;
+        dmArray<RiveComponent*>& components = world->m_Components.GetRawObjects();
         uint32_t n = components.Size();
         for (uint32_t i = 0; i < n; ++i)
         {
@@ -738,7 +738,7 @@ namespace dmRive
         rive::Renderer* rive_renderer = (rive::Renderer*) renderer;
         float dt = params.m_UpdateContext->m_DT;
 
-        dmArray<RiveComponent*>& components = world->m_Components.m_Objects;
+        dmArray<RiveComponent*>& components = world->m_Components.GetRawObjects();
         const uint32_t count = components.Size();
 
         for (uint32_t i = 0; i < count; ++i)
@@ -882,7 +882,7 @@ namespace dmRive
 
         UpdateTransforms(world);
 
-        dmArray<RiveComponent*>& components = world->m_Components.m_Objects;
+        dmArray<RiveComponent*>& components = world->m_Components.GetRawObjects();
         const uint32_t count = components.Size();
         if (!count)
         {
@@ -1301,7 +1301,7 @@ namespace dmRive
     static void ResourceReloadedCallback(const dmResource::ResourceReloadedParams& params)
     {
         RiveWorld* world = (RiveWorld*) params.m_UserData;
-        dmArray<RiveComponent*>& components = world->m_Components.m_Objects;
+        dmArray<RiveComponent*>& components = world->m_Components.GetRawObjects();
         uint32_t n = components.Size();
         for (uint32_t i = 0; i < n; ++i)
         {
