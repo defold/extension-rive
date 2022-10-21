@@ -1,7 +1,6 @@
-#define FILL_TYPE_NONE   0
-#define FILL_TYPE_SOLID  1
-#define FILL_TYPE_LINEAR 2
-#define FILL_TYPE_RADIAL 3
+#define FILL_TYPE_SOLID  0
+#define FILL_TYPE_LINEAR 1
+#define FILL_TYPE_RADIAL 2
 #define MAX_STOPS        16
 
 uniform vec4  stops[MAX_STOPS];

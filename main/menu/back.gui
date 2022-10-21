@@ -47,6 +47,8 @@ nodes {
   alpha: 1.0
   template: "/dirtylarry/button.gui"
   template_node_child: false
+  custom_type: 0
+  enabled: true
 }
 nodes {
   position {
@@ -101,8 +103,12 @@ nodes {
   clipping_inverted: false
   alpha: 1.0
   overridden_fields: 4
+  overridden_fields: 45
   template_node_child: true
   size_mode: SIZE_MODE_MANUAL
+  custom_type: 0
+  enabled: false
+  visible: true
 }
 nodes {
   position {
@@ -168,6 +174,9 @@ nodes {
   template_node_child: true
   text_leading: 1.0
   text_tracking: 0.0
+  custom_type: 0
+  enabled: true
+  visible: true
 }
 material: "/builtins/materials/gui.material"
 adjust_reference: ADJUST_REFERENCE_PARENT

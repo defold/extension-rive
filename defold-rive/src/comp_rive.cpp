@@ -547,6 +547,15 @@ namespace dmRive
         uint32_t index_count      = 0;
         //GetRiveDrawParams(ctx, renderer, vertex_count, index_count, ro_count);
 
+        dmRive::DrawDescriptor* draw_descriptors;
+        renderer->getDrawDescriptors(&draw_descriptors, &ro_count);
+
+        for (int i = 0; i < ro_count; ++i)
+        {
+            vertex_count += draw_descriptors[i].m_VerticesCount;
+            index_count += draw_descriptors[i].m_IndicesCount;
+        }
+
         // Make sure we have enough free render objects
         if (world->m_RenderObjects.Remaining() < ro_count)
         {
@@ -603,7 +612,101 @@ namespace dmRive
         engine_ctx.m_RenderConstants = render_constants;
         engine_ctx.m_CompRenderConstants = first->m_RenderConstants;
 
-        ro_count = 0;
+        // ro_count = 0;
+        uint32_t index_offset = 0;
+        uint32_t vertex_offset = 0;
+        RiveVertex* vb_write = vb_begin;
+        uint16_t* ix_write = (uint16_t*) ix_begin;
+
+        for (int i = 0; i < ro_count; ++i)
+        {
+            if (!engine_ctx.m_RenderConstants[i])
+            {
+                engine_ctx.m_RenderConstants[i] = dmGameSystem::CreateRenderConstants();
+            }
+
+            dmGameSystem::HComponentRenderConstants ro_constants = engine_ctx.m_RenderConstants[i];
+
+            dmRive::DrawDescriptor& draw_desc = draw_descriptors[i];
+            dmRender::RenderObject& ro = engine_ctx.m_RenderObjects[i];
+
+            memset(&ro.m_StencilTestParams, 0, sizeof(ro.m_StencilTestParams));
+            ro.m_StencilTestParams.Init();
+            ro.Init();
+
+            ro.m_VertexDeclaration = engine_ctx.m_VertexDeclaration;
+            ro.m_VertexBuffer      = engine_ctx.m_VertexBuffer;
+            ro.m_IndexBuffer       = engine_ctx.m_IndexBuffer;
+            ro.m_Material          = engine_ctx.m_Material;
+            ro.m_VertexStart       = index_offset * sizeof(uint16_t); // byte offset
+            ro.m_VertexCount       = draw_desc.m_IndicesCount;
+            ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_SHORT;
+            ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
+
+            for (int j = 0; j < draw_desc.m_VerticesCount; ++j)
+            {
+                rive::Vec2D& vx = draw_desc.m_Vertices[j];
+                vb_write->x = vx.x;
+                vb_write->y = vx.y;
+                vb_write->u = 0.0f;
+                vb_write->v = 0.0f;
+                vb_write++;
+            }
+
+            for (int j = 0; j < draw_desc.m_IndicesCount; ++j)
+            {
+                *ix_write = draw_desc.m_Indices[j] + vertex_offset;
+                ix_write++;
+            }
+
+            const dmRive::FsUniforms fs_uniforms = draw_desc.m_FsUniforms;
+            const dmRive::VsUniforms vs_uniforms = draw_desc.m_VsUniforms;
+
+            dmVMath::Vector4 properties((float)fs_uniforms.fillType, (float) fs_uniforms.stopCount, 0.0f, 0.0f);
+
+            const int MAX_STOPS = 16;
+            const int num_stops = fs_uniforms.stopCount > 1 ? fs_uniforms.stopCount : 1;
+
+            dmVMath::Vector4 colors[MAX_STOPS];
+            for (int i = 0; i < (int) num_stops; ++i)
+            {
+                colors[i] = dmVMath::Vector4(fs_uniforms.colors[i][0],
+                                             fs_uniforms.colors[i][1],
+                                             fs_uniforms.colors[i][2],
+                                             fs_uniforms.colors[i][3]);
+            }
+
+            dmGameSystem::SetRenderConstant(ro_constants, UNIFORM_PROPERTIES, (dmVMath::Vector4*) &properties, 1);
+            dmGameSystem::SetRenderConstant(ro_constants, UNIFORM_COLOR, colors, MAX_STOPS);
+            dmGameSystem::EnableRenderObjectConstants(&ro, ro_constants);
+
+            //ro.m_SetStencilTest    = 1;
+            //ro.m_SetFaceWinding    = 1;
+            //ro.m_FaceWinding       = ctx->m_FaceWinding;
+
+            //SetStencilDrawState(&ro.m_StencilTestParams, ctx->m_Event.m_IsClipping, ctx->m_ClearClippingFlag);
+            //dmVMath::Vector4 zero(0,0,0,0);
+            //dmGameSystem::SetRenderConstant(render_constants, UNIFORM_COVER, &zero, 1);
+
+            // Mat2DToMat4(ctx.m_Event.m_TransformWorld, ro.m_WorldTransform);
+
+            //Mat2DToMat4(vs_uniforms.world, ro.m_WorldTransform);
+            memcpy(&ro.m_WorldTransform, &vs_uniforms.world, sizeof(vs_uniforms.world));
+            /*
+            rive::Mat2D transform;
+            Mat4ToMat2D(c->m_World, transform);
+
+            // JG: Rive is using a different coordinate system that defold,
+            //     in their examples they flip the projection but that isn't
+            //     really compatible with our setup I don't think?
+            rive::Vec2D yflip(1.0f,-1.0f);
+            transform.scale(yflip);
+            */
+
+            index_offset += draw_desc.m_IndicesCount;
+            vertex_offset += draw_desc.m_VerticesCount;
+        }
+
         // uint32_t num_ros_used = ProcessRiveEvents(ctx, renderer, vb_begin, ix_begin, RiveEventCallback_RenderObject, &engine_ctx);
 
         // if (num_ros_used < ro_count)
@@ -713,8 +816,9 @@ namespace dmRive
     dmGameObject::UpdateResult CompRiveUpdate(const dmGameObject::ComponentsUpdateParams& params, dmGameObject::ComponentsUpdateResult& update_result)
     {
         RiveWorld*                  world    = (RiveWorld*)params.m_World;
-        //dmRive::DefoldTessRenderer* renderer = world->m_Ctx;
         dmRive::DefoldTessRenderer* renderer = world->m_Renderer;
+
+        renderer->reset();
 
         // rive::newFrame(renderer);
         // rive::Renderer* rive_renderer = (rive::Renderer*) renderer;
@@ -894,31 +998,35 @@ namespace dmRive
 
         UpdateTransforms(world);
 
-        renderer->save();
-
         for (uint32_t i = 0; i < count; ++i)
         {
             RiveComponent* c = components[i];
 
             if (!c->m_Enabled || !c->m_AddedToUpdate)
                 continue;
-
-            // rive::AABB bounds = c->m_ArtboardInstance->bounds();
-            // rive::Mat2D viewTransform = rive::computeAlignment( rive::Fit::contain,
-            //                                                     rive::Alignment::center,
-            //                                                     rive::AABB(0, 0, bounds.maxX-bounds.minX, bounds.maxY-bounds.minY),
-            //                                                     bounds);
-            // renderer->transform(viewTransform);
+            rive::AABB bounds = c->m_ArtboardInstance->bounds();
+            rive::Mat2D viewTransform = rive::computeAlignment(rive::Fit::contain,
+                                                               rive::Alignment::center,
+                                                               rive::AABB(0, 0, bounds.maxX-bounds.minX, bounds.maxY-bounds.minY),
+                                                               bounds);
+            renderer->save();
+            renderer->transform(viewTransform);
 
             rive::Mat2D transform;
             Mat4ToMat2D(c->m_World, transform);
 
-            // JG: Rive is using a different coordinate system that defold,
-            //     in their examples they flip the projection but that isn't
-            //     really compatible with our setup I don't think?
+            // Rive is using a different coordinate system that defold,
+            // we have to adhere to how our projection matrixes are
+            // constructed so we flip the renderer on the y axis here
             rive::Vec2D yflip(1.0f,-1.0f);
-            transform.scale(yflip);
+            transform = transform.scale(yflip);
             renderer->transform(transform);
+
+            renderer->align(rive::Fit::none,
+                rive::Alignment::center,
+                rive::AABB(-bounds.width(), -bounds.height(),
+                bounds.width(), bounds.height()),
+                bounds);
 
             // Store the inverse view so we can later go from screen to world.
             //m_InverseViewTransform = viewTransform.invertOrIdentity();

@@ -61,9 +61,36 @@ namespace dmRive {
 //     sg_buffer uvBuffer() const { return m_uvBuffer; }
 // };
 
+    struct VsUniforms {
+        rive::Mat4 world;
+        rive::Vec2D gradientStart;
+        rive::Vec2D gradientEnd;
+        int fillType;
+    };
+
+    struct FsUniforms {
+        int   fillType;
+        float colors[16][4];
+        float stops[4][4];
+        int   stopCount;
+    };
+
+    struct DrawDescriptor
+    {
+        VsUniforms   m_VsUniforms;
+        FsUniforms   m_FsUniforms;
+        rive::Vec2D* m_Vertices;
+        uint16_t*    m_Indices;
+        uint32_t     m_VerticesCount;
+        uint32_t     m_IndicesCount;
+    };
+
+    class DefoldRenderPath;
+
 class DefoldRenderPaint : public rive::RenderPaint {
 private:
     //fs_path_uniforms_t m_uniforms = {0};
+    FsUniforms m_uniforms = {0};
     rive::rcp<rive::RenderShader> m_shader;
     rive::RenderPaintStyle m_style;
     std::unique_ptr<rive::ContourStroke> m_stroke;
@@ -90,6 +117,8 @@ public:
     void blendMode(rive::BlendMode value) override;
     rive::BlendMode blendMode() const;
     void shader(rive::rcp<rive::RenderShader> shader) override;
+
+    void draw(dmArray<DrawDescriptor>& drawDescriptors, VsUniforms& vertexUniforms, DefoldRenderPath* path);
 };
 
 class DefoldRenderPath : public rive::TessRenderPath {
@@ -108,7 +137,7 @@ protected:
 public:
     void reset() override;
     void drawStroke(rive::ContourStroke* stroke);
-    void drawFill();
+    DrawDescriptor drawFill();
 };
 
 class DefoldTessRenderer : public rive::TessRenderer {
@@ -136,6 +165,8 @@ private:
 
     dmArray<rive::SubPath> m_ClipPaths;
 
+    dmArray<DrawDescriptor> m_DrawDescriptors;
+
     void applyClipping();
     //void setPipeline(sg_pipeline pipeline);
 
@@ -158,6 +189,12 @@ public:
                        float opacity) override;
     void restore() override;
     void reset();
+
+    void getDrawDescriptors(DrawDescriptor** descriptors, uint32_t* count)
+    {
+        *descriptors = m_DrawDescriptors.Begin();
+        *count = m_DrawDescriptors.Size();
+    }
 };
 
 } // namespace dmRive

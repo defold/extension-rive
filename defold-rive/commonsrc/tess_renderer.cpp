@@ -25,6 +25,13 @@ static void EnsureSize(dmArray<T>& a, uint32_t size)
     a.SetSize(size);
 }
 
+static void fillColorBuffer(float* buffer, rive::ColorInt value) {
+    buffer[0] = (float)rive::colorRed(value) / 0xFF;
+    buffer[1] = (float)rive::colorGreen(value) / 0xFF;
+    buffer[2] = (float)rive::colorBlue(value) / 0xFF;
+    buffer[3] = rive::colorOpacity(value);
+}
+
 namespace dmRive
 {
 
@@ -39,8 +46,8 @@ DefoldRenderPaint::~DefoldRenderPaint()
 
 void DefoldRenderPaint::color(rive::ColorInt value)
 {
-    // fillColorBuffer(m_uniforms.colors[0], value);
-    // m_uniforms.fillType = 0;
+    fillColorBuffer(m_uniforms.colors[0], value);
+    m_uniforms.fillType = 0;
 }
 
 void DefoldRenderPaint::style(rive::RenderPaintStyle value)
@@ -101,6 +108,20 @@ rive::BlendMode DefoldRenderPaint::blendMode() const
 void DefoldRenderPaint::shader(rive::rcp<rive::RenderShader> shader)
 {
     m_shader = shader;
+}
+
+void DefoldRenderPaint::draw(dmArray<DrawDescriptor>& drawDescriptors, VsUniforms& vertexUniforms, DefoldRenderPath* path)
+{
+    DrawDescriptor desc = path->drawFill();
+
+    desc.m_VsUniforms = vertexUniforms;
+    desc.m_FsUniforms = m_uniforms;
+
+    if (drawDescriptors.Full())
+    {
+        drawDescriptors.OffsetCapacity(8);
+    }
+    drawDescriptors.Push(desc);
 }
 
 // void draw(vs_path_params_t& vertexUniforms, DefoldRenderPath* path) {
@@ -253,7 +274,16 @@ void DefoldRenderPath::drawStroke(rive::ContourStroke* stroke) {
     //sg_draw(start < 2 ? 0 : (start - 2) * 3, end - start < 2 ? 0 : (end - start - 2) * 3, 1);
 }
 
-void DefoldRenderPath::drawFill() {
+DrawDescriptor DefoldRenderPath::drawFill()
+{
+    triangulate();
+
+    DrawDescriptor desc;
+    desc.m_Indices       = m_indices.Begin();
+    desc.m_IndicesCount  = m_indices.Size();
+    desc.m_Vertices      = m_vertices.Begin();
+    desc.m_VerticesCount = m_vertices.Size();
+    return desc;
 
     // if (triangulate()) {
     //     sg_destroy_buffer(m_vertexBuffer);
@@ -381,7 +411,6 @@ void DefoldRenderPath::drawFill() {
 // }
 
 DefoldTessRenderer::DefoldTessRenderer() {
-
     // m_meshPipeline = sg_make_pipeline((sg_pipeline_desc){
     //     .layout =
     //         {
@@ -694,6 +723,7 @@ void DefoldTessRenderer::orthographicProjection(float left,
 }
 
 void DefoldTessRenderer::drawImage(const rive::RenderImage* image, rive::BlendMode, float opacity) {
+    printf("drawImage\n");
     // vs_params_t vs_params;
 
     // const Mat2D& world = transform();
@@ -719,6 +749,7 @@ void DefoldTessRenderer::drawImageMesh(const rive::RenderImage* renderImage,
                                       rive::rcp<rive::RenderBuffer> indices_u16,
                                       rive::BlendMode blendMode,
                                       float opacity) {
+    printf("drawImageMesh\n");
     // vs_params_t vs_params;
 
     // const Mat2D& world = transform();
@@ -820,6 +851,8 @@ void DefoldTessRenderer::applyClipping() {
 
 void DefoldTessRenderer::reset()
 {
+    m_DrawDescriptors.SetSize(0);
+
     //m_currentPipeline = {0};
 }
 
@@ -848,15 +881,10 @@ void DefoldTessRenderer::drawPath(rive::RenderPath* path, rive::RenderPaint* _pa
     //     default: setPipeline(m_pathScreenPipeline[m_clipCount]); break;
     // }
 
-    //static_cast<SokolRenderPaint*>(paint)->draw(vs_params, static_cast<DefoldRenderPath*>(path));
-}
+    VsUniforms vs_params = {};
+    vs_params.world = transform();
 
-
-static void fillColorBuffer(float* buffer, rive::ColorInt value) {
-    buffer[0] = (float)rive::colorRed(value) / 0xFF;
-    buffer[1] = (float)rive::colorGreen(value) / 0xFF;
-    buffer[2] = (float)rive::colorBlue(value) / 0xFF;
-    buffer[3] = rive::colorOpacity(value);
+    static_cast<DefoldRenderPaint*>(paint)->draw(m_DrawDescriptors, vs_params, static_cast<DefoldRenderPath*>(path));
 }
 
 class Gradient : public rive::RenderShader {
