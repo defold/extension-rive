@@ -34,6 +34,75 @@ static void fillColorBuffer(float* buffer, rive::ColorInt value) {
 
 namespace dmRive
 {
+    class Gradient : public rive::RenderShader {
+    private:
+        rive::Vec2D m_start;
+        rive::Vec2D m_end;
+        int m_type;
+        std::vector<float> m_colors;
+        std::vector<float> m_stops;
+        bool m_isVisible = false;
+
+    private:
+        // General gradient
+        Gradient(int type, const rive::ColorInt colors[], const float stops[], size_t count) :
+            m_type(type) {
+            m_stops.resize(count);
+            m_colors.resize(count * 4);
+            for (int i = 0, colorIndex = 0; i < count; i++, colorIndex += 4) {
+                fillColorBuffer(&m_colors[colorIndex], colors[i]);
+                m_stops[i] = stops[i];
+                if (m_colors[colorIndex + 3] > 0.0f) {
+                    m_isVisible = true;
+                }
+            }
+        }
+
+        Gradient() {}
+
+    public:
+        virtual ~Gradient() {}
+
+        // Linear gradient
+        Gradient(float sx,
+                      float sy,
+                      float ex,
+                      float ey,
+                      const rive::ColorInt colors[],
+                      const float stops[],
+                      size_t count) :
+            Gradient(1, colors, stops, count) {
+            m_start = rive::Vec2D(sx, sy);
+            m_end = rive::Vec2D(ex, ey);
+        }
+
+        Gradient(float cx,
+                      float cy,
+                      float radius,
+                      const rive::ColorInt colors[], // [count]
+                      const float stops[],     // [count]
+                      size_t count) :
+            Gradient(2, colors, stops, count) {
+            m_start = rive::Vec2D(cx, cy);
+            m_end = rive::Vec2D(cx + radius, cy);
+        }
+
+        void bind(VsUniforms& vertexUniforms, FsUniforms& fragmentUniforms)
+        {
+            auto stopCount = m_stops.size();
+            vertexUniforms.fillType      = fragmentUniforms.fillType = m_type;
+            vertexUniforms.gradientStart = m_start;
+            vertexUniforms.gradientEnd   = m_end;
+            fragmentUniforms.stopCount   = stopCount;
+            for (int i = 0; i < stopCount; i++) {
+                auto colorBufferIndex = i * 4;
+                for (int j = 0; j < 4; j++) {
+                    fragmentUniforms.colors[i][j] = m_colors[colorBufferIndex + j];
+                }
+                fragmentUniforms.stops[i / 4][i % 4] = m_stops[i];
+            }
+        }
+    };
 
 DefoldRenderImage::DefoldRenderImage(dmhash_t name_hash)
 : m_NameHash(name_hash)
@@ -112,6 +181,11 @@ void DefoldRenderPaint::shader(rive::rcp<rive::RenderShader> shader)
 
 void DefoldRenderPaint::draw(dmArray<DrawDescriptor>& drawDescriptors, VsUniforms& vertexUniforms, DefoldRenderPath* path)
 {
+    if (m_shader)
+    {
+        static_cast<Gradient*>(m_shader.get())->bind(vertexUniforms, m_uniforms);
+    }
+
     DrawDescriptor desc = path->drawFill();
 
     desc.m_VsUniforms = vertexUniforms;
@@ -886,75 +960,6 @@ void DefoldTessRenderer::drawPath(rive::RenderPath* path, rive::RenderPaint* _pa
 
     static_cast<DefoldRenderPaint*>(paint)->draw(m_DrawDescriptors, vs_params, static_cast<DefoldRenderPath*>(path));
 }
-
-class Gradient : public rive::RenderShader {
-private:
-    rive::Vec2D m_start;
-    rive::Vec2D m_end;
-    int m_type;
-    std::vector<float> m_colors;
-    std::vector<float> m_stops;
-    bool m_isVisible = false;
-
-private:
-    // General gradient
-    Gradient(int type, const rive::ColorInt colors[], const float stops[], size_t count) :
-        m_type(type) {
-        m_stops.resize(count);
-        m_colors.resize(count * 4);
-        for (int i = 0, colorIndex = 0; i < count; i++, colorIndex += 4) {
-            fillColorBuffer(&m_colors[colorIndex], colors[i]);
-            m_stops[i] = stops[i];
-            if (m_colors[colorIndex + 3] > 0.0f) {
-                m_isVisible = true;
-            }
-        }
-    }
-
-    Gradient() {}
-
-public:
-    virtual ~Gradient() {}
-
-    // Linear gradient
-    Gradient(float sx,
-                  float sy,
-                  float ex,
-                  float ey,
-                  const rive::ColorInt colors[],
-                  const float stops[],
-                  size_t count) :
-        Gradient(1, colors, stops, count) {
-        m_start = rive::Vec2D(sx, sy);
-        m_end = rive::Vec2D(ex, ey);
-    }
-
-    Gradient(float cx,
-                  float cy,
-                  float radius,
-                  const rive::ColorInt colors[], // [count]
-                  const float stops[],     // [count]
-                  size_t count) :
-        Gradient(2, colors, stops, count) {
-        m_start = rive::Vec2D(cx, cy);
-        m_end = rive::Vec2D(cx + radius, cy);
-    }
-
-    // void bind(vs_path_params_t& vertexUniforms, fs_path_uniforms_t& fragmentUniforms) {
-    //     auto stopCount = m_stops.size();
-    //     vertexUniforms.fillType = fragmentUniforms.fillType = m_type;
-    //     vertexUniforms.gradientStart = m_start;
-    //     vertexUniforms.gradientEnd = m_end;
-    //     fragmentUniforms.stopCount = stopCount;
-    //     for (int i = 0; i < stopCount; i++) {
-    //         auto colorBufferIndex = i * 4;
-    //         for (int j = 0; j < 4; j++) {
-    //             fragmentUniforms.colors[i][j] = m_colors[colorBufferIndex + j];
-    //         }
-    //         fragmentUniforms.stops[i / 4][i % 4] = m_stops[i];
-    //     }
-    // }
-};
 
 // The factory implementations are here since they belong to the actual renderer.
 

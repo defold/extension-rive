@@ -1,5 +1,5 @@
 [bootstrap]
-main_collection = /main/quad/quad.collectionc
+main_collection = /main/stroke/stroke.collectionc
 render = /defold-rive/lua/rive.renderc
 
 [script]

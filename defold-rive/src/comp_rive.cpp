@@ -618,6 +618,8 @@ namespace dmRive
         RiveVertex* vb_write = vb_begin;
         uint16_t* ix_write = (uint16_t*) ix_begin;
 
+        // printf("Ro_Count: %d\n", ro_count);
+
         for (int i = 0; i < ro_count; ++i)
         {
             if (!engine_ctx.m_RenderConstants[i])
@@ -650,34 +652,36 @@ namespace dmRive
                 vb_write->y = vx.y;
                 vb_write->u = 0.0f;
                 vb_write->v = 0.0f;
+
+                // printf("VX[%d]: %f %f\n", vertex_offset + j, vx.x, vx.y);
+
                 vb_write++;
             }
 
             for (int j = 0; j < draw_desc.m_IndicesCount; ++j)
             {
                 *ix_write = draw_desc.m_Indices[j] + vertex_offset;
+
+                // printf("%d ", ix_write[0]);
+
                 ix_write++;
             }
 
+            // printf("\n");
+
             const dmRive::FsUniforms fs_uniforms = draw_desc.m_FsUniforms;
             const dmRive::VsUniforms vs_uniforms = draw_desc.m_VsUniforms;
-
-            dmVMath::Vector4 properties((float)fs_uniforms.fillType, (float) fs_uniforms.stopCount, 0.0f, 0.0f);
-
-            const int MAX_STOPS = 16;
+            const int MAX_STOPS = 4;
+            const int MAX_COLORS = 16;
             const int num_stops = fs_uniforms.stopCount > 1 ? fs_uniforms.stopCount : 1;
 
-            dmVMath::Vector4 colors[MAX_STOPS];
-            for (int i = 0; i < (int) num_stops; ++i)
-            {
-                colors[i] = dmVMath::Vector4(fs_uniforms.colors[i][0],
-                                             fs_uniforms.colors[i][1],
-                                             fs_uniforms.colors[i][2],
-                                             fs_uniforms.colors[i][3]);
-            }
+            dmVMath::Vector4 properties((float)fs_uniforms.fillType, (float) fs_uniforms.stopCount, 0.0f, 0.0f);
+            dmVMath::Vector4 gradient_limits(vs_uniforms.gradientStart.x, vs_uniforms.gradientStart.y, vs_uniforms.gradientEnd.x, vs_uniforms.gradientEnd.y);
 
             dmGameSystem::SetRenderConstant(ro_constants, UNIFORM_PROPERTIES, (dmVMath::Vector4*) &properties, 1);
-            dmGameSystem::SetRenderConstant(ro_constants, UNIFORM_COLOR, colors, MAX_STOPS);
+            dmGameSystem::SetRenderConstant(ro_constants, UNIFORM_GRADIENT_LIMITS, (dmVMath::Vector4*) &gradient_limits, 1);
+            dmGameSystem::SetRenderConstant(ro_constants, UNIFORM_COLOR, (dmVMath::Vector4*) fs_uniforms.colors, sizeof(fs_uniforms.colors) / sizeof(dmVMath::Vector4));
+            dmGameSystem::SetRenderConstant(ro_constants, UNIFORM_STOPS, (dmVMath::Vector4*) fs_uniforms.stops, sizeof(fs_uniforms.stops) / sizeof(dmVMath::Vector4));
             dmGameSystem::EnableRenderObjectConstants(&ro, ro_constants);
 
             //ro.m_SetStencilTest    = 1;
@@ -689,19 +693,7 @@ namespace dmRive
             //dmGameSystem::SetRenderConstant(render_constants, UNIFORM_COVER, &zero, 1);
 
             // Mat2DToMat4(ctx.m_Event.m_TransformWorld, ro.m_WorldTransform);
-
-            //Mat2DToMat4(vs_uniforms.world, ro.m_WorldTransform);
             memcpy(&ro.m_WorldTransform, &vs_uniforms.world, sizeof(vs_uniforms.world));
-            /*
-            rive::Mat2D transform;
-            Mat4ToMat2D(c->m_World, transform);
-
-            // JG: Rive is using a different coordinate system that defold,
-            //     in their examples they flip the projection but that isn't
-            //     really compatible with our setup I don't think?
-            rive::Vec2D yflip(1.0f,-1.0f);
-            transform.scale(yflip);
-            */
 
             index_offset += draw_desc.m_IndicesCount;
             vertex_offset += draw_desc.m_VerticesCount;
