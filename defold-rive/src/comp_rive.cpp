@@ -535,6 +535,97 @@ namespace dmRive
     //     dmGameSystem::EnableRenderObjectConstants(&ro, render_constants);
     // }
 
+    static void ApplyDrawMode(dmRender::RenderObject& ro, dmRive::DrawMode draw_mode, uint8_t clipIndex)
+    {
+        dmRender::StencilTestParams& stencil = ro.m_StencilTestParams;
+
+        ro.m_SetStencilTest = 0;
+
+        switch(draw_mode)
+        {
+            case dmRive::DRAW_MODE_CLIP_DECR:
+                ro.m_SetStencilTest          = 1;
+                stencil.m_Ref                = 0x0;
+                stencil.m_RefMask            = 0xFF;
+                stencil.m_BufferMask         = 0xFF;
+                stencil.m_ColorBufferMask    = 0;
+                stencil.m_SeparateFaceStates = 0;
+
+                stencil.m_Front = {
+                    .m_Func = dmGraphics::COMPARE_FUNC_ALWAYS,
+                    .m_OpSFail  = dmGraphics::STENCIL_OP_KEEP,
+                    .m_OpDPFail = dmGraphics::STENCIL_OP_KEEP,
+                    .m_OpDPPass = dmGraphics::STENCIL_OP_DECR_WRAP,
+                };
+
+                break;
+            case dmRive::DRAW_MODE_CLIP_INCR:
+                ro.m_SetStencilTest          = 1;
+                stencil.m_Ref                = 0x0;
+                stencil.m_RefMask            = 0xFF;
+                stencil.m_BufferMask         = 0xFF;
+                stencil.m_ColorBufferMask    = 0;
+                stencil.m_SeparateFaceStates = 0;
+
+                stencil.m_Front = {
+                    .m_Func = dmGraphics::COMPARE_FUNC_ALWAYS,
+                    .m_OpSFail  = dmGraphics::STENCIL_OP_KEEP,
+                    .m_OpDPFail = dmGraphics::STENCIL_OP_KEEP,
+                    .m_OpDPPass = dmGraphics::STENCIL_OP_INCR_WRAP,
+                };
+                break;
+            case dmRive::DRAW_MODE_SRC_OVER:
+                ro.m_SetStencilTest    = clipIndex != 0;
+                stencil.m_Ref          = clipIndex;
+                stencil.m_RefMask      = 0xFF;
+                stencil.m_BufferMask   = 0x00;
+                stencil.m_Front.m_Func = dmGraphics::COMPARE_FUNC_EQUAL;
+                break;
+            default:break;
+        }
+        /*
+        ps_now.m_WriteColorMask          = stp.m_ColorBufferMask;
+        ps_now.m_StencilWriteMask        = stp.m_BufferMask;
+        ps_now.m_StencilReference        = stp.m_Ref;
+        ps_now.m_StencilCompareMask      = stp.m_RefMask;
+
+        params->m_Front = {
+            .m_Func     = dmGraphics::COMPARE_FUNC_ALWAYS,
+            .m_OpSFail  = dmGraphics::STENCIL_OP_KEEP,
+            .m_OpDPFail = dmGraphics::STENCIL_OP_KEEP,
+            .m_OpDPPass = dmGraphics::STENCIL_OP_INCR_WRAP,
+        };
+
+        params->m_Back = {
+            .m_Func     = dmGraphics::COMPARE_FUNC_ALWAYS,
+            .m_OpSFail  = dmGraphics::STENCIL_OP_KEEP,
+            .m_OpDPFail = dmGraphics::STENCIL_OP_KEEP,
+            .m_OpDPPass = dmGraphics::STENCIL_OP_DECR_WRAP,
+        };
+
+        params->m_Ref                = 0x00;
+        params->m_RefMask            = 0xFF;
+        params->m_BufferMask         = 0xFF;
+        params->m_ColorBufferMask    = 0x00;
+        params->m_ClearBuffer        = 0;
+        params->m_SeparateFaceStates = 1;
+
+        if (is_clipping)
+        {
+            params->m_Front.m_Func = dmGraphics::COMPARE_FUNC_EQUAL;
+            params->m_Back.m_Func  = dmGraphics::COMPARE_FUNC_EQUAL;
+            params->m_Ref          = 0x80;
+            params->m_RefMask      = 0x80;
+            params->m_BufferMask   = 0x7F;
+        }
+
+        if (clear_clipping_flag)
+        {
+            params->m_ClearBuffer = 1;
+        }
+        */
+    }
+
 
     static void RenderBatch(RiveWorld* world, dmRender::HRenderContext render_context, dmRender::RenderListEntry *buf, uint32_t* begin, uint32_t* end)
     {
@@ -691,6 +782,10 @@ namespace dmRive
             dmGameSystem::SetRenderConstant(ro_constants, UNIFORM_COLOR, (dmVMath::Vector4*) fs_uniforms.colors, sizeof(fs_uniforms.colors) / sizeof(dmVMath::Vector4));
             dmGameSystem::SetRenderConstant(ro_constants, UNIFORM_STOPS, (dmVMath::Vector4*) fs_uniforms.stops, sizeof(fs_uniforms.stops) / sizeof(dmVMath::Vector4));
             dmGameSystem::EnableRenderObjectConstants(&ro, ro_constants);
+
+            // TODO
+            // ApplyDrawMode(ro, draw_desc.m_DrawMode, draw_desc.m_ClipIndex);
+
 
             //ro.m_SetStencilTest    = 1;
             //ro.m_SetFaceWinding    = 1;

@@ -12,7 +12,7 @@
 #include <rive/tess/tess_render_path.hpp>
 #include <rive/tess/contour_stroke.hpp>
 //#include <generated/shader.h>
-//#include <unordered_set>
+#include <unordered_set>
 #include <dmsdk/dlib/array.h>
 
 template<typename T>
@@ -179,12 +179,14 @@ void DefoldRenderPaint::shader(rive::rcp<rive::RenderShader> shader)
     m_shader = shader;
 }
 
-void DefoldRenderPaint::draw(dmArray<DrawDescriptor>& drawDescriptors, VsUniforms& vertexUniforms, DefoldRenderPath* path)
+void DefoldRenderPaint::draw(dmArray<DrawDescriptor>& drawDescriptors, VsUniforms& vertexUniforms, DefoldRenderPath* path, rive::BlendMode blendMode, uint8_t clipIndex)
 {
     if (m_shader)
     {
         static_cast<Gradient*>(m_shader.get())->bind(vertexUniforms, m_uniforms);
     }
+
+    // printf("paint.draw\n");
 
     if (m_stroke != nullptr)
     {
@@ -223,7 +225,7 @@ void DefoldRenderPaint::draw(dmArray<DrawDescriptor>& drawDescriptors, VsUniform
                     break;
                 }
 
-                printf("SS: %d, SE: %d\n", (int) strokeStart, (int) strokeEnd);
+                // printf("SS: %d, SE: %d\n", (int) strokeStart, (int) strokeEnd);
 
                 std::size_t length = strokeEnd - strokeStart;
                 if (length > 2) {
@@ -296,6 +298,8 @@ void DefoldRenderPaint::draw(dmArray<DrawDescriptor>& drawDescriptors, VsUniform
 
         desc.m_VsUniforms = vertexUniforms;
         desc.m_FsUniforms = m_uniforms;
+        desc.m_ClipIndex  = clipIndex;
+        desc.m_DrawMode   = DRAW_MODE_SRC_OVER; // Todo: blend mode
 
         if (drawDescriptors.Full())
         {
@@ -452,6 +456,8 @@ void DefoldRenderPath::drawStroke(rive::ContourStroke* stroke) {
     }
     std::size_t start, end;
     stroke->nextRenderOffset(start, end);
+
+    // what does this do?
     //sg_draw(start < 2 ? 0 : (start - 2) * 3, end - start < 2 ? 0 : (end - start - 2) * 3, 1);
 }
 
@@ -965,67 +971,98 @@ void DefoldTessRenderer::applyClipping() {
     }
     m_IsClippingDirty = false;
 
-    // RenderState& state = m_Stack.back();
+    rive::RenderState& state = m_Stack.back();
 
-    // auto currentClipLength = m_ClipPaths.size();
-    // if (currentClipLength == state.clipPaths.size()) {
-    //     // Same length so now check if they're all the same.
-    //     bool allSame = true;
-    //     for (std::size_t i = 0; i < currentClipLength; i++) {
-    //         if (state.clipPaths[i].path() != m_ClipPaths[i].path()) {
-    //             allSame = false;
-    //             break;
-    //         }
-    //     }
-    //     if (allSame) {
-    //         return;
-    //     }
-    // }
+    // printf("applyClipping\n");
 
-    // vs_path_params_t vs_params = {.fillType = 0};
-    // fs_path_uniforms_t uniforms = {0};
+    auto currentClipLength = m_ClipPaths.Size();
+    if (currentClipLength == state.clipPaths.size()) {
+        // Same length so now check if they're all the same.
+        bool allSame = true;
+        for (std::size_t i = 0; i < currentClipLength; i++) {
+            if (state.clipPaths[i].path() != m_ClipPaths[i].path()) {
+                allSame = false;
+                break;
+            }
+        }
+        if (allSame) {
+            return;
+        }
+    }
 
-    // // Decr any paths from the last clip that are gone.
-    // std::unordered_set<RenderPath*> alreadyApplied;
+    VsUniforms vs_uniforms = { .fillType = 0 };
+    FsUniforms fs_uniforms = {0};
 
-    // for (auto appliedPath : m_ClipPaths) {
-    //     bool decr = true;
-    //     for (auto nextClipPath : state.clipPaths) {
-    //         if (nextClipPath.path() == appliedPath.path()) {
-    //             decr = false;
-    //             alreadyApplied.insert(appliedPath.path());
-    //             break;
-    //         }
-    //     }
-    //     if (decr) {
-    //         // Draw appliedPath.path() with decr pipeline
-    //         setPipeline(m_decClipPipeline);
-    //         vs_params.mvp = m_Projection * appliedPath.transform();
-    //         sg_apply_uniforms(SG_SHADERSTAGE_VS, SLOT_vs_path_params, SG_RANGE_REF(vs_params));
-    //         sg_apply_uniforms(SG_SHADERSTAGE_FS, SLOT_fs_path_uniforms, SG_RANGE_REF(uniforms));
-    //         auto sokolPath = static_cast<DefoldRenderPath*>(appliedPath.path());
-    //         sokolPath->drawFill();
-    //     }
-    // }
+    // Decr any paths from the last clip that are gone.
+    std::unordered_set<rive::RenderPath*> alreadyApplied;
 
-    // // Incr any paths that are added.
-    // for (auto nextClipPath : state.clipPaths) {
-    //     if (alreadyApplied.count(nextClipPath.path())) {
-    //         // Already applied.
-    //         continue;
-    //     }
-    //     // Draw nextClipPath.path() with incr pipeline
-    //     setPipeline(m_incClipPipeline);
-    //     vs_params.mvp = m_Projection * nextClipPath.transform();
-    //     sg_apply_uniforms(SG_SHADERSTAGE_VS, SLOT_vs_path_params, SG_RANGE_REF(vs_params));
-    //     sg_apply_uniforms(SG_SHADERSTAGE_FS, SLOT_fs_path_uniforms, SG_RANGE_REF(uniforms));
-    //     auto sokolPath = static_cast<DefoldRenderPath*>(nextClipPath.path());
-    //     sokolPath->drawFill();
-    // }
+    for (int i = 0; i < m_ClipPaths.Size(); ++i)
+    {
+        auto appliedPath = m_ClipPaths[i];
+        bool decr = true;
+        for (auto nextClipPath : state.clipPaths) {
+            if (nextClipPath.path() == appliedPath.path()) {
+                decr = false;
+                alreadyApplied.insert(appliedPath.path());
+                break;
+            }
+        }
+        if (decr) {
+            // Draw appliedPath.path() with decr pipeline
 
-    // // Pick which pipeline to use for draw path operations.
-    // // TODO: something similar for draw mesh.
-    // m_clipCount = state.clipPaths.size();
+            // setPipeline(m_decClipPipeline);
+            vs_uniforms.world = appliedPath.transform();
+
+            //sg_apply_uniforms(SG_SHADERSTAGE_VS, SLOT_vs_path_params, SG_RANGE_REF(vs_uniforms));
+            //sg_apply_uniforms(SG_SHADERSTAGE_FS, SLOT_fs_path_uniforms, SG_RANGE_REF(uniforms));
+            auto path = static_cast<DefoldRenderPath*>(appliedPath.path());
+            DrawDescriptor desc = path->drawFill();
+
+            desc.m_VsUniforms = vs_uniforms;
+            desc.m_FsUniforms = fs_uniforms;
+            desc.m_DrawMode   = DRAW_MODE_CLIP_DECR;
+
+            if (m_DrawDescriptors.Full())
+            {
+                m_DrawDescriptors.OffsetCapacity(8);
+            }
+            m_DrawDescriptors.Push(desc);
+        }
+    }
+
+    // Incr any paths that are added.
+    for (int i = 0; i < state.clipPaths.size(); ++i)
+    {
+        auto nextClipPath = state.clipPaths[i];
+        if (alreadyApplied.count(nextClipPath.path())) {
+            // Already applied.
+            continue;
+        }
+        // Draw nextClipPath.path() with incr pipeline
+        // setPipeline(m_incClipPipeline);
+        vs_uniforms.world = nextClipPath.transform();
+        // sg_apply_uniforms(SG_SHADERSTAGE_VS, SLOT_vs_path_params, SG_RANGE_REF(vs_uniforms));
+        // sg_apply_uniforms(SG_SHADERSTAGE_FS, SLOT_fs_path_uniforms, SG_RANGE_REF(uniforms));
+        auto path = static_cast<DefoldRenderPath*>(nextClipPath.path());
+        DrawDescriptor desc = path->drawFill();
+
+        desc.m_VsUniforms = vs_uniforms;
+        desc.m_FsUniforms = fs_uniforms;
+        desc.m_DrawMode   = DRAW_MODE_CLIP_INCR;
+
+        if (m_DrawDescriptors.Full())
+        {
+            m_DrawDescriptors.OffsetCapacity(8);
+        }
+        m_DrawDescriptors.Push(desc);
+    }
+
+    // Pick which pipeline to use for draw path operations.
+    // TODO: something similar for draw mesh.
+    m_clipCount = state.clipPaths.size();
+
+    EnsureSize(m_ClipPaths, state.clipPaths.size());
+    memcpy(m_ClipPaths.Begin(), &state.clipPaths.front(), state.clipPaths.size() * sizeof(rive::SubPath));
 
     // m_ClipPaths = state.clipPaths;
 }
@@ -1065,7 +1102,26 @@ void DefoldTessRenderer::drawPath(rive::RenderPath* path, rive::RenderPaint* _pa
     VsUniforms vs_params = {};
     vs_params.world = transform();
 
-    static_cast<DefoldRenderPaint*>(paint)->draw(m_DrawDescriptors, vs_params, static_cast<DefoldRenderPath*>(path));
+    /*
+    switch (paint->blendMode()) {
+        case rive::BlendMode::srcOver:
+            printf("BlendMode::srcOver\n");
+            break;//(m_pathPipeline[m_clipCount]); break;
+        case rive::BlendMode::screen:
+            printf("BlendMode::screen\n");
+            break;//(m_pathScreenPipeline[m_clipCount]); break;
+        case rive::BlendMode::colorDodge:
+            printf("BlendMode::colorDodge\n");
+            break;//(m_pathAdditivePipeline[m_clipCount]); break;
+        case rive::BlendMode::multiply:
+            printf("BlendMode::multiply\n");
+            break;//(m_pathMultiplyPipeline[m_clipCount]); break;
+        default:
+            break;//(m_pathScreenPipeline[m_clipCount]); break;
+    }
+    */
+
+    static_cast<DefoldRenderPaint*>(paint)->draw(m_DrawDescriptors, vs_params, static_cast<DefoldRenderPath*>(path), paint->blendMode(), m_clipCount);
 }
 
 // The factory implementations are here since they belong to the actual renderer.

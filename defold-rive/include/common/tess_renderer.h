@@ -75,14 +75,24 @@ namespace dmRive {
         int   stopCount;
     };
 
+    enum DrawMode
+    {
+        DRAW_MODE_CLIP_DEFAULT = 0,
+        DRAW_MODE_CLIP_DECR    = 1,
+        DRAW_MODE_CLIP_INCR    = 2,
+        DRAW_MODE_SRC_OVER     = 3,
+    };
+
     struct DrawDescriptor
     {
         VsUniforms   m_VsUniforms;
         FsUniforms   m_FsUniforms;
         rive::Vec2D* m_Vertices;
         uint16_t*    m_Indices;
+        DrawMode     m_DrawMode;
         uint32_t     m_VerticesCount;
         uint32_t     m_IndicesCount;
+        uint8_t      m_ClipIndex;
     };
 
     class DefoldRenderPath;
@@ -122,7 +132,7 @@ namespace dmRive {
         rive::BlendMode blendMode() const;
         void shader(rive::rcp<rive::RenderShader> shader) override;
 
-        void draw(dmArray<DrawDescriptor>& drawDescriptors, VsUniforms& vertexUniforms, DefoldRenderPath* path);
+        void draw(dmArray<DrawDescriptor>& drawDescriptors, VsUniforms& vertexUniforms, DefoldRenderPath* path, rive::BlendMode blendMode, uint8_t clipIndex);
     };
 
     class DefoldRenderPath : public rive::TessRenderPath {
