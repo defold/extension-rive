@@ -87,58 +87,62 @@ namespace dmRive {
 
     class DefoldRenderPath;
 
-class DefoldRenderPaint : public rive::RenderPaint {
-private:
-    //fs_path_uniforms_t m_uniforms = {0};
-    FsUniforms m_uniforms = {0};
-    rive::rcp<rive::RenderShader> m_shader;
-    rive::RenderPaintStyle m_style;
-    std::unique_ptr<rive::ContourStroke> m_stroke;
-    bool m_strokeDirty = false;
-    float m_strokeThickness = 0.0f;
-    rive::StrokeJoin m_strokeJoin;
-    rive::StrokeCap m_strokeCap;
+    class DefoldRenderPaint : public rive::RenderPaint {
+    private:
+        FsUniforms                    m_uniforms = {0};
+        rive::rcp<rive::RenderShader> m_shader;
+        rive::RenderPaintStyle        m_style;
 
-    // sg_buffer m_strokeVertexBuffer = {0};
-    // sg_buffer m_strokeIndexBuffer = {0};
-    dmArray<uint32_t> m_StrokeOffsets;
+        std::unique_ptr<rive::ContourStroke> m_stroke;
+        rive::StrokeJoin                     m_strokeJoin;
+        rive::StrokeCap                      m_strokeCap;
 
-    rive::BlendMode m_blendMode = rive::BlendMode::srcOver;
+        bool  m_strokeDirty = false;
+        float m_strokeThickness = 0.0f;
 
-public:
-    ~DefoldRenderPaint() override;
-    void color(rive::ColorInt value) override;
-    void style(rive::RenderPaintStyle value) override;
-    rive::RenderPaintStyle style() const;
-    void thickness(float value) override;
-    void join(rive::StrokeJoin value) override;
-    void cap(rive::StrokeCap value) override;
-    void invalidateStroke() override;
-    void blendMode(rive::BlendMode value) override;
-    rive::BlendMode blendMode() const;
-    void shader(rive::rcp<rive::RenderShader> shader) override;
+        // sg_buffer m_strokeVertexBuffer = {0};
+        // sg_buffer m_strokeIndexBuffer = {0};
 
-    void draw(dmArray<DrawDescriptor>& drawDescriptors, VsUniforms& vertexUniforms, DefoldRenderPath* path);
-};
+        dmArray<rive::Vec2D> m_strokeVertices;
+        dmArray<uint16_t>    m_strokeIndices;
+        dmArray<uint32_t>    m_strokeOffsets;
 
-class DefoldRenderPath : public rive::TessRenderPath {
-public:
-    dmArray<rive::Vec2D> m_vertices;
-    dmArray<uint16_t> m_indices;
+        rive::BlendMode m_blendMode = rive::BlendMode::srcOver;
 
-    DefoldRenderPath();
-    DefoldRenderPath(rive::RawPath& rawPath, rive::FillRule fillRule);
-    ~DefoldRenderPath();
+    public:
+        ~DefoldRenderPaint() override;
+        void color(rive::ColorInt value) override;
+        void style(rive::RenderPaintStyle value) override;
+        rive::RenderPaintStyle style() const;
+        void thickness(float value) override;
+        void join(rive::StrokeJoin value) override;
+        void cap(rive::StrokeCap value) override;
+        void invalidateStroke() override;
+        void blendMode(rive::BlendMode value) override;
+        rive::BlendMode blendMode() const;
+        void shader(rive::rcp<rive::RenderShader> shader) override;
 
-protected:
-    void addTriangles(rive::Span<const rive::Vec2D> vts, rive::Span<const uint16_t> ids) override;
-    void setTriangulatedBounds(const rive::AABB& value) override;
+        void draw(dmArray<DrawDescriptor>& drawDescriptors, VsUniforms& vertexUniforms, DefoldRenderPath* path);
+    };
 
-public:
-    void reset() override;
-    void drawStroke(rive::ContourStroke* stroke);
-    DrawDescriptor drawFill();
-};
+    class DefoldRenderPath : public rive::TessRenderPath {
+    public:
+        dmArray<rive::Vec2D> m_vertices;
+        dmArray<uint16_t> m_indices;
+
+        DefoldRenderPath();
+        DefoldRenderPath(rive::RawPath& rawPath, rive::FillRule fillRule);
+        ~DefoldRenderPath();
+
+    protected:
+        void addTriangles(rive::Span<const rive::Vec2D> vts, rive::Span<const uint16_t> ids) override;
+        void setTriangulatedBounds(const rive::AABB& value) override;
+
+    public:
+        void reset() override;
+        void drawStroke(rive::ContourStroke* stroke);
+        DrawDescriptor drawFill();
+    };
 
 class DefoldTessRenderer : public rive::TessRenderer {
 private:

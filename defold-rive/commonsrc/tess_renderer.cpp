@@ -65,23 +65,23 @@ namespace dmRive
 
         // Linear gradient
         Gradient(float sx,
-                      float sy,
-                      float ex,
-                      float ey,
-                      const rive::ColorInt colors[],
-                      const float stops[],
-                      size_t count) :
+                 float sy,
+                 float ex,
+                 float ey,
+                 const rive::ColorInt colors[],
+                 const float stops[],
+                 size_t count) :
             Gradient(1, colors, stops, count) {
             m_start = rive::Vec2D(sx, sy);
             m_end = rive::Vec2D(ex, ey);
         }
 
         Gradient(float cx,
-                      float cy,
-                      float radius,
-                      const rive::ColorInt colors[], // [count]
-                      const float stops[],     // [count]
-                      size_t count) :
+                 float cy,
+                 float radius,
+                 const rive::ColorInt colors[], // [count]
+                 const float stops[],     // [count]
+                 size_t count) :
             Gradient(2, colors, stops, count) {
             m_start = rive::Vec2D(cx, cy);
             m_end = rive::Vec2D(cx + radius, cy);
@@ -186,16 +186,123 @@ void DefoldRenderPaint::draw(dmArray<DrawDescriptor>& drawDescriptors, VsUniform
         static_cast<Gradient*>(m_shader.get())->bind(vertexUniforms, m_uniforms);
     }
 
-    DrawDescriptor desc = path->drawFill();
-
-    desc.m_VsUniforms = vertexUniforms;
-    desc.m_FsUniforms = m_uniforms;
-
-    if (drawDescriptors.Full())
+    if (m_stroke != nullptr)
     {
-        drawDescriptors.OffsetCapacity(8);
+        if (m_strokeDirty)
+        {
+            static rive::Mat2D identity;
+            m_stroke->reset();
+            path->extrudeStroke(m_stroke.get(),
+                                m_strokeJoin,
+                                m_strokeCap,
+                                m_strokeThickness / 2.0f,
+                                identity);
+            m_strokeDirty = false;
+
+            const std::vector<rive::Vec2D>& strip = m_stroke->triangleStrip();
+
+            auto size = strip.size();
+            if (size <= 2) {
+                return;
+            }
+
+            // Replace stroke buffer
+            EnsureSize(m_strokeVertices, strip.size());
+            memcpy(m_strokeVertices.Begin(), &strip.front(), strip.size() * sizeof(rive::Vec2D));
+
+            // Let's use a tris index buffer so we can keep the same sokol pipeline.
+            std::vector<uint16_t> indices;
+            std::vector<uint32_t> offsets;
+
+            // Build them by stroke offsets (where each offset represents a sub-path, or a move to)
+            m_stroke->resetRenderOffset();
+            // m_strokeOffsets.clear();
+            while (true) {
+                std::size_t strokeStart, strokeEnd;
+                if (!m_stroke->nextRenderOffset(strokeStart, strokeEnd)) {
+                    break;
+                }
+
+                printf("SS: %d, SE: %d\n", (int) strokeStart, (int) strokeEnd);
+
+                std::size_t length = strokeEnd - strokeStart;
+                if (length > 2) {
+                    for (std::size_t i = 0, end = length - 2; i < end; i++) {
+                        if ((i % 2) == 1) {
+                            indices.push_back(i + strokeStart);
+                            indices.push_back(i + 1 + strokeStart);
+                            indices.push_back(i + 2 + strokeStart);
+                        } else {
+                            indices.push_back(i + strokeStart);
+                            indices.push_back(i + 2 + strokeStart);
+                            indices.push_back(i + 1 + strokeStart);
+                        }
+                    }
+                    offsets.push_back(indices.size());
+                }
+            }
+
+            // TODO: use dmArray directly instead of vector when creating
+            EnsureSize(m_strokeIndices, indices.size());
+            memcpy(m_strokeIndices.Begin(), &indices.front(), indices.size() * sizeof(uint16_t));
+
+            EnsureSize(m_strokeOffsets, offsets.size());
+            memcpy(m_strokeOffsets.Begin(), &offsets.front(), offsets.size() * sizeof(uint32_t));
+
+            /*
+            m_strokeIndexBuffer = sg_make_buffer((sg_buffer_desc){
+                .type = SG_BUFFERTYPE_INDEXBUFFER,
+                .data =
+                    {
+                        indices.data(),
+                        indices.size() * sizeof(uint16_t),
+                    },
+            });
+            */
+        }
+
+        /*
+        if (m_strokeVertexBuffer.id == 0) {
+            return;
+        }
+
+        sg_bindings bind = {
+            .vertex_buffers[0] = m_strokeVertexBuffer,
+            .index_buffer = m_strokeIndexBuffer,
+        };
+
+        sg_apply_bindings(&bind);
+        */
+
+        m_stroke->resetRenderOffset();
+
+        DrawDescriptor desc;
+        desc.m_VsUniforms    = vertexUniforms;
+        desc.m_FsUniforms    = m_uniforms;
+        desc.m_Indices       = m_strokeIndices.Begin();
+        desc.m_IndicesCount  = m_strokeIndices.Size();
+        desc.m_Vertices      = m_strokeVertices.Begin();
+        desc.m_VerticesCount = m_strokeVertices.Size();
+
+        if (drawDescriptors.Full())
+        {
+            drawDescriptors.OffsetCapacity(8);
+        }
+        drawDescriptors.Push(desc);
     }
-    drawDescriptors.Push(desc);
+    else
+    {
+        DrawDescriptor desc = path->drawFill();
+
+        desc.m_VsUniforms = vertexUniforms;
+        desc.m_FsUniforms = m_uniforms;
+
+        if (drawDescriptors.Full())
+        {
+            drawDescriptors.OffsetCapacity(8);
+        }
+        drawDescriptors.Push(desc);
+    }
 }
 
 // void draw(vs_path_params_t& vertexUniforms, DefoldRenderPath* path) {

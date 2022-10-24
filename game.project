@@ -1,5 +1,5 @@
 [bootstrap]
-main_collection = /main/stroke/stroke.collectionc
+main_collection = /main/car/car.collectionc
 render = /defold-rive/lua/rive.renderc
 
 [script]

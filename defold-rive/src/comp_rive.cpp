@@ -618,7 +618,11 @@ namespace dmRive
         RiveVertex* vb_write = vb_begin;
         uint16_t* ix_write = (uint16_t*) ix_begin;
 
-        // printf("Ro_Count: %d\n", ro_count);
+        bool debug_info = false;
+    #define DO_LOG(...) \
+        if (debug_info) printf(__VA_ARGS__);
+
+        DO_LOG("Ro_Count: %d\n", ro_count);
 
         for (int i = 0; i < ro_count; ++i)
         {
@@ -645,6 +649,8 @@ namespace dmRive
             ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_SHORT;
             ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
 
+            DO_LOG("Ro: %d, vx %d ix %d\n", i, draw_desc.m_VerticesCount, draw_desc.m_IndicesCount);
+
             for (int j = 0; j < draw_desc.m_VerticesCount; ++j)
             {
                 rive::Vec2D& vx = draw_desc.m_Vertices[j];
@@ -653,7 +659,7 @@ namespace dmRive
                 vb_write->u = 0.0f;
                 vb_write->v = 0.0f;
 
-                // printf("VX[%d]: %f %f\n", vertex_offset + j, vx.x, vx.y);
+                DO_LOG("VX[%d]: %f %f\n", vertex_offset + j, vx.x, vx.y);
 
                 vb_write++;
             }
@@ -662,12 +668,14 @@ namespace dmRive
             {
                 *ix_write = draw_desc.m_Indices[j] + vertex_offset;
 
-                // printf("%d ", ix_write[0]);
+                DO_LOG("%d ", ix_write[0]);
 
                 ix_write++;
             }
 
-            // printf("\n");
+            DO_LOG("\n");
+
+        #undef DO_LOG
 
             const dmRive::FsUniforms fs_uniforms = draw_desc.m_FsUniforms;
             const dmRive::VsUniforms vs_uniforms = draw_desc.m_VsUniforms;
