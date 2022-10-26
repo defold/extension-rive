@@ -285,6 +285,8 @@ void DefoldRenderPaint::draw(dmArray<DrawDescriptor>& drawDescriptors, VsUniform
         desc.m_IndicesCount  = m_strokeIndices.Size();
         desc.m_Vertices      = m_strokeVertices.Begin();
         desc.m_VerticesCount = m_strokeVertices.Size();
+        desc.m_DrawMode      = DRAW_MODE_DEFAULT;
+        desc.m_BlendMode     = blendMode;
 
         if (drawDescriptors.Full())
         {
@@ -299,7 +301,8 @@ void DefoldRenderPaint::draw(dmArray<DrawDescriptor>& drawDescriptors, VsUniform
         desc.m_VsUniforms = vertexUniforms;
         desc.m_FsUniforms = m_uniforms;
         desc.m_ClipIndex  = clipIndex;
-        desc.m_DrawMode   = DRAW_MODE_SRC_OVER; // Todo: blend mode
+        desc.m_DrawMode   = DRAW_MODE_DEFAULT;
+        desc.m_BlendMode  = blendMode;
 
         if (drawDescriptors.Full())
         {
@@ -973,8 +976,6 @@ void DefoldTessRenderer::applyClipping() {
 
     rive::RenderState& state = m_Stack.back();
 
-    // printf("applyClipping\n");
-
     auto currentClipLength = m_ClipPaths.Size();
     if (currentClipLength == state.clipPaths.size()) {
         // Same length so now check if they're all the same.
@@ -1101,25 +1102,6 @@ void DefoldTessRenderer::drawPath(rive::RenderPath* path, rive::RenderPaint* _pa
 
     VsUniforms vs_params = {};
     vs_params.world = transform();
-
-    /*
-    switch (paint->blendMode()) {
-        case rive::BlendMode::srcOver:
-            printf("BlendMode::srcOver\n");
-            break;//(m_pathPipeline[m_clipCount]); break;
-        case rive::BlendMode::screen:
-            printf("BlendMode::screen\n");
-            break;//(m_pathScreenPipeline[m_clipCount]); break;
-        case rive::BlendMode::colorDodge:
-            printf("BlendMode::colorDodge\n");
-            break;//(m_pathAdditivePipeline[m_clipCount]); break;
-        case rive::BlendMode::multiply:
-            printf("BlendMode::multiply\n");
-            break;//(m_pathMultiplyPipeline[m_clipCount]); break;
-        default:
-            break;//(m_pathScreenPipeline[m_clipCount]); break;
-    }
-    */
 
     static_cast<DefoldRenderPaint*>(paint)->draw(m_DrawDescriptors, vs_params, static_cast<DefoldRenderPath*>(path), paint->blendMode(), m_clipCount);
 }

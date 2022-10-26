@@ -77,22 +77,22 @@ namespace dmRive {
 
     enum DrawMode
     {
-        DRAW_MODE_CLIP_DEFAULT = 0,
-        DRAW_MODE_CLIP_DECR    = 1,
-        DRAW_MODE_CLIP_INCR    = 2,
-        DRAW_MODE_SRC_OVER     = 3,
+        DRAW_MODE_DEFAULT   = 0,
+        DRAW_MODE_CLIP_DECR = 1,
+        DRAW_MODE_CLIP_INCR = 2,
     };
 
     struct DrawDescriptor
     {
-        VsUniforms   m_VsUniforms;
-        FsUniforms   m_FsUniforms;
-        rive::Vec2D* m_Vertices;
-        uint16_t*    m_Indices;
-        DrawMode     m_DrawMode;
-        uint32_t     m_VerticesCount;
-        uint32_t     m_IndicesCount;
-        uint8_t      m_ClipIndex;
+        VsUniforms      m_VsUniforms;
+        FsUniforms      m_FsUniforms;
+        rive::BlendMode m_BlendMode;
+        rive::Vec2D*    m_Vertices;
+        uint16_t*       m_Indices;
+        DrawMode        m_DrawMode;
+        uint32_t        m_VerticesCount;
+        uint32_t        m_IndicesCount;
+        uint8_t         m_ClipIndex;
     };
 
     class DefoldRenderPath;

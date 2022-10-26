@@ -13,7 +13,8 @@
 #include <queue>
 #include <vector>
 
-namespace rive {
+namespace rive
+{
 class File;
 class Drawable;
 class Factory;
@@ -26,7 +27,8 @@ class LinearAnimationInstance;
 class Scene;
 class StateMachineInstance;
 
-class Artboard : public ArtboardBase, public CoreContext, public ShapePaintContainer {
+class Artboard : public ArtboardBase, public CoreContext, public ShapePaintContainer
+{
     friend class File;
     friend class ArtboardImporter;
     friend class Component;
@@ -88,16 +90,18 @@ public:
 
     bool advance(double elapsedSeconds);
 
-    enum class DrawOption {
+    enum class DrawOption
+    {
         kNormal,
         kHideBG,
         kHideFG,
     };
     void draw(Renderer* renderer, DrawOption = DrawOption::kNormal);
 
-    // TODO: can we remove these getters? Who is calling them?
+#ifdef TESTING
     RenderPath* clipPath() const { return m_ClipPath.get(); }
     RenderPath* backgroundPath() const { return m_BackgroundPath.get(); }
+#endif
 
     const std::vector<Core*>& objects() const { return m_Objects; }
     const std::vector<NestedArtboard*> nestedArtboards() const { return m_NestedArtboards; }
@@ -108,9 +112,12 @@ public:
     bool isTranslucent(const LinearAnimation*) const;
     bool isTranslucent(const LinearAnimationInstance*) const;
 
-    template <typename T = Component> T* find(const std::string& name) {
-        for (auto object : m_Objects) {
-            if (object != nullptr && object->is<T>() && object->as<T>()->name() == name) {
+    template <typename T = Component> T* find(const std::string& name)
+    {
+        for (auto object : m_Objects)
+        {
+            if (object != nullptr && object->is<T>() && object->as<T>()->name() == name)
+            {
                 return reinterpret_cast<T*>(object);
             }
         }
@@ -159,7 +166,8 @@ public:
     StatusCode import(ImportStack& importStack) override;
 };
 
-class ArtboardInstance : public Artboard {
+class ArtboardInstance : public Artboard
+{
 public:
     ArtboardInstance();
     ~ArtboardInstance() override;

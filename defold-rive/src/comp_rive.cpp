@@ -539,12 +539,12 @@ namespace dmRive
     {
         dmRender::StencilTestParams& stencil = ro.m_StencilTestParams;
 
-        ro.m_SetStencilTest = 0;
+        ro.m_SetStencilTest = 1;
+        stencil.m_ColorBufferMask = 0xf;
 
         switch(draw_mode)
         {
             case dmRive::DRAW_MODE_CLIP_DECR:
-                ro.m_SetStencilTest          = 1;
                 stencil.m_Ref                = 0x0;
                 stencil.m_RefMask            = 0xFF;
                 stencil.m_BufferMask         = 0xFF;
@@ -560,7 +560,6 @@ namespace dmRive
 
                 break;
             case dmRive::DRAW_MODE_CLIP_INCR:
-                ro.m_SetStencilTest          = 1;
                 stencil.m_Ref                = 0x0;
                 stencil.m_RefMask            = 0xFF;
                 stencil.m_BufferMask         = 0xFF;
@@ -574,56 +573,17 @@ namespace dmRive
                     .m_OpDPPass = dmGraphics::STENCIL_OP_INCR_WRAP,
                 };
                 break;
-            case dmRive::DRAW_MODE_SRC_OVER:
-                ro.m_SetStencilTest    = clipIndex != 0;
+            case dmRive::DRAW_MODE_DEFAULT:
                 stencil.m_Ref          = clipIndex;
                 stencil.m_RefMask      = 0xFF;
                 stencil.m_BufferMask   = 0x00;
-                stencil.m_Front.m_Func = dmGraphics::COMPARE_FUNC_EQUAL;
+                stencil.m_Front.m_Func = clipIndex == 0 ? dmGraphics::COMPARE_FUNC_ALWAYS : dmGraphics::COMPARE_FUNC_EQUAL;
                 break;
-            default:break;
+            default:
+                printf("Draw Mode not supported :(\n");
+                assert(0 && "Draw mode not supported");
+                break;
         }
-        /*
-        ps_now.m_WriteColorMask          = stp.m_ColorBufferMask;
-        ps_now.m_StencilWriteMask        = stp.m_BufferMask;
-        ps_now.m_StencilReference        = stp.m_Ref;
-        ps_now.m_StencilCompareMask      = stp.m_RefMask;
-
-        params->m_Front = {
-            .m_Func     = dmGraphics::COMPARE_FUNC_ALWAYS,
-            .m_OpSFail  = dmGraphics::STENCIL_OP_KEEP,
-            .m_OpDPFail = dmGraphics::STENCIL_OP_KEEP,
-            .m_OpDPPass = dmGraphics::STENCIL_OP_INCR_WRAP,
-        };
-
-        params->m_Back = {
-            .m_Func     = dmGraphics::COMPARE_FUNC_ALWAYS,
-            .m_OpSFail  = dmGraphics::STENCIL_OP_KEEP,
-            .m_OpDPFail = dmGraphics::STENCIL_OP_KEEP,
-            .m_OpDPPass = dmGraphics::STENCIL_OP_DECR_WRAP,
-        };
-
-        params->m_Ref                = 0x00;
-        params->m_RefMask            = 0xFF;
-        params->m_BufferMask         = 0xFF;
-        params->m_ColorBufferMask    = 0x00;
-        params->m_ClearBuffer        = 0;
-        params->m_SeparateFaceStates = 1;
-
-        if (is_clipping)
-        {
-            params->m_Front.m_Func = dmGraphics::COMPARE_FUNC_EQUAL;
-            params->m_Back.m_Func  = dmGraphics::COMPARE_FUNC_EQUAL;
-            params->m_Ref          = 0x80;
-            params->m_RefMask      = 0x80;
-            params->m_BufferMask   = 0x7F;
-        }
-
-        if (clear_clipping_flag)
-        {
-            params->m_ClearBuffer = 1;
-        }
-        */
     }
 
 
@@ -783,19 +743,8 @@ namespace dmRive
             dmGameSystem::SetRenderConstant(ro_constants, UNIFORM_STOPS, (dmVMath::Vector4*) fs_uniforms.stops, sizeof(fs_uniforms.stops) / sizeof(dmVMath::Vector4));
             dmGameSystem::EnableRenderObjectConstants(&ro, ro_constants);
 
-            // TODO
-            // ApplyDrawMode(ro, draw_desc.m_DrawMode, draw_desc.m_ClipIndex);
+            ApplyDrawMode(ro, draw_desc.m_DrawMode, draw_desc.m_ClipIndex);
 
-
-            //ro.m_SetStencilTest    = 1;
-            //ro.m_SetFaceWinding    = 1;
-            //ro.m_FaceWinding       = ctx->m_FaceWinding;
-
-            //SetStencilDrawState(&ro.m_StencilTestParams, ctx->m_Event.m_IsClipping, ctx->m_ClearClippingFlag);
-            //dmVMath::Vector4 zero(0,0,0,0);
-            //dmGameSystem::SetRenderConstant(render_constants, UNIFORM_COVER, &zero, 1);
-
-            // Mat2DToMat4(ctx.m_Event.m_TransformWorld, ro.m_WorldTransform);
             memcpy(&ro.m_WorldTransform, &vs_uniforms.world, sizeof(vs_uniforms.world));
 
             index_offset += draw_desc.m_IndicesCount;
@@ -817,7 +766,7 @@ namespace dmRive
     {
         //DM_PROFILE(RiveModel, "UpdateTransforms");
 
-        dmArray<RiveComponent*>& components = world->m_Components.m_Objects;
+        dmArray<RiveComponent*>& components = world->m_Components.GetRawObjects();
         uint32_t n = components.Size();
         for (uint32_t i = 0; i < n; ++i)
         {
@@ -919,7 +868,7 @@ namespace dmRive
         // rive::Renderer* rive_renderer = (rive::Renderer*) renderer;
         float dt = params.m_UpdateContext->m_DT;
 
-        dmArray<RiveComponent*>& components = world->m_Components.m_Objects;
+        dmArray<RiveComponent*>& components = world->m_Components.GetRawObjects();
         const uint32_t count = components.Size();
 
         for (uint32_t i = 0; i < count; ++i)
@@ -1084,7 +1033,7 @@ namespace dmRive
         RiveWorld* world = (RiveWorld*)params.m_World;
         dmRive::DefoldTessRenderer* renderer = world->m_Renderer;
 
-        dmArray<RiveComponent*>& components = world->m_Components.m_Objects;
+        dmArray<RiveComponent*>& components = world->m_Components.GetRawObjects();
         const uint32_t count = components.Size();
         if (!count)
         {
@@ -1556,7 +1505,7 @@ namespace dmRive
     static void ResourceReloadedCallback(const dmResource::ResourceReloadedParams& params)
     {
         RiveWorld* world = (RiveWorld*) params.m_UserData;
-        dmArray<RiveComponent*>& components = world->m_Components.m_Objects;
+        dmArray<RiveComponent*>& components = world->m_Components.GetRawObjects();
         uint32_t n = components.Size();
         for (uint32_t i = 0; i < n; ++i)
         {
