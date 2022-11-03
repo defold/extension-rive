@@ -6,7 +6,7 @@ set -e
 
 PROJECT=defold-rive
 BOB=bob.jar
-DEFAULT_SERVER=https://build.defold.com
+DEFAULT_SERVER=https://build-stage.defold.com
 
 if [ "" == "${BOB}" ]; then
     BOB=~/work/defold/tmp/dynamo_home/share/java/bob.jar

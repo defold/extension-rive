@@ -224,7 +224,7 @@ extern "C" DM_DLLEXPORT void* RIVE_LoadFromBuffer(void* buffer, size_t buffer_si
     dmRive::AtlasNameResolver atlas_resolver = dmRive::AtlasNameResolver();
 
     rive::ImportResult result;
-    std::unique_ptr<rive::File> file = rive::File::import(rive::Span((uint8_t*)buffer, buffer_size),
+    std::unique_ptr<rive::File> file = rive::File::import(rive::Span<uint8_t>((uint8_t*)buffer, buffer_size),
                                                     factory,
                                                     &result,
                                                     &atlas_resolver);

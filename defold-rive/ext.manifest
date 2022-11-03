@@ -9,16 +9,19 @@ platforms:
 
     x86_64-osx:
         context:
-            flags: ["-std=c++17", "-fno-rtti", "-O0"]
+            flags: ["-std=c++17", "-fno-rtti"]
 
     ios:
         context:
             flags: ["-std=c++17", "-fno-aligned-allocation"]
 
-    armv7-ios:
-        context:
-            defines: ["DM_RIVE_UNSUPPORTED"]
-
     x86_64-linux:
         context:
             flags: ["-std=c++17"]
+
+    js-web:
+        context:
+            flags: ["-std=c++17", "-fno-rtti"]
+    wasm-web:
+        context:
+            flags: ["-std=c++17", "-fno-rtti"]
