@@ -29,6 +29,8 @@ void main()
         float f = iFillType == 1 ? gradient_uv.x : length(gradient_uv);
         vec4 color =
         mix(colors[0], colors[1], smoothstep(stops[0][0], stops[0][1], f));
+        int stop_cur = 1;
+        int stop_next = stop_cur+1;
         for (int i = 1; i < 15; ++i)
         {
             if (i >= iStopCount - 1)
@@ -38,7 +40,14 @@ void main()
 
             color = mix(color,
                 colors[i + 1],
-                smoothstep(stops[i/4][i%4], stops[(i+1)/4][(i+1)%4], f));
+                smoothstep(stops[i/4][stop_cur], stops[(i+1)/4][stop_next], f));
+
+            stop_cur = stop_next;
+            stop_next = stop_next + 1;
+            if (stop_next >= 4)
+            {
+                stop_next = stop_next - 4;
+            }
         }
         fragColor = color;    
     }
