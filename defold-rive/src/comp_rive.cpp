@@ -344,249 +344,6 @@ namespace dmRive
         }
     }
 
-
-    // static void RiveEventCallback_RenderObject(RiveEventsContext* ctx)
-    // {
-    //     RiveEventsDrawcallContext* engine_ctx = (RiveEventsDrawcallContext*)ctx->m_UserContext;
-
-    //     if (!engine_ctx->m_RenderConstants[ctx->m_Index])
-    //         engine_ctx->m_RenderConstants[ctx->m_Index] = dmGameSystem::CreateRenderConstants();
-
-    //     dmGameSystem::HComponentRenderConstants render_constants = engine_ctx->m_RenderConstants[ctx->m_Index];
-
-    //     switch(ctx->m_Event.m_Type)
-    //     {
-    //     case rive::EVENT_DRAW_STENCIL:
-    //         {
-    //             dmRender::RenderObject& ro = engine_ctx->m_RenderObjects[ctx->m_Index];
-
-    //             memset(&ro.m_StencilTestParams, 0, sizeof(ro.m_StencilTestParams));
-    //             ro.m_StencilTestParams.Init();
-    //             ro.Init();
-    //             ro.m_VertexDeclaration = engine_ctx->m_VertexDeclaration;
-    //             ro.m_VertexBuffer      = engine_ctx->m_VertexBuffer;
-    //             ro.m_IndexBuffer       = engine_ctx->m_IndexBuffer;
-    //             ro.m_Material          = engine_ctx->m_Material;
-    //             ro.m_VertexStart       = ctx->m_IndexOffsetBytes; // byte offset
-    //             ro.m_VertexCount       = ctx->m_IndexCount;
-    //             ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_INT;
-    //             ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
-    //             ro.m_SetStencilTest    = 1;
-    //             ro.m_SetFaceWinding    = 1;
-    //             ro.m_FaceWinding       = ctx->m_FaceWinding;
-
-    //             SetStencilDrawState(&ro.m_StencilTestParams, ctx->m_Event.m_IsClipping, ctx->m_ClearClippingFlag);
-
-    //             dmVMath::Vector4 zero(0,0,0,0);
-    //             dmGameSystem::SetRenderConstant(render_constants, UNIFORM_COVER, &zero, 1);
-
-    //             Mat2DToMat4(ctx->m_Event.m_TransformWorld, ro.m_WorldTransform);
-    //         }
-    //         break;
-
-    //     case rive::EVENT_DRAW_COVER:
-    //         {
-    //             dmRender::RenderObject& ro = engine_ctx->m_RenderObjects[ctx->m_Index];
-
-    //             memset(&ro.m_StencilTestParams, 0, sizeof(ro.m_StencilTestParams));
-    //             ro.m_StencilTestParams.Init();
-    //             ro.Init();
-    //             ro.m_VertexDeclaration = engine_ctx->m_VertexDeclaration;
-    //             ro.m_VertexBuffer      = engine_ctx->m_VertexBuffer;
-    //             ro.m_IndexBuffer       = engine_ctx->m_IndexBuffer;
-    //             ro.m_Material          = engine_ctx->m_Material;
-    //             ro.m_VertexStart       = ctx->m_IndexOffsetBytes; // byte offset
-    //             ro.m_VertexCount       = ctx->m_IndexCount;
-    //             ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_INT;
-    //             ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
-    //             ro.m_SetStencilTest    = 1;
-
-    //             ro.m_SetFaceWinding    = 1;
-    //             ro.m_FaceWinding       = ctx->m_FaceWinding;
-
-    //             SetStencilCoverState(&ro.m_StencilTestParams, ctx->m_Event.m_IsClipping, ctx->m_IsApplyingClipping);
-
-    //             if (!ctx->m_IsApplyingClipping)
-    //             {
-    //                 GetBlendFactorsFromBlendMode(engine_ctx->m_BlendMode, &ro.m_SourceBlendFactor, &ro.m_DestinationBlendFactor);
-    //                 ro.m_SetBlendFactors = 1;
-
-    //                 const rive::PaintData draw_entry_paint = rive::getPaintData(ctx->m_Paint);
-
-    //                 dmVMath::Vector4 properties((float)draw_entry_paint.m_FillType, (float)draw_entry_paint.m_StopCount, 0.0f, 0.0f);
-    //                 dmVMath::Matrix4 local_matrix;
-    //                 Mat2DToMat4(ctx->m_Event.m_TransformLocal, local_matrix);
-
-    //                 dmVMath::Vector4 colors[rive::PaintData::MAX_STOPS];
-    //                 for (int i = 0; i < (int) draw_entry_paint.m_StopCount; ++i)
-    //                 {
-    //                     colors[i] = dmVMath::Vector4(draw_entry_paint.m_Colors[i*4+0],
-    //                                                  draw_entry_paint.m_Colors[i*4+1],
-    //                                                  draw_entry_paint.m_Colors[i*4+2],
-    //                                                  draw_entry_paint.m_Colors[i*4+3]);
-    //                 }
-
-    //                 dmVMath::Vector4 stops[rive::PaintData::MAX_STOPS];
-    //                 for (int i = 0; i < (int) draw_entry_paint.m_StopCount; ++i)
-    //                 {
-    //                     stops[i][0] = draw_entry_paint.m_Stops[i];
-    //                 }
-
-    //                 dmVMath::Vector4 gradient_limits(draw_entry_paint.m_GradientLimits[0], draw_entry_paint.m_GradientLimits[1], draw_entry_paint.m_GradientLimits[2], draw_entry_paint.m_GradientLimits[3]);
-
-    //                 dmGameSystem::SetRenderConstant(render_constants, UNIFORM_COLOR, colors, draw_entry_paint.m_StopCount);
-    //                 dmGameSystem::SetRenderConstant(render_constants, UNIFORM_TRANSFORM_LOCAL, (dmVMath::Vector4*) &local_matrix, 4);
-    //                 dmGameSystem::SetRenderConstant(render_constants, UNIFORM_GRADIENT_LIMITS, &gradient_limits, 1);
-    //                 dmGameSystem::SetRenderConstant(render_constants, UNIFORM_PROPERTIES, (dmVMath::Vector4*) &properties, 1);
-    //                 dmGameSystem::SetRenderConstant(render_constants, UNIFORM_STOPS, stops, draw_entry_paint.m_StopCount);
-    //             }
-
-    //             // If we are fullscreen-covering, we don't transform the vertices
-    //             float no_projection = (float) ctx->m_Event.m_IsClipping && ctx->m_IsApplyingClipping;
-
-    //             dmVMath::Vector4 cover(no_projection, 0, 0, 0);
-    //             dmGameSystem::SetRenderConstant(render_constants, UNIFORM_COVER, &cover, 1);
-
-    //             Mat2DToMat4(ctx->m_Event.m_TransformWorld, ro.m_WorldTransform);
-    //         }
-    //         break;
-    //     case rive::EVENT_DRAW_STROKE:
-    //         {
-    //             dmRender::RenderObject& ro = engine_ctx->m_RenderObjects[ctx->m_Index];
-    //             ro.Init();
-    //             ro.m_StencilTestParams.Init();
-    //             ro.m_VertexDeclaration = engine_ctx->m_VertexDeclaration;
-    //             ro.m_VertexBuffer      = engine_ctx->m_VertexBuffer;
-    //             ro.m_IndexBuffer       = 0;
-    //             ro.m_Material          = engine_ctx->m_Material;
-    //             ro.m_VertexStart       = ctx->m_IndexOffsetBytes; // NOT byte offset for glDrawArray!
-    //             ro.m_VertexCount       = ctx->m_IndexCount;
-    //             ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLE_STRIP;
-    //             ro.m_SetStencilTest    = 1;
-
-    //             SetStencilCoverState(&ro.m_StencilTestParams, ctx->m_Event.m_IsClipping, ctx->m_IsApplyingClipping);
-
-    //             if (!ctx->m_IsApplyingClipping)
-    //             {
-    //                 GetBlendFactorsFromBlendMode(engine_ctx->m_BlendMode, &ro.m_SourceBlendFactor, &ro.m_DestinationBlendFactor);
-    //                 ro.m_SetBlendFactors = 1;
-
-    //                 const rive::PaintData draw_entry_paint = rive::getPaintData(ctx->m_Paint);
-
-    //                 dmVMath::Vector4 properties((float)draw_entry_paint.m_FillType, (float)draw_entry_paint.m_StopCount, 0.0f, 0.0f);
-    //                 dmVMath::Matrix4 local_matrix;
-    //                 Mat2DToMat4(ctx->m_Event.m_TransformLocal, local_matrix);
-
-    //                 dmVMath::Vector4 colors[rive::PaintData::MAX_STOPS];
-    //                 for (int i = 0; i < (int) draw_entry_paint.m_StopCount; ++i)
-    //                 {
-    //                     colors[i] = dmVMath::Vector4(draw_entry_paint.m_Colors[i*4+0],
-    //                                                  draw_entry_paint.m_Colors[i*4+1],
-    //                                                  draw_entry_paint.m_Colors[i*4+2],
-    //                                                  draw_entry_paint.m_Colors[i*4+3]);
-    //                 }
-
-    //                 dmVMath::Vector4 stops[rive::PaintData::MAX_STOPS];
-    //                 for (int i = 0; i < (int) draw_entry_paint.m_StopCount; ++i)
-    //                 {
-    //                     stops[i][0] = draw_entry_paint.m_Stops[i];
-    //                 }
-
-    //                 dmVMath::Vector4 gradient_limits(draw_entry_paint.m_GradientLimits[0], draw_entry_paint.m_GradientLimits[1], draw_entry_paint.m_GradientLimits[2], draw_entry_paint.m_GradientLimits[3]);
-
-    //                 dmGameSystem::SetRenderConstant(render_constants, UNIFORM_COLOR, colors, draw_entry_paint.m_StopCount);
-    //                 dmGameSystem::SetRenderConstant(render_constants, UNIFORM_TRANSFORM_LOCAL, (dmVMath::Vector4*) &local_matrix, 4);
-    //                 dmGameSystem::SetRenderConstant(render_constants, UNIFORM_GRADIENT_LIMITS, &gradient_limits, 1);
-    //                 dmGameSystem::SetRenderConstant(render_constants, UNIFORM_PROPERTIES, &properties, 1);
-    //                 dmGameSystem::SetRenderConstant(render_constants, UNIFORM_STOPS, stops, draw_entry_paint.m_StopCount);
-    //             }
-
-    //             dmVMath::Vector4 cover(0, 0, 0, 0);
-    //             dmGameSystem::SetRenderConstant(render_constants, UNIFORM_COVER, &cover, 1);
-
-    //             Mat2DToMat4(ctx->m_Event.m_TransformWorld, ro.m_WorldTransform);
-    //         } break;
-
-    //     default:
-    //         return;
-    //         break;
-    //     }
-
-
-    //     dmRender::RenderObject& ro = engine_ctx->m_RenderObjects[ctx->m_Index];
-
-    //     // TODO: See if we can add an easier copy step
-    //     dmGameSystem::HComponentRenderConstants comp_constants = engine_ctx->m_CompRenderConstants;
-    //     if (comp_constants)
-    //     {
-    //         uint32_t num_constants = GetRenderConstantCount(comp_constants);
-    //         for (uint32_t i = 0; i < num_constants; ++i)
-    //         {
-    //             dmRender::HConstant constant = dmGameSystem::GetRenderConstant(comp_constants, i);
-    //             dmhash_t name_hash = dmRender::GetConstantName(constant);
-    //             uint32_t num_values;
-    //             dmVMath::Vector4* values = dmRender::GetConstantValues(constant, &num_values);
-
-    //             dmGameSystem::SetRenderConstant(render_constants, name_hash, values, num_values);
-    //         }
-    //     }
-
-    //     // Finally set the merged render constants to the render object
-    //     dmGameSystem::EnableRenderObjectConstants(&ro, render_constants);
-    // }
-
-    static void ApplyDrawMode(dmRender::RenderObject& ro, dmRive::DrawMode draw_mode, uint8_t clipIndex)
-    {
-        dmRender::StencilTestParams& stencil = ro.m_StencilTestParams;
-
-        ro.m_SetStencilTest = 1;
-        stencil.m_ColorBufferMask = 0xf;
-
-        switch(draw_mode)
-        {
-            case dmRive::DRAW_MODE_CLIP_DECR:
-                stencil.m_Ref                = 0x0;
-                stencil.m_RefMask            = 0xFF;
-                stencil.m_BufferMask         = 0xFF;
-                stencil.m_ColorBufferMask    = 0;
-                stencil.m_SeparateFaceStates = 0;
-
-                stencil.m_Front = {
-                    .m_Func = dmGraphics::COMPARE_FUNC_ALWAYS,
-                    .m_OpSFail  = dmGraphics::STENCIL_OP_KEEP,
-                    .m_OpDPFail = dmGraphics::STENCIL_OP_KEEP,
-                    .m_OpDPPass = dmGraphics::STENCIL_OP_DECR_WRAP,
-                };
-
-                break;
-            case dmRive::DRAW_MODE_CLIP_INCR:
-                stencil.m_Ref                = 0x0;
-                stencil.m_RefMask            = 0xFF;
-                stencil.m_BufferMask         = 0xFF;
-                stencil.m_ColorBufferMask    = 0;
-                stencil.m_SeparateFaceStates = 0;
-
-                stencil.m_Front = {
-                    .m_Func = dmGraphics::COMPARE_FUNC_ALWAYS,
-                    .m_OpSFail  = dmGraphics::STENCIL_OP_KEEP,
-                    .m_OpDPFail = dmGraphics::STENCIL_OP_KEEP,
-                    .m_OpDPPass = dmGraphics::STENCIL_OP_INCR_WRAP,
-                };
-                break;
-            case dmRive::DRAW_MODE_DEFAULT:
-                stencil.m_Ref          = clipIndex;
-                stencil.m_RefMask      = 0xFF;
-                stencil.m_BufferMask   = 0x00;
-                stencil.m_Front.m_Func = clipIndex == 0 ? dmGraphics::COMPARE_FUNC_ALWAYS : dmGraphics::COMPARE_FUNC_EQUAL;
-                break;
-            default:
-                printf("Draw Mode not supported :(\n");
-                assert(0 && "Draw mode not supported");
-                break;
-        }
-    }
-
-
     static void RenderBatch(RiveWorld* world, dmRender::HRenderContext render_context, dmRender::RenderListEntry *buf, uint32_t* begin, uint32_t* end)
     {
         dmRive::DefoldTessRenderer* renderer = world->m_Renderer;
@@ -702,27 +459,12 @@ namespace dmRive
 
             DO_LOG("Ro: %d, vx %d ix %d\n", i, draw_desc.m_VerticesCount, draw_desc.m_IndicesCount);
 
-            for (int j = 0; j < draw_desc.m_VerticesCount; ++j)
-            {
-                rive::Vec2D& vx = draw_desc.m_Vertices[j];
-                vb_write->x = vx.x;
-                vb_write->y = vx.y;
-                vb_write->u = 0.0f;
-                vb_write->v = 0.0f;
+            dmRive::CopyVertices(draw_desc, vertex_offset, vb_write, ix_write);
 
-                DO_LOG("VX[%d]: %f %f\n", vertex_offset + j, vx.x, vx.y);
-
-                vb_write++;
-            }
-
-            for (int j = 0; j < draw_desc.m_IndicesCount; ++j)
-            {
-                *ix_write = draw_desc.m_Indices[j] + vertex_offset;
-
-                DO_LOG("%d ", ix_write[0]);
-
-                ix_write++;
-            }
+            index_offset += draw_desc.m_IndicesCount;
+            vertex_offset += draw_desc.m_VerticesCount;
+            ix_write += draw_desc.m_IndicesCount;
+            vb_write += draw_desc.m_VerticesCount;
 
             DO_LOG("\n");
 
@@ -743,12 +485,9 @@ namespace dmRive
             dmGameSystem::SetRenderConstant(ro_constants, UNIFORM_STOPS, (dmVMath::Vector4*) fs_uniforms.stops, sizeof(fs_uniforms.stops) / sizeof(dmVMath::Vector4));
             dmGameSystem::EnableRenderObjectConstants(&ro, ro_constants);
 
-            ApplyDrawMode(ro, draw_desc.m_DrawMode, draw_desc.m_ClipIndex);
+            dmRive::ApplyDrawMode(ro, draw_desc.m_DrawMode, draw_desc.m_ClipIndex);
 
             memcpy(&ro.m_WorldTransform, &vs_uniforms.world, sizeof(vs_uniforms.world));
-
-            index_offset += draw_desc.m_IndicesCount;
-            vertex_offset += draw_desc.m_VerticesCount;
         }
 
         // uint32_t num_ros_used = ProcessRiveEvents(ctx, renderer, vb_begin, ix_begin, RiveEventCallback_RenderObject, &engine_ctx);
