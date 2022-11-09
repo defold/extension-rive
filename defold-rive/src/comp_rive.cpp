@@ -66,9 +66,9 @@ namespace dmRive
     static const dmhash_t PROP_PLAYBACK_RATE      = dmHashString64("playback_rate");
     static const dmhash_t PROP_MATERIAL           = dmHashString64("material");
     static const dmhash_t MATERIAL_EXT_HASH       = dmHashString64("materialc");
+    // static const dmhash_t UNIFORM_TRANSFORM_LOCAL = dmHashString64("transform_local");
+    // static const dmhash_t UNIFORM_COVER           = dmHashString64("cover");
     static const dmhash_t UNIFORM_COLOR           = dmHashString64("colors");
-    static const dmhash_t UNIFORM_TRANSFORM_LOCAL = dmHashString64("transform_local");
-    static const dmhash_t UNIFORM_COVER           = dmHashString64("cover");
     static const dmhash_t UNIFORM_STOPS           = dmHashString64("stops");
     static const dmhash_t UNIFORM_GRADIENT_LIMITS = dmHashString64("gradientLimits");
     static const dmhash_t UNIFORM_PROPERTIES      = dmHashString64("properties");
@@ -102,26 +102,13 @@ namespace dmRive
         CompRiveContext*                    m_Ctx;
         dmRive::DefoldTessRenderer*         m_Renderer;
         dmObjectPool<RiveComponent*>        m_Components;
-        dmArray<dmRender::RenderObject>                     m_RenderObjects;
-        dmArray<dmGameSystem::HComponentRenderConstants>    m_RenderConstants; // 1:1 mapping with the render objects
+        dmArray<dmRender::RenderObject>         m_RenderObjects;
+        dmArray<dmRender::HNamedConstantBuffer> m_RenderConstants; // 1:1 mapping with the render objects
         dmGraphics::HVertexDeclaration      m_VertexDeclaration;
         dmGraphics::HVertexBuffer           m_VertexBuffer;
         dmArray<RiveVertex>                 m_VertexBufferData;
         dmGraphics::HIndexBuffer            m_IndexBuffer;
         dmArray<int>                        m_IndexBufferData;
-    };
-
-    // Used when processing the Rive draw events, to produce draw calls
-    struct RiveEventsDrawcallContext
-    {
-        dmGraphics::HVertexDeclaration              m_VertexDeclaration;
-        dmGraphics::HVertexBuffer                   m_VertexBuffer;
-        dmGraphics::HIndexBuffer                    m_IndexBuffer;
-        dmRender::HMaterial                         m_Material;
-        dmRender::RenderObject*                     m_RenderObjects;
-        dmGameSystem::HComponentRenderConstants*    m_RenderConstants;
-        dmGameSystem::HComponentRenderConstants     m_CompRenderConstants; // the constants for the current component
-        dmRiveDDF::RiveModelDesc::BlendMode         m_BlendMode;
     };
 
     dmGameObject::CreateResult CompRiveNewWorld(const dmGameObject::ComponentNewWorldParams& params)
@@ -174,7 +161,7 @@ namespace dmRive
         for (uint32_t i = 0; i < world->m_RenderConstants.Size(); ++i)
         {
             if (world->m_RenderConstants[i])
-                dmGameSystem::DestroyRenderConstants(world->m_RenderConstants[i]);
+                dmRender::DeleteNamedConstantBuffer(world->m_RenderConstants[i]);
         }
 
         delete world;
@@ -406,19 +393,19 @@ namespace dmRive
         world->m_RenderObjects.SetSize(world->m_RenderObjects.Size() + ro_count);
 
         dmRender::RenderObject* render_objects = world->m_RenderObjects.Begin() + ro_offset;
-        dmGameSystem::HComponentRenderConstants* render_constants = world->m_RenderConstants.Begin() + ro_offset;
+        dmRender::HNamedConstantBuffer* render_constants = world->m_RenderConstants.Begin() + ro_offset;
 
         dmRender::HMaterial material = GetMaterial(first, resource);
 
-        RiveEventsDrawcallContext engine_ctx;
-        engine_ctx.m_VertexDeclaration = world->m_VertexDeclaration;
-        engine_ctx.m_VertexBuffer = world->m_VertexBuffer;
-        engine_ctx.m_IndexBuffer = world->m_IndexBuffer;
-        engine_ctx.m_Material = material;
-        engine_ctx.m_BlendMode = resource->m_DDF->m_BlendMode;
-        engine_ctx.m_RenderObjects = render_objects;
-        engine_ctx.m_RenderConstants = render_constants;
-        engine_ctx.m_CompRenderConstants = first->m_RenderConstants;
+        dmhash_t constant_names[4] = {UNIFORM_PROPERTIES, UNIFORM_GRADIENT_LIMITS, UNIFORM_COLOR, UNIFORM_STOPS};
+        dmRender::HConstant material_constants[4];
+        dmRenderDDF::MaterialDesc::ConstantType material_constant_types[4];
+
+        // Currently, the dmRender::GetMaterialProgramConstant isn't part of the dmSdk
+        material_constant_types[0] =
+        material_constant_types[1] =
+        material_constant_types[2] =
+        material_constant_types[3] = dmRenderDDF::MaterialDesc::CONSTANT_TYPE_USER;
 
         // ro_count = 0;
         uint32_t index_offset = 0;
@@ -434,24 +421,22 @@ namespace dmRive
 
         for (int i = 0; i < ro_count; ++i)
         {
-            if (!engine_ctx.m_RenderConstants[i])
+            if (!render_constants[i])
             {
-                engine_ctx.m_RenderConstants[i] = dmGameSystem::CreateRenderConstants();
+                render_constants[i] = dmRender::NewNamedConstantBuffer();
             }
 
-            dmGameSystem::HComponentRenderConstants ro_constants = engine_ctx.m_RenderConstants[i];
-
             dmRive::DrawDescriptor& draw_desc = draw_descriptors[i];
-            dmRender::RenderObject& ro = engine_ctx.m_RenderObjects[i];
+            dmRender::RenderObject& ro = render_objects[i];
 
             memset(&ro.m_StencilTestParams, 0, sizeof(ro.m_StencilTestParams));
             ro.m_StencilTestParams.Init();
             ro.Init();
 
-            ro.m_VertexDeclaration = engine_ctx.m_VertexDeclaration;
-            ro.m_VertexBuffer      = engine_ctx.m_VertexBuffer;
-            ro.m_IndexBuffer       = engine_ctx.m_IndexBuffer;
-            ro.m_Material          = engine_ctx.m_Material;
+            ro.m_VertexDeclaration = world->m_VertexDeclaration;
+            ro.m_VertexBuffer      = world->m_VertexBuffer;
+            ro.m_IndexBuffer       = world->m_IndexBuffer;
+            ro.m_Material          = material;
             ro.m_VertexStart       = index_offset * sizeof(uint16_t); // byte offset
             ro.m_VertexCount       = draw_desc.m_IndicesCount;
             ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_SHORT;
@@ -479,11 +464,25 @@ namespace dmRive
             dmVMath::Vector4 properties((float)fs_uniforms.fillType, (float) fs_uniforms.stopCount, 0.0f, 0.0f);
             dmVMath::Vector4 gradient_limits(vs_uniforms.gradientStart.x, vs_uniforms.gradientStart.y, vs_uniforms.gradientEnd.x, vs_uniforms.gradientEnd.y);
 
-            dmGameSystem::SetRenderConstant(ro_constants, UNIFORM_PROPERTIES, (dmVMath::Vector4*) &properties, 1);
-            dmGameSystem::SetRenderConstant(ro_constants, UNIFORM_GRADIENT_LIMITS, (dmVMath::Vector4*) &gradient_limits, 1);
-            dmGameSystem::SetRenderConstant(ro_constants, UNIFORM_COLOR, (dmVMath::Vector4*) fs_uniforms.colors, sizeof(fs_uniforms.colors) / sizeof(dmVMath::Vector4));
-            dmGameSystem::SetRenderConstant(ro_constants, UNIFORM_STOPS, (dmVMath::Vector4*) fs_uniforms.stops, sizeof(fs_uniforms.stops) / sizeof(dmVMath::Vector4));
-            dmGameSystem::EnableRenderObjectConstants(&ro, ro_constants);
+            ro.m_ConstantBuffer = render_constants[i];
+
+            // Follows the size+order of constant_names
+            dmVMath::Vector4* constant_values[4] = {
+                (dmVMath::Vector4*) &properties,
+                (dmVMath::Vector4*) &gradient_limits,
+                (dmVMath::Vector4*) fs_uniforms.colors,
+                (dmVMath::Vector4*) fs_uniforms.stops
+            };
+            uint32_t constant_value_counts[4] = {
+                1,
+                1,
+                sizeof(fs_uniforms.colors) / sizeof(dmVMath::Vector4),
+                sizeof(fs_uniforms.stops) / sizeof(dmVMath::Vector4)
+            };
+            for (uint32_t i = 0; i < DM_ARRAY_SIZE(constant_names); ++i)
+            {
+                dmRender::SetNamedConstant(ro.m_ConstantBuffer, constant_names[i], constant_values[i], constant_value_counts[i], material_constant_types[i]);
+            }
 
             dmRive::ApplyDrawMode(ro, draw_desc.m_DrawMode, draw_desc.m_ClipIndex);
 
