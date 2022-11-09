@@ -29,7 +29,7 @@ TARGET_NAME_RIVE=librivecpp
 TARGET_NAME_TESS=librivetess
 TARGET_NAME_TESS2=libtess2
 TARGET_LIB_SUFFIX=.a
-OPT="-O2"
+OPT="-Oz"
 CCFLAGS=" -g -Werror=format"
 CXXFLAGS="${CXXFLAGS} ${CCFLAGS}"
 
@@ -209,7 +209,7 @@ if [ ! -z "${DYNAMO_HOME}" ]; then
     echo ""
 fi
 
-CCFLAGS="${CCFLAGS} -Werror=format -I./${UNPACK_FOLDER}/include -I./${UNPACK_FOLDER}/tess/include/ -I./${EARCUT_UNPACK_FOLDER}/include/mapbox -I./${LIBTESS2_UNPACK_FOLDER}/Include"
+CCFLAGS="${CCFLAGS} -I./${UNPACK_FOLDER}/include -I./${UNPACK_FOLDER}/tess/include/ -I./${EARCUT_UNPACK_FOLDER}/include/mapbox -I./${LIBTESS2_UNPACK_FOLDER}/Include"
 CXXFLAGS="${CXXFLAGS} ${CCFLAGS} -std=c++17 -fno-exceptions -fno-rtti"
 
 case $PLATFORM in

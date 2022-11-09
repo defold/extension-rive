@@ -11,7 +11,6 @@
 #include "rive/math/path_types.hpp"
 #include "rive/math/vec2d.hpp"
 
-#include <tuple>
 #include <cmath>
 #include <stdio.h>
 #include <cstdint>
