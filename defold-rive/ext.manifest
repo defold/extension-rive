@@ -6,22 +6,24 @@ platforms:
             defines:    []
             symbols:    ["ResourceTypeRiveScene", "ResourceTypeRiveModel", "ResourceTypeRiveData", "ComponentTypeRive"]
 
+    x86_64-linux:
+        context:
+            flags:      ["-std=c++17"]
+            includes:   ["{{env.JAVA_HOME}}/include/linux", "{{env.JAVA_HOME}}/include"]
+
+    win32:
+        context:
+            includes:   ["{{env.JAVA_HOME}}/include/win32", "{{env.JAVA_HOME}}/include"]
 
     x86_64-osx:
         context:
-            flags: ["-std=c++17", "-fno-rtti"]
+            flags:      ["-std=c++17", "-fno-rtti"]
+            includes:   ["{{env.JAVA_HOME}}/include/darwin", "{{env.JAVA_HOME}}/include"]
 
     ios:
         context:
             flags: ["-std=c++17", "-fno-aligned-allocation"]
 
-    x86_64-linux:
-        context:
-            flags: ["-std=c++17"]
-
-    js-web:
-        context:
-            flags: ["-std=c++17", "-fno-rtti"]
-    wasm-web:
+    web:
         context:
             flags: ["-std=c++17", "-fno-rtti"]

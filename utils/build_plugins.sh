@@ -5,7 +5,7 @@
 set -e
 
 PROJECT=defold-rive
-BOB=bob.jar
+#BOB=bob.jar
 DEFAULT_SERVER=https://build-stage.defold.com
 
 if [ "" == "${BOB}" ]; then
@@ -70,7 +70,6 @@ function copy_results() {
     done
 }
 
-
 function build_plugin() {
     local platform=$1
     local platform_ne=$2
@@ -78,6 +77,35 @@ function build_plugin() {
     java -jar $BOB --platform=$platform build --build-artifacts=plugins --variant $VARIANT --build-server=$SERVER --defoldsdk=$DEFOLDSDK
 
     copy_results $platform $platform_ne
+}
+
+
+function delete_file() {
+    local file=$1
+    if [ -e "$file" ]; then
+        rm $file
+    fi
+}
+
+function clean_plugin() {
+    local platform=$1
+    local platform_ne=$2
+
+    for path in $TARGET_DIR/share/*.jar; do
+        delete_file $path
+    done
+
+    for path in $TARGET_DIR/lib/$platform_ne/*.dylib; do
+        delete_file $path
+    done
+
+    for path in $TARGET_DIR/lib/$platform_ne/*.so; do
+        delete_file $path
+    done
+
+    for path in $TARGET_DIR/lib/$platform_ne/*.dll; do
+        delete_file $path
+    done
 }
 
 PLATFORMS=$1
@@ -99,6 +127,7 @@ for platform in $PLATFORMS; do
         platform_ne="x86_64-osx"
     fi
 
+    clean_plugin $platform $platform_ne
     build_plugin $platform $platform_ne
 done
 
