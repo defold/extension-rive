@@ -258,8 +258,6 @@ static void Render(RiveFile* rive_file)
 
         printf("Ro: %d, vx %d ix %d\n", i, draw_desc.m_VerticesCount, draw_desc.m_IndicesCount);
 
-        printf("vxo %u  vb: %p  ib: %p\n", vertex_offset, vb_write, ix_write);
-
         dmRive::CopyVertices(draw_desc, vertex_offset, vb_write, ix_write);
 
         index_offset += draw_desc.m_IndicesCount;

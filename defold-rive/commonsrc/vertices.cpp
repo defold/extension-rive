@@ -61,7 +61,6 @@ void ApplyDrawMode(dmRender::RenderObject& ro, dmRive::DrawMode draw_mode, uint8
             break;
         default:
             printf("Draw Mode not supported :(\n");
-            assert(0 && "Draw mode not supported");
             break;
     }
 }

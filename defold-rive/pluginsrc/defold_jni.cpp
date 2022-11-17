@@ -85,9 +85,7 @@ void SetFieldObject(JNIEnv* env, jobject obj, jfieldID field, jobject value)
 
 jclass GetClass(JNIEnv* env, const char* clsname)
 {
-    char buffer[128];
-    dmSnPrintf(buffer, sizeof(buffer), "L%s;", clsname);
-    return env->FindClass(buffer);
+    return env->FindClass(clsname);
 }
 
 jfieldID GetFieldInt(JNIEnv* env, jclass cls, const char* field_name)

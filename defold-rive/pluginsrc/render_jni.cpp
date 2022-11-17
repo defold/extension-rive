@@ -53,7 +53,7 @@ namespace dmRenderJNI
 struct ConstantJNI
 {
     jclass      cls;
-    jfieldID    name_hash;
+    jfieldID    nameHash;
     jfieldID    values; // array of Vec4
 } g_ConstantJNI;
 
@@ -113,7 +113,7 @@ void InitializeJNITypes(JNIEnv* env)
 
     {
         SETUP_CLASS(ConstantJNI, MAKE_TYPE_NAME(DM_RENDER_JNI_PACKAGE_NAME, "Constant"));
-        GET_FLD_TYPESTR(name_hash, "J");
+        GET_FLD_TYPESTR(nameHash, "J");
         GET_FLD_ARRAY(values, MAKE_TYPE_NAME(DM_DEFOLD_JNI_PACKAGE_NAME, "Vec4"));
     }
     {
@@ -205,7 +205,7 @@ static jobject CreateStencilTestParams(JNIEnv* env, const dmRender::StencilTestP
 static jobject CreateConstant(JNIEnv* env, dmhash_t name_hash, uint32_t num_values, const dmVMath::Vector4* values)
 {
     jobject obj = env->AllocObject(g_ConstantJNI.cls);
-    env->SetLongField(obj, g_ConstantJNI.name_hash, (jlong)name_hash);
+    env->SetLongField(obj, g_ConstantJNI.nameHash, (jlong)name_hash);
 
     jobjectArray arr = dmDefoldJNI::CreateVec4Array(env, num_values, values);
     dmDefoldJNI::SetFieldObject(env, obj, g_ConstantJNI.values, arr);
@@ -257,8 +257,7 @@ jobject CreateRenderObject(JNIEnv* env, const dmRender::RenderObject* ro)
     env->SetLongField(obj, g_RenderObjectJNI.indexBuffer,       (uintptr_t)ro->m_IndexBuffer);
     env->SetLongField(obj, g_RenderObjectJNI.material,          (uintptr_t)ro->m_Material);
 
-    int texture_values[8] = {0};
-    jintArray textures_arr = dmDefoldJNI::CreateIntArray(env, 8, texture_values);
+    jintArray textures_arr = dmDefoldJNI::CreateIntArray(env, 0, 0);
     env->SetObjectField(obj, g_RenderObjectJNI.textures, textures_arr);
     env->DeleteLocalRef(textures_arr);
 
@@ -270,9 +269,9 @@ jobject CreateRenderObject(JNIEnv* env, const dmRender::RenderObject* ro)
 
     env->SetIntField(obj, g_RenderObjectJNI.vertexStart,        (int)ro->m_VertexStart);
     env->SetIntField(obj, g_RenderObjectJNI.vertexCount,        (int)ro->m_VertexCount);
-    env->SetIntField(obj, g_RenderObjectJNI.setBlendFactors,    (int)ro->m_SetBlendFactors);
-    env->SetIntField(obj, g_RenderObjectJNI.setStencilTest,     (int)ro->m_SetStencilTest);
-    env->SetIntField(obj, g_RenderObjectJNI.setFaceWinding,     (int)ro->m_SetFaceWinding);
+    env->SetBooleanField(obj, g_RenderObjectJNI.setBlendFactors,    (int)ro->m_SetBlendFactors);
+    env->SetBooleanField(obj, g_RenderObjectJNI.setStencilTest,     (int)ro->m_SetStencilTest);
+    env->SetBooleanField(obj, g_RenderObjectJNI.setFaceWinding,     (int)ro->m_SetFaceWinding);
 
     return obj;
 }

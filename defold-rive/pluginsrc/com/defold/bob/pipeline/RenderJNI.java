@@ -10,7 +10,7 @@ import com.dynamo.bob.pipeline.DefoldJNI.Matrix4;
 public class RenderJNI {
 
     public static class Constant {
-        public long     name_hash;
+        public long     nameHash;
         public Vec4[]   values;
     }
 

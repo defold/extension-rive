@@ -304,7 +304,8 @@ static void UpdateJNIRenderData(JNIEnv* env, jobject rive_file_obj, dmRive::Rive
     dmDefoldJNI::SetFieldObject(env, rive_file_obj, g_RiveFileJNI.indices, indices);
     env->DeleteLocalRef(indices);
 
-    jfloatArray vertices = dmDefoldJNI::CreateFloatArray(env, rive_file->m_VertexBufferData.Size(), (float*)rive_file->m_VertexBufferData.Begin());
+    uint32_t num_floats = rive_file->m_VertexBufferData.Size() * sizeof(dmRive::RiveVertex)/sizeof(float);
+    jfloatArray vertices = dmDefoldJNI::CreateFloatArray(env, num_floats, (float*)rive_file->m_VertexBufferData.Begin());
     dmDefoldJNI::SetFieldObject(env, rive_file_obj, g_RiveFileJNI.vertices, vertices);
     env->DeleteLocalRef(vertices);
 
@@ -324,7 +325,6 @@ static jobject CreateRiveFile(JNIEnv* env, dmRive::RiveFile* rive_file)
     env->SetLongField(obj, g_RiveFileJNI.pointer, ToLong(rive_file));
 
     jobjectArray animations = CreateAnimations(env, rive_file);
-
     dmDefoldJNI::SetFieldObject(env, obj, g_RiveFileJNI.animations, animations);
     env->DeleteLocalRef(animations);
 

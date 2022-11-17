@@ -645,21 +645,42 @@ public class Rive {
     {
         for (Constant constant : constants)
         {
-            PrintIndent(indent); System.out.printf("constant: name: %d  values:", constant.name_hash);
+            PrintIndent(indent); System.out.printf("constant: name: %d  values:\n", constant.nameHash);
             for (Vec4 value : constant.values)
             {
-                System.out.printf("(%f, %f, %f, %f), ", value.x, value.y, value.z, value.w);
+                PrintIndent(indent+1); System.out.printf("(%f, %f, %f, %f)\n", value.x, value.y, value.z, value.w);
             }
-            System.out.printf("\n");
         }
+    }
+
+    private static void DebugStencilTestFunc(String name, StencilTestFunc func, int indent)
+    {
+        PrintIndent(indent+0); System.out.printf("StencilTestFunc %s:\n", name);
+        PrintIndent(indent+1); System.out.printf("func:     %d\n", func.func);
+        PrintIndent(indent+1); System.out.printf("opSFail:  %d\n", func.opSFail);
+        PrintIndent(indent+1); System.out.printf("opDPFail: %d\n", func.opDPFail);
+        PrintIndent(indent+1); System.out.printf("opDPPass: %d\n", func.opDPPass);
+    }
+    private static void DebugStencilTestParams(StencilTestParams params, int indent)
+    {
+        PrintIndent(indent+0); System.out.printf("StencilTestParams:\n");
+        DebugStencilTestFunc("front", params.front, indent+1);
+        DebugStencilTestFunc("back", params.back, indent+1);
+        PrintIndent(indent+1); System.out.printf("ref:                  %d\n", params.ref);
+        PrintIndent(indent+1); System.out.printf("refMask:              %d\n", params.refMask);
+        PrintIndent(indent+1); System.out.printf("bufferMask:           %d\n", params.bufferMask);
+        PrintIndent(indent+1); System.out.printf("colorBufferMask:      %d\n", params.colorBufferMask);
+        PrintIndent(indent+1); System.out.printf("clearBuffer:          %d\n", params.clearBuffer);
+        PrintIndent(indent+1); System.out.printf("separateFaceStates:   %d\n", params.separateFaceStates);
     }
 
     private static void DebugRenderObject(RenderObject ro, int index)
     {
         PrintIndent(1); System.out.printf("RenderObject %d:\n", index);
 
+        PrintIndent(2); System.out.printf("constantBuffer:\n");
         DebugConstantBuffer(ro.constantBuffer, 3);
-        // PrintIndent(2); System.out.printf("constantBuffer:          %d\n", ro.constantBuffer);         // HNamedConstantBuffer
+
         // PrintIndent(2); System.out.printf("worldTransform:          %d\n", ro.worldTransform);         // dmVMath::Matrix4
         // PrintIndent(2); System.out.printf("textureTransform:        %d\n", ro.textureTransform);       // dmVMath::Matrix4
         PrintIndent(2); System.out.printf("vertexBuffer:            %d\n", ro.vertexBuffer);           // dmGraphics::HVertexBuffer
@@ -672,12 +693,29 @@ public class Rive {
         PrintIndent(2); System.out.printf("sourceBlendFactor:       %d\n", ro.sourceBlendFactor);      // dmGraphics::BlendFactor
         PrintIndent(2); System.out.printf("destinationBlendFactor:  %d\n", ro.destinationBlendFactor); // dmGraphics::BlendFactor
         PrintIndent(2); System.out.printf("faceWinding:             %d\n", ro.faceWinding);            // dmGraphics::FaceWinding
-        //PrintIndent(2); System.out.printf("stencilTestParams:       %d\n", ro.stencilTestParams);      // StencilTestParams
         PrintIndent(2); System.out.printf("vertexStart:             %d\n", ro.vertexStart);            // uint32_t
         PrintIndent(2); System.out.printf("vertexCount:             %d\n", ro.vertexCount);            // uint32_t
         PrintIndent(2); System.out.printf("setBlendFactors:         %s\n", ro.setBlendFactors?"true":"false");        // uint8_t :1
         PrintIndent(2); System.out.printf("setStencilTest:          %s\n", ro.setStencilTest?"true":"false");         // uint8_t :1
         PrintIndent(2); System.out.printf("setFaceWinding:          %s\n", ro.setFaceWinding?"true":"false");         // uint8_t :1
+        DebugStencilTestParams(ro.stencilTestParams, 2);
+    }
+
+    private static void DebugVertex(float[] vertices, int index)
+    {
+        PrintIndent(1); System.out.printf("vtx %d:   %f, %f, %f, %f\n", index,
+                                            vertices[index*4+0],
+                                            vertices[index*4+1],
+                                            vertices[index*4+2],
+                                            vertices[index*4+3]);
+    }
+
+    private static void DebugTriangle(int[] indices, int index)
+    {
+        PrintIndent(1); System.out.printf("tri %d:   %d, %d, %d\n", index,
+                                            indices[0*3+0],
+                                            indices[0*3+1],
+                                            indices[0*3+2]);
     }
 
     // ./utils/test_plugin.sh <rive scene path>
@@ -736,40 +774,30 @@ public class Rive {
         System.out.printf("--------------------------------\n");
 
         System.out.printf("Num render objects: %d\n", rive_file.renderObjects.length);
-        int i = 0;
+        int j = 0;
         for (RenderObject ro : rive_file.renderObjects)
         {
-            DebugRenderObject(ro, i++);
+            DebugRenderObject(ro, j++);
         }
 
-        // System.out.printf("--------------------------------\n");
 
-        // for (Node root : scene.rootNodes) {
-        //     System.out.printf("Root Node: %s\n", root.name);
-        //     DebugPrintTree(root, 0);
-        // }
+        System.out.printf("--------------------------------\n");
 
-        // System.out.printf("--------------------------------\n");
+        int num_vertices = rive_file.vertices.length/4;
+        System.out.printf("Num vertices: %d\n", num_vertices);
+        for (int i = 0; i < num_vertices; ++i)
+        {
+            DebugVertex(rive_file.vertices, i);
+        }
 
-        // System.out.printf("Num Skins: %d\n", scene.skins.length);
-        // for (Skin skin : scene.skins)
-        // {
-        //     DebugPrintSkin(skin, 0);
-        // }
+        System.out.printf("--------------------------------\n");
 
-        // System.out.printf("--------------------------------\n");
-
-        // System.out.printf("Num Models: %d\n", scene.models.length);
-        // for (Model model : scene.models) {
-        //     DebugPrintModel(model, 0);
-        // }
-
-        // System.out.printf("--------------------------------\n");
-
-        // System.out.printf("Num Animations: %d\n", scene.animations.length);
-        // for (Animation animation : scene.animations) {
-        //     DebugPrintAnimation(animation, 0);
-        // }
+        int num_triangles = rive_file.indices.length/3;
+        System.out.printf("Num triangles: %d\n", num_triangles);
+        for (int i = 0; i < num_triangles; ++i)
+        {
+            DebugTriangle(rive_file.indices, i);
+        }
 
         Destroy(rive_file);
 
