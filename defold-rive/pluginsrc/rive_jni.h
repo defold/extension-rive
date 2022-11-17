@@ -19,22 +19,16 @@
 #include <dmsdk/dlib/shared_library.h>
 
 #include <stdint.h>
-#include <jni.h> // jobject
+#include <jni.h>
 
 namespace dmRiveJNI
 {
-
-    // #pragma pack(push,8)
-
-    // #pragma pack(pop)
-
     void InitializeJNITypes(JNIEnv* env);
     void FinalizeJNITypes(JNIEnv* env);
 
     jobject LoadFileFromBuffer(JNIEnv* env, jclass cls, const char* path, const uint8_t* data, uint32_t data_length);
     void    DestroyFile(JNIEnv* env, jclass cls, jobject rive_file);
     void    Update(JNIEnv* env, jclass cls, jobject rive_file, jfloat dt);
-    //void    GetRenderObjects(JNIEnv* env, jclass cls, jobject rive_file);
 }
 
 

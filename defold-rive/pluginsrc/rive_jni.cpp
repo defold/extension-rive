@@ -14,6 +14,7 @@
 
 #include "rive_jni.h"
 #include "defold_jni.h"
+#include "render_jni.h"
 #include "rive_file.h"
 
 #include <jni.h>
@@ -55,6 +56,7 @@ struct BoneJNI
 {
     jclass      cls;
     jfieldID    name;       // string
+    jfieldID    index;      // int index into array
     jfieldID    parent;     // int index into array
     jfieldID    posX;       // float
     jfieldID    posY;       // float
@@ -99,6 +101,7 @@ void InitializeJNITypes(JNIEnv* env)
     {
         SETUP_CLASS(BoneJNI, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "Bone"));
         GET_FLD_STRING(name);
+        GET_FLD_TYPESTR(index, "I");
         GET_FLD_TYPESTR(parent, "I");
         GET_FLD_TYPESTR(posX, "F");
         GET_FLD_TYPESTR(posY, "F");
@@ -146,6 +149,12 @@ static dmRive::RiveFile* FromLong(jlong x)
     } u;
     u.x = x;
     return (dmRive::RiveFile*)u.ptr;
+}
+
+static dmRive::RiveFile* FromObject(JNIEnv* env, jobject rive_file_obj)
+{
+    jlong pointer = env->GetLongField(rive_file_obj, g_RiveFileJNI.pointer);
+    return FromLong(pointer);
 }
 
 static const char* INPUT_TYPE_BOOL="bool";
@@ -244,6 +253,7 @@ static jobject CreateBone(JNIEnv* env, dmRive::RiveBone* bone)
     jobject obj = env->AllocObject(g_BoneJNI.cls);
 
     dmDefoldJNI::SetFieldString(env, obj, g_BoneJNI.name, dmRive::GetBoneName(bone));
+    dmDefoldJNI::SetFieldInt(env, obj, g_BoneJNI.index, dmRive::GetBoneIndex(bone));
 
     dmRive::RiveBone* parent = bone->m_Parent;
     int parent_index = parent ? dmRive::GetBoneIndex(parent) : -1;
@@ -279,11 +289,32 @@ static jobjectArray CreateBones(JNIEnv* env, dmRive::RiveFile* rive_file)
     return arr;
 }
 
+static void UpdateJNIRenderData(JNIEnv* env, jobject rive_file_obj, dmRive::RiveFile* rive_file)
+{
+    dmArray<int> int_indices;
+    uint32_t index_count = rive_file->m_IndexBufferData.Size();
+    int_indices.SetCapacity(index_count);
+    int_indices.SetSize(index_count);
+    for (uint32_t i = 0; i < index_count; ++i)
+    {
+        int_indices[i] = (int)rive_file->m_IndexBufferData[i];
+    }
+
+    jintArray indices = dmDefoldJNI::CreateIntArray(env, int_indices.Size(), int_indices.Begin());
+    dmDefoldJNI::SetFieldObject(env, rive_file_obj, g_RiveFileJNI.indices, indices);
+    env->DeleteLocalRef(indices);
+
+    jfloatArray vertices = dmDefoldJNI::CreateFloatArray(env, rive_file->m_VertexBufferData.Size(), (float*)rive_file->m_VertexBufferData.Begin());
+    dmDefoldJNI::SetFieldObject(env, rive_file_obj, g_RiveFileJNI.vertices, vertices);
+    env->DeleteLocalRef(vertices);
+
+    jobjectArray renderObjects = dmRenderJNI::CreateRenderObjectArray(env, rive_file->m_RenderObjects.Size(), rive_file->m_RenderObjects.Begin());
+    dmDefoldJNI::SetFieldObject(env, rive_file_obj, g_RiveFileJNI.renderObjects, renderObjects);
+    env->DeleteLocalRef(renderObjects);
+}
 
 static jobject CreateRiveFile(JNIEnv* env, dmRive::RiveFile* rive_file)
 {
-    printf("dmRiveJNI::%s -> %p\n", __FUNCTION__, rive_file);
-
     if (!rive_file)
         return 0;
 
@@ -305,14 +336,7 @@ static jobject CreateRiveFile(JNIEnv* env, dmRive::RiveFile* rive_file)
     dmDefoldJNI::SetFieldObject(env, obj, g_RiveFileJNI.bones, bones);
     env->DeleteLocalRef(bones);
 
-    jintArray indices = dmDefoldJNI::CreateIntArray(env, 0, 0);
-    dmDefoldJNI::SetFieldObject(env, obj, g_RiveFileJNI.indices, indices);
-    env->DeleteLocalRef(indices);
-
-    jfloatArray vertices = dmDefoldJNI::CreateFloatArray(env, 0, 0);
-    dmDefoldJNI::SetFieldObject(env, obj, g_RiveFileJNI.vertices, vertices);
-    env->DeleteLocalRef(vertices);
-
+    UpdateJNIRenderData(env, obj, rive_file);
     return obj;
 }
 
@@ -321,7 +345,6 @@ static jobject CreateRiveFile(JNIEnv* env, dmRive::RiveFile* rive_file)
 jobject LoadFileFromBuffer(JNIEnv* env, jclass cls, const char* path, const uint8_t* data, uint32_t data_length)
 {
     dmRive::RiveFile* rive_file = dmRive::LoadFileFromBuffer(data, data_length, path);
-    printf("MAWE: %s: %p\n", __FUNCTION__, rive_file);
 
     jobject obj = CreateRiveFile(env, rive_file);
     if (!obj)
@@ -333,32 +356,24 @@ jobject LoadFileFromBuffer(JNIEnv* env, jclass cls, const char* path, const uint
 
 void DestroyFile(JNIEnv* env, jclass cls, jobject rive_file_obj)
 {
-    jlong pointer = env->GetLongField(rive_file_obj, g_RiveFileJNI.pointer);
-    dmRive::RiveFile* rive_file = FromLong(pointer);
-    printf("MAWE: %s: %p\n", __FUNCTION__, rive_file);
+    dmRive::RiveFile* rive_file = FromObject(env, rive_file_obj);
     if (!rive_file)
         return;
 
     dmRive::DestroyFile(rive_file);
 }
 
-void Update(JNIEnv* env, jclass cls, jobject rive_file, jfloat dt)
+void Update(JNIEnv* env, jclass cls, jobject rive_file_obj, jfloat dt)
 {
-    // Update animations
+    dmRive::RiveFile* rive_file = FromObject(env, rive_file_obj);
+    if (!rive_file || !rive_file->m_File)
+        return;
 
-    // TODO: Update bone position etc
+    dmRive::Update(rive_file, dt);
 
-    // Update render objects
+    // TODO: Update bone positions
 
-//     uint32_t ro_count;
-//     dmRive::DrawDescriptor* draw_descriptors;
-//     renderer->getDrawDescriptors(&draw_descriptors, &ro_count);
-
-}
-
-void GetRenderObjects(JNIEnv* env, jclass cls, jobject rive_file)
-{
-
+    UpdateJNIRenderData(env, rive_file_obj, rive_file);
 }
 
 } // namespace

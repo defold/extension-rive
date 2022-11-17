@@ -9,20 +9,13 @@
 #include <common/vertices.h>    // RiveVertex
 #include <rive/file.hpp>
 
+namespace rive
+{
+    class StateMachineInstance;
+    class LinearAnimationInstance;
+}
+
 namespace dmRive {
-
-// struct BoneInteral
-// {
-//     const char* name;
-//     int parent;
-//     float posX, posY, rotation, scaleX, scaleY, length;
-// };
-
-// struct StateMachineInput
-// {
-//     const char* name;
-//     const char* type;
-// };
 
 struct RiveFile
 {
@@ -34,14 +27,22 @@ struct RiveFile
     dmArray<dmRive::RiveBone*>  m_Roots;
     dmArray<dmRive::RiveBone*>  m_Bones;
 
-    dmArray<int>                    m_IndexBuffer;
-    dmArray<dmRive::RiveVertex>     m_VertexBuffer;
-    dmArray<dmRender::RenderObject> m_RenderObjects;
+    dmArray<uint16_t>                       m_IndexBufferData;
+    dmArray<dmRive::RiveVertex>             m_VertexBufferData;
+    dmArray<dmRender::RenderObject>         m_RenderObjects;
+    dmArray<dmRender::HNamedConstantBuffer> m_RenderConstants; // 1:1 mapping with the render objects
+
+    std::unique_ptr<rive::ArtboardInstance>         m_ArtboardInstance;
+    std::unique_ptr<rive::LinearAnimationInstance>  m_AnimationInstance;
+    std::unique_ptr<rive::StateMachineInstance>     m_StateMachineInstance;
 };
 
 RiveFile*   LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char* path);
 void        DestroyFile(RiveFile* rive_file);
 void        SetupBones(RiveFile* file);
+
+void        PlayAnimation(RiveFile* rive_file, int index);
+void        Update(RiveFile* rive_file, float dt);
 
 } // namespace
 

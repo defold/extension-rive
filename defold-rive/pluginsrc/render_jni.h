@@ -28,15 +28,11 @@ namespace dmRender
 
 namespace dmRenderJNI
 {
-    // #pragma pack(push,8)
-
-    // #pragma pack(pop)
-
     void InitializeJNITypes(JNIEnv* env);
     void FinalizeJNITypes(JNIEnv* env);
-    //void DebugRenderObject(dmRender::RenderObject* ro);
 
-    jobject CreateRenderObject(JNIEnv* env, const dmRender::RenderObject* ro);
+    jobject         CreateRenderObject(JNIEnv* env, const dmRender::RenderObject* ro);
+    jobjectArray    CreateRenderObjectArray(JNIEnv* env, uint32_t num_values, const dmRender::RenderObject* values);
 }
 
 

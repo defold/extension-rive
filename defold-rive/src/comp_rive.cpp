@@ -68,10 +68,6 @@ namespace dmRive
     static const dmhash_t MATERIAL_EXT_HASH       = dmHashString64("materialc");
     // static const dmhash_t UNIFORM_TRANSFORM_LOCAL = dmHashString64("transform_local");
     // static const dmhash_t UNIFORM_COVER           = dmHashString64("cover");
-    static const dmhash_t UNIFORM_COLOR           = dmHashString64("colors");
-    static const dmhash_t UNIFORM_STOPS           = dmHashString64("stops");
-    static const dmhash_t UNIFORM_GRADIENT_LIMITS = dmHashString64("gradientLimits");
-    static const dmhash_t UNIFORM_PROPERTIES      = dmHashString64("properties");
 
     static void ResourceReloadedCallback(const dmResource::ResourceReloadedParams& params);
     static void DestroyComponent(struct RiveWorld* world, uint32_t index);
@@ -602,8 +598,6 @@ namespace dmRive
 
         renderer->reset();
 
-        // rive::newFrame(renderer);
-        // rive::Renderer* rive_renderer = (rive::Renderer*) renderer;
         float dt = params.m_UpdateContext->m_DT;
 
         dmArray<RiveComponent*>& components = world->m_Components.GetRawObjects();
@@ -630,26 +624,6 @@ namespace dmRive
                 continue;
             }
             rive::AABB artboard_bounds  = artboard->bounds();
-
-            // renderer->save();
-
-            // auto viewTransform = rive::computeAlignment(rive::Fit::contain,
-            //                                             rive::Alignment::center,
-            //                                             rive::AABB(0, 0, m_width, m_height),
-            //                                             m_ArtboardInstance->bounds());
-            // renderer->transform(viewTransform);
-
-            // // Store the inverse view so we can later go from screen to world.
-            // m_InverseViewTransform = viewTransform.invertOrIdentity();
-
-            // if (m_CurrentScene) {
-            //     m_CurrentScene->advanceAndApply(elapsed);
-            //     m_CurrentScene->draw(renderer);
-            // } else {
-            //     m_ArtboardInstance->draw(renderer); // we're just a still-frame file/artboard
-            // }
-
-            // renderer->restore();
 
             if (component.m_StateMachineInstance)
             {

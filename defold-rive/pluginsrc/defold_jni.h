@@ -28,8 +28,6 @@ namespace dmDefoldJNI
     void InitializeJNITypes(JNIEnv* env);
     void FinalizeJNITypes(JNIEnv* env);
 
-    //int AddressOf(jobject object);
-
     jintArray CreateIntArray(JNIEnv* env, uint32_t count, const int* values);
     jfloatArray CreateFloatArray(JNIEnv* env, uint32_t count, const float* values);
     jobjectArray CreateObjectArray(JNIEnv* env, jclass cls, const dmArray<jobject>& values);
@@ -37,6 +35,7 @@ namespace dmDefoldJNI
     jobject CreateVec4(JNIEnv* env, const dmVMath::Vector4& value);
     jobject CreateMatrix4(JNIEnv* env, const dmVMath::Matrix4* matrix);
     jobject CreateAABB(JNIEnv* env, const float* aabb_min, const float* aabb_max);
+    jobjectArray CreateVec4Array(JNIEnv* env, uint32_t num_values, const dmVMath::Vector4* values);
 
     void SetFieldString(JNIEnv* env, jclass cls, jobject obj, const char* field_name, const char* value);
     void SetFieldInt(JNIEnv* env, jobject obj, jfieldID field, int value);
@@ -49,7 +48,8 @@ namespace dmDefoldJNI
     jfieldID GetFieldString(JNIEnv* env, jclass cls, const char* field_name);
     jfieldID GetFieldOfType(JNIEnv* env, jclass cls, const char* field_name, const char* clsname); // gets "Lclsname;"
 
-    jclass GetVec4JNIClass();
+    void GetVec4(JNIEnv* env, jobject object, jfieldID field, dmVMath::Vector4* vec4);
+    void GetMatrix4(JNIEnv* env, jobject object, jfieldID field, dmVMath::Matrix4* out);
 
 
 #define MAKE_TYPE_NAME(PACKAGE_NAME, TYPE_NAME) PACKAGE_NAME "$" TYPE_NAME

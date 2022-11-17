@@ -8,9 +8,10 @@
 
 #include <rive/artboard.hpp>
 #include <rive/file.hpp>
-#include <rive/animation/linear_animation_instance.hpp>
 #include <rive/animation/linear_animation.hpp>
+#include <rive/animation/linear_animation_instance.hpp>
 #include <rive/animation/state_machine.hpp>
+#include <rive/animation/state_machine_instance.hpp>
 
 namespace dmRive
 {
@@ -40,19 +41,20 @@ RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char*
     RiveFile* out = new RiveFile;
     out->m_Path = 0;
     out->m_File = 0;
-    out->m_Factory = factory;
-    out->m_Renderer = new DefoldTessRenderer;
 
     if (file) {
         out->m_Path = strdup(path);
         out->m_File = file.release();
-        dmLogError("MAWE RENDERER IS NOT IMPLEMENTED YET! %s %d", __FUNCTION__, __LINE__);
-        // out->m_Renderer = rive::createRenderer(rive::g_Ctx);
+        out->m_Factory = factory;
+        out->m_Renderer = new DefoldTessRenderer;
 
-        // rive::setContourQuality(out->m_Renderer, 0.8888888888888889f);
-        // rive::setClippingSupport(out->m_Renderer, true);
+        out->m_ArtboardInstance = out->m_File->artboardAt(0);
+        out->m_ArtboardInstance->advance(0.0f);
 
         dmRive::SetupBones(out);
+
+        PlayAnimation(out, 0);
+        Update(out, 0.0f);
     }
 
     dmLogWarning("MAWE: %s: %p", __FUNCTION__, out);
@@ -63,12 +65,20 @@ void DestroyFile(RiveFile* rive_file)
 {
     dmLogWarning("MAWE: %s: %p", __FUNCTION__, rive_file);
 
-    free((void*)rive_file->m_Path);
+    if (rive_file->m_File)
+    {
+        free((void*)rive_file->m_Path);
 
-    dmRive::FreeBones(&rive_file->m_Bones);
+        dmRive::FreeBones(&rive_file->m_Bones);
 
-    delete rive_file->m_Factory;
-    delete rive_file->m_Renderer;
+        rive_file->m_ArtboardInstance.reset();
+        rive_file->m_AnimationInstance.reset();
+        rive_file->m_StateMachineInstance.reset();
+
+        delete rive_file->m_Factory;
+        delete rive_file->m_Renderer;
+    }
+
     delete rive_file;
 }
 
@@ -83,16 +93,236 @@ void SetupBones(RiveFile* file)
     }
 
     dmRive::BuildBoneHierarchy(artboard, &file->m_Roots, &file->m_Bones);
-
-    //dmRive::DebugBoneHierarchy(&file->m_Roots);
-
-    // bool bones_ok = dmRive::ValidateBoneNames(&file->m_Bones);
-    // if (!bones_ok) {
-    //     dmLogWarning("Failed to validate bones for %s", file->m_Path);
-    //     dmRive::FreeBones(&file->m_Bones);
-    //     file->m_Bones.SetSize(0);
-    //     file->m_Roots.SetSize(0);
-    // }
 }
+
+void PlayAnimation(RiveFile* rive_file, int index)
+{
+    if (index < 0 || index >= rive_file->m_ArtboardInstance->animationCount()) {
+        return;
+    }
+    rive_file->m_AnimationInstance = rive_file->m_ArtboardInstance->animationAt(index);
+    rive_file->m_AnimationInstance->inputCount();
+
+    rive_file->m_AnimationInstance->time(rive_file->m_AnimationInstance->startSeconds());
+    rive_file->m_AnimationInstance->loopValue((int)rive::Loop::loop);
+    rive_file->m_AnimationInstance->direction(1);
+}
+
+template<typename T>
+static void EnsureSize(dmArray<T>& a, uint32_t size)
+{
+    if (a.Capacity() < size)
+    {
+        a.SetCapacity(size);
+    }
+    a.SetSize(size);
+}
+
+// Generate the indices/vertices and the RenderObjects
+static void Render(RiveFile* rive_file)
+{
+    dmRive::DefoldTessRenderer* renderer = rive_file->m_Renderer;
+    rive::AABB bounds = rive_file->m_ArtboardInstance->bounds();
+    rive::Mat2D viewTransform = rive::computeAlignment(rive::Fit::contain,
+                                                       rive::Alignment::center,
+                                                       rive::AABB(0, 0, bounds.maxX-bounds.minX, bounds.maxY-bounds.minY),
+                                                       bounds);
+    renderer->save();
+    renderer->transform(viewTransform);
+
+    rive::Mat2D transform;
+    //Mat4ToMat2D(c->m_World, transform);
+
+    // Rive is using a different coordinate system that defold,
+    // we have to adhere to how our projection matrixes are
+    // constructed so we flip the renderer on the y axis here
+    rive::Vec2D yflip(1.0f,-1.0f);
+    transform = transform.scale(yflip);
+    renderer->transform(transform);
+
+    renderer->align(rive::Fit::none,
+        rive::Alignment::center,
+        rive::AABB(-bounds.width(), -bounds.height(),
+        bounds.width(), bounds.height()),
+        bounds);
+
+    if (rive_file->m_StateMachineInstance) {
+        rive_file->m_StateMachineInstance->draw(renderer);
+    } else if (rive_file->m_AnimationInstance) {
+        rive_file->m_AnimationInstance->draw(renderer);
+    } else {
+        rive_file->m_ArtboardInstance->draw(renderer);
+    }
+
+    renderer->restore();
+
+    // **************************************************************
+
+    uint32_t ro_count         = 0;
+    uint32_t vertex_count     = 0;
+    uint32_t index_count      = 0;
+
+    dmRive::DrawDescriptor* draw_descriptors;
+    renderer->getDrawDescriptors(&draw_descriptors, &ro_count);
+
+
+    for (int i = 0; i < ro_count; ++i)
+    {
+        vertex_count += draw_descriptors[i].m_VerticesCount;
+        index_count += draw_descriptors[i].m_IndicesCount;
+    }
+
+    // // Make sure we have enough free render objects
+    // if (world->m_RenderObjects.Remaining() < ro_count)
+    // {
+    //     uint32_t grow = ro_count - world->m_RenderObjects.Remaining();
+    //     world->m_RenderObjects.OffsetCapacity(grow);
+
+    //     uint32_t prev_size = world->m_RenderConstants.Size();
+    //     world->m_RenderConstants.OffsetCapacity(grow);
+    //     world->m_RenderConstants.SetSize(world->m_RenderConstants.Capacity());
+    //     memset(world->m_RenderConstants.Begin() + prev_size, 0, sizeof(dmGameSystem::HComponentRenderConstants)*grow);
+
+    //     assert(world->m_RenderObjects.Capacity() == world->m_RenderConstants.Capacity());
+    // }
+
+    // Make sure we have enough room for new vertex/index data
+    dmArray<dmRive::RiveVertex> &vertex_buffer = rive_file->m_VertexBufferData;
+    dmArray<uint16_t> &index_buffer = rive_file->m_IndexBufferData;
+
+    EnsureSize<>(vertex_buffer, vertex_count);
+    EnsureSize<>(index_buffer, index_count);
+
+    RiveVertex* vb_begin = vertex_buffer.Begin();
+    RiveVertex* vb_end = vb_begin;
+
+    uint16_t* ix_begin = index_buffer.Begin();
+    uint16_t* ix_end   = ix_begin;
+
+
+    uint32_t ro_offset = rive_file->m_RenderObjects.Size();
+
+    uint32_t prev_size = rive_file->m_RenderConstants.Size();
+    uint32_t grow = ro_count - rive_file->m_RenderObjects.Remaining();
+    EnsureSize<>(rive_file->m_RenderObjects, ro_count);
+    EnsureSize<>(rive_file->m_RenderConstants, ro_count);
+
+    memset(rive_file->m_RenderConstants.Begin() + prev_size, 0, sizeof(dmRender::HNamedConstantBuffer)*grow);
+
+    dmRender::RenderObject* render_objects = rive_file->m_RenderObjects.Begin() + ro_offset;
+    dmRender::HNamedConstantBuffer* render_constants = rive_file->m_RenderConstants.Begin() + ro_offset;
+
+    // We set the material directly from the editor
+    //dmRender::HMaterial material = GetMaterial(first, resource);
+
+    dmhash_t constant_names[4] = {UNIFORM_PROPERTIES, UNIFORM_GRADIENT_LIMITS, UNIFORM_COLOR, UNIFORM_STOPS};
+    dmRender::HConstant material_constants[4];
+    dmRenderDDF::MaterialDesc::ConstantType material_constant_types[4];
+
+    // Currently, the dmRender::GetMaterialProgramConstant isn't part of the dmSdk
+    material_constant_types[0] =
+    material_constant_types[1] =
+    material_constant_types[2] =
+    material_constant_types[3] = dmRenderDDF::MaterialDesc::CONSTANT_TYPE_USER;
+
+    // ro_count = 0;
+    uint32_t index_offset = 0;
+    uint32_t vertex_offset = 0;
+    RiveVertex* vb_write = vb_begin;
+    uint16_t* ix_write = ix_begin;
+
+    printf("Ro_Count: %d\n", ro_count);
+
+    for (int i = 0; i < ro_count; ++i)
+    {
+        if (!render_constants[i])
+        {
+            render_constants[i] = dmRender::NewNamedConstantBuffer();
+        }
+
+        dmRive::DrawDescriptor& draw_desc = draw_descriptors[i];
+        dmRender::RenderObject& ro = render_objects[i];
+
+        memset(&ro.m_StencilTestParams, 0, sizeof(ro.m_StencilTestParams));
+        ro.m_StencilTestParams.Init();
+        ro.Init();
+
+        ro.m_VertexDeclaration = 0;//rive_file->m_VertexDeclaration;
+        ro.m_VertexBuffer      = 0;//rive_file->m_VertexBuffer;
+        ro.m_IndexBuffer       = 0,//rive_file->m_IndexBuffer;
+        ro.m_Material          = 0;//material;
+        ro.m_VertexStart       = index_offset * sizeof(uint16_t); // byte offset
+        ro.m_VertexCount       = draw_desc.m_IndicesCount;
+        ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_SHORT;
+        ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
+
+        printf("Ro: %d, vx %d ix %d\n", i, draw_desc.m_VerticesCount, draw_desc.m_IndicesCount);
+
+        printf("vxo %u  vb: %p  ib: %p\n", vertex_offset, vb_write, ix_write);
+
+        dmRive::CopyVertices(draw_desc, vertex_offset, vb_write, ix_write);
+
+        index_offset += draw_desc.m_IndicesCount;
+        vertex_offset += draw_desc.m_VerticesCount;
+        ix_write += draw_desc.m_IndicesCount;
+        vb_write += draw_desc.m_VerticesCount;
+
+        const dmRive::FsUniforms fs_uniforms = draw_desc.m_FsUniforms;
+        const dmRive::VsUniforms vs_uniforms = draw_desc.m_VsUniforms;
+        const int MAX_STOPS = 4;
+        const int MAX_COLORS = 16;
+        const int num_stops = fs_uniforms.stopCount > 1 ? fs_uniforms.stopCount : 1;
+
+        dmVMath::Vector4 properties((float)fs_uniforms.fillType, (float) fs_uniforms.stopCount, 0.0f, 0.0f);
+        dmVMath::Vector4 gradient_limits(vs_uniforms.gradientStart.x, vs_uniforms.gradientStart.y, vs_uniforms.gradientEnd.x, vs_uniforms.gradientEnd.y);
+
+        ro.m_ConstantBuffer = render_constants[i];
+
+        // Follows the size+order of constant_names
+        dmVMath::Vector4* constant_values[4] = {
+            (dmVMath::Vector4*) &properties,
+            (dmVMath::Vector4*) &gradient_limits,
+            (dmVMath::Vector4*) fs_uniforms.colors,
+            (dmVMath::Vector4*) fs_uniforms.stops
+        };
+        uint32_t constant_value_counts[4] = {
+            1,
+            1,
+            sizeof(fs_uniforms.colors) / sizeof(dmVMath::Vector4),
+            sizeof(fs_uniforms.stops) / sizeof(dmVMath::Vector4)
+        };
+        for (uint32_t i = 0; i < DM_ARRAY_SIZE(constant_names); ++i)
+        {
+            dmRender::SetNamedConstant(ro.m_ConstantBuffer, constant_names[i], constant_values[i], constant_value_counts[i], material_constant_types[i]);
+        }
+
+        dmRive::ApplyDrawMode(ro, draw_desc.m_DrawMode, draw_desc.m_ClipIndex);
+
+        memcpy(&ro.m_WorldTransform, &vs_uniforms.world, sizeof(vs_uniforms.world));
+    }
+
+}
+
+void Update(RiveFile* rive_file, float dt)
+{
+    if (!rive_file->m_File)
+        return;
+
+    rive_file->m_Renderer->reset();
+    if (rive_file->m_StateMachineInstance)
+    {
+        rive_file->m_StateMachineInstance->advanceAndApply(dt);
+    }
+    else if (rive_file->m_AnimationInstance)
+    {
+        rive_file->m_AnimationInstance->advanceAndApply(dt);
+    }
+    else {
+        rive_file->m_ArtboardInstance->advance(dt);
+    }
+
+    Render(rive_file);
+}
+
 
 } // namespace

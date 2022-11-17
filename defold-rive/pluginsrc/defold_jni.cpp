@@ -55,17 +55,6 @@ void FinalizeJNITypes(JNIEnv* env)
 
 }
 
-jclass GetVec4JNIClass()
-{
-    return g_Vec4JNI.cls;
-}
-
-// int AddressOf(jobject object)
-// {
-//     uint64_t a = *(uint64_t*)(uintptr_t)object;
-//     return a;
-// }
-
 void SetFieldString(JNIEnv* env, jclass cls, jobject obj, const char* field_name, const char* value)
 {
     jfieldID field = GetFieldString(env, cls, field_name);
@@ -161,8 +150,68 @@ jobject CreateMatrix4(JNIEnv* env, const dmVMath::Matrix4* matrix)
     return obj;
 }
 
-    jobject CreateVec4(JNIEnv* env, const dmVMath::Vector4& value);
-    jobject CreateMatrix4(JNIEnv* env, const dmVMath::Matrix4* matrix);
-    jobject CreateAABB(JNIEnv* env, const float* aabb_min, const float* aabb_max);
-
+jobjectArray CreateVec4Array(JNIEnv* env, uint32_t num_values, const dmVMath::Vector4* values)
+{
+    jobjectArray arr = env->NewObjectArray(num_values, g_Vec4JNI.cls, 0);
+    for (uint32_t i = 0; i < num_values; ++i)
+    {
+        jobject o = CreateVec4(env, values[i]);
+        env->SetObjectArrayElement(arr, i, o);
+        env->DeleteLocalRef(o);
+    }
+    return arr;
 }
+
+// For debugging the set values
+void GetVec4(JNIEnv* env, jobject object, jfieldID field, dmVMath::Vector4* vec4)
+{
+    jobject vobject = env->GetObjectField(object, field);
+    float v[4];
+    v[0] = env->GetFloatField(vobject, g_Vec4JNI.x);
+    v[1] = env->GetFloatField(vobject, g_Vec4JNI.y);
+    v[2] = env->GetFloatField(vobject, g_Vec4JNI.z);
+    v[3] = env->GetFloatField(vobject, g_Vec4JNI.w);
+    env->DeleteLocalRef(vobject);
+    *vec4 = dmVMath::Vector4(v[0], v[1], v[2], v[3]);
+}
+
+// void GetTransform(JNIEnv* env, jobject object, jfieldID field, dmTransform::Transform* out)
+// {
+//     jobject xform = env->GetObjectField(object, field);
+//     // TODO: check if it's a transform class!
+
+//     jobject xform_pos = env->GetObjectField(xform, g_TransformJNI.translation);
+//     jobject xform_rot = env->GetObjectField(xform, g_TransformJNI.rotation);
+//     jobject xform_scl = env->GetObjectField(xform, g_TransformJNI.scale);
+
+//     float v[4] = {};
+//     GetVec4(env, xform_pos, v);
+//     out->SetTranslation(dmVMath::Vector3(v[0], v[1], v[2]));
+//     GetVec4(env, xform_rot, v);
+//     out->SetRotation(dmVMath::Quat(v[0], v[1], v[2], v[3]));
+//     GetVec4(env, xform_scl, v);
+//     out->SetScale(dmVMath::Vector3(v[0], v[1], v[2]));
+
+//     env->DeleteLocalRef(xform_pos);
+//     env->DeleteLocalRef(xform_rot);
+//     env->DeleteLocalRef(xform_scl);
+//     env->DeleteLocalRef(xform);
+// }
+
+void GetMatrix4(JNIEnv* env, jobject object, jfieldID field, dmVMath::Matrix4* out)
+{
+    jfloatArray mobject = (jfloatArray)env->GetObjectField(object, field);
+    float* data = env->GetFloatArrayElements(mobject, NULL);
+
+    float* outf = (float*)out;
+    for (int i = 0; i < 16; ++i)
+    {
+        outf[i] = data[i];
+    }
+
+    env->ReleaseFloatArrayElements(mobject, data, 0);
+    env->DeleteLocalRef(mobject);
+}
+
+} // namespace
+

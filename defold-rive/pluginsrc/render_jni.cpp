@@ -207,17 +207,10 @@ static jobject CreateConstant(JNIEnv* env, dmhash_t name_hash, uint32_t num_valu
     jobject obj = env->AllocObject(g_ConstantJNI.cls);
     env->SetLongField(obj, g_ConstantJNI.name_hash, (jlong)name_hash);
 
-    jobjectArray arr = env->NewObjectArray(num_values, dmDefoldJNI::GetVec4JNIClass(), 0);
-    for (uint32_t i = 0; i < num_values; ++i)
-    {
-        jobject o = dmDefoldJNI::CreateVec4(env, values[i]);
-        env->SetObjectArrayElement(arr, i, o);
-        env->DeleteLocalRef(o);
-    }
+    jobjectArray arr = dmDefoldJNI::CreateVec4Array(env, num_values, values);
     dmDefoldJNI::SetFieldObject(env, obj, g_ConstantJNI.values, arr);
     env->DeleteLocalRef(arr);
-
-    return arr;
+    return obj;
 }
 
 static void IterateNamedConstants(dmhash_t name_hash, void* ctx)
@@ -284,10 +277,17 @@ jobject CreateRenderObject(JNIEnv* env, const dmRender::RenderObject* ro)
     return obj;
 }
 
-// JNIEXPORT jint JNICALL Java_Render_AddressOf(JNIEnv* env, jclass cls, jobject object)
-// {
-//     return dmDefoldJNI::AddressOf(object);
-// }
+jobjectArray CreateRenderObjectArray(JNIEnv* env, uint32_t num_values, const dmRender::RenderObject* values)
+{
+    jobjectArray arr = env->NewObjectArray(num_values, g_RenderObjectJNI.cls, 0);
+    for (uint32_t i = 0; i < num_values; ++i)
+    {
+        jobject o = CreateRenderObject(env, &values[i]);
+        env->SetObjectArrayElement(arr, i, o);
+        env->DeleteLocalRef(o);
+    }
+    return arr;
+}
 
 } // namespace
 

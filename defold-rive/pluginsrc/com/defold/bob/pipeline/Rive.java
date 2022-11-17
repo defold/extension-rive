@@ -6,6 +6,9 @@ package com.dynamo.bob.pipeline;
 
 import com.dynamo.bob.pipeline.DefoldJNI.Vec4;
 import com.dynamo.bob.pipeline.DefoldJNI.Matrix4;
+import com.dynamo.bob.pipeline.RenderJNI.Constant;
+import com.dynamo.bob.pipeline.RenderJNI.StencilTestFunc;
+import com.dynamo.bob.pipeline.RenderJNI.StencilTestParams;
 import com.dynamo.bob.pipeline.RenderJNI.RenderObject;
 
 import java.io.BufferedInputStream;
@@ -87,6 +90,7 @@ public class Rive {
 
     public static class Bone {
         public String   name;
+        public int      index;
         public int      parent;
 
         public float    posX;
@@ -615,6 +619,66 @@ public class Rive {
         }
     }
 
+    private static void DebugStateMachine(StateMachine sm)
+    {
+        PrintIndent(1);
+        System.out.printf("StateMachine: %s\n", sm.name);
+        PrintIndent(2);
+        System.out.printf("inputs\n");
+        for (StateMachineInput input : sm.inputs)
+        {
+            PrintIndent(2);
+            System.out.printf("name: '%s'  type: %s\n", input.name, input.type);
+        }
+    }
+
+    private static void DebugBone(Bone bone)
+    {
+        PrintIndent(1); System.out.printf("Bone %d: '%s'\n", bone.index, bone.name);
+        PrintIndent(2); System.out.printf("parent: %d\n", bone.parent);
+        PrintIndent(2); System.out.printf("pos:   %f, %f\n", bone.posX, bone.posY);
+        PrintIndent(2); System.out.printf("scale: %f, %f\n", bone.scaleX, bone.scaleY);
+        PrintIndent(2); System.out.printf("rotation/length: %f, %f\n", bone.rotation, bone.length);
+    }
+
+    private static void DebugConstantBuffer(Constant[] constants, int indent)
+    {
+        for (Constant constant : constants)
+        {
+            PrintIndent(indent); System.out.printf("constant: name: %d  values:", constant.name_hash);
+            for (Vec4 value : constant.values)
+            {
+                System.out.printf("(%f, %f, %f, %f), ", value.x, value.y, value.z, value.w);
+            }
+            System.out.printf("\n");
+        }
+    }
+
+    private static void DebugRenderObject(RenderObject ro, int index)
+    {
+        PrintIndent(1); System.out.printf("RenderObject %d:\n", index);
+
+        DebugConstantBuffer(ro.constantBuffer, 3);
+        // PrintIndent(2); System.out.printf("constantBuffer:          %d\n", ro.constantBuffer);         // HNamedConstantBuffer
+        // PrintIndent(2); System.out.printf("worldTransform:          %d\n", ro.worldTransform);         // dmVMath::Matrix4
+        // PrintIndent(2); System.out.printf("textureTransform:        %d\n", ro.textureTransform);       // dmVMath::Matrix4
+        PrintIndent(2); System.out.printf("vertexBuffer:            %d\n", ro.vertexBuffer);           // dmGraphics::HVertexBuffer
+        PrintIndent(2); System.out.printf("vertexDeclaration:       %d\n", ro.vertexDeclaration);      // dmGraphics::HVertexDeclaration
+        PrintIndent(2); System.out.printf("indexBuffer:             %d\n", ro.indexBuffer);            // dmGraphics::HIndexBuffer
+        PrintIndent(2); System.out.printf("material:                %d\n", ro.material);               // HMaterial
+        //PrintIndent(2); System.out.printf("textures:                %d\n", ro.textures);               //[MAX_TEXTURE_COUNT]; // dmGraphics::HTexture
+        PrintIndent(2); System.out.printf("primitiveType:           %d\n", ro.primitiveType);          // dmGraphics::PrimitiveType
+        PrintIndent(2); System.out.printf("indexType:               %d\n", ro.indexType);              // dmGraphics::Type
+        PrintIndent(2); System.out.printf("sourceBlendFactor:       %d\n", ro.sourceBlendFactor);      // dmGraphics::BlendFactor
+        PrintIndent(2); System.out.printf("destinationBlendFactor:  %d\n", ro.destinationBlendFactor); // dmGraphics::BlendFactor
+        PrintIndent(2); System.out.printf("faceWinding:             %d\n", ro.faceWinding);            // dmGraphics::FaceWinding
+        //PrintIndent(2); System.out.printf("stencilTestParams:       %d\n", ro.stencilTestParams);      // StencilTestParams
+        PrintIndent(2); System.out.printf("vertexStart:             %d\n", ro.vertexStart);            // uint32_t
+        PrintIndent(2); System.out.printf("vertexCount:             %d\n", ro.vertexCount);            // uint32_t
+        PrintIndent(2); System.out.printf("setBlendFactors:         %s\n", ro.setBlendFactors?"true":"false");        // uint8_t :1
+        PrintIndent(2); System.out.printf("setStencilTest:          %s\n", ro.setStencilTest?"true":"false");         // uint8_t :1
+        PrintIndent(2); System.out.printf("setFaceWinding:          %s\n", ro.setFaceWinding?"true":"false");         // uint8_t :1
+    }
 
     // ./utils/test_plugin.sh <rive scene path>
     public static void main(String[] args) throws IOException {
@@ -627,8 +691,6 @@ public class Rive {
 
         String path = args[0];       // .riv
 
-        System.out.printf("Testing\n");
-
         long timeStart = System.currentTimeMillis();
 
         RiveFile rive_file = LoadFromPath(path);
@@ -638,8 +700,6 @@ public class Rive {
         System.out.printf("Loaded %s %s\n", path, rive_file!=null ? "ok":"failed");
         System.out.printf("Loading took %d ms\n", (timeEnd - timeStart));
 
-        Update(rive_file, 0.1f);
-
         System.out.printf("--------------------------------\n");
 
         System.out.printf("Num animations: %d\n", rive_file.animations.length);
@@ -647,6 +707,39 @@ public class Rive {
         {
             PrintIndent(1);
             System.out.printf("%s\n", animation);
+        }
+
+        System.out.printf("--------------------------------\n");
+
+        System.out.printf("Num state machines: %d\n", rive_file.stateMachines.length);
+        for (StateMachine stateMachine : rive_file.stateMachines)
+        {
+            DebugStateMachine(stateMachine);
+        }
+
+        System.out.printf("--------------------------------\n");
+
+        System.out.printf("Num bones: %d\n", rive_file.bones.length);
+        for (Bone bone : rive_file.bones)
+        {
+            DebugBone(bone);
+        }
+
+        System.out.printf("--------------------------------\n");
+
+        System.out.printf("Num bones: %d\n", rive_file.bones.length);
+        for (Bone bone : rive_file.bones)
+        {
+            DebugBone(bone);
+        }
+
+        System.out.printf("--------------------------------\n");
+
+        System.out.printf("Num render objects: %d\n", rive_file.renderObjects.length);
+        int i = 0;
+        for (RenderObject ro : rive_file.renderObjects)
+        {
+            DebugRenderObject(ro, i++);
         }
 
         // System.out.printf("--------------------------------\n");

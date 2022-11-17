@@ -20,6 +20,11 @@ namespace rive
 
 namespace dmRive
 {
+    static const dmhash_t UNIFORM_COLOR           = dmHashString64("colors");
+    static const dmhash_t UNIFORM_STOPS           = dmHashString64("stops");
+    static const dmhash_t UNIFORM_GRADIENT_LIMITS = dmHashString64("gradientLimits");
+    static const dmhash_t UNIFORM_PROPERTIES      = dmHashString64("properties");
+
     struct RiveVertex
     {
         float x;
