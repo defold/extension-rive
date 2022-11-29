@@ -30,52 +30,44 @@ import java.lang.reflect.Method;
 
 public class Rive {
 
-
-    static final String LIBRARY_NAME = "RiveExt";
-
-    static {
-        Class<?> clsbob = null;
-
-        try {
-            ClassLoader clsloader = ClassLoader.getSystemClassLoader();
-            clsbob = clsloader.loadClass("com.dynamo.bob.Bob");
-        } catch (Exception e) {
-            System.out.printf("Didn't find Bob class in default system class loader: %s\n", e);
+    static String getLibrarySuffix() {
+        String os = System.getProperty("os.name").toLowerCase();
+        if (os.contains("mac")) {
+            return ".dylib";
         }
-
-        if (clsbob == null) {
-            try {
-                // ClassLoader.getSystemClassLoader() doesn't work with junit
-                ClassLoader clsloader = Rive.class.getClassLoader();
-                clsbob = clsloader.loadClass("com.dynamo.bob.Bob");
-            } catch (Exception e) {
-                System.out.printf("Didn't find Bob class in default test class loader: %s\n", e);
-            }
+        if (os.contains("win")) {
+            return ".dll";
         }
-
-        if (clsbob != null)
-        {
-            try {
-                Method getSharedLib = clsbob.getMethod("getSharedLib", String.class);
-                //Method addToPaths = clsbob.getMethod("addToPaths", String.class);
-                File lib = (File)getSharedLib.invoke(null, LIBRARY_NAME);
-                System.load(lib.getAbsolutePath());
-            } catch (Exception e) {
-                e.printStackTrace();
-                System.err.printf("Failed to find functions in Bob: %s\n", e);
-                System.exit(1);
-            }
+        if (os.contains("linux")) {
+            return ".so";
         }
-        else {
+        return "";
+    }
+
+    static void loadLibrary(String libName) {
+        String java_library_path = System.getProperty("java.library.path");
+        String [] paths = java_library_path.split(File.pathSeparator);
+
+        for (String path : paths) {
             try {
-                System.out.printf("Fallback to regular System.loadLibrary(%s)\n", LIBRARY_NAME);
-                System.loadLibrary(LIBRARY_NAME); // Requires the java.library.path to be set
+                File libFile = new File(path, libName);
+                if (!libFile.exists())
+                    continue;
+
+                System.load(libFile.getAbsolutePath());
+                return;
             } catch (Exception e) {
                 e.printStackTrace();
                 System.err.printf("Native code library failed to load: %s\n", e);
                 System.exit(1);
             }
         }
+        System.err.printf("Failed to find and load: %s from java.library.path='%s'\n", libName, java_library_path);
+        System.exit(1);
+    }
+
+    static {
+        loadLibrary("libRiveExt" + getLibrarySuffix());
     }
 
 
