@@ -4,6 +4,7 @@
 
 package com.dynamo.bob.pipeline;
 
+import com.dynamo.bob.pipeline.DefoldJNI.Aabb;
 import com.dynamo.bob.pipeline.DefoldJNI.Vec4;
 import com.dynamo.bob.pipeline.DefoldJNI.Matrix4;
 import com.dynamo.bob.pipeline.RenderJNI.Constant;
@@ -105,6 +106,7 @@ public class Rive {
         public String           path;
         public long             pointer;
 
+        public Aabb             aabb;
         public float[]          vertices;
         public int[]            indices;
         public String[]         animations;
@@ -718,6 +720,11 @@ public class Rive {
                                             indices[0*3+2]);
     }
 
+    private static void DebugVec4(String name, Vec4 v, int indent)
+    {
+        PrintIndent(indent); System.out.printf("%s: %f, %f, %f, %f\n", name, v.x, v.y, v.z, v.w);
+    }
+
     // ./utils/test_plugin.sh <rive scene path>
     public static void main(String[] args) throws IOException {
         System.setProperty("java.awt.headless", "true");
@@ -739,6 +746,10 @@ public class Rive {
         System.out.printf("Loading took %d ms\n", (timeEnd - timeStart));
 
         System.out.printf("--------------------------------\n");
+
+        System.out.printf("AABB:\n");
+        DebugVec4("min", rive_file.aabb.min, 1);
+        DebugVec4("max", rive_file.aabb.max, 1);
 
         System.out.printf("Num animations: %d\n", rive_file.animations.length);
         for (String animation : rive_file.animations)

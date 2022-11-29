@@ -19,10 +19,11 @@
 
 #include <jni.h>
 
+#include <dmsdk/dlib/align.h>
 #include <dmsdk/dlib/array.h>
 #include <dmsdk/dlib/dstrings.h>
 #include <dmsdk/dlib/log.h>
-#include <dmsdk/dlib/align.h>
+#include <dmsdk/dlib/math.h>
 #include <dmsdk/dlib/transform.h>
 
 #include <rive/animation/linear_animation_instance.hpp>
@@ -71,6 +72,7 @@ struct RiveFileJNI
     jclass      cls;
     jfieldID    pointer;    // Pointer to a RiveFile*
     jfieldID    path;       // string
+    jfieldID    aabb;       // Aabb
     jfieldID    vertices;   // array of floats. Each vertex is: (x, y, u, v)
     jfieldID    indices;    // array of indices into the vertices array. triangle list. 3 indices define a triangle
 
@@ -117,6 +119,7 @@ void InitializeJNITypes(JNIEnv* env)
         GET_FLD_TYPESTR(vertices, "[F");
         GET_FLD_TYPESTR(indices, "[I");
         GET_FLD_ARRAY(animations, "java/lang/String");
+        GET_FLD(aabb, MAKE_TYPE_NAME(DM_DEFOLD_JNI_PACKAGE_NAME, "Aabb"));
         GET_FLD_ARRAY(stateMachines, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "StateMachine"));
         GET_FLD_ARRAY(bones, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "Bone"));
         GET_FLD_ARRAY(renderObjects, MAKE_TYPE_NAME(DM_RENDER_JNI_PACKAGE_NAME, "RenderObject"));
@@ -289,6 +292,18 @@ static jobjectArray CreateBones(JNIEnv* env, dmRive::RiveFile* rive_file)
     return arr;
 }
 
+static void CalculateAabb(dmRive::RiveVertex* vertices, uint32_t count, float* aabb_min, float* aabb_max)
+{
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        dmRive::RiveVertex& v = vertices[i];
+        aabb_min[0] = dmMath::Min(aabb_min[0], v.x);
+        aabb_min[1] = dmMath::Min(aabb_min[1], v.y);
+        aabb_max[0] = dmMath::Max(aabb_max[0], v.x);
+        aabb_max[1] = dmMath::Max(aabb_max[1], v.y);
+    }
+}
+
 static void UpdateJNIRenderData(JNIEnv* env, jobject rive_file_obj, dmRive::RiveFile* rive_file)
 {
     dmArray<int> int_indices;
@@ -299,6 +314,14 @@ static void UpdateJNIRenderData(JNIEnv* env, jobject rive_file_obj, dmRive::Rive
     {
         int_indices[i] = (int)rive_file->m_IndexBufferData[i];
     }
+
+    float aabb_min[2] = {100000.0f, 100000.0f};
+    float aabb_max[2] = {-100000.0f, -100000.0f};
+    CalculateAabb(rive_file->m_VertexBufferData.Begin(), rive_file->m_VertexBufferData.Size(), aabb_min, aabb_max);
+
+    jobject aabb = dmDefoldJNI::CreateAABB(env, dmVMath::Vector4(aabb_min[0], aabb_min[1], -1.0f, 0.0f), dmVMath::Vector4(aabb_max[0], aabb_max[1], 1.0f, 0.0f));
+    dmDefoldJNI::SetFieldObject(env, rive_file_obj, g_RiveFileJNI.aabb, aabb);
+    env->DeleteLocalRef(aabb);
 
     jintArray indices = dmDefoldJNI::CreateIntArray(env, int_indices.Size(), int_indices.Begin());
     dmDefoldJNI::SetFieldObject(env, rive_file_obj, g_RiveFileJNI.indices, indices);
@@ -320,6 +343,10 @@ static jobject CreateRiveFile(JNIEnv* env, dmRive::RiveFile* rive_file)
         return 0;
 
     jobject obj = env->AllocObject(g_RiveFileJNI.cls);
+
+    jobject aabb = dmDefoldJNI::CreateAABB(env, dmVMath::Vector4(0), dmVMath::Vector4(0));
+    dmDefoldJNI::SetFieldObject(env, obj, g_RiveFileJNI.aabb, aabb);
+    env->DeleteLocalRef(aabb);
 
     dmDefoldJNI::SetFieldString(env, obj, g_RiveFileJNI.path, rive_file->m_Path);
     env->SetLongField(obj, g_RiveFileJNI.pointer, ToLong(rive_file));

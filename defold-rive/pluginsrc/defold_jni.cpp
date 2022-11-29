@@ -160,6 +160,21 @@ jobjectArray CreateVec4Array(JNIEnv* env, uint32_t num_values, const dmVMath::Ve
     return arr;
 }
 
+jobject CreateAABB(JNIEnv* env, const dmVMath::Vector4& aabb_min, const dmVMath::Vector4& aabb_max)
+{
+    jobject obj = env->AllocObject(g_AabbJNI.cls);
+
+    jobject min = CreateVec4(env, aabb_min);
+    env->SetObjectField(obj, g_AabbJNI.min, min);
+    env->DeleteLocalRef(min);
+
+    jobject max = CreateVec4(env, aabb_max);
+    env->SetObjectField(obj, g_AabbJNI.max, max);
+    env->DeleteLocalRef(max);
+
+    return obj;
+}
+
 // For debugging the set values
 void GetVec4(JNIEnv* env, jobject object, jfieldID field, dmVMath::Vector4* vec4)
 {

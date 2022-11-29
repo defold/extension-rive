@@ -34,7 +34,7 @@ namespace dmDefoldJNI
 
     jobject CreateVec4(JNIEnv* env, const dmVMath::Vector4& value);
     jobject CreateMatrix4(JNIEnv* env, const dmVMath::Matrix4* matrix);
-    jobject CreateAABB(JNIEnv* env, const float* aabb_min, const float* aabb_max);
+    jobject CreateAABB(JNIEnv* env, const dmVMath::Vector4& aabb_min, const dmVMath::Vector4& aabb_max);
     jobjectArray CreateVec4Array(JNIEnv* env, uint32_t num_values, const dmVMath::Vector4* values);
 
     void SetFieldString(JNIEnv* env, jclass cls, jobject obj, const char* field_name, const char* value);

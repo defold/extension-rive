@@ -68,8 +68,67 @@ static uint8_t* ReadFile(const char* path, size_t* file_size)
     return buffer;
 }
 
+// https://android.googlesource.com/platform/libnativehelper/+/b53ec15/JNIHelp.c
+// static void getExceptionSummary(JNIEnv* env, jthrowable exception, char* buf, size_t bufLen)
+// {
+//     int success = 0;
+//     /* get the name of the exception's class */
+//     jclass exceptionClazz = env->GetObjectClass(exception); // can't fail
+//     jclass classClazz = env->GetObjectClass(exceptionClazz); // java.lang.Class, can't fail
+//     jmethodID classGetNameMethod = env->GetMethodID(classClazz, "getName", "()Ljava/lang/String;");
+//     jstring classNameStr = (jstring)env->CallObjectMethod(exceptionClazz, classGetNameMethod);
+//     if (classNameStr != NULL) {
+//         /* get printable string */
+//         const char* classNameChars = env->GetStringUTFChars(classNameStr, NULL);
+//         if (classNameChars != NULL) {
+//             /* if the exception has a message string, get that */
+//             jmethodID throwableGetMessageMethod = env->GetMethodID(exceptionClazz, "getMessage", "()Ljava/lang/String;");
+//             jstring messageStr = (jstring)env->CallObjectMethod(exception, throwableGetMessageMethod);
+//             if (messageStr != NULL) {
+//                 const char* messageChars = env->GetStringUTFChars(messageStr, NULL);
+//                 if (messageChars != NULL) {
+//                     snprintf(buf, bufLen, "%s: %s", classNameChars, messageChars);
+//                     env->ReleaseStringUTFChars(messageStr, messageChars);
+//                 } else {
+//                     env->ExceptionClear(); // clear OOM
+//                     snprintf(buf, bufLen, "%s: <error getting message>", classNameChars);
+//                 }
+//                 env->DeleteLocalRef(messageStr);
+//             } else {
+//                 strncpy(buf, classNameChars, bufLen);
+//                 buf[bufLen - 1] = '\0';
+//             }
+//             env->ReleaseStringUTFChars(classNameStr, classNameChars);
+//             success = 1;
+//         }
+//         env->DeleteLocalRef(classNameStr);
+//     }
+//     env->DeleteLocalRef(classClazz);
+//     env->DeleteLocalRef(exceptionClazz);
+//     if (! success) {
+//         env->ExceptionClear();
+//         snprintf(buf, bufLen, "%s", "<error getting class name>");
+//     }
+// }
+
+static void CheckJniException(JNIEnv* env, const char* function, int line)
+{
+    jthrowable throwable = env->ExceptionOccurred();
+    if (throwable == NULL)
+        return;
+
+    printf("%s:%d: Jni error\n", function, line);
+    env->ExceptionDescribe();
+    env->ExceptionClear();
+}
+
+#define CHECK_JNI_ERROR() CheckJniException(env, __FUNCTION__, __LINE__)
+
+
 JNIEXPORT jobject JNICALL Java_RiveFile_LoadFromBufferInternal(JNIEnv* env, jclass cls, jstring _path, jbyteArray array)
 {
+    CHECK_JNI_ERROR();
+
     dmDefoldJNI::ScopedString j_path(env, _path);
     const char* path = j_path.m_String;
 
@@ -83,23 +142,25 @@ JNIEXPORT jobject JNICALL Java_RiveFile_LoadFromBufferInternal(JNIEnv* env, jcla
 
     jsize file_size = env->GetArrayLength(array);
     jbyte* file_data = env->GetByteArrayElements(array, 0);
+    CHECK_JNI_ERROR();
 
     printf("LoadFromBufferInternal: %s suffix: %s bytes: %d\n", path, suffix, file_size);
 
-    dmDefoldJNI::InitializeJNITypes(env);
-    dmRenderJNI::InitializeJNITypes(env);
-    dmRiveJNI::InitializeJNITypes(env);
+    dmDefoldJNI::InitializeJNITypes(env);   CHECK_JNI_ERROR();
+    dmRenderJNI::InitializeJNITypes(env);   CHECK_JNI_ERROR();
+    dmRiveJNI::InitializeJNITypes(env);     CHECK_JNI_ERROR();
 
     jobject rive_file_obj = dmRiveJNI::LoadFileFromBuffer(env, cls, path, (const uint8_t*)file_data, (uint32_t)file_size);
+    CHECK_JNI_ERROR();
 
     if (dmLogGetLevel() == LOG_SEVERITY_DEBUG) // verbose mode
     {
         // Debug info
     }
 
-    dmRiveJNI::FinalizeJNITypes(env);
-    dmRenderJNI::FinalizeJNITypes(env);
-    dmDefoldJNI::FinalizeJNITypes(env);
+    dmRiveJNI::FinalizeJNITypes(env);   CHECK_JNI_ERROR();
+    dmRenderJNI::FinalizeJNITypes(env); CHECK_JNI_ERROR();
+    dmDefoldJNI::FinalizeJNITypes(env); CHECK_JNI_ERROR();
 
     printf("LoadFromBufferInternal: done!\n");
 

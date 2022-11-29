@@ -83,13 +83,25 @@ function build_plugin() {
 function delete_file() {
     local file=$1
     if [ -e "$file" ]; then
+        echo "Cleaning $file"
         rm $file
+    fi
+}
+
+function delete_dir() {
+    local directory=$1
+    if [ -d "$directory" ]; then
+        echo "Cleaning $directory"
+        rm -rf $directory
     fi
 }
 
 function clean_plugin() {
     local platform=$1
     local platform_ne=$2
+
+    delete_dir ./build/plugins/${PROJECT}/plugins/share
+    delete_dir ./build/plugins/${PROJECT}/plugins/lib/${platform_ne}
 
     for path in $TARGET_DIR/share/*.jar; do
         delete_file $path
