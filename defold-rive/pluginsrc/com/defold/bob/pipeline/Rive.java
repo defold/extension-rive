@@ -84,7 +84,8 @@ public class Rive {
     public static class Bone {
         public String   name;
         public int      index;
-        public int      parent;
+        public Bone     parent;
+        public Bone[]   children;
 
         public float    posX;
         public float    posY;
@@ -92,6 +93,7 @@ public class Rive {
         public float    scaleY;
         public float    rotation;
         public float    length;
+
     }
 
     public static native RiveFile LoadFromBufferInternal(String path, byte[] buffer);
@@ -160,13 +162,17 @@ public class Rive {
         }
     }
 
-    private static void DebugBone(Bone bone)
+    private static void DebugBone(Bone bone, int indent)
     {
-        PrintIndent(1); System.out.printf("Bone %d: '%s'\n", bone.index, bone.name);
-        PrintIndent(2); System.out.printf("parent: %d\n", bone.parent);
-        PrintIndent(2); System.out.printf("pos:   %f, %f\n", bone.posX, bone.posY);
-        PrintIndent(2); System.out.printf("scale: %f, %f\n", bone.scaleX, bone.scaleY);
-        PrintIndent(2); System.out.printf("rotation/length: %f, %f\n", bone.rotation, bone.length);
+        PrintIndent(indent+1); System.out.printf("Bone %d: '%s'\n", bone.index, bone.name);
+        PrintIndent(indent+2); System.out.printf("parent: %s\n", bone.parent != null ? bone.parent.name : "-");
+        PrintIndent(indent+2); System.out.printf("pos:   %f, %f\n", bone.posX, bone.posY);
+        PrintIndent(indent+2); System.out.printf("scale: %f, %f\n", bone.scaleX, bone.scaleY);
+        PrintIndent(indent+2); System.out.printf("rotation/length: %f, %f\n", bone.rotation, bone.length);
+
+        for (Bone child : bone.children) {
+            DebugBone(child, indent+1);
+        }
     }
 
     private static void DebugConstantBuffer(Constant[] constants, int indent)
@@ -303,18 +309,10 @@ public class Rive {
 
         System.out.printf("--------------------------------\n");
 
-        System.out.printf("Num bones: %d\n", rive_file.bones.length);
+        System.out.printf("Bones:\n");
         for (Bone bone : rive_file.bones)
         {
-            DebugBone(bone);
-        }
-
-        System.out.printf("--------------------------------\n");
-
-        System.out.printf("Num bones: %d\n", rive_file.bones.length);
-        for (Bone bone : rive_file.bones)
-        {
-            DebugBone(bone);
+            DebugBone(bone, 0);
         }
 
         System.out.printf("--------------------------------\n");
