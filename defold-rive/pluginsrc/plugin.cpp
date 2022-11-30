@@ -111,23 +111,25 @@ static uint8_t* ReadFile(const char* path, size_t* file_size)
 //     }
 // }
 
-static void CheckJniException(JNIEnv* env, const char* function, int line)
+// Each JNI function needs the types setup if we wish to use the types at all
+struct TypeRegister
 {
-    jthrowable throwable = env->ExceptionOccurred();
-    if (throwable == NULL)
-        return;
-
-    printf("%s:%d: Jni error\n", function, line);
-    env->ExceptionDescribe();
-    env->ExceptionClear();
-}
-
-#define CHECK_JNI_ERROR() CheckJniException(env, __FUNCTION__, __LINE__)
-
+    JNIEnv* env;
+    TypeRegister(JNIEnv* _env) : env(_env) {
+        dmDefoldJNI::InitializeJNITypes(env);   DM_CHECK_JNI_ERROR();
+        dmRenderJNI::InitializeJNITypes(env);   DM_CHECK_JNI_ERROR();
+        dmRiveJNI::InitializeJNITypes(env);     DM_CHECK_JNI_ERROR();
+    }
+    ~TypeRegister() {
+        dmRiveJNI::FinalizeJNITypes(env);   DM_CHECK_JNI_ERROR();
+        dmRenderJNI::FinalizeJNITypes(env); DM_CHECK_JNI_ERROR();
+        dmDefoldJNI::FinalizeJNITypes(env); DM_CHECK_JNI_ERROR();
+    }
+};
 
 JNIEXPORT jobject JNICALL Java_RiveFile_LoadFromBufferInternal(JNIEnv* env, jclass cls, jstring _path, jbyteArray array)
 {
-    CHECK_JNI_ERROR();
+    DM_CHECK_JNI_ERROR();
 
     dmDefoldJNI::ScopedString j_path(env, _path);
     const char* path = j_path.m_String;
@@ -142,40 +144,47 @@ JNIEXPORT jobject JNICALL Java_RiveFile_LoadFromBufferInternal(JNIEnv* env, jcla
 
     jsize file_size = env->GetArrayLength(array);
     jbyte* file_data = env->GetByteArrayElements(array, 0);
-    CHECK_JNI_ERROR();
+    DM_CHECK_JNI_ERROR();
 
     printf("LoadFromBufferInternal: %s suffix: %s bytes: %d\n", path, suffix, file_size);
 
-    dmDefoldJNI::InitializeJNITypes(env);   CHECK_JNI_ERROR();
-    dmRenderJNI::InitializeJNITypes(env);   CHECK_JNI_ERROR();
-    dmRiveJNI::InitializeJNITypes(env);     CHECK_JNI_ERROR();
+    TypeRegister register_t(env);
 
     jobject rive_file_obj = dmRiveJNI::LoadFileFromBuffer(env, cls, path, (const uint8_t*)file_data, (uint32_t)file_size);
-    CHECK_JNI_ERROR();
+    DM_CHECK_JNI_ERROR();
 
     if (dmLogGetLevel() == LOG_SEVERITY_DEBUG) // verbose mode
     {
         // Debug info
     }
 
-    dmRiveJNI::FinalizeJNITypes(env);   CHECK_JNI_ERROR();
-    dmRenderJNI::FinalizeJNITypes(env); CHECK_JNI_ERROR();
-    dmDefoldJNI::FinalizeJNITypes(env); CHECK_JNI_ERROR();
-
     printf("LoadFromBufferInternal: done!\n");
 
+    DM_CHECK_JNI_ERROR();
     return rive_file_obj;
 }
 
 static void JNICALL Java_RiveFile_Destroy(JNIEnv* env, jclass cls, jobject rive_file)
 {
+    DM_CHECK_JNI_ERROR();
+    TypeRegister register_t(env);
     dmRiveJNI::DestroyFile(env, cls, rive_file);
+    DM_CHECK_JNI_ERROR();
 }
 
 static void JNICALL Java_RiveFile_Update(JNIEnv* env, jclass cls, jobject rive_file, jfloat dt)
 {
+    DM_CHECK_JNI_ERROR();
+    TypeRegister register_t(env);
     dmRiveJNI::Update(env, cls, rive_file, dt);
+    DM_CHECK_JNI_ERROR();
 }
+
+// static JNIEXPORT jlong JNICALL Java_RiveFile_AddressOf(JNIEnv* env, jclass cls, jobject object)
+// {
+//     TypeRegister register_t(env);
+//     return (jlong)(uintptr_t)object;
+// }
 
 JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
 {
@@ -193,19 +202,23 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
     if (c == 0)
       return JNI_ERR;
 
+    #define DM_JNI_FUNCTION(_NAME, _TYPES) {(char*) # _NAME, (char*) _TYPES, reinterpret_cast<void*>(Java_RiveFile_ ## _NAME)}
+
     // Register your class' native methods.
     static const JNINativeMethod methods[] = {
-        {(char*)"LoadFromBufferInternal", (char*)"(Ljava/lang/String;[B)Lcom/dynamo/bob/pipeline/Rive$RiveFile;", reinterpret_cast<void*>(Java_RiveFile_LoadFromBufferInternal)},
-        {(char*)"Destroy", (char*)"(Lcom/dynamo/bob/pipeline/Rive$RiveFile;)V", reinterpret_cast<void*>(Java_RiveFile_Destroy)},
-        {(char*)"Update", (char*)"(Lcom/dynamo/bob/pipeline/Rive$RiveFile;F)V", reinterpret_cast<void*>(Java_RiveFile_Update)},
-        //{"AddressOf", "(Ljava/lang/Object;)I", reinterpret_cast<void*>(Java_Render_AddressOf)},
+        DM_JNI_FUNCTION(LoadFromBufferInternal, "(Ljava/lang/String;[B)Lcom/dynamo/bob/pipeline/Rive$RiveFile;"),
+        DM_JNI_FUNCTION(Destroy, "(Lcom/dynamo/bob/pipeline/Rive$RiveFile;)V"),
+        DM_JNI_FUNCTION(Update, "(Lcom/dynamo/bob/pipeline/Rive$RiveFile;F)V"),
+        //DM_JNI_FUNCTION(AddressOf, "(Ljava/lang/Object;)J"),
     };
+    #undef DM_JNI_FUNCTION
+
     int rc = env->RegisterNatives(c, methods, sizeof(methods)/sizeof(JNINativeMethod));
     env->DeleteLocalRef(c);
 
     if (rc != JNI_OK) return rc;
 
     dmLogDebug("JNI_OnLoad return.\n");
-    return JNI_VERSION_1_6;
+    return JNI_VERSION_1_8;
 }
 

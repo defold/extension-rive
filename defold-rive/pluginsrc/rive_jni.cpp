@@ -337,6 +337,13 @@ static void UpdateJNIRenderData(JNIEnv* env, jobject rive_file_obj, dmRive::Rive
     env->DeleteLocalRef(renderObjects);
 }
 
+static int HashCode(JNIEnv* env, jclass cls, jobject object)
+{
+    jmethodID hashCode = env->GetMethodID(cls, "hashCode", "()I");
+    jint i = env->CallIntMethod(object, hashCode);
+    DM_CHECK_JNI_ERROR();
+}
+
 static jobject CreateRiveFile(JNIEnv* env, dmRive::RiveFile* rive_file)
 {
     if (!rive_file)
@@ -386,6 +393,7 @@ void DestroyFile(JNIEnv* env, jclass cls, jobject rive_file_obj)
     dmRive::RiveFile* rive_file = FromObject(env, rive_file_obj);
     if (!rive_file)
         return;
+    env->SetLongField(rive_file_obj, g_RiveFileJNI.pointer, 0);
 
     dmRive::DestroyFile(rive_file);
 }

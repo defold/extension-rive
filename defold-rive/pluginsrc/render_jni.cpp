@@ -36,17 +36,6 @@ static void OutputTransform(const dmTransform::Transform& transform)
 namespace dmRenderJNI
 {
 
-// static const char* CLASS_NAME_FORMAT="com/dynamo/bob/pipeline/Render$%s";
-
-// // ******************************************************************************************************************
-
-// jclass GetClass(JNIEnv* env, const char* clsname)
-// {
-//     char buffer[128];
-//     dmSnPrintf(buffer, sizeof(buffer), CLASS_NAME_FORMAT, clsname);
-//     return env->FindClass(buffer);
-// }
-
 // ******************************************************************************************************************
 
 
@@ -247,10 +236,22 @@ static jobject CreateNamedConstantBuffer(JNIEnv* env, const dmRender::HNamedCons
 jobject CreateRenderObject(JNIEnv* env, const dmRender::RenderObject* ro)
 {
     jobject obj = env->AllocObject(g_RenderObjectJNI.cls);
-    dmDefoldJNI::SetFieldObject(env, obj, g_RenderObjectJNI.constantBuffer, CreateNamedConstantBuffer(env, ro->m_ConstantBuffer));
-    dmDefoldJNI::SetFieldObject(env, obj, g_RenderObjectJNI.worldTransform, dmDefoldJNI::CreateMatrix4(env, &ro->m_WorldTransform));
-    dmDefoldJNI::SetFieldObject(env, obj, g_RenderObjectJNI.textureTransform, dmDefoldJNI::CreateMatrix4(env, &ro->m_TextureTransform));
-    dmDefoldJNI::SetFieldObject(env, obj, g_RenderObjectJNI.stencilTestParams, CreateStencilTestParams(env, &ro->m_StencilTestParams));
+
+    jobject o = CreateNamedConstantBuffer(env, ro->m_ConstantBuffer);
+    dmDefoldJNI::SetFieldObject(env, obj, g_RenderObjectJNI.constantBuffer, o);
+    env->DeleteLocalRef(o);
+
+    o = dmDefoldJNI::CreateMatrix4(env, &ro->m_WorldTransform);
+    dmDefoldJNI::SetFieldObject(env, obj, g_RenderObjectJNI.worldTransform, o);
+    env->DeleteLocalRef(o);
+
+    o = dmDefoldJNI::CreateMatrix4(env, &ro->m_TextureTransform);
+    dmDefoldJNI::SetFieldObject(env, obj, g_RenderObjectJNI.textureTransform, o);
+    env->DeleteLocalRef(o);
+
+    o = CreateStencilTestParams(env, &ro->m_StencilTestParams);
+    dmDefoldJNI::SetFieldObject(env, obj, g_RenderObjectJNI.stencilTestParams, o);
+    env->DeleteLocalRef(o);
 
     env->SetLongField(obj, g_RenderObjectJNI.vertexDeclaration, (uintptr_t)ro->m_VertexDeclaration);
     env->SetLongField(obj, g_RenderObjectJNI.vertexBuffer,      (uintptr_t)ro->m_VertexBuffer);

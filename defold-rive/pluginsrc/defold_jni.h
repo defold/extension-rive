@@ -51,6 +51,9 @@ namespace dmDefoldJNI
     void GetVec4(JNIEnv* env, jobject object, jfieldID field, dmVMath::Vector4* vec4);
     void GetMatrix4(JNIEnv* env, jobject object, jfieldID field, dmVMath::Matrix4* out);
 
+    void CheckJniException(JNIEnv* env, const char* function, int line);
+
+#define DM_CHECK_JNI_ERROR() dmDefoldJNI::CheckJniException(env, __FUNCTION__, __LINE__)
 
 #define MAKE_TYPE_NAME(PACKAGE_NAME, TYPE_NAME) PACKAGE_NAME "$" TYPE_NAME
 

@@ -61,6 +61,14 @@ RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char*
     return out;
 }
 
+static void DeleteRenderConstants(RiveFile* rive_file)
+{
+    for (uint32_t i = 0; i < rive_file->m_RenderConstants.Size(); ++i)
+    {
+        dmRender::DeleteNamedConstantBuffer(rive_file->m_RenderConstants[i]);
+    }
+}
+
 void DestroyFile(RiveFile* rive_file)
 {
     dmLogWarning("MAWE: %s: %p", __FUNCTION__, rive_file);
@@ -78,6 +86,8 @@ void DestroyFile(RiveFile* rive_file)
         delete rive_file->m_Factory;
         delete rive_file->m_Renderer;
     }
+
+    DeleteRenderConstants(rive_file);
 
     delete rive_file;
 }
@@ -109,12 +119,18 @@ void PlayAnimation(RiveFile* rive_file, int index)
 }
 
 template<typename T>
-static void EnsureSize(dmArray<T>& a, uint32_t size)
+static void EnsureCapacity(dmArray<T>& a, uint32_t size)
 {
     if (a.Capacity() < size)
     {
         a.SetCapacity(size);
     }
+}
+
+template<typename T>
+static void EnsureCapacityAndSize(dmArray<T>& a, uint32_t size)
+{
+    EnsureCapacity(a, size);
     a.SetSize(size);
 }
 
@@ -157,6 +173,8 @@ static void Render(RiveFile* rive_file)
     renderer->restore();
 
     // **************************************************************
+    DeleteRenderConstants(rive_file);
+    rive_file->m_RenderConstants.SetSize(0);
 
     uint32_t ro_count         = 0;
     uint32_t vertex_count     = 0;
@@ -172,26 +190,12 @@ static void Render(RiveFile* rive_file)
         index_count += draw_descriptors[i].m_IndicesCount;
     }
 
-    // // Make sure we have enough free render objects
-    // if (world->m_RenderObjects.Remaining() < ro_count)
-    // {
-    //     uint32_t grow = ro_count - world->m_RenderObjects.Remaining();
-    //     world->m_RenderObjects.OffsetCapacity(grow);
-
-    //     uint32_t prev_size = world->m_RenderConstants.Size();
-    //     world->m_RenderConstants.OffsetCapacity(grow);
-    //     world->m_RenderConstants.SetSize(world->m_RenderConstants.Capacity());
-    //     memset(world->m_RenderConstants.Begin() + prev_size, 0, sizeof(dmGameSystem::HComponentRenderConstants)*grow);
-
-    //     assert(world->m_RenderObjects.Capacity() == world->m_RenderConstants.Capacity());
-    // }
-
     // Make sure we have enough room for new vertex/index data
     dmArray<dmRive::RiveVertex> &vertex_buffer = rive_file->m_VertexBufferData;
     dmArray<uint16_t> &index_buffer = rive_file->m_IndexBufferData;
 
-    EnsureSize<>(vertex_buffer, vertex_count);
-    EnsureSize<>(index_buffer, index_count);
+    EnsureCapacityAndSize<>(vertex_buffer, vertex_count);
+    EnsureCapacityAndSize<>(index_buffer, index_count);
 
     RiveVertex* vb_begin = vertex_buffer.Begin();
     RiveVertex* vb_end = vb_begin;
@@ -199,15 +203,12 @@ static void Render(RiveFile* rive_file)
     uint16_t* ix_begin = index_buffer.Begin();
     uint16_t* ix_end   = ix_begin;
 
+    EnsureCapacityAndSize<>(rive_file->m_RenderObjects, ro_count);
+    EnsureCapacityAndSize<>(rive_file->m_RenderConstants, ro_count);
 
-    uint32_t ro_offset = rive_file->m_RenderObjects.Size();
-
-    uint32_t prev_size = rive_file->m_RenderConstants.Size();
-    uint32_t grow = ro_count - rive_file->m_RenderObjects.Remaining();
-    EnsureSize<>(rive_file->m_RenderObjects, ro_count);
-    EnsureSize<>(rive_file->m_RenderConstants, ro_count);
-
-    memset(rive_file->m_RenderConstants.Begin() + prev_size, 0, sizeof(dmRender::HNamedConstantBuffer)*grow);
+    // We always start from scratch here
+    uint32_t ro_offset = 0;
+    memset(rive_file->m_RenderConstants.Begin(), 0, sizeof(dmRender::HNamedConstantBuffer)*ro_count);
 
     dmRender::RenderObject* render_objects = rive_file->m_RenderObjects.Begin() + ro_offset;
     dmRender::HNamedConstantBuffer* render_constants = rive_file->m_RenderConstants.Begin() + ro_offset;
@@ -231,15 +232,10 @@ static void Render(RiveFile* rive_file)
     RiveVertex* vb_write = vb_begin;
     uint16_t* ix_write = ix_begin;
 
-    printf("Ro_Count: %d\n", ro_count);
+    //printf("Ro_Count: %d\n", ro_count);
 
     for (int i = 0; i < ro_count; ++i)
     {
-        if (!render_constants[i])
-        {
-            render_constants[i] = dmRender::NewNamedConstantBuffer();
-        }
-
         dmRive::DrawDescriptor& draw_desc = draw_descriptors[i];
         dmRender::RenderObject& ro = render_objects[i];
 
@@ -256,7 +252,7 @@ static void Render(RiveFile* rive_file)
         ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_SHORT;
         ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
 
-        printf("Ro: %d, vx %d ix %d\n", i, draw_desc.m_VerticesCount, draw_desc.m_IndicesCount);
+        //printf("Ro: %d, vx %d ix %d\n", i, draw_desc.m_VerticesCount, draw_desc.m_IndicesCount);
 
         dmRive::CopyVertices(draw_desc, vertex_offset, vb_write, ix_write);
 
@@ -274,6 +270,7 @@ static void Render(RiveFile* rive_file)
         dmVMath::Vector4 properties((float)fs_uniforms.fillType, (float) fs_uniforms.stopCount, 0.0f, 0.0f);
         dmVMath::Vector4 gradient_limits(vs_uniforms.gradientStart.x, vs_uniforms.gradientStart.y, vs_uniforms.gradientEnd.x, vs_uniforms.gradientEnd.y);
 
+        render_constants[i] = dmRender::NewNamedConstantBuffer();
         ro.m_ConstantBuffer = render_constants[i];
 
         // Follows the size+order of constant_names
@@ -318,7 +315,6 @@ void Update(RiveFile* rive_file, float dt)
     else {
         rive_file->m_ArtboardInstance->advance(dt);
     }
-
     Render(rive_file);
 }
 

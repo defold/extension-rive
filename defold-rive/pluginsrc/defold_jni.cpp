@@ -55,6 +55,17 @@ void FinalizeJNITypes(JNIEnv* env)
 
 }
 
+void CheckJniException(JNIEnv* env, const char* function, int line)
+{
+    jthrowable throwable = env->ExceptionOccurred();
+    if (throwable == NULL)
+        return;
+
+    printf("%s:%d: Jni error\n", function, line);
+    env->ExceptionDescribe();
+    env->ExceptionClear();
+}
+
 void SetFieldString(JNIEnv* env, jclass cls, jobject obj, const char* field_name, const char* value)
 {
     jfieldID field = GetFieldString(env, cls, field_name);
@@ -126,6 +137,12 @@ jobjectArray CreateObjectArray(JNIEnv* env, jclass cls, const dmArray<jobject>& 
         env->SetObjectArrayElement(arr, i, values[i]);
     }
     return arr;
+}
+
+static jobject NewObject(JNIEnv* env, jclass cls)
+{
+    jmethodID init = env->GetMethodID(cls, "<init>", "()V");
+    return env->NewObject(cls, init);
 }
 
 jobject CreateVec4(JNIEnv* env, const dmVMath::Vector4& value)
