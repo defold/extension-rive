@@ -12,6 +12,7 @@ public class RenderJNI {
     public static class Constant {
         public long     nameHash;
         public Vec4[]   values;
+        // TODO: create a getValuesAsFloats
     }
 
     public static class StencilTestFunc {

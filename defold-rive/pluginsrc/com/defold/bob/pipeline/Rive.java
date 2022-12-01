@@ -164,6 +164,8 @@ public class Rive {
 
     private static void DebugBone(Bone bone, int indent)
     {
+        if (bone == null)
+            System.out.printf("Bone is null\n");
         PrintIndent(indent+1); System.out.printf("Bone %d: '%s'\n", bone.index, bone.name);
         PrintIndent(indent+2); System.out.printf("parent: %s\n", bone.parent != null ? bone.parent.name : "-");
         PrintIndent(indent+2); System.out.printf("pos:   %f, %f\n", bone.posX, bone.posY);

@@ -58,7 +58,8 @@ struct BoneJNI
     jclass      cls;
     jfieldID    name;       // string
     jfieldID    index;      // int index into array
-    jfieldID    parent;     // int index into array
+    jfieldID    parent;     // Bone
+    jfieldID    children;   // Bone[]
     jfieldID    posX;       // float
     jfieldID    posY;       // float
     jfieldID    rotation;   // float
@@ -78,7 +79,7 @@ struct RiveFileJNI
 
     jfieldID    animations;    // array of strings
     jfieldID    stateMachines; // array of state machines
-    jfieldID    bones;         // array of bones
+    jfieldID    bones;         // array of root bones
     jfieldID    renderObjects; // array of render objects
 } g_RiveFileJNI;
 
@@ -104,7 +105,8 @@ void InitializeJNITypes(JNIEnv* env)
         SETUP_CLASS(BoneJNI, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "Bone"));
         GET_FLD_STRING(name);
         GET_FLD_TYPESTR(index, "I");
-        GET_FLD_TYPESTR(parent, "I");
+        GET_FLD(parent, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "Bone"));
+        GET_FLD_ARRAY(children, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "Bone"));
         GET_FLD_TYPESTR(posX, "F");
         GET_FLD_TYPESTR(posY, "F");
         GET_FLD_TYPESTR(rotation, "F");
@@ -251,17 +253,8 @@ static jobjectArray CreateAnimations(JNIEnv* env, dmRive::RiveFile* rive_file)
     return arr;
 }
 
-static jobject CreateBone(JNIEnv* env, dmRive::RiveBone* bone)
+static void UpdateBone(JNIEnv* env, dmRive::RiveBone* bone, jobject obj)
 {
-    jobject obj = env->AllocObject(g_BoneJNI.cls);
-
-    dmDefoldJNI::SetFieldString(env, obj, g_BoneJNI.name, dmRive::GetBoneName(bone));
-    dmDefoldJNI::SetFieldInt(env, obj, g_BoneJNI.index, dmRive::GetBoneIndex(bone));
-
-    dmRive::RiveBone* parent = bone->m_Parent;
-    int parent_index = parent ? dmRive::GetBoneIndex(parent) : -1;
-    dmDefoldJNI::SetFieldInt(env, obj, g_BoneJNI.parent, parent_index);
-
     float posX, posY;
     float scaleX, scaleY;
     dmRive::GetBonePos(bone, &posX, &posY);
@@ -275,6 +268,28 @@ static jobject CreateBone(JNIEnv* env, dmRive::RiveBone* bone)
     dmDefoldJNI::SetFieldFloat(env, obj, g_BoneJNI.scaleY, scaleY);
     dmDefoldJNI::SetFieldFloat(env, obj, g_BoneJNI.rotation, rotation);
     dmDefoldJNI::SetFieldFloat(env, obj, g_BoneJNI.length, length);
+}
+
+static jobject CreateBone(JNIEnv* env, dmRive::RiveBone* bone, jobject parent_obj)
+{
+    jobject obj = env->AllocObject(g_BoneJNI.cls);
+
+    dmDefoldJNI::SetFieldString(env, obj, g_BoneJNI.name, dmRive::GetBoneName(bone));
+    dmDefoldJNI::SetFieldInt(env, obj, g_BoneJNI.index, dmRive::GetBoneIndex(bone));
+    dmDefoldJNI::SetFieldObject(env, obj, g_BoneJNI.parent, parent_obj);
+
+    uint32_t num_children = bone->m_Children.Size();
+    jobjectArray children = env->NewObjectArray(num_children, g_BoneJNI.cls, 0);
+    for (uint32_t i = 0; i < num_children; ++i)
+    {
+        jobject o = CreateBone(env, bone->m_Children[i], obj);
+        env->SetObjectArrayElement(children, i, o);
+        env->DeleteLocalRef(o);
+    }
+    dmDefoldJNI::SetFieldObject(env, obj, g_BoneJNI.children, children);
+    env->DeleteLocalRef(children);
+
+    UpdateBone(env, bone, obj);
 
     return obj;
 }
@@ -282,10 +297,21 @@ static jobject CreateBone(JNIEnv* env, dmRive::RiveBone* bone)
 static jobjectArray CreateBones(JNIEnv* env, dmRive::RiveFile* rive_file)
 {
     uint32_t count = rive_file->m_Bones.Size();
+
+    dmArray<dmRive::RiveBone*> root_bones;
+    root_bones.SetCapacity(count);
+
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        if (rive_file->m_Bones[i]->m_Parent)
+            root_bones.Push(rive_file->m_Bones[i]);
+    }
+
+    count = root_bones.Size();
     jobjectArray arr = env->NewObjectArray(count, g_BoneJNI.cls, 0);
     for (uint32_t i = 0; i < count; ++i)
     {
-        jobject o = CreateBone(env, rive_file->m_Bones[i]);
+        jobject o = CreateBone(env, root_bones[i], 0);
         env->SetObjectArrayElement(arr, i, o);
         env->DeleteLocalRef(o);
     }
