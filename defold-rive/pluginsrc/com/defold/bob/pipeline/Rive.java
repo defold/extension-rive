@@ -249,9 +249,9 @@ public class Rive {
     private static void DebugTriangle(int[] indices, int index)
     {
         PrintIndent(1); System.out.printf("tri %d:   %d, %d, %d\n", index,
-                                            indices[0*3+0],
-                                            indices[0*3+1],
-                                            indices[0*3+2]);
+                                            indices[index*3+0],
+                                            indices[index*3+1],
+                                            indices[index*3+2]);
     }
 
     private static void DebugVec4(String name, Vec4 v, int indent)
