@@ -23,7 +23,8 @@ void main()
 {
     vec4 p = vec4(position.xy, 0.0, 1.0);
     vx_position  = (get_local_mat() * p).xy;
-    gl_Position = world_view_proj * p * (1.0 - cover.x) + cover.x * p;
+    //gl_Position = world_view_proj * p * (1.0 - cover.x) + cover.x * p;
+    gl_Position = world_view_proj * p;
 
     int fillType       = int(properties.x);
     vec2 gradientStart = gradientLimits.xy;

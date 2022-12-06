@@ -34,7 +34,7 @@
            [com.jogamp.opengl GL GL2]
            [org.apache.commons.io IOUtils]
            [java.io IOException]
-           [java.nio FloatBuffer]
+           [java.nio ByteBuffer FloatBuffer IntBuffer ByteOrder]
            [javax.vecmath Matrix4d Point3d Vector3d Vector4d]))
 
 
@@ -208,12 +208,14 @@
   ; bones is a list of root bones
   (mapcat (fn [bone] (create-bone-hierarchy project parent-id bones bone)) bones))
 
+(def my-atom (atom 0))
 
 ; Loads the .riv file
 (defn- load-rive-file
   [project node-id resource]
   (let [content (resource->bytes resource)
         rive-handle (plugin-load-file content (resource/resource->proj-path resource))
+        _ (reset! my-atom rive-handle)
         ;animations (get-animations rive-handle)
         animations (.-animations rive-handle)
         state-machines (.-stateMachines rive-handle)
@@ -223,8 +225,13 @@
         ;vertices (rive-file->vertices rive-handle 0.0) 
         ;_ (plugin-update-file rive-handle 0.0)
         _ (.Update rive-handle 0.0)
-        vertices (.-vertices rive-handle)
+        vertices (.vertices rive-handle)
+        indices (.indices rive-handle)
         ;bones (plugin-get-bones rive-handle)
+        vb (FloatBuffer/wrap vertices)
+        ib (IntBuffer/wrap indices)
+        ;; _ (prn "MAWE vertices" (take 24 vertices))
+        ;; _ (prn "MAWE indices" (take 6 indices))
         bones (.-bones rive-handle)
 
         tx-data (concat
@@ -320,11 +327,32 @@
 
 (set! *warn-on-reflection* false)
 
+(defn- float-vec->byte-array
+  [v]
+  (let [size (* (count v) (/ Float/SIZE 8)) ; SIZE is 32 bits
+        bb (-> (java.nio.ByteBuffer/allocate size)
+               (.order (ByteOrder/LITTLE_ENDIAN)))
+        _ (prn "MAWE order:" (.order bb))
+        ]
+    (.array (reduce #(.putFloat %1 %2) bb v))))
+
 (defn renderable->render-objects [renderable]
   (let [handle (renderable->handle renderable)
         vb-data (.vertices handle)
-        vb (vtx/->VertexBuffer vtx-pos4 :static (FloatBuffer/wrap vb-data) 0)
+        vb-data (float-array [0.0 0.0 0.0 0.0   64.0 64.0 0.0 0.0   0.0 64.0 0.0 0.0])
+
+        vb-data-bytes (float-vec->byte-array vb-data)
+        vb (vtx/->VertexBuffer vtx-pos4 :static (ByteBuffer/wrap vb-data-bytes) 0)
+
         ib (.indices handle)
+        ib [0 1 2 0 2 1]
+        
+        _ (prn "MAWE (:size vtx-pos4)" (:size vtx-pos4))
+        _ (prn "MAWE vb" vb "count:" (.count vb))
+        _ (prn "MAWE vb-data-bytes" (partition 16 vb-data-bytes) "length:" (count vb-data-bytes))
+        _ (prn "MAWE vertices" (partition 4 vb-data) "length:" (count vb-data))
+        _ (prn "MAWE indices" (partition 3 ib))
+        
         render-objects (.renderObjects handle)]
     {:vertex-buffer vb :index-buffer ib :render-objects render-objects :handle handle :renderable renderable}))
 
@@ -438,13 +466,22 @@
 (defn- do-render-object! [^GL2 gl render-args shader renderable ro]
   (let [start (.vertexStart ro) ; the name is from the engine, but in this case refers to the index
         count (.vertexCount ro)
+        ; start (* start 2)
+        start 0
+        count 6
         face-winding (if (not= (.faceWinding ro) 0) GL/GL_CCW GL/GL_CW)
         _ (set-constants! gl shader ro)
         ro-transform (double-array (.m (.worldTransform ro)))
         renderable-transform (Matrix4d. (:world-transform renderable)) ; make a copy so we don't alter the original
         ro-matrix (doto (Matrix4d. ro-transform) (.transpose))
         shader-world-transform (doto renderable-transform (.mul ro-matrix))
-        is-tri-strip false ; TODO: use primitiveType
+        ;_ (prn "MAWE primitiveType" (.primitiveType ro))
+        _ (prn "MAWE shader-world-transform" shader-world-transform)
+        primitive-type (.primitiveType ro)
+        is-tri-strip (= primitive-type 2)
+        ;_ (prn "MAWE is-tri-strip" is-tri-strip)
+        _ (prn "MAWE vertexStart" start)
+        _ (prn "MAWE vertexCount" count)
         render-args (merge render-args
                            (math/derive-render-transforms shader-world-transform
                                                           (:view render-args)
@@ -483,6 +520,8 @@
                    (:shader user-data))
         vb (:vertex-buffer group)
         ib (:index-buffer group)
+        _ (prn "MAWE :vertex-buffer" vb)
+        _ (prn "MAWE :index-buffer" ib)
         render-objects (:render-objects group)
         vertex-index-binding (vtx/use-with ::rive-trans vb ib shader)
         ]

@@ -232,7 +232,7 @@ static void Render(RiveFile* rive_file)
     RiveVertex* vb_write = vb_begin;
     uint16_t* ix_write = ix_begin;
 
-    //printf("Ro_Count: %d\n", ro_count);
+    printf("Ro_Count: %d\n", ro_count);
 
     for (int i = 0; i < ro_count; ++i)
     {
@@ -247,12 +247,15 @@ static void Render(RiveFile* rive_file)
         ro.m_VertexBuffer      = 0;//rive_file->m_VertexBuffer;
         ro.m_IndexBuffer       = 0,//rive_file->m_IndexBuffer;
         ro.m_Material          = 0;//material;
-        ro.m_VertexStart       = index_offset * sizeof(uint16_t); // byte offset
-        ro.m_VertexCount       = draw_desc.m_IndicesCount;
-        ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_SHORT;
+        // While the data in the index buffer currently is uint16_t, we will
+        // convert it into an int array for Java.
+        ro.m_VertexStart       = index_offset * sizeof(uint16_t);
+        //ro.m_VertexStart       = index_offset * sizeof(uint32_t);
+        ro.m_VertexCount       = draw_desc.m_IndicesCount; // num indices (3 for a triangle)
+        ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_INT;
         ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
 
-        //printf("Ro: %d, vx %d ix %d\n", i, draw_desc.m_VerticesCount, draw_desc.m_IndicesCount);
+        printf("Ro: %d, vx %d ix %d\n", i, draw_desc.m_VerticesCount, draw_desc.m_IndicesCount);
 
         dmRive::CopyVertices(draw_desc, vertex_offset, vb_write, ix_write);
 

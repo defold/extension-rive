@@ -438,6 +438,8 @@ namespace dmRive
             ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_SHORT;
             ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
 
+            printf("MAWE: ro %i:  vertexStart: %d  vertexCount: %d\n", i, ro.m_VertexStart, ro.m_VertexCount);
+
             DO_LOG("Ro: %d, vx %d ix %d\n", i, draw_desc.m_VerticesCount, draw_desc.m_IndicesCount);
 
             dmRive::CopyVertices(draw_desc, vertex_offset, vb_write, ix_write);
