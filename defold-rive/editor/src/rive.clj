@@ -327,31 +327,20 @@
 
 (set! *warn-on-reflection* false)
 
-(defn- float-vec->byte-array
-  [v]
-  (let [size (* (count v) (/ Float/SIZE 8)) ; SIZE is 32 bits
-        bb (-> (java.nio.ByteBuffer/allocate size)
-               (.order (ByteOrder/LITTLE_ENDIAN)))
-        _ (prn "MAWE order:" (.order bb))
-        ]
-    (.array (reduce #(.putFloat %1 %2) bb v))))
-
 (defn renderable->render-objects [renderable]
   (let [handle (renderable->handle renderable)
         vb-data (.vertices handle)
-        vb-data (float-array [0.0 0.0 0.0 0.0   64.0 64.0 0.0 0.0   0.0 64.0 0.0 0.0])
+        vb-data-float-buffer (FloatBuffer/wrap vb-data)
+        vb (vtx/->VertexBuffer vtx-pos4 :static vb-data-float-buffer 0)
 
-        vb-data-bytes (float-vec->byte-array vb-data)
-        vb (vtx/->VertexBuffer vtx-pos4 :static (ByteBuffer/wrap vb-data-bytes) 0)
-
-        ib (.indices handle)
-        ib [0 1 2 0 2 1]
+        ib-data (.indices handle)
+        ib (IntBuffer/wrap ib-data)
         
         _ (prn "MAWE (:size vtx-pos4)" (:size vtx-pos4))
-        _ (prn "MAWE vb" vb "count:" (.count vb))
-        _ (prn "MAWE vb-data-bytes" (partition 16 vb-data-bytes) "length:" (count vb-data-bytes))
+        _ (prn "MAWE vb" vb "count:" (count vb))
+        _ (prn "MAWE vb-data-float-buffer" (partition-all 4 (.array vb-data-float-buffer)) "length:" (.limit vb-data-float-buffer))
         _ (prn "MAWE vertices" (partition 4 vb-data) "length:" (count vb-data))
-        _ (prn "MAWE indices" (partition 3 ib))
+        _ (prn "MAWE indices" (partition 3 (.array ib)))
         
         render-objects (.renderObjects handle)]
     {:vertex-buffer vb :index-buffer ib :render-objects render-objects :handle handle :renderable renderable}))
@@ -513,6 +502,7 @@
 
 (defn- render-group-transparent [^GL2 gl render-args override-shader group]
   (let [renderable (:renderable group)
+        node-id (:node-id renderable)
         user-data (:user-data renderable)
         blend-mode (:blend-mode user-data)
         gpu-texture (or (get user-data :gpu-texture) texture/white-pixel)
@@ -523,25 +513,25 @@
         _ (prn "MAWE :vertex-buffer" vb)
         _ (prn "MAWE :index-buffer" ib)
         render-objects (:render-objects group)
-        vertex-index-binding (vtx/use-with ::rive-trans vb ib shader)
+        vertex-index-binding (vtx/use-with [node-id ::rive-trans] vb ib shader)
         ]
     (gl/with-gl-bindings gl render-args [gpu-texture shader vertex-index-binding]
       (setup-gl gl)
       (gl/set-blend-mode gl blend-mode)
-      (doall (map (fn [ro] (do-render-object! gl render-args shader renderable ro)) render-objects))
+      (doseq [ro render-objects]
+        (do-render-object! gl render-args shader renderable ro))
       (restore-gl gl))))
 
 (defn- render-rive-scenes [^GL2 gl render-args renderables rcount]
   (let [pass (:pass render-args)]
     (condp = pass
       pass/transparent
-      (when-let [groups (collect-render-groups renderables)]
-        (doall (map (fn [renderable] (render-group-transparent gl render-args nil renderable)) groups)))
+      (doseq [group (collect-render-groups renderables)]
+        (render-group-transparent gl render-args nil group))
 
       pass/selection
-      (when-let [groups (collect-render-groups renderables)]
-        (doall (map (fn [renderable] (render-group-transparent gl render-args rive-id-shader renderable)) groups)))
-      )))
+      (doseq [group (collect-render-groups renderables)]
+        (render-group-transparent gl render-args rive-id-shader group)))))
 
 (defn- render-rive-outlines [^GL2 gl render-args renderables rcount]
   (assert (= (:pass render-args) pass/outline))

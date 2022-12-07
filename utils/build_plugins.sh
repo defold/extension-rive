@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Run from the project foler (containing the game.project)
+# Run from the project folder (containing the game.project)
 
 set -e
 
@@ -9,7 +9,7 @@ PROJECT=defold-rive
 DEFAULT_SERVER=https://build-stage.defold.com
 
 if [ "" == "${BOB}" ]; then
-    BOB=~/work/defold/tmp/dynamo_home/share/java/bob.jar
+    BOB=${DYNAMO_HOME}/share/java/bob.jar
 fi
 
 echo "Using BOB=${BOB}"
@@ -143,4 +143,10 @@ for platform in $PLATFORMS; do
     build_plugin $platform $platform_ne
 done
 
-tree $TARGET_DIR
+if command -v tree >/dev/null 2>&1; then
+    # The tree command is available. Use it.
+    tree $TARGET_DIR
+else
+    # We don't have tree. Approximate its output using find and sed.
+    find $TARGET_DIR -print | sed -e "s;[^/]*/;|-- ;g;s;-- |;   |;g"
+fi
