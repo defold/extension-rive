@@ -348,7 +348,7 @@
         vb (vtx/wrap-vertex-buffer vtx-pos4 :static vb-data-float-buffer)
 
         ib-data (.indices handle)
-        ib-data (create-int-buffer [0 1 2])
+        ib-data (create-int-buffer [0 1 2 0 2 1])
         ib-data (.array ib-data)
         ib (IntBuffer/wrap ib-data)
         
@@ -475,15 +475,17 @@
         count (.vertexCount ro)
         start (* start 2)
         start 0
-        count 3
+        count 6
         face-winding (if (not= (.faceWinding ro) 0) GL/GL_CCW GL/GL_CW)
-        _ (set-constants! gl shader ro)
+        ;_ (set-constants! gl shader ro)
         ro-transform (double-array (.m (.worldTransform ro)))
         renderable-transform (Matrix4d. (:world-transform renderable)) ; make a copy so we don't alter the original
         ro-matrix (doto (Matrix4d. ro-transform) (.transpose))
         shader-world-transform (doto renderable-transform (.mul ro-matrix))
         ;_ (prn "MAWE primitiveType" (.primitiveType ro))
-        ;_ (prn "MAWE shader-world-transform" shader-world-transform)
+        _ (prn "MAWE ro-transform" ro-transform)
+        _ (prn "MAWE renderable-transform" renderable-transform)
+        _ (prn "MAWE shader-world-transform" shader-world-transform)
         primitive-type (.primitiveType ro)
         is-tri-strip (= primitive-type 2)
         ;_ (prn "MAWE is-tri-strip" is-tri-strip)
@@ -499,8 +501,8 @@
 
     (when (not= (.setFaceWinding ro) 0)
       (gl/gl-front-face gl face-winding))
-    (when (not= (.setStencilTest ro) 0)
-      (set-stencil-test-params! gl (.stencilTestParams ro)))
+    ;; (when (not= (.setStencilTest ro) 0)
+    ;;   (set-stencil-test-params! gl (.stencilTestParams ro)))
     (when is-tri-strip
       (gl/gl-draw-arrays gl GL/GL_TRIANGLE_STRIP start count))
     (when (not is-tri-strip)
