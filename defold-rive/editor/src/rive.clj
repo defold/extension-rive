@@ -327,13 +327,29 @@
 
 (set! *warn-on-reflection* false)
 
+(defn create-int-buffer [v]
+  (let [out (IntBuffer/allocate (count v))]
+    (doseq [^int x v]
+      (.put out x))
+    (.flip out)))
+
+(defn create-float-buffer [v]
+  (let [out (FloatBuffer/allocate (count v))]
+    (doseq [^float x v]
+      (.put out x))
+    (.flip out)))
+
 (defn renderable->render-objects [renderable]
   (let [handle (renderable->handle renderable)
         vb-data (.vertices handle)
+        vb-data (create-float-buffer [0.0 0.0 0.0 0.0   64.0 0.0 0.0 0.0   32.0 64.0 0.0 0.0])
+        vb-data (.array vb-data)
         vb-data-float-buffer (FloatBuffer/wrap vb-data)
-        vb (vtx/->VertexBuffer vtx-pos4 :static vb-data-float-buffer 0)
+        vb (vtx/wrap-vertex-buffer vtx-pos4 :static vb-data-float-buffer)
 
         ib-data (.indices handle)
+        ib-data (create-int-buffer [0 1 2])
+        ib-data (.array ib-data)
         ib (IntBuffer/wrap ib-data)
         
         _ (prn "MAWE (:size vtx-pos4)" (:size vtx-pos4))
@@ -452,12 +468,14 @@
   (let [constants (.constantBuffer ro)]
     (doall (map (fn [constant] (set-constant! gl shader constant)) constants))))
 
+(defmacro gl-draw-arrays-2 [gl prim-type start count]      `(.glDrawArrays ~(with-meta gl {:tag `GL}) ~prim-type ~start ~count))
+
 (defn- do-render-object! [^GL2 gl render-args shader renderable ro]
   (let [start (.vertexStart ro) ; the name is from the engine, but in this case refers to the index
         count (.vertexCount ro)
-        ; start (* start 2)
+        start (* start 2)
         start 0
-        count 6
+        count 3
         face-winding (if (not= (.faceWinding ro) 0) GL/GL_CCW GL/GL_CW)
         _ (set-constants! gl shader ro)
         ro-transform (double-array (.m (.worldTransform ro)))
@@ -465,7 +483,7 @@
         ro-matrix (doto (Matrix4d. ro-transform) (.transpose))
         shader-world-transform (doto renderable-transform (.mul ro-matrix))
         ;_ (prn "MAWE primitiveType" (.primitiveType ro))
-        _ (prn "MAWE shader-world-transform" shader-world-transform)
+        ;_ (prn "MAWE shader-world-transform" shader-world-transform)
         primitive-type (.primitiveType ro)
         is-tri-strip (= primitive-type 2)
         ;_ (prn "MAWE is-tri-strip" is-tri-strip)
@@ -510,8 +528,6 @@
                    (:shader user-data))
         vb (:vertex-buffer group)
         ib (:index-buffer group)
-        _ (prn "MAWE :vertex-buffer" vb)
-        _ (prn "MAWE :index-buffer" ib)
         render-objects (:render-objects group)
         vertex-index-binding (vtx/use-with [node-id ::rive-trans] vb ib shader)
         ]
