@@ -327,29 +327,15 @@
 
 (set! *warn-on-reflection* false)
 
-(defn create-int-buffer [v]
-  (let [out (IntBuffer/allocate (count v))]
-    (doseq [^int x v]
-      (.put out x))
-    (.flip out)))
-
-(defn create-float-buffer [v]
-  (let [out (FloatBuffer/allocate (count v))]
-    (doseq [^float x v]
-      (.put out x))
-    (.flip out)))
-
 (defn renderable->render-objects [renderable]
   (let [handle (renderable->handle renderable)
         vb-data (.vertices handle)
-        vb-data (create-float-buffer [0.0 0.0 0.0 0.0   64.0 0.0 0.0 0.0   32.0 64.0 0.0 0.0])
-        vb-data (.array vb-data)
+        vb-data (float-array [0.0 0.0 0.0 0.0   64.0 0.0 0.0 0.0   32.0 64.0 0.0 0.0])
         vb-data-float-buffer (FloatBuffer/wrap vb-data)
         vb (vtx/wrap-vertex-buffer vtx-pos4 :static vb-data-float-buffer)
 
         ib-data (.indices handle)
-        ib-data (create-int-buffer [0 1 2 0 2 1])
-        ib-data (.array ib-data)
+        ib-data (int-array [0 1 2 0 2 1])
         ib (IntBuffer/wrap ib-data)
         
         _ (prn "MAWE (:size vtx-pos4)" (:size vtx-pos4))
