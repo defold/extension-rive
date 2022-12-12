@@ -34,8 +34,8 @@
            [com.jogamp.opengl GL GL2]
            [org.apache.commons.io IOUtils]
            [java.io IOException]
-           [java.nio ByteBuffer FloatBuffer IntBuffer ByteOrder]
-           [javax.vecmath Matrix4d Point3d Vector3d Vector4d]))
+           [java.nio FloatBuffer IntBuffer]
+           [javax.vecmath Matrix4d Vector3d Vector4d]))
 
 
 (set! *warn-on-reflection* true)
@@ -216,22 +216,10 @@
   (let [content (resource->bytes resource)
         rive-handle (plugin-load-file content (resource/resource->proj-path resource))
         _ (reset! my-atom rive-handle)
-        ;animations (get-animations rive-handle)
         animations (.-animations rive-handle)
         state-machines (.-stateMachines rive-handle)
-        ;state-machines (get-state-machines rive-handle)
-        ;aabb (get-aabb rive-handle)
         aabb (convert-aabb (.-aabb rive-handle))
-        ;vertices (rive-file->vertices rive-handle 0.0) 
-        ;_ (plugin-update-file rive-handle 0.0)
         _ (.Update rive-handle 0.0)
-        vertices (.vertices rive-handle)
-        indices (.indices rive-handle)
-        ;bones (plugin-get-bones rive-handle)
-        vb (FloatBuffer/wrap vertices)
-        ib (IntBuffer/wrap indices)
-        ;; _ (prn "MAWE vertices" (take 24 vertices))
-        ;; _ (prn "MAWE indices" (take 6 indices))
         bones (.-bones rive-handle)
 
         tx-data (concat
@@ -240,7 +228,6 @@
                  (g/set-property node-id :animations animations)
                  (g/set-property node-id :state-machines state-machines)
                  (g/set-property node-id :aabb aabb)
-                 (g/set-property node-id :vertices vertices)
                  (g/set-property node-id :bones bones))
 
         all-tx-data (concat tx-data (create-bones project node-id bones))]
@@ -330,19 +317,11 @@
 (defn renderable->render-objects [renderable]
   (let [handle (renderable->handle renderable)
         vb-data (.vertices handle)
-        vb-data (float-array [0.0 0.0 0.0 0.0   64.0 0.0 0.0 0.0   32.0 64.0 0.0 0.0])
         vb-data-float-buffer (FloatBuffer/wrap vb-data)
         vb (vtx/wrap-vertex-buffer vtx-pos4 :static vb-data-float-buffer)
 
         ib-data (.indices handle)
-        ib-data (int-array [0 1 2 0 2 1])
         ib (IntBuffer/wrap ib-data)
-        
-        _ (prn "MAWE (:size vtx-pos4)" (:size vtx-pos4))
-        _ (prn "MAWE vb" vb "count:" (count vb))
-        _ (prn "MAWE vb-data-float-buffer" (partition-all 4 (.array vb-data-float-buffer)) "length:" (.limit vb-data-float-buffer))
-        _ (prn "MAWE vertices" (partition 4 vb-data) "length:" (count vb-data))
-        _ (prn "MAWE indices" (partition 3 (.array ib)))
         
         render-objects (.renderObjects handle)]
     {:vertex-buffer vb :index-buffer ib :render-objects render-objects :handle handle :renderable renderable}))
@@ -458,45 +437,35 @@
 
 (defn- do-render-object! [^GL2 gl render-args shader renderable ro]
   (let [start (.vertexStart ro) ; the name is from the engine, but in this case refers to the index
-        count (.vertexCount ro)
-        start (* start 2)
-        start 0
-        count 6
+        count (.vertexCount ro) ; count in number of indices
+        start (* start 2) ; offset in bytes
         face-winding (if (not= (.faceWinding ro) 0) GL/GL_CCW GL/GL_CW)
-        ;_ (set-constants! gl shader ro)
+        
         ro-transform (double-array (.m (.worldTransform ro)))
         renderable-transform (Matrix4d. (:world-transform renderable)) ; make a copy so we don't alter the original
         ro-matrix (doto (Matrix4d. ro-transform) (.transpose))
         shader-world-transform (doto renderable-transform (.mul ro-matrix))
-        ;_ (prn "MAWE primitiveType" (.primitiveType ro))
-        _ (prn "MAWE ro-transform" ro-transform)
-        _ (prn "MAWE renderable-transform" renderable-transform)
-        _ (prn "MAWE shader-world-transform" shader-world-transform)
         primitive-type (.primitiveType ro)
         is-tri-strip (= primitive-type 2)
-        ;_ (prn "MAWE is-tri-strip" is-tri-strip)
-        _ (prn "MAWE vertexStart" start)
-        _ (prn "MAWE vertexCount" count)
+        gl-prim-type (if is-tri-strip GL/GL_TRIANGLE_STRIP GL/GL_TRIANGLES)
         render-args (merge render-args
                            (math/derive-render-transforms shader-world-transform
                                                           (:view render-args)
                                                           (:projection render-args)
                                                           (:texture render-args)))]
-    
-    (shader/set-uniform shader gl "world_view_proj" (:world-view-proj render-args))
 
-    (when (not= (.setFaceWinding ro) 0)
+    (shader/set-uniform shader gl "world_view_proj" (:world-view-proj render-args))
+    (set-constants! gl shader ro)
+    (when (.setFaceWinding ro)
       (gl/gl-front-face gl face-winding))
-    ;; (when (not= (.setStencilTest ro) 0)
-    ;;   (set-stencil-test-params! gl (.stencilTestParams ro)))
-    (when is-tri-strip
-      (gl/gl-draw-arrays gl GL/GL_TRIANGLE_STRIP start count))
-    (when (not is-tri-strip)
-      (gl/gl-draw-elements gl GL/GL_TRIANGLES start count))))
+    (when (.setStencilTest ro)
+      (set-stencil-test-params! gl (.stencilTestParams ro)))
+
+    (gl/gl-draw-elements gl gl-prim-type start count)))
 
   (set! *warn-on-reflection* true)
 
-; Lent from gui_clipping.clj
+; Borrowed from gui_clipping.clj
 (defn- setup-gl [^GL2 gl]
   (.glEnable gl GL/GL_STENCIL_TEST)
   (.glClear gl GL/GL_STENCIL_BUFFER_BIT))
@@ -504,7 +473,6 @@
 (defn- restore-gl [^GL2 gl]
   (.glDisable gl GL/GL_STENCIL_TEST)
   (.glColorMask gl true true true true))
-
 
 (defn- render-group-transparent [^GL2 gl render-args override-shader group]
   (let [renderable (:renderable group)
@@ -517,8 +485,8 @@
         vb (:vertex-buffer group)
         ib (:index-buffer group)
         render-objects (:render-objects group)
-        vertex-index-binding (vtx/use-with [node-id ::rive-trans] vb ib shader)
-        ]
+        vertex-index-binding (vtx/use-with [node-id ::rive-trans] vb ib shader)]
+
     (gl/with-gl-bindings gl render-args [gpu-texture shader vertex-index-binding]
       (setup-gl gl)
       (gl/set-blend-mode gl blend-mode)

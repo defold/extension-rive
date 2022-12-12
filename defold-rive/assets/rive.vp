@@ -1,11 +1,42 @@
-uniform mat4 world_view_proj;
+uniform highp mat4 world_view_proj;
+uniform highp vec4 transform_local[4];
+uniform lowp vec4 cover;
 
-attribute vec4 position;
+uniform vec4 properties; // x: filltype, y: stopcount
+uniform vec4 gradientLimits;
+
+attribute highp vec4 position;
+
+varying vec2 vx_position;
+varying vec2 gradient_uv;
+
+#define FILL_TYPE_SOLID  0
+#define FILL_TYPE_LINEAR 1
+#define FILL_TYPE_RADIAL 2
+
+mat4 get_local_mat()
+{
+    return mat4(transform_local[0], transform_local[1], transform_local[2], transform_local[3]);
+}
 
 void main()
 {
-    // NOTE: world isn't used here. Sprite positions are already transformed
-    // prior to rendering but the world-transform is set for sorting.
     vec4 p = vec4(position.xy, 0.0, 1.0);
-    gl_Position = world_view_proj * p;
+    vx_position  = (get_local_mat() * p).xy;
+    gl_Position = world_view_proj * p * (1.0 - cover.x) + cover.x * p;
+
+    int fillType       = int(properties.x);
+    vec2 gradientStart = gradientLimits.xy;
+    vec2 gradientStop  = gradientLimits.zw;
+
+    if(fillType == FILL_TYPE_LINEAR)
+    {
+        vec2 toEnd          = gradientStop - gradientStart;
+        float lengthSquared = toEnd.x * toEnd.x + toEnd.y * toEnd.y;
+        gradient_uv.x       = dot(position.xy - gradientStart, toEnd) / lengthSquared;
+    }
+    else if(fillType == FILL_TYPE_RADIAL)
+    {
+        gradient_uv = (position.xy - gradientStart) / distance(gradientStart, gradientStop);
+    }
 }
