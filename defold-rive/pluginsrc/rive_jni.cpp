@@ -318,18 +318,6 @@ static jobjectArray CreateBones(JNIEnv* env, dmRive::RiveFile* rive_file)
     return arr;
 }
 
-static void CalculateAabb(dmRive::RiveVertex* vertices, uint32_t count, float* aabb_min, float* aabb_max)
-{
-    for (uint32_t i = 0; i < count; ++i)
-    {
-        dmRive::RiveVertex& v = vertices[i];
-        aabb_min[0] = dmMath::Min(aabb_min[0], v.x);
-        aabb_min[1] = dmMath::Min(aabb_min[1], v.y);
-        aabb_max[0] = dmMath::Max(aabb_max[0], v.x);
-        aabb_max[1] = dmMath::Max(aabb_max[1], v.y);
-    }
-}
-
 static void UpdateJNIRenderData(JNIEnv* env, jobject rive_file_obj, dmRive::RiveFile* rive_file)
 {
     dmArray<int> int_indices;
@@ -341,11 +329,8 @@ static void UpdateJNIRenderData(JNIEnv* env, jobject rive_file_obj, dmRive::Rive
         int_indices[i] = (int)rive_file->m_IndexBufferData[i];
     }
 
-    float aabb_min[2] = {100000.0f, 100000.0f};
-    float aabb_max[2] = {-100000.0f, -100000.0f};
-    CalculateAabb(rive_file->m_VertexBufferData.Begin(), rive_file->m_VertexBufferData.Size(), aabb_min, aabb_max);
-
-    jobject aabb = dmDefoldJNI::CreateAABB(env, dmVMath::Vector4(aabb_min[0], aabb_min[1], -1.0f, 0.0f), dmVMath::Vector4(aabb_max[0], aabb_max[1], 1.0f, 0.0f));
+    jobject aabb = dmDefoldJNI::CreateAABB(env, dmVMath::Vector4(rive_file->m_AABB[0], rive_file->m_AABB[1], 0.0f, 0.0f),
+                                                dmVMath::Vector4(rive_file->m_AABB[2], rive_file->m_AABB[3], 0.0f, 0.0f));
     dmDefoldJNI::SetFieldObject(env, rive_file_obj, g_RiveFileJNI.aabb, aabb);
     env->DeleteLocalRef(aabb);
 
@@ -376,10 +361,6 @@ static jobject CreateRiveFile(JNIEnv* env, dmRive::RiveFile* rive_file)
         return 0;
 
     jobject obj = env->AllocObject(g_RiveFileJNI.cls);
-
-    jobject aabb = dmDefoldJNI::CreateAABB(env, dmVMath::Vector4(0), dmVMath::Vector4(0));
-    dmDefoldJNI::SetFieldObject(env, obj, g_RiveFileJNI.aabb, aabb);
-    env->DeleteLocalRef(aabb);
 
     dmDefoldJNI::SetFieldString(env, obj, g_RiveFileJNI.path, rive_file->m_Path);
     env->SetLongField(obj, g_RiveFileJNI.pointer, ToLong(rive_file));

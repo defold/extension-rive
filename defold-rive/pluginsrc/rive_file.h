@@ -26,6 +26,7 @@ struct RiveFile
     dmArray<dmRive::RiveVertex> m_Vertices;
     dmArray<dmRive::RiveBone*>  m_Roots;
     dmArray<dmRive::RiveBone*>  m_Bones;
+    float                       m_AABB[4];
 
     dmArray<uint16_t>                       m_IndexBufferData;
     dmArray<dmRive::RiveVertex>             m_VertexBufferData;

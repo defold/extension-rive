@@ -172,6 +172,12 @@ static void Render(RiveFile* rive_file)
 
     renderer->restore();
 
+
+    rive_file->m_AABB[0] = -bounds.width() * 0.5f;
+    rive_file->m_AABB[1] = -bounds.height() * 0.5f;
+    rive_file->m_AABB[2] = bounds.width() * 0.5f;
+    rive_file->m_AABB[3] = bounds.height() * 0.5f;
+
     // **************************************************************
     DeleteRenderConstants(rive_file);
     rive_file->m_RenderConstants.SetSize(0);
@@ -232,7 +238,7 @@ static void Render(RiveFile* rive_file)
     RiveVertex* vb_write = vb_begin;
     uint16_t* ix_write = ix_begin;
 
-    printf("Ro_Count: %d\n", ro_count);
+    //printf("Ro_Count: %d\n", ro_count);
 
     for (int i = 0; i < ro_count; ++i)
     {
@@ -255,7 +261,7 @@ static void Render(RiveFile* rive_file)
         ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_INT;
         ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
 
-        printf("Ro: %d, vx %d ix %d\n", i, draw_desc.m_VerticesCount, draw_desc.m_IndicesCount);
+        //printf("Ro: %d, vx %d ix %d\n", i, draw_desc.m_VerticesCount, draw_desc.m_IndicesCount);
 
         dmRive::CopyVertices(draw_desc, vertex_offset, vb_write, ix_write);
 

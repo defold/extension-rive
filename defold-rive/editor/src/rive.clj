@@ -218,8 +218,8 @@
         _ (reset! my-atom rive-handle)
         animations (.-animations rive-handle)
         state-machines (.-stateMachines rive-handle)
-        aabb (convert-aabb (.-aabb rive-handle))
         _ (.Update rive-handle 0.0)
+        aabb (convert-aabb (.-aabb rive-handle))
         bones (.-bones rive-handle)
 
         tx-data (concat

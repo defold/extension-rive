@@ -65,10 +65,8 @@ void ApplyDrawMode(dmRender::RenderObject& ro, dmRive::DrawMode draw_mode, uint8
     }
 }
 
-
 void CopyVertices(const dmRive::DrawDescriptor& draw_desc, uint32_t vertex_offset, RiveVertex* out_vertices, uint16_t* out_indices)
 {
-    printf("vertices\n");
     uint32_t vertex_count = draw_desc.m_VerticesCount;
     for (int i = 0; i < vertex_count; ++i)
     {
@@ -78,17 +76,12 @@ void CopyVertices(const dmRive::DrawDescriptor& draw_desc, uint32_t vertex_offse
         out_vertices->u = 0.0f;
         out_vertices->v = 0.0f;
         out_vertices++;
-
-        printf("%d / %d: %f %f\n", i, i+vertex_offset, vtx.x, vtx.y);
     }
 
-    printf("indices\n");
     uint32_t indices_count = draw_desc.m_IndicesCount;
     for (int i = 0; i < indices_count; ++i)
     {
         *out_indices = draw_desc.m_Indices[i] + vertex_offset;
-
-        printf("%d / %d: local: %d  global: %d\n", i, indices_count, draw_desc.m_Indices[i], *out_indices);
         out_indices++;
     }
 }
