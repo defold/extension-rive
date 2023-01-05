@@ -161,14 +161,14 @@ namespace dmRive
         world->m_RenderConstants.SetSize(context->m_MaxInstanceCount);
         memset(world->m_RenderConstants.Begin(), 0, sizeof(dmGameSystem::HComponentRenderConstants)*world->m_RenderConstants.Capacity());
 
-        dmGraphics::VertexElement ve[] =
-        {
-            {"position", 0, 2, dmGraphics::TYPE_FLOAT, false}
-        };
+        dmGraphics::HVertexStreamDeclaration stream_declaration = dmGraphics::NewVertexStreamDeclaration(context->m_GraphicsContext);
+        dmGraphics::AddVertexStream(stream_declaration, "position", 2, dmGraphics::TYPE_FLOAT, false);
 
-        world->m_VertexDeclaration = dmGraphics::NewVertexDeclaration(context->m_GraphicsContext, ve, sizeof(ve) / sizeof(dmGraphics::VertexElement));
+        world->m_VertexDeclaration = dmGraphics::NewVertexDeclaration(context->m_GraphicsContext, stream_declaration);
         world->m_VertexBuffer      = dmGraphics::NewVertexBuffer(context->m_GraphicsContext, 0, 0x0, dmGraphics::BUFFER_USAGE_DYNAMIC_DRAW);
         world->m_IndexBuffer       = dmGraphics::NewIndexBuffer(context->m_GraphicsContext, 0, 0x0, dmGraphics::BUFFER_USAGE_DYNAMIC_DRAW);
+
+        dmGraphics::DeleteVertexStreamDeclaration(stream_declaration);
 
         // TODO: Make this count configurable and/or grow accordingly
         world->m_VertexBufferData.SetCapacity(context->m_MaxInstanceCount * 512);
