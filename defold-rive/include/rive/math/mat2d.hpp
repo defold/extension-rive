@@ -36,6 +36,9 @@ public:
         return *this;
     }
 
+    // Sets dst[i] = M * pts[i] for i in 0..n-1.
+    void mapPoints(Vec2D dst[], const Vec2D pts[], size_t n) const;
+
     // If returns true, result holds the inverse.
     // If returns false, result is unchnaged.
     bool invert(Mat2D* result) const;
@@ -49,6 +52,7 @@ public:
 
     TransformComponents decompose() const;
     static Mat2D compose(const TransformComponents&);
+    float findMaxScale() const;
     Mat2D scale(Vec2D) const;
 
     static Mat2D multiply(const Mat2D& a, const Mat2D& b);

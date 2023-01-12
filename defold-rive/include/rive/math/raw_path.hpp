@@ -14,6 +14,7 @@
 #include <cmath>
 #include <stdio.h>
 #include <cstdint>
+#include <tuple>
 #include <vector>
 
 namespace rive
@@ -89,26 +90,65 @@ public:
         Iter() = default;
         Iter(const PathVerb* verbs, const Vec2D* pts) : m_verbs(verbs), m_pts(pts) {}
 
-        bool operator!=(const Iter& that) const { return m_verbs != that.m_verbs; }
-        bool operator==(const Iter& that) const { return m_verbs == that.m_verbs; }
-
-        PathVerb peekVerb() const { return *m_verbs; }
-
-        std::tuple<const PathVerb, const Vec2D* const> operator*() const
+        bool operator!=(const Iter& that) const
         {
-            PathVerb verb = peekVerb();
+            assert(m_verbs != that.m_verbs || m_pts == that.m_pts);
+            return m_verbs != that.m_verbs;
+        }
+        bool operator==(const Iter& that) const
+        {
+            assert(m_verbs != that.m_verbs || m_pts == that.m_pts);
+            return m_verbs == that.m_verbs;
+        }
+
+        // Generic accessors. The points pointer is adjusted to point to p0 for each specific verb.
+        PathVerb verb() const { return *m_verbs; }
+        const Vec2D* pts() const { return m_pts + PtsBacksetForVerb(verb()); }
+        std::tuple<PathVerb, const Vec2D*> operator*() const
+        {
+            PathVerb verb = *m_verbs;
             return {verb, m_pts + PtsBacksetForVerb(verb)};
         }
 
-        Iter& operator++()
-        { // ++iter
+        // Specific point accessors for callers who already know the verb. (These may be a tiny bit
+        // faster in some cases since the iterator doesn't have to check the verb.)
+        Vec2D movePt() const
+        {
+            assert(verb() == PathVerb::move);
+            return m_pts[0];
+        }
+        const Vec2D* linePts() const
+        {
+            assert(verb() == PathVerb::line);
+            return m_pts - 1;
+        }
+        const Vec2D* quadPts() const
+        {
+            assert(verb() == PathVerb::quad);
+            return m_pts - 1;
+        }
+        const Vec2D* cubicPts() const
+        {
+            assert(verb() == PathVerb::cubic);
+            return m_pts - 1;
+        }
+        // P0 for a close can be accessed via rawPtsPtr()[-1]. Note than p1 for a close is not in
+        // the array at this location.
+
+        // Internal pointers held by the iterator. See PtsBacksetForVerb() for how pts() relates to
+        // the data for specific verbs.
+        const PathVerb* rawVerbsPtr() const { return m_verbs; }
+        const Vec2D* rawPtsPtr() const { return m_pts; }
+
+        Iter& operator++() // "++iter"
+        {
             m_pts += PtsAdvanceAfterVerb(*m_verbs++);
             return *this;
         }
 
     private:
         // How much should we advance pts after encountering this verb?
-        constexpr static int PtsAdvanceAfterVerb(PathVerb verb)
+        inline static int PtsAdvanceAfterVerb(PathVerb verb)
         {
             switch (verb)
             {
@@ -123,14 +163,14 @@ public:
                 case PathVerb::close:
                     return 0;
             }
-            RIVE_UNREACHABLE;
+            RIVE_UNREACHABLE();
         }
 
         // Where is p0 relative to our m_pts pointer? We find the start point of segments by
         // peeking backwards from the current point, which works as long as there is always a
         // PathVerb::move before any geometry. (injectImplicitMoveToIfNeeded() guarantees this
         // to be the case.)
-        constexpr static int PtsBacksetForVerb(PathVerb verb)
+        inline static int PtsBacksetForVerb(PathVerb verb)
         {
             switch (verb)
             {
@@ -145,21 +185,26 @@ public:
                 case PathVerb::close:
                     return -1;
             }
-            RIVE_UNREACHABLE;
+            RIVE_UNREACHABLE();
         }
 
         const PathVerb* m_verbs;
         const Vec2D* m_pts;
     };
     Iter begin() const { return {m_Verbs.data(), m_Points.data()}; }
-    Iter end() const { return {m_Verbs.data() + m_Verbs.size(), nullptr}; }
+    Iter end() const
+    {
+        return {m_Verbs.data() + m_Verbs.size(), m_Points.data() + m_Points.size()};
+    }
 
     template <typename Handler> RawPath morph(Handler proc) const
     {
         RawPath dst;
         // todo: dst.reserve(src.ptCount, src.verbCount);
-        for (auto [verb, pts] : *this)
+        for (auto iter : *this)
         {
+            PathVerb verb = std::get<0>(iter);
+            const Vec2D* pts = std::get<1>(iter);
             switch (verb)
             {
                 case PathVerb::move:

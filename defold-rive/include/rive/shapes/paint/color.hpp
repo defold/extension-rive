@@ -17,6 +17,12 @@ unsigned int colorBlue(ColorInt value);
 
 unsigned int colorAlpha(ColorInt value);
 
+void UnpackColorToRGBA8(ColorInt color, uint8_t out[4]);
+
+void UnpackColorToRGBA32F(ColorInt color, float out[4]);
+
+void UnpackColorToRGBA32FPremul(ColorInt color, float out[4]);
+
 float colorOpacity(unsigned int value);
 
 ColorInt colorWithAlpha(ColorInt value, unsigned int a);
