@@ -159,7 +159,7 @@
   (property content g/Any)
   (property rive-handle g/Any) ; The cpp pointer
   (property animations g/Any)
-  (property state-machines g/Any)
+  (property state-machine-ids g/Any)
   (property aabb g/Any)
   (property vertices g/Any)
   (property bones g/Any)
@@ -218,6 +218,7 @@
         _ (reset! my-atom rive-handle)
         animations (.-animations rive-handle)
         state-machines (.-stateMachines rive-handle)
+        state-machine-ids (map (fn [state-machine] (.-name state-machine)) state-machines)
         _ (.Update rive-handle 0.0)
         aabb (convert-aabb (.-aabb rive-handle))
         bones (.-bones rive-handle)
@@ -226,7 +227,7 @@
                  (g/set-property node-id :content content)
                  (g/set-property node-id :rive-handle rive-handle)
                  (g/set-property node-id :animations animations)
-                 (g/set-property node-id :state-machines state-machines)
+                 (g/set-property node-id :state-machine-ids state-machine-ids)
                  (g/set-property node-id :aabb aabb)
                  (g/set-property node-id :bones bones))
 
@@ -554,7 +555,7 @@
                                             [:rive-handle :rive-file-handle]
                                             [:structure :scene-structure]
                                             [:animations :rive-anim-ids]
-                                            [:state-machines :rive-state-machine-ids]
+                                            [:state-machine-ids :rive-state-machine-ids]
                                             [:aabb :aabb]
                                             [:node-outline :source-outline]
                                             [:build-targets :dep-build-targets])))
