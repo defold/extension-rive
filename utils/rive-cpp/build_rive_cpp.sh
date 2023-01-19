@@ -266,6 +266,7 @@ case $PLATFORM in
 
     x86_64-linux)
         export CXXFLAGS="${CXXFLAGS} -fPIC"
+        export CCFLAGS="${CCFLAGS} -fPIC"
         if [ -z "${CXX}" ]; then
             export CXX=clang++
         fi
