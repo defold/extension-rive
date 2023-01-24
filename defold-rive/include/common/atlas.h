@@ -21,7 +21,7 @@
 #include <rive/file_asset_resolver.hpp>
 
 namespace dmGameSystemDDF {
-    class TextureSet;
+    struct TextureSet;
 }
 
 namespace dmRive {

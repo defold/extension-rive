@@ -204,10 +204,10 @@ static void Render(RiveFile* rive_file)
     EnsureCapacityAndSize<>(index_buffer, index_count);
 
     RiveVertex* vb_begin = vertex_buffer.Begin();
-    RiveVertex* vb_end = vb_begin;
+    //RiveVertex* vb_end = vb_begin;
 
     uint16_t* ix_begin = index_buffer.Begin();
-    uint16_t* ix_end   = ix_begin;
+    //uint16_t* ix_end   = ix_begin;
 
     EnsureCapacityAndSize<>(rive_file->m_RenderObjects, ro_count);
     EnsureCapacityAndSize<>(rive_file->m_RenderConstants, ro_count);
@@ -223,7 +223,7 @@ static void Render(RiveFile* rive_file)
     //dmRender::HMaterial material = GetMaterial(first, resource);
 
     dmhash_t constant_names[4] = {UNIFORM_PROPERTIES, UNIFORM_GRADIENT_LIMITS, UNIFORM_COLOR, UNIFORM_STOPS};
-    dmRender::HConstant material_constants[4];
+    //dmRender::HConstant material_constants[4];
     dmRenderDDF::MaterialDesc::ConstantType material_constant_types[4];
 
     // Currently, the dmRender::GetMaterialProgramConstant isn't part of the dmSdk
@@ -272,9 +272,9 @@ static void Render(RiveFile* rive_file)
 
         const dmRive::FsUniforms fs_uniforms = draw_desc.m_FsUniforms;
         const dmRive::VsUniforms vs_uniforms = draw_desc.m_VsUniforms;
-        const int MAX_STOPS = 4;
-        const int MAX_COLORS = 16;
-        const int num_stops = fs_uniforms.stopCount > 1 ? fs_uniforms.stopCount : 1;
+        // const int MAX_STOPS = 4;
+        // const int MAX_COLORS = 16;
+        // const int num_stops = fs_uniforms.stopCount > 1 ? fs_uniforms.stopCount : 1;
 
         dmVMath::Vector4 properties((float)fs_uniforms.fillType, (float) fs_uniforms.stopCount, 0.0f, 0.0f);
         dmVMath::Vector4 gradient_limits(vs_uniforms.gradientStart.x, vs_uniforms.gradientStart.y, vs_uniforms.gradientEnd.x, vs_uniforms.gradientEnd.y);

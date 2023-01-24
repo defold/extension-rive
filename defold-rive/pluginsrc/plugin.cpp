@@ -146,7 +146,7 @@ JNIEXPORT jobject JNICALL Java_RiveFile_LoadFromBufferInternal(JNIEnv* env, jcla
     jbyte* file_data = env->GetByteArrayElements(array, 0);
     DM_CHECK_JNI_ERROR();
 
-    printf("LoadFromBufferInternal: %s suffix: %s bytes: %d\n", path, suffix, file_size);
+    printf("LoadFromBufferInternal: %s suffix: %s bytes: %d\n", path, suffix, (int)file_size);
 
     TypeRegister register_t(env);
 

@@ -74,7 +74,7 @@ function build_plugin() {
     local platform=$1
     local platform_ne=$2
 
-    java -jar $BOB --platform=$platform build --build-artifacts=plugins --variant $VARIANT --build-server=$SERVER --defoldsdk=$DEFOLDSDK
+    java -jar $BOB --platform=$platform resolve build --build-artifacts=plugins --variant $VARIANT --build-server=$SERVER --defoldsdk=$DEFOLDSDK
 
     copy_results $platform $platform_ne
 }
