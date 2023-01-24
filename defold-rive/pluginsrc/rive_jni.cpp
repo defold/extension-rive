@@ -353,6 +353,7 @@ static int HashCode(JNIEnv* env, jclass cls, jobject object)
     jmethodID hashCode = env->GetMethodID(cls, "hashCode", "()I");
     jint i = env->CallIntMethod(object, hashCode);
     DM_CHECK_JNI_ERROR();
+    return i;
 }
 
 static jobject CreateRiveFile(JNIEnv* env, dmRive::RiveFile* rive_file)
