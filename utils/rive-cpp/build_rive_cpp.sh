@@ -23,7 +23,7 @@ BUILD_DIR=./build/${PLATFORM}
 SOURCE_DIR="${UNPACK_FOLDER}/src"
 TESS_DIR="${UNPACK_FOLDER}/tess"
 TESS2_DIR="${LIBTESS2_UNPACK_FOLDER}/Source"
-TARGET_INCLUDE_DIR="../../defold-rive/include/rive"
+TARGET_INCLUDE_DIR="../../defold-rive/include"
 TARGET_LIBRARY_DIR="../../defold-rive/lib/${PLATFORM}"
 TARGET_NAME_RIVE=librivecpp
 TARGET_NAME_TESS=librivetess
@@ -75,11 +75,11 @@ function copy_headers
 {
     local target_dir=$1
     echo "Removing old headers from ${target_dir}"
-    rm -rf ${target_dir}
-    echo "Copying rive header files to ${target_dir}"
-    cp -r ${UNPACK_FOLDER}/include/rive/ ${target_dir}
+    rm -rf ${target_dir}/rive
+    echo "Copying rive header files to ${target_dir}/rive"
+    cp -v -r ${UNPACK_FOLDER}/include/rive/ ${target_dir}/
     echo "Copying tess header files to ${target_dir}"
-    cp -r ${UNPACK_FOLDER}/tess/include/rive/ ${target_dir}
+    cp -v -r ${UNPACK_FOLDER}/tess/include/rive/ ${target_dir}/
 }
 
 function copy_library
