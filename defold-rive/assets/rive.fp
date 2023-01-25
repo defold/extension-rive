@@ -6,10 +6,11 @@
 
 uniform vec4  colors[MAX_COLORS];
 uniform vec4  stops[MAX_STOPS];
-uniform vec4  gradientLimits;
-uniform vec4  properties; // x: filltype, y: stopcount
-varying vec2 vx_position;
+//varying vec2 vx_position;
 varying vec2 gradient_uv;
+
+uniform highp vec4  gradientLimits;
+uniform highp vec4  properties; // x: filltype, y: stopcount
 
 void main()
 {

@@ -2,12 +2,12 @@ uniform highp mat4 world_view_proj;
 uniform highp vec4 transform_local[4];
 uniform lowp vec4 cover;
 
-uniform vec4 properties; // x: filltype, y: stopcount
-uniform vec4 gradientLimits;
+uniform highp vec4 properties; // x: filltype, y: stopcount
+uniform highp vec4 gradientLimits;
 
 attribute highp vec4 position;
 
-varying vec2 vx_position;
+//varying vec2 vx_position;
 varying vec2 gradient_uv;
 
 #define FILL_TYPE_SOLID  0
@@ -22,7 +22,7 @@ mat4 get_local_mat()
 void main()
 {
     vec4 p = vec4(position.xy, 0.0, 1.0);
-    vx_position  = (get_local_mat() * p).xy;
+    //vx_position  = (get_local_mat() * p).xy;
     gl_Position = world_view_proj * p * (1.0 - cover.x) + cover.x * p;
 
     int fillType       = int(properties.x);
