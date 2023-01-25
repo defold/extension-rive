@@ -268,29 +268,6 @@ case $PLATFORM in
         export RANLIB=${llvm}/aarch64-linux-android-ranlib
         ;;
 
-    js-web)
-        [ ! -e "${EMSCRIPTEN}" ] && echo "No SDK found at EMSCRIPTEN=${EMSCRIPTEN}" && exit 1
-        export CXX=${EMSCRIPTEN}/em++
-        export AR=${EMSCRIPTEN}/emar
-        export RANLIB=${EMSCRIPTEN}/emranlib
-        export CXXFLAGS="${CXXFLAGS} -fPIC -fno-exceptions"
-
-        CXXFLAGS="${CXXFLAGS} -s PRECISE_F32=2 -s AGGRESSIVE_VARIABLE_ELIMINATION=1 -s DISABLE_EXCEPTION_CATCHING=1"
-        CXXFLAGS="${CXXFLAGS} -s WASM=0 -s LEGACY_VM_SUPPORT=1"
-        ;;
-
-    wasm-web)
-        [ ! -e "${EMSCRIPTEN}" ] && echo "No SDK found at EMSCRIPTEN=${EMSCRIPTEN}" && exit 1
-        export CXX=${EMSCRIPTEN}/em++
-        export AR=${EMSCRIPTEN}/emar
-        export RANLIB=${EMSCRIPTEN}/emranlib
-        export CXXFLAGS="${CXXFLAGS} -fPIC -fno-exceptions -fno-rtti"
-
-        CXXFLAGS="${CXXFLAGS} -s PRECISE_F32=2 -s AGGRESSIVE_VARIABLE_ELIMINATION=1 -s DISABLE_EXCEPTION_CATCHING=1"
-        CXXFLAGS="${CXXFLAGS} -s WASM=1 -s IMPORTED_MEMORY=1 -s ALLOW_MEMORY_GROWTH=1"
-
-        ;;
-
     *)
         echo "Unknown platform: ${PLATFORM}, using host clang++, ar and ranlib. Prefix with CROSS_TOOLS_PREFIX to use specific tools."
         ;;

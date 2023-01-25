@@ -22,7 +22,8 @@ LIBTESS2_BUILD_FOLDER="libtess2"
 
 WINDOWS_PLATFORMS=['x86_64-win32', 'x86-win32']
 DARWIN_PLATFORMS=['x86_64-osx', 'x86_64-macos', 'arm64-macos', 'arm64-ios', 'x86_64-ios']
-SUPPORTED_PLATFORMS=WINDOWS_PLATFORMS+DARWIN_PLATFORMS
+HTML5_PLATFORMS=['js-web', 'wasm-web']
+SUPPORTED_PLATFORMS=WINDOWS_PLATFORMS+DARWIN_PLATFORMS+HTML5_PLATFORMS
 
 def basename(url):
     return os.path.basename(url)
@@ -74,16 +75,6 @@ def run_shell_cmd(args):
         log(_to_str(output))
     return output
 
-def verify_platform(platform):
-    if platform in WINDOWS_PLATFORMS:
-        expected='x86'
-        if platform == 'x86_64-win32':
-            expected='x64'
-
-        arch_tgt=os.environ.get("VSCMD_ARG_TGT_ARCH", '')
-        if not arch_tgt == expected:
-            print("Wanted VSCMD_ARG_TGT_ARCH=%s but got" % expected, arch_tgt)
-            sys.exit(1)
 ## **********************************************************************************************
 
 MAX_THREADS=8
@@ -157,6 +148,29 @@ CCFLAGS=[]
 CXXFLAGS=[]
 INCLUDES=[]
 
+def verify_platform(platform):
+    if platform in WINDOWS_PLATFORMS:
+        expected='x86'
+        if platform == 'x86_64-win32':
+            expected='x64'
+
+        arch_tgt=os.environ.get("VSCMD_ARG_TGT_ARCH", '')
+        if not arch_tgt == expected:
+            print("Wanted VSCMD_ARG_TGT_ARCH=%s but got" % expected, arch_tgt)
+            sys.exit(1)
+
+    if platform in DARWIN_PLATFORMS:
+        pass
+
+    if platform in HTML5_PLATFORMS:
+        emscripten = os.environ.get('EMSCRIPTEN', None)
+        if not emscripten:
+            print("EMSCRIPTEN path is not set!")
+            sys.exit(1)
+        if not os.path.exists(emscripten):
+            print("EMSCRIPTEN path is not a valid path!")
+            sys.exit(1)
+
 def setup_vars(platform):
     global EXTENSION_LIB_FOLDER, CC, CXX, AR, RANLIB, OPT, SYSROOT, CFLAGS, CCFLAGS, CXXFLAGS, LIBSUFFIX, OBJSUFFIX, INCLUDES
 
@@ -164,11 +178,14 @@ def setup_vars(platform):
 
     inc = "-I"
     OPT="-O2"
+    CCFLAGS=["-g"]
+
     if platform in WINDOWS_PLATFORMS:
         CC="cl.exe"
         CXX="cl.exe"
         RANLIB="lib.exe"
         OPT="/O2"
+        CCFLAGS=[]
         CXXFLAGS=["/D_HAS_EXCEPTIONS=0", "/GR-", "/Zi", "/nologo"]
         LIBSUFFIX=".lib"
         OBJSUFFIX=".obj"
@@ -182,7 +199,6 @@ def setup_vars(platform):
         AR=os.path.join(toolchain,"/usr/bin/ar")
         RANLIB=os.path.join(toolchain,"/usr/bin/ranlib")
 
-        CCFLAGS=["-g"]
         CXXFLAGS=["-stdlib=libc++", "-std=c++17", "-fno-exceptions", "-fno-rtti"]
         SYSROOT=['-isysroot', sysroot]
 
@@ -197,6 +213,20 @@ def setup_vars(platform):
             if 'arm' in platform:
                 arch = 'arm64'
             CCFLAGS=CCFLAGS+["-arch", arch, "-mmacosx-version-min=10.7"]
+
+    if platform in HTML5_PLATFORMS:
+        toolchain = os.environ.get('EMSCRIPTEN')
+        CC=os.path.join(toolchain,"emcc")
+        CXX=os.path.join(toolchain,"em++")
+        AR=os.path.join(toolchain,"emar")
+        RANLIB=os.path.join(toolchain,"emranlib")
+        CCFLAGS=['-fPIC']
+        CXXFLAGS=['-fno-exceptions']
+        CXXFLAGS=CXXFLAGS+['-s','PRECISE_F32=2','-s','AGGRESSIVE_VARIABLE_ELIMINATION=1','-s','DISABLE_EXCEPTION_CATCHING=1']
+        if platform == 'js-web':
+            CXXFLAGS=CXXFLAGS+['-s','WASM=0','-s','LEGACY_VM_SUPPORT=1']
+        else:
+            CXXFLAGS=CXXFLAGS+['-s','WASM=1','-s','IMPORTED_MEMORY=1','-s','ALLOW_MEMORY_GROWTH=1']
 
     INCLUDES.append(inc+"%s" % EXTENSION_INCLUDE_DIR)
     INCLUDES.append(inc+"./%s/include/mapbox" % EARCUT_UNPACK_FOLDER)
@@ -306,16 +336,16 @@ if __name__ == "__main__":
 
     # rem copy_headers ${TARGET_INCLUDE_DIR}
 
-    # download_package(RIVE_URL, "rivecpp.zip")
-    # unpack_package("rivecpp.zip", RIVE_UNPACK_FOLDER)
-    # rmtree(os.path.join(RIVE_UNPACK_FOLDER, "tess", "src", "sokol"))
-    # rmtree(os.path.join(RIVE_UNPACK_FOLDER, "tess", "test"))
+    download_package(RIVE_URL, "rivecpp.zip")
+    unpack_package("rivecpp.zip", RIVE_UNPACK_FOLDER)
+    rmtree(os.path.join(RIVE_UNPACK_FOLDER, "tess", "src", "sokol"))
+    rmtree(os.path.join(RIVE_UNPACK_FOLDER, "tess", "test"))
 
-    # download_package(EARCUT_URL, "earcut.zip")
-    # unpack_package("earcut.zip", EARCUT_UNPACK_FOLDER)
+    download_package(EARCUT_URL, "earcut.zip")
+    unpack_package("earcut.zip", EARCUT_UNPACK_FOLDER)
 
-    # download_package(LIBTESS2_URL, "libtess2.zip")
-    # unpack_package("libtess2.zip", LIBTESS2_UNPACK_FOLDER)
+    download_package(LIBTESS2_URL, "libtess2.zip")
+    unpack_package("libtess2.zip", LIBTESS2_UNPACK_FOLDER)
 
     build_cpp_library(platform, "librivecpp", os.path.join(RIVE_UNPACK_FOLDER, "src"), RIVE_BUILD_FOLDER)
     build_cpp_library(platform, "librivetess", os.path.join(RIVE_UNPACK_FOLDER, "tess"), RIVE_BUILD_FOLDER)
