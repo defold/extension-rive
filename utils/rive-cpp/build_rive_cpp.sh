@@ -214,33 +214,6 @@ CXXFLAGS="${CXXFLAGS} ${CCFLAGS} -std=c++17 -fno-exceptions -fno-rtti"
 
 case $PLATFORM in
 
-    x86_64-osx)
-        [ ! -e "${DARWIN_TOOLCHAIN_ROOT}" ] && echo "No SDK found at DARWIN_TOOLCHAIN_ROOT=${DARWIN_TOOLCHAIN_ROOT}" && exit 1
-        [ ! -e "${OSX_SDK_ROOT}" ] && echo "No SDK found at OSX_SDK_ROOT=${OSX_SDK_ROOT}" && exit 1
-        export SDKROOT="${OSX_SDK_ROOT}"
-        #export CXX=$DARWIN_TOOLCHAIN_ROOT/usr/bin/clang++
-        #export AR=$DARWIN_TOOLCHAIN_ROOT/usr/bin/ar
-        #export RANLIB=$DARWIN_TOOLCHAIN_ROOT/usr/bin/ranlib
-
-        export CXX=/usr/bin/clang++
-        export AR=/usr/bin/ar
-        export RANLIB=/usr/bin/ranlib
-
-        # self.env.append_value(f, ['-target', '%s-apple-darwin19' % arch])
-        export CXXFLAGS="${CXXFLAGS} -stdlib=libc++ -target x86_64-apple-darwin21.2.0"
-
-        #if [ -z "${OSX_MIN_SDK_VERSION}" ]; then
-            OSX_MIN_SDK_VERSION="10.7"
-        #fi
-
-        #if [ ! -z "${OSX_MIN_SDK_VERSION}" ]; then
-            export MACOSX_DEPLOYMENT_TARGET=${OSX_MIN_SDK_VERSION}
-            export CXXFLAGS="${CXXFLAGS} -mmacosx-version-min=${OSX_MIN_SDK_VERSION} "
-            export LDFLAGS="${LDFLAGS} -mmacosx-version-min=${OSX_MIN_SDK_VERSION}"
-        #fi
-
-        ;;
-
     x86_64-linux)
         export CXXFLAGS="${CXXFLAGS} -fPIC"
         export CCFLAGS="${CCFLAGS} -fPIC"

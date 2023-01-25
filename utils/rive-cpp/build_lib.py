@@ -175,20 +175,28 @@ def setup_vars(platform):
         inc = "/I"
 
     if platform in DARWIN_PLATFORMS:
-        if '-ios' in platform:
-            toolchain = get_local_darwin_toolchain_path()
-            sysroot = get_local_darwin_sdk_path(platform)
+        toolchain = get_local_darwin_toolchain_path()
+        sysroot = get_local_darwin_sdk_path(platform)
+        CC=os.path.join(toolchain,"/usr/bin/clang")
+        CXX=os.path.join(toolchain,"/usr/bin/clang++")
+        AR=os.path.join(toolchain,"/usr/bin/ar")
+        RANLIB=os.path.join(toolchain,"/usr/bin/ranlib")
 
-            CC=os.path.join(toolchain,"/usr/bin/clang")
-            CXX=os.path.join(toolchain,"/usr/bin/clang++")
-            AR=os.path.join(toolchain,"/usr/bin/ar")
-            RANLIB=os.path.join(toolchain,"/usr/bin/ranlib")
+        CCFLAGS=["-g"]
+        CXXFLAGS=["-stdlib=libc++", "-std=c++17", "-fno-exceptions", "-fno-rtti"]
+        SYSROOT=['-isysroot', sysroot]
+
+        if '-ios' in platform:
             arch = 'i386'
             if 'arm' in platform:
                 arch = 'arm64'
-            CCFLAGS=["-arch", arch, "-miphoneos-version-min=9.0"]
-            CXXFLAGS=["-stdlib=libc++", "-std=c++17"]
-            SYSROOT=['-isysroot', sysroot]
+            CCFLAGS=CCFLAGS+["-arch", arch, "-miphoneos-version-min=9.0"]
+
+        if platform in ('x86_64-osx', 'x86_64-macos', 'arm64-macos'):
+            arch = 'x86_64'
+            if 'arm' in platform:
+                arch = 'arm64'
+            CCFLAGS=CCFLAGS+["-arch", arch, "-mmacosx-version-min=10.7"]
 
     INCLUDES.append(inc+"%s" % EXTENSION_INCLUDE_DIR)
     INCLUDES.append(inc+"./%s/include/mapbox" % EARCUT_UNPACK_FOLDER)
