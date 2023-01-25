@@ -21,7 +21,7 @@
 #include <dmsdk/dlib/vmath.h>
 
 #include <stdint.h>
-#include <jni.h> // jobject
+#include "jni/jni.h" // jobject
 
 namespace dmDefoldJNI
 {

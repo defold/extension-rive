@@ -17,8 +17,6 @@
 #include "render_jni.h"
 #include "rive_file.h"
 
-#include <jni.h>
-
 #include <dmsdk/dlib/align.h>
 #include <dmsdk/dlib/array.h>
 #include <dmsdk/dlib/dstrings.h>

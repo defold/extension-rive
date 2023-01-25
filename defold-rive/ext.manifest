@@ -9,11 +9,10 @@ platforms:
     x86_64-linux:
         context:
             flags:      ["-std=c++17"]
-            includes:   ["{{env.JAVA_HOME}}/include/linux", "{{env.JAVA_HOME}}/include"]
 
     win32:
         context:
-            includes:   ["{{env.JAVA_HOME}}/include/win32", "{{env.JAVA_HOME}}/include"]
+            defines:        ["_CRT_SECURE_NO_WARNINGS"]
             flags:          ["-std=c++17", "-fno-rtti"]
             cxxShFlags:     ["-std=c++17", "-fno-rtti"]
             cxxLinkShFlags: ["-std=c++17"]
@@ -21,7 +20,6 @@ platforms:
     x86_64-osx:
         context:
             flags:      ["-std=c++17", "-fno-rtti"]
-            includes:   ["{{env.JAVA_HOME}}/include/darwin", "{{env.JAVA_HOME}}/include"]
 
     ios:
         context:

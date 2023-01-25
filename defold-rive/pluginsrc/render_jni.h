@@ -19,7 +19,7 @@
 #include <dmsdk/dlib/shared_library.h>
 
 #include <stdint.h>
-#include <jni.h> // jobject
+#include "jni/jni.h" // jobject
 
 namespace dmRender
 {

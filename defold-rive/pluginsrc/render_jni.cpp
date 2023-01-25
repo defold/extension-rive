@@ -15,8 +15,6 @@
 #include "render_jni.h"
 #include "defold_jni.h"
 
-#include <jni.h>
-
 #include <dmsdk/dlib/array.h>
 #include <dmsdk/dlib/dstrings.h>
 #include <dmsdk/dlib/log.h>

@@ -3,8 +3,6 @@
 
 #include <dmsdk/dlib/dstrings.h>
 
-#include <jni.h>
-
 namespace dmDefoldJNI
 {
 

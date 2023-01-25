@@ -33,8 +33,7 @@ __declspec(dllexport) int dummyFunc()
 #include <common/vertices.h>
 #include <common/tess_renderer.h>
 
-
-#include <jni.h>
+#include "jni/jni.h"
 
 #include "defold_jni.h"
 #include "render_jni.h"

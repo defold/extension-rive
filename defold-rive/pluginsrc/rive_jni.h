@@ -19,7 +19,7 @@
 #include <dmsdk/dlib/shared_library.h>
 
 #include <stdint.h>
-#include <jni.h>
+#include "jni/jni.h"
 
 namespace dmRiveJNI
 {
