@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import os, sys, subprocess, shutil
+import threading
+
 
 SCRIPT_DIR=os.path.abspath(os.path.dirname(__file__))
 BUILD_DIR=os.path.join(SCRIPT_DIR, "build")
@@ -19,7 +21,8 @@ LIBTESS2_UNPACK_FOLDER="build/libtess2-master"
 LIBTESS2_BUILD_FOLDER="libtess2"
 
 WINDOWS_PLATFORMS=['x86_64-win32', 'x86-win32']
-SUPPORTED_PLATFORMS=WINDOWS_PLATFORMS
+DARWIN_PLATFORMS=['x86_64-osx', 'x86_64-macos', 'arm64-macos', 'arm64-ios', 'x86_64-ios']
+SUPPORTED_PLATFORMS=WINDOWS_PLATFORMS+DARWIN_PLATFORMS
 
 def basename(url):
     return os.path.basename(url)
@@ -48,18 +51,28 @@ def unpack_package(name, folder):
     else:
         os.system("unzip -q %s -d build" % path)
 
-CC=None
-CXX=None
-AR=None
-RANLIB=None
-OPT=None
-LIBSUFFIX=".a"
-OBJSUFFIX=".o"
-SYSROOT=[]
-CFLAGS=[]
-CCFLAGS=[]
-CXXFLAGS=[]
-INCLUDES=["/I%s" % EXTENSION_INCLUDE_DIR]
+## **********************************************************************************************
+def _to_str(x):
+    if x is None:
+        return ''
+    elif isinstance(x, (bytes, bytearray)):
+        x = str(x, encoding='utf-8')
+    return x
+
+def run_cmd(args):
+    print(args)
+    p = subprocess.Popen(args)
+    p.wait()
+    return p.returncode
+
+def run_shell_cmd(args):
+    print(args)
+
+    p = subprocess.Popen(args, stdout=subprocess.PIPE)
+    output = p.communicate()[0]
+    if p.returncode != 0:
+        log(_to_str(output))
+    return output
 
 def verify_platform(platform):
     if platform in WINDOWS_PLATFORMS:
@@ -71,7 +84,78 @@ def verify_platform(platform):
         if not arch_tgt == expected:
             print("Wanted VSCMD_ARG_TGT_ARCH=%s but got" % expected, arch_tgt)
             sys.exit(1)
+## **********************************************************************************************
 
+MAX_THREADS=8
+
+def async_worker(items):
+    for item in items:
+        try:
+            fn = item[0]
+            fn(*(item[1:]))
+        except Exception:
+            print('error with item')
+
+def thread_work(workload):
+    def divide_list(l, n):
+        for i in range(0, len(l), n):
+            yield l[i:i + n]
+
+    n_threads = int(len(workload) / MAX_THREADS)
+    if n_threads < 1:
+        n_threads = 1
+
+    chunk_size = int(len(workload) / n_threads)
+    if chunk_size < 1:
+        chunk_size = 1
+    chunks = list(divide_list(workload, chunk_size))
+
+    thread_list = []
+    for chunk in divide_list(workload, chunk_size):
+        thread = threading.Thread(target=async_worker, args=(chunk,))
+        thread_list.append(thread)
+        thread.start()
+
+    for thread in thread_list:
+        thread.join()
+
+## **********************************************************************************************
+## DARWIN
+
+def _convert_darwin_platform(platform):
+    if platform in ('x86_64-osx','x86_64-macos','arm64-macos'): return 'macosx'
+    if platform in ('arm64-ios',):                              return 'iphoneos'
+    if platform in ('x86_64-ios',):                             return 'iphonesimulator'
+    return 'unknown'
+
+def _get_xcode_local_path():
+    return run_shell_cmd(['xcode-select','-print-path'])
+
+# "xcode-select -print-path" will give you "/Applications/Xcode.app/Contents/Developer"
+def get_local_darwin_toolchain_path():
+    default_path = '%s/Toolchains/XcodeDefault.xctoolchain' % _get_xcode_local_path()
+    if os.path.exists(default_path):
+        return default_path
+    return '/Library/Developer/CommandLineTools'
+
+def get_local_darwin_sdk_path(platform):
+    return run_shell_cmd(['xcrun','-f','--sdk', _convert_darwin_platform(platform),'--show-sdk-path']).strip()
+
+## **********************************************************************************************
+## SETUP
+
+CC=None
+CXX=None
+AR=None
+RANLIB=None
+OPT=None
+LIBSUFFIX=".a"
+OBJSUFFIX=".o"
+SYSROOT=[]
+CFLAGS=[]
+CCFLAGS=[]
+CXXFLAGS=[]
+INCLUDES=[]
 
 def setup_vars(platform):
     global EXTENSION_LIB_FOLDER, CC, CXX, AR, RANLIB, OPT, SYSROOT, CFLAGS, CCFLAGS, CXXFLAGS, LIBSUFFIX, OBJSUFFIX, INCLUDES
@@ -79,7 +163,8 @@ def setup_vars(platform):
     EXTENSION_LIB_FOLDER=os.path.join(EXTENSION_LIB_FOLDER, platform)
 
     inc = "-I"
-    if platform in ('x86-win32', 'x86_64-win32'):
+    OPT="-O2"
+    if platform in WINDOWS_PLATFORMS:
         CC="cl.exe"
         CXX="cl.exe"
         RANLIB="lib.exe"
@@ -89,9 +174,25 @@ def setup_vars(platform):
         OBJSUFFIX=".obj"
         inc = "/I"
 
+    if platform in DARWIN_PLATFORMS:
+        if '-ios' in platform:
+            toolchain = get_local_darwin_toolchain_path()
+            sysroot = get_local_darwin_sdk_path(platform)
+
+            CC=os.path.join(toolchain,"/usr/bin/clang")
+            CXX=os.path.join(toolchain,"/usr/bin/clang++")
+            AR=os.path.join(toolchain,"/usr/bin/ar")
+            RANLIB=os.path.join(toolchain,"/usr/bin/ranlib")
+            arch = 'i386'
+            if 'arm' in platform:
+                arch = 'arm64'
+            CCFLAGS=["-arch", arch, "-miphoneos-version-min=9.0"]
+            CXXFLAGS=["-stdlib=libc++", "-std=c++17"]
+            SYSROOT=['-isysroot', sysroot]
+
+    INCLUDES.append(inc+"%s" % EXTENSION_INCLUDE_DIR)
     INCLUDES.append(inc+"./%s/include/mapbox" % EARCUT_UNPACK_FOLDER)
     INCLUDES.append(inc+"./%s/include" % LIBTESS2_UNPACK_FOLDER)
-        # -I./${UNPACK_FOLDER}/tess/include/ -I./${EARCUT_UNPACK_FOLDER}/include/mapbox -I./${LIBTESS2_UNPACK_FOLDER}/Include
 
 def find_sources(srcdir, filepattern):
     sources = []
@@ -102,11 +203,6 @@ def find_sources(srcdir, filepattern):
                 continue
             sources.append(os.path.join(root, f))
     return sources
-
-def run_cmd(args):
-    print(args)
-    p = subprocess.Popen(args)
-    p.wait()
 
 def compile_cpp_file(platform, src, tgt):
     src = os.path.normpath(src)
@@ -119,7 +215,7 @@ def compile_cpp_file(platform, src, tgt):
         args = args + ["-c", src, "-o", tgt]
     run_cmd(args)
 
-def compile_c_file(src, tgt):
+def compile_c_file(platform, src, tgt):
     src = os.path.normpath(src)
     tgt = os.path.normpath(tgt)
 
@@ -146,16 +242,22 @@ def link_library(platform, out, object_files):
             args = [RANLIB, out]
             run_cmd(args)
 
+
 def build_library(platform, name, sources, blddir, compile_fn):
     if not os.path.exists(blddir):
         os.makedirs(blddir)
 
+    work = []
     object_files = []
     for src in sources:
         obj = os.path.join(blddir, basename(src)) + OBJSUFFIX
-        compile_fn(platform, src, obj)
+        #compile_fn(platform, src, obj)
         object_files.append(obj)
 
+        work.append((compile_fn, platform, src, obj))
+        #pool.apply_async(async_worker, (compile_fn, platform, src, obj))
+
+    thread_work(work)
     link_library(platform, os.path.join(blddir, name + LIBSUFFIX), object_files)
 
 def build_cpp_library(platform, name, srcdir, blddir):
@@ -196,20 +298,20 @@ if __name__ == "__main__":
 
     # rem copy_headers ${TARGET_INCLUDE_DIR}
 
-    download_package(RIVE_URL, "rivecpp.zip")
-    unpack_package("rivecpp.zip", RIVE_UNPACK_FOLDER)
-    rmtree(os.path.join(RIVE_UNPACK_FOLDER, "tess", "src", "sokol"))
-    rmtree(os.path.join(RIVE_UNPACK_FOLDER, "tess", "test"))
+    # download_package(RIVE_URL, "rivecpp.zip")
+    # unpack_package("rivecpp.zip", RIVE_UNPACK_FOLDER)
+    # rmtree(os.path.join(RIVE_UNPACK_FOLDER, "tess", "src", "sokol"))
+    # rmtree(os.path.join(RIVE_UNPACK_FOLDER, "tess", "test"))
 
-    download_package(EARCUT_URL, "earcut.zip")
-    unpack_package("earcut.zip", EARCUT_UNPACK_FOLDER)
+    # download_package(EARCUT_URL, "earcut.zip")
+    # unpack_package("earcut.zip", EARCUT_UNPACK_FOLDER)
 
-    download_package(LIBTESS2_URL, "libtess2.zip")
-    unpack_package("libtess2.zip", LIBTESS2_UNPACK_FOLDER)
+    # download_package(LIBTESS2_URL, "libtess2.zip")
+    # unpack_package("libtess2.zip", LIBTESS2_UNPACK_FOLDER)
 
     build_cpp_library(platform, "librivecpp", os.path.join(RIVE_UNPACK_FOLDER, "src"), RIVE_BUILD_FOLDER)
     build_cpp_library(platform, "librivetess", os.path.join(RIVE_UNPACK_FOLDER, "tess"), RIVE_BUILD_FOLDER)
-    build_cpp_library(platform, "libtess2", os.path.join(LIBTESS2_UNPACK_FOLDER, "Source"), LIBTESS2_BUILD_FOLDER)
+    build_c_library(platform, "libtess2", os.path.join(LIBTESS2_UNPACK_FOLDER, "Source"), LIBTESS2_BUILD_FOLDER)
 
     copy_library(os.path.join(RIVE_BUILD_FOLDER, "librivecpp" + LIBSUFFIX), EXTENSION_LIB_FOLDER)
     copy_library(os.path.join(RIVE_BUILD_FOLDER, "librivetess" + LIBSUFFIX), EXTENSION_LIB_FOLDER)

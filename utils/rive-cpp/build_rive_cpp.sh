@@ -213,29 +213,6 @@ CCFLAGS="${CCFLAGS} -I./${UNPACK_FOLDER}/include -I./${UNPACK_FOLDER}/tess/inclu
 CXXFLAGS="${CXXFLAGS} ${CCFLAGS} -std=c++17 -fno-exceptions -fno-rtti"
 
 case $PLATFORM in
-    arm64-ios)
-        [ ! -e "${DARWIN_TOOLCHAIN_ROOT}" ] && echo "No SDK found at DARWIN_TOOLCHAIN_ROOT=${DARWIN_TOOLCHAIN_ROOT}" && exit 1
-        [ ! -e "${IOS_SDK_ROOT}" ] && echo "No SDK found at IOS_SDK_ROOT=${IOS_SDK_ROOT}" && exit 1
-        export SDKROOT="${IOS_SDK_ROOT}"
-
-        export PATH=$DARWIN_TOOLCHAIN_ROOT/usr/bin:$PATH
-        export CXXFLAGS="${CXXFLAGS} -stdlib=libc++ -arch arm64 "
-
-        if [ -z "${IOS_MIN_SDK_VERSION}" ]; then
-            IOS_MIN_SDK_VERSION="8.0"
-        fi
-
-        if [ ! -z "${IOS_MIN_SDK_VERSION}" ]; then
-            export CXXFLAGS="${CXXFLAGS} -miphoneos-version-min=${IOS_MIN_SDK_VERSION} "
-            export LDFLAGS="${LDFLAGS} -miphoneos-version-min=${IOS_MIN_SDK_VERSION}"
-        fi
-
-        export CXX=$DARWIN_TOOLCHAIN_ROOT/usr/bin/clang++
-        export AR=$DARWIN_TOOLCHAIN_ROOT/usr/bin/ar
-        export RANLIB=$DARWIN_TOOLCHAIN_ROOT/usr/bin/ranlib
-
-        ;;
-
 
     x86_64-osx)
         [ ! -e "${DARWIN_TOOLCHAIN_ROOT}" ] && echo "No SDK found at DARWIN_TOOLCHAIN_ROOT=${DARWIN_TOOLCHAIN_ROOT}" && exit 1
@@ -275,32 +252,6 @@ case $PLATFORM in
         fi
         if [ -z "${RANLIB}" ]; then
             export RANLIB=ranlib
-        fi
-        ;;
-
-    x86_64-win32)
-        [ ! -e "${WIN32_MSVC_INCLUDE_DIR}" ] && echo "No SDK found at WIN32_MSVC_INCLUDE_DIR=${WIN32_MSVC_INCLUDE_DIR}" && exit 1
-        [ ! -e "${WIN32_SDK_INCLUDE_DIR}" ] && echo "No SDK found at WIN32_SDK_INCLUDE_DIR=${WIN32_SDK_INCLUDE_DIR}" && exit 1
-
-        TARGET_LIB_SUFFIX=.lib
-
-        export host_platform=`uname | awk '{print tolower($0)}'`
-        if [ "darwin" == "${host_platform}" ] || [ "linux" == "${host_platform}" ]; then
-            export CXXFLAGS="${CXXFLAGS} -target x86_64-pc-windows-msvc -m64 -D_CRT_SECURE_NO_WARNINGS -D__STDC_LIMIT_MACROS -DWINVER=0x0600 -DNOMINMAX -gcodeview"
-            export CXXFLAGS="${CXXFLAGS} -nostdinc++ -isystem ${WIN32_MSVC_INCLUDE_DIR} -isystem ${WIN32_SDK_INCLUDE_DIR}"
-        fi
-        ;;
-
-    x86-win32)
-        [ ! -e "${WIN32_MSVC_INCLUDE_DIR}" ] && echo "No SDK found at WIN32_MSVC_INCLUDE_DIR=${WIN32_MSVC_INCLUDE_DIR}" && exit 1
-        [ ! -e "${WIN32_SDK_INCLUDE_DIR}" ] && echo "No SDK found at WIN32_SDK_INCLUDE_DIR=${WIN32_SDK_INCLUDE_DIR}" && exit 1
-
-        TARGET_LIB_SUFFIX=.lib
-
-        export host_platform=`uname | awk '{print tolower($0)}'`
-        if [ "darwin" == "${host_platform}" ] || [ "linux" == "${host_platform}" ]; then
-            export CXXFLAGS="${CXXFLAGS} -target i386-pc-win32-msvc -m32 -D_CRT_SECURE_NO_WARNINGS -D__STDC_LIMIT_MACROS -DWINVER=0x0600 -DNOMINMAX -gcodeview"
-            export CXXFLAGS="${CXXFLAGS} -nostdinc++ -isystem ${WIN32_MSVC_INCLUDE_DIR} -isystem ${WIN32_SDK_INCLUDE_DIR}"
         fi
         ;;
 
