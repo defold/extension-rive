@@ -287,6 +287,7 @@ void DefoldRenderPaint::draw(dmArray<DrawDescriptor>& drawDescriptors, VsUniform
         desc.m_VerticesCount = m_strokeVertices.Size();
         desc.m_DrawMode      = DRAW_MODE_DEFAULT;
         desc.m_BlendMode     = blendMode;
+        desc.m_ClipIndex     = clipIndex;
 
         if (drawDescriptors.Full())
         {
