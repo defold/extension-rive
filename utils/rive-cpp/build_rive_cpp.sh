@@ -228,46 +228,6 @@ case $PLATFORM in
         fi
         ;;
 
-    armv7-android)
-        [ ! -e "${ANDROID_NDK_ROOT}" ] && echo "No SDK found at ANDROID_NDK_ROOT=${ANDROID_NDK_ROOT}" && exit 1
-        export host_platform=`uname | awk '{print tolower($0)}'`
-        export llvm="${ANDROID_NDK_ROOT}/toolchains/llvm/prebuilt/${host_platform}-x86_64/bin"
-        export SDKROOT="${ANDROID_NDK_ROOT}/toolchains/llvm/prebuilt/${host_platform}-x86_64/sysroot"
-
-        if [ -z "${OPT}" ]; then
-            export OPT="-Os"
-        fi
-        export CXXFLAGS="${CXXFLAGS} -fpic -ffunction-sections -funwind-tables -D__ARM_ARCH_5__ -D__ARM_ARCH_5T__ -D__ARM_ARCH_5E__ -D__ARM_ARCH_5TE__ -march=armv7-a -mfloat-abi=softfp -mfpu=vfp -mthumb -fomit-frame-pointer -fno-strict-aliasing -DANDROID -Wno-c++11-narrowing"
-
-        if [ -z "${ANDROID_VERSION}" ]; then
-            ANDROID_VERSION=16
-        fi
-
-        export CXX="${llvm}/armv7a-linux-androideabi${ANDROID_VERSION}-clang++"
-        export AR=${llvm}/arm-linux-androideabi-ar
-        export RANLIB=${llvm}/arm-linux-androideabi-ranlib
-        ;;
-
-    arm64-android)
-        [ ! -e "${ANDROID_NDK_ROOT}" ] && echo "No SDK found at ANDROID_NDK_ROOT=${ANDROID_NDK_ROOT}" && exit 1
-        export host_platform=`uname | awk '{print tolower($0)}'`
-        export llvm="${ANDROID_NDK_ROOT}/toolchains/llvm/prebuilt/${host_platform}-x86_64/bin"
-        export SDKROOT="${ANDROID_NDK_ROOT}/toolchains/llvm/prebuilt/${host_platform}-x86_64/sysroot"
-
-        if [ -z "${OPT}" ]; then
-            export OPT="-Os"
-        fi
-        export CXXFLAGS="${CXXFLAGS} -fpic -ffunction-sections -funwind-tables -D__aarch64__  -march=armv8-a -fomit-frame-pointer -fno-strict-aliasing -DANDROID -Wno-c++11-narrowing"
-
-        if [ -z "${ANDROID_VERSION}" ]; then
-            ANDROID_VERSION=21 # Android 5.0
-        fi
-
-        export CXX="${llvm}/aarch64-linux-android${ANDROID_VERSION}-clang++"
-        export AR=${llvm}/aarch64-linux-android-ar
-        export RANLIB=${llvm}/aarch64-linux-android-ranlib
-        ;;
-
     *)
         echo "Unknown platform: ${PLATFORM}, using host clang++, ar and ranlib. Prefix with CROSS_TOOLS_PREFIX to use specific tools."
         ;;

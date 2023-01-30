@@ -23,7 +23,8 @@ LIBTESS2_BUILD_FOLDER="libtess2"
 WINDOWS_PLATFORMS=['x86_64-win32', 'x86-win32']
 DARWIN_PLATFORMS=['x86_64-osx', 'x86_64-macos', 'arm64-macos', 'arm64-ios', 'x86_64-ios']
 HTML5_PLATFORMS=['js-web', 'wasm-web']
-SUPPORTED_PLATFORMS=WINDOWS_PLATFORMS+DARWIN_PLATFORMS+HTML5_PLATFORMS
+ANDROID_PLATFORMS=['armv7-android', 'arm64-android']
+SUPPORTED_PLATFORMS=WINDOWS_PLATFORMS+DARWIN_PLATFORMS+HTML5_PLATFORMS+ANDROID_PLATFORMS
 
 def basename(url):
     return os.path.basename(url)
@@ -133,6 +134,41 @@ def get_local_darwin_sdk_path(platform):
     return run_shell_cmd(['xcrun','-f','--sdk', _convert_darwin_platform(platform),'--show-sdk-path']).strip()
 
 ## **********************************************************************************************
+## Android
+
+ANDROID_NDK_API_VERSION='19' # Android 4.4
+ANDROID_64_NDK_API_VERSION='21' # Android 5.0
+
+def _get_android_ndk_api_version(platform):
+    if platform == 'arm64-android':
+        return ANDROID_64_NDK_API_VERSION
+    else:
+        return ANDROID_NDK_API_VERSION
+
+def _get_android_bin_prefix(platform):
+    api_version = _get_android_ndk_api_version(platform)
+    if platform == 'arm64-android':
+        return 'aarch64-linux-android%s' % api_version
+    else:
+        return 'armv7a-linux-androideabi%s' % api_version
+
+def get_android_clang(platform):
+    prefix = _get_android_bin_prefix(platform)
+    return '%s-clang' % prefix
+
+def get_android_ranlib(platform):
+    if platform == 'arm64-android':
+        return 'aarch64-linux-android-ranlib'
+    else:
+        return 'arm-linux-androideabi-ranlib'
+
+def get_android_ar(platform):
+    if platform == 'arm64-android':
+        return 'aarch64-linux-android-ar'
+    else:
+        return 'arm-linux-androideabi-ar'
+
+## **********************************************************************************************
 ## SETUP
 
 CC=None
@@ -171,13 +207,19 @@ def verify_platform(platform):
             print("EMSCRIPTEN path is not a valid path!")
             sys.exit(1)
 
+    if platform in ANDROID_PLATFORMS:
+        android_ndk_home = os.environ.get('ANDROID_NDK_ROOT', None)
+        if not android_ndk_home:
+            print("ANDROID_NDK_ROOT path is not set!")
+            sys.exit(1)
+
 def setup_vars(platform):
     global EXTENSION_LIB_FOLDER, CC, CXX, AR, RANLIB, OPT, SYSROOT, CFLAGS, CCFLAGS, CXXFLAGS, LIBSUFFIX, OBJSUFFIX, INCLUDES
 
     EXTENSION_LIB_FOLDER=os.path.join(EXTENSION_LIB_FOLDER, platform)
 
     inc = "-I"
-    OPT="-O2"
+    OPT="-Os"
     CCFLAGS=["-g"]
 
     if platform in WINDOWS_PLATFORMS:
@@ -227,6 +269,32 @@ def setup_vars(platform):
             CXXFLAGS=CXXFLAGS+['-s','WASM=0','-s','LEGACY_VM_SUPPORT=1']
         else:
             CXXFLAGS=CXXFLAGS+['-s','WASM=1','-s','IMPORTED_MEMORY=1','-s','ALLOW_MEMORY_GROWTH=1']
+
+    if platform in ANDROID_PLATFORMS:
+        bp_os = 'linux'
+        if sys.platform == 'darwin':
+            bp_os = 'darwin'
+        clang_name  = get_android_clang(platform)
+
+        android_ndk_home = os.environ.get('ANDROID_NDK_ROOT', None)
+        bintools    = '%s/toolchains/llvm/prebuilt/%s-x86_64/bin' % (android_ndk_home, bp_os)
+        tool_name = "llvm"
+
+        SYSROOT=['-isysroot', '%s/toolchains/llvm/prebuilt/%s-x86_64/sysroot' % (android_ndk_home, bp_os)]
+
+        CC       = '%s/%s' % (bintools, clang_name)
+        CXX      = '%s/%s++' % (bintools, clang_name)
+        AR       = '%s/llvm-ar' % bintools
+        AR       = '%s/%s' % (bintools, get_android_ar(platform))
+        RANLIB   = '%s/%s' % (bintools, get_android_ranlib(platform))
+
+        CCFLAGS=['-fpic','-ffunction-sections','-funwind-tables','-fomit-frame-pointer','-fno-strict-aliasing','-DANDROID']
+        if platform == 'armv7-android':
+            CCFLAGS=CCFLAGS+['-D__ARM_ARCH_5__','-D__ARM_ARCH_5T__','-D__ARM_ARCH_5E__','-D__ARM_ARCH_5TE__','-march=armv7-a','-mfloat-abi=softfp','-mfpu=vfp','-mthumb']
+        else:
+            CCFLAGS=CCFLAGS+['-D__aarch64__','-march=armv8-a']
+        #CXXFLAGS=['-stdlib=libc++', '-std=c++17', '-fno-exceptions', '-fno-rtti', '-Wno-c++11-narrowing']
+        CXXFLAGS=['-stdlib=libc++', '-std=c++17', '-fno-exceptions', '-Wno-c++11-narrowing']
 
     INCLUDES.append(inc+"%s" % EXTENSION_INCLUDE_DIR)
     INCLUDES.append(inc+"./%s/include/mapbox" % EARCUT_UNPACK_FOLDER)
@@ -289,11 +357,9 @@ def build_library(platform, name, sources, blddir, compile_fn):
     object_files = []
     for src in sources:
         obj = os.path.join(blddir, basename(src)) + OBJSUFFIX
-        #compile_fn(platform, src, obj)
         object_files.append(obj)
 
         work.append((compile_fn, platform, src, obj))
-        #pool.apply_async(async_worker, (compile_fn, platform, src, obj))
 
     thread_work(work)
     link_library(platform, os.path.join(blddir, name + LIBSUFFIX), object_files)
