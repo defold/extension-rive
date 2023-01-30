@@ -278,7 +278,7 @@ void DefoldRenderPaint::draw(dmArray<DrawDescriptor>& drawDescriptors, VsUniform
 
         m_stroke->resetRenderOffset();
 
-        DrawDescriptor desc;
+        DrawDescriptor desc = {};
         desc.m_VsUniforms    = vertexUniforms;
         desc.m_FsUniforms    = m_uniforms;
         desc.m_Indices       = m_strokeIndices.Begin();
@@ -468,7 +468,7 @@ DrawDescriptor DefoldRenderPath::drawFill()
 {
     triangulate();
 
-    DrawDescriptor desc;
+    DrawDescriptor desc = {};
     desc.m_Indices       = m_indices.Begin();
     desc.m_IndicesCount  = m_indices.Size();
     desc.m_Vertices      = m_vertices.Begin();
