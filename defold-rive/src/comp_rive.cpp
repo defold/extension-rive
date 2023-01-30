@@ -112,9 +112,6 @@ namespace dmRive
         CompRiveContext* context = (CompRiveContext*)params.m_Context;
         RiveWorld* world         = new RiveWorld();
 
-        //world->m_RiveRenderer = rive::createRenderer(context->m_RiveContext);
-        // rive::setContourQuality(world->m_RiveRenderer, 0.8888888888888889f);
-        // rive::setClippingSupport(world->m_RiveRenderer, true);
         world->m_Ctx = context;
 
         world->m_Renderer = new DefoldTessRenderer();
@@ -124,13 +121,11 @@ namespace dmRive
         world->m_RenderConstants.SetSize(context->m_MaxInstanceCount);
         memset(world->m_RenderConstants.Begin(), 0, sizeof(dmGameSystem::HComponentRenderConstants)*world->m_RenderConstants.Capacity());
 
-        dmGraphics::VertexElement ve[] =
-        {
-            {"position", 0, 2, dmGraphics::TYPE_FLOAT, false},
-            {"texcoord0", 1, 2, dmGraphics::TYPE_FLOAT, false},
-        };
-
-        world->m_VertexDeclaration = dmGraphics::NewVertexDeclaration(context->m_GraphicsContext, ve, sizeof(ve) / sizeof(dmGraphics::VertexElement));
+        dmGraphics::HVertexStreamDeclaration stream_declaration = dmGraphics::NewVertexStreamDeclaration(context->m_GraphicsContext);
+        dmGraphics::AddVertexStream(stream_declaration, "position", 2, dmGraphics::TYPE_FLOAT, false);
+        dmGraphics::AddVertexStream(stream_declaration, "texcoord0", 2, dmGraphics::TYPE_FLOAT, false);
+        world->m_VertexDeclaration = dmGraphics::NewVertexDeclaration(context->m_GraphicsContext, stream_declaration);
+        dmGraphics::DeleteVertexStreamDeclaration(stream_declaration);
         world->m_VertexBuffer      = dmGraphics::NewVertexBuffer(context->m_GraphicsContext, 0, 0x0, dmGraphics::BUFFER_USAGE_DYNAMIC_DRAW);
         world->m_IndexBuffer       = dmGraphics::NewIndexBuffer(context->m_GraphicsContext, 0, 0x0, dmGraphics::BUFFER_USAGE_DYNAMIC_DRAW);
 
