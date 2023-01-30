@@ -24,7 +24,8 @@ WINDOWS_PLATFORMS=['x86_64-win32', 'x86-win32']
 DARWIN_PLATFORMS=['x86_64-osx', 'x86_64-macos', 'arm64-macos', 'arm64-ios', 'x86_64-ios']
 HTML5_PLATFORMS=['js-web', 'wasm-web']
 ANDROID_PLATFORMS=['armv7-android', 'arm64-android']
-SUPPORTED_PLATFORMS=WINDOWS_PLATFORMS+DARWIN_PLATFORMS+HTML5_PLATFORMS+ANDROID_PLATFORMS
+LINUX_PLATFORMS=['x86_64-linux']
+SUPPORTED_PLATFORMS=WINDOWS_PLATFORMS+DARWIN_PLATFORMS+HTML5_PLATFORMS+ANDROID_PLATFORMS+LINUX_PLATFORMS
 
 def basename(url):
     return os.path.basename(url)
@@ -68,13 +69,21 @@ def run_cmd(args):
     return p.returncode
 
 def run_shell_cmd(args):
-    print(args)
-
     p = subprocess.Popen(args, stdout=subprocess.PIPE)
     output = p.communicate()[0]
+    output = _to_str(output).strip()
     if p.returncode != 0:
-        log(_to_str(output))
+        print("Command failed:", *args)
+        print(output)
+        sys.exit(1)
     return output
+
+def which(tool):
+    result = run_shell_cmd(['which', tool])
+    if tool not in result:
+        print("No such tool found:", tool)
+        sys.exit(1)
+    return result
 
 ## **********************************************************************************************
 
@@ -213,6 +222,10 @@ def verify_platform(platform):
             print("ANDROID_NDK_ROOT path is not set!")
             sys.exit(1)
 
+    if platform in LINUX_PLATFORMS:
+        clang = which('clang') # exits upon error
+
+
 def setup_vars(platform):
     global EXTENSION_LIB_FOLDER, CC, CXX, AR, RANLIB, OPT, SYSROOT, CFLAGS, CCFLAGS, CXXFLAGS, LIBSUFFIX, OBJSUFFIX, INCLUDES
 
@@ -284,7 +297,6 @@ def setup_vars(platform):
 
         CC       = '%s/%s' % (bintools, clang_name)
         CXX      = '%s/%s++' % (bintools, clang_name)
-        AR       = '%s/llvm-ar' % bintools
         AR       = '%s/%s' % (bintools, get_android_ar(platform))
         RANLIB   = '%s/%s' % (bintools, get_android_ranlib(platform))
 
@@ -293,8 +305,24 @@ def setup_vars(platform):
             CCFLAGS=CCFLAGS+['-D__ARM_ARCH_5__','-D__ARM_ARCH_5T__','-D__ARM_ARCH_5E__','-D__ARM_ARCH_5TE__','-march=armv7-a','-mfloat-abi=softfp','-mfpu=vfp','-mthumb']
         else:
             CCFLAGS=CCFLAGS+['-D__aarch64__','-march=armv8-a']
-        #CXXFLAGS=['-stdlib=libc++', '-std=c++17', '-fno-exceptions', '-fno-rtti', '-Wno-c++11-narrowing']
         CXXFLAGS=['-stdlib=libc++', '-std=c++17', '-fno-exceptions', '-Wno-c++11-narrowing']
+
+    if platform in LINUX_PLATFORMS:
+        CC       = which('clang')
+        CXX      = which('clang++')
+        AR       = which('llvm-ar')
+        RANLIB   = which('llvm-ranlib')
+
+        binpath = os.path.dirname(CC)
+        sysroot = os.path.dirname(binpath)
+        SYSROOT=['-isysroot', sysroot]
+        CCFLAGS=['-fpic', '-fvisibility=hidden']
+        CXXFLAGS=['-std=c++17', '-fno-exceptions', '-Wno-c++11-narrowing']
+
+    assert(CC is not None)
+    assert(CXX is not None)
+    assert(AR is not None)
+    assert(RANLIB is not None)
 
     INCLUDES.append(inc+"%s" % EXTENSION_INCLUDE_DIR)
     INCLUDES.append(inc+"./%s/include/mapbox" % EARCUT_UNPACK_FOLDER)
