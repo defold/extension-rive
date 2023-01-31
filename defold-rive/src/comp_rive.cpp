@@ -762,7 +762,6 @@ namespace dmRive
                                                                rive::AABB(0, 0, bounds.maxX-bounds.minX, bounds.maxY-bounds.minY),
                                                                bounds);
             renderer->save();
-            renderer->transform(viewTransform);
 
             rive::Mat2D transform;
             Mat4ToMat2D(c->m_World, transform);
@@ -772,7 +771,8 @@ namespace dmRive
             // constructed so we flip the renderer on the y axis here
             rive::Vec2D yflip(1.0f,-1.0f);
             transform = transform.scale(yflip);
-            renderer->transform(transform);
+
+            renderer->transform(viewTransform * transform);
 
             renderer->align(rive::Fit::none,
                 rive::Alignment::center,
