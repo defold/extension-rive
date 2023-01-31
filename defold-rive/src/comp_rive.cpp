@@ -226,7 +226,8 @@ namespace dmRive
         component->m_ArtboardInstance = data->m_File->artboardAt(0);
         component->m_ArtboardInstance->advance(0.0f);
 
-        CreateBones(world, component, data);
+        if (component->m_Resource->m_CreateGoBones)
+            CreateBones(world, component, data);
 
         dmhash_t empty_id = dmHashString64("");
         dmhash_t anim_id = dmHashString64(component->m_Resource->m_DDF->m_DefaultAnimation);
@@ -654,27 +655,6 @@ namespace dmRive
                 component.m_ArtboardInstance->advance(dt * component.m_AnimationPlaybackRate);
             }
 
-            rive::Mat2D transform;
-            Mat4ToMat2D(component.m_World, transform);
-
-            // // JG: Rive is using a different coordinate system that defold,
-            // //     in their examples they flip the projection but that isn't
-            // //     really compatible with our setup I don't think?
-            // rive::Vec2D yflip(1.0f,-1.0f);
-            // rive::Mat2D::scale(transform, transform, yflip);
-            // rive::setTransform(renderer, transform);
-            // rive::resetClipping(renderer);
-
-            // rive_renderer->align(rive::Fit::none,
-            //     rive::Alignment::center,
-            //     rive::AABB(-artboard_bounds.width(), -artboard_bounds.height(),
-            //     artboard_bounds.width(), artboard_bounds.height()),
-            //     artboard_bounds);
-
-            // rive_renderer->save();
-            // artboard->advance(dt);
-            // artboard->draw(rive_renderer);
-            // rive_renderer->restore();
 
             UpdateBones(&component); // after the artboard->advance();
 
@@ -794,7 +774,6 @@ namespace dmRive
         }
 
         renderer->restore();
-
 
         // Prepare list submit
         dmRender::RenderListEntry* render_list = dmRender::RenderListAlloc(render_context, count);

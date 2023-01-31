@@ -29,6 +29,7 @@ namespace dmRive
         {
             return result;
         }
+        resource->m_CreateGoBones = resource->m_DDF->m_CreateGoBones;
         return dmResource::RESULT_OK;
     }
 

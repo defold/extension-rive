@@ -28,6 +28,7 @@ message RiveModelDesc
     optional string material                = 3 [(resource)=true, default="/builtins/materials/rive.material"];
     optional BlendMode blend_mode           = 4 [default = BLEND_MODE_ALPHA];
     optional string default_state_machine   = 5;
+    optional bool create_go_bones           = 6 [default=false];
 
     // E.g. various per-instance tesselation options
     //optional float tesselation_option1    = 4 [default = 0.0];

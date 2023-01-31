@@ -620,12 +620,13 @@
 ; .rivemodel (The "instance" file)
 ;
 
-(g/defnk produce-rivemodel-pb [rive-scene-resource default-animation default-state-machine material-resource blend-mode]
+(g/defnk produce-rivemodel-pb [rive-scene-resource default-animation default-state-machine material-resource blend-mode create-go-bones]
   (let [pb {:scene (resource/resource->proj-path rive-scene-resource)
             :default-animation default-animation
             :default-state-machine default-state-machine
             :material (resource/resource->proj-path material-resource)
-            :blend-mode blend-mode}]
+            :blend-mode blend-mode
+            :create-go-bones create-go-bones}]
     pb))
 
 (defn- validate-model-default-animation [node-id rive-scene rive-anim-ids default-animation]
@@ -716,6 +717,7 @@
             (dynamic error (g/fnk [_node-id rive-anim-ids default-animation rive-scene]
                                   (validate-model-default-animation _node-id rive-scene rive-anim-ids default-animation)))
             (dynamic edit-type (g/fnk [rive-anim-ids] (properties/->choicebox rive-anim-ids))))
+  (property create-go-bones g/Bool (default false))
 
   (input dep-build-targets g/Any :array)
   (input rive-scene-resource resource/Resource)
