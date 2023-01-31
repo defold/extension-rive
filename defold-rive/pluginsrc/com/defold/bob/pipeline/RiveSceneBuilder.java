@@ -53,8 +53,6 @@ public class RiveSceneBuilder extends Builder<Void> {
     @Override
     public void build(Task<Void> task) throws CompileExceptionError, IOException {
 
-        System.out.printf("MAWE: OUTPUT FROM EXTENSION RiveSceneBuilder!\n");
-
         RiveSceneDesc.Builder builder = RiveSceneDesc.newBuilder();
         ProtoUtil.merge(task.input(0), builder);
         builder.setScene(BuilderUtil.replaceExt(builder.getScene(), ".riv", ".rivc"));
