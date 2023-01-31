@@ -80,8 +80,9 @@
 ; .rivemodel
 (defn load-rive-model [project self resource content]
   (let [rive-scene-resource (workspace/resolve-resource resource (:scene content))
-        material (workspace/resolve-resource resource (:material content))]
+        material (workspace/resolve-resource resource (:material content))
         ;atlas          (workspace/resolve-resource resource (:atlas rivescene))
+        ]
 
     (concat
      (g/connect project :default-tex-params self :default-tex-params)
@@ -89,7 +90,9 @@
                      :rive-scene rive-scene-resource
                      :material material
                      :default-animation (:default-animation content)
-                     :default-state-machine (:default-state-machine content)))))
+                     :default-state-machine (:default-state-machine content)
+                     :blend-mode (:blend-mode content)
+                     :create-go-bones (:create-go-bones content)))))
 
 
 
@@ -533,7 +536,7 @@
   {:aabb aabb
    :node-id _node-id
    :renderable {:render-fn render-rive-outlines
-                :tags #{:spine :outline}
+                :tags #{:rive :outline}
                 :batch-key ::outline
                 :passes [pass/outline]}})
 
@@ -622,9 +625,9 @@
 
 (g/defnk produce-rivemodel-pb [rive-scene-resource default-animation default-state-machine material-resource blend-mode create-go-bones]
   (let [pb {:scene (resource/resource->proj-path rive-scene-resource)
+            :material (resource/resource->proj-path material-resource)
             :default-animation default-animation
             :default-state-machine default-state-machine
-            :material (resource/resource->proj-path material-resource)
             :blend-mode blend-mode
             :create-go-bones create-go-bones}]
     pb))
