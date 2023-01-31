@@ -104,7 +104,7 @@ namespace dmRive
         dmGraphics::HVertexBuffer           m_VertexBuffer;
         dmArray<RiveVertex>                 m_VertexBufferData;
         dmGraphics::HIndexBuffer            m_IndexBuffer;
-        dmArray<int>                        m_IndexBufferData;
+        dmArray<uint16_t>                   m_IndexBufferData;
     };
 
     dmGameObject::CreateResult CompRiveNewWorld(const dmGameObject::ComponentNewWorldParams& params)
@@ -331,7 +331,6 @@ namespace dmRive
         uint32_t ro_count         = 0;
         uint32_t vertex_count     = 0;
         uint32_t index_count      = 0;
-        //GetRiveDrawParams(ctx, renderer, vertex_count, index_count, ro_count);
 
         dmRive::DrawDescriptor* draw_descriptors;
         renderer->getDrawDescriptors(&draw_descriptors, &ro_count);
@@ -370,14 +369,13 @@ namespace dmRive
         vertex_buffer.SetSize(vertex_buffer.Capacity());
 
         // Make sure we have enough room for new index data
-        dmArray<int> &index_buffer = world->m_IndexBufferData;
+        dmArray<uint16_t> &index_buffer = world->m_IndexBufferData;
         if (index_buffer.Remaining() < index_count)
         {
             index_buffer.OffsetCapacity(index_count - index_buffer.Remaining());
         }
 
-        int* ix_begin = index_buffer.End();
-        int* ix_end   = ix_begin;
+        uint16_t* ix_begin = index_buffer.End();
         index_buffer.SetSize(index_buffer.Capacity());
 
         uint32_t ro_offset = world->m_RenderObjects.Size();
@@ -696,21 +694,20 @@ namespace dmRive
 
     static void RenderListDispatch(dmRender::RenderListDispatchParams const &params)
     {
-        RiveWorld *world            = (RiveWorld *) params.m_UserData;
-        //rive::RenderMode renderMode = rive::getRenderMode(world->m_Ctx->m_RiveContext);
+        RiveWorld* world = (RiveWorld*) params.m_UserData;
 
         switch (params.m_Operation)
         {
             case dmRender::RENDER_LIST_OPERATION_BEGIN:
             {
-                dmGraphics::SetVertexBufferData(world->m_VertexBuffer, 0, 0, dmGraphics::BUFFER_USAGE_STATIC_DRAW);
-                dmGraphics::SetIndexBufferData(world->m_IndexBuffer, 0, 0, dmGraphics::BUFFER_USAGE_STATIC_DRAW);
+                dmGraphics::SetVertexBufferData(world->m_VertexBuffer, 0, 0, dmGraphics::BUFFER_USAGE_DYNAMIC_DRAW);
+                dmGraphics::SetIndexBufferData(world->m_IndexBuffer, 0, 0, dmGraphics::BUFFER_USAGE_DYNAMIC_DRAW);
 
                 world->m_RenderObjects.SetSize(0);
                 dmArray<RiveVertex>& vertex_buffer = world->m_VertexBufferData;
                 vertex_buffer.SetSize(0);
 
-                dmArray<int>& index_buffer = world->m_IndexBufferData;
+                dmArray<uint16_t>& index_buffer = world->m_IndexBufferData;
                 index_buffer.SetSize(0);
                 break;
             }
@@ -722,9 +719,13 @@ namespace dmRive
             case dmRender::RENDER_LIST_OPERATION_END:
             {
                 dmGraphics::SetVertexBufferData(world->m_VertexBuffer, sizeof(RiveVertex) * world->m_VertexBufferData.Size(),
-                                                world->m_VertexBufferData.Begin(), dmGraphics::BUFFER_USAGE_STATIC_DRAW);
-                dmGraphics::SetIndexBufferData(world->m_IndexBuffer, sizeof(int) * world->m_IndexBufferData.Size(),
-                                                world->m_IndexBufferData.Begin(), dmGraphics::BUFFER_USAGE_STATIC_DRAW);
+                                                world->m_VertexBufferData.Begin(), dmGraphics::BUFFER_USAGE_DYNAMIC_DRAW);
+
+                if (world->m_IndexBufferData.Size() > 0) // Until 1.4.3 is out with a fix
+                {
+                    dmGraphics::SetIndexBufferData(world->m_IndexBuffer, sizeof(uint16_t) * world->m_IndexBufferData.Size(),
+                                                    world->m_IndexBufferData.Begin(), dmGraphics::BUFFER_USAGE_DYNAMIC_DRAW);
+                }
                 break;
             }
             default:
