@@ -126,7 +126,7 @@ struct TypeRegister
     }
 };
 
-JNIEXPORT jobject JNICALL Java_RiveFile_LoadFromBufferInternal(JNIEnv* env, jclass cls, jstring _path, jbyteArray array)
+static jobject JNICALL Java_Rive_LoadFromBufferInternal(JNIEnv* env, jclass cls, jstring _path, jbyteArray array)
 {
     DM_CHECK_JNI_ERROR();
 
@@ -145,8 +145,6 @@ JNIEXPORT jobject JNICALL Java_RiveFile_LoadFromBufferInternal(JNIEnv* env, jcla
     jbyte* file_data = env->GetByteArrayElements(array, 0);
     DM_CHECK_JNI_ERROR();
 
-    printf("LoadFromBufferInternal: %s suffix: %s bytes: %d\n", path, suffix, (int)file_size);
-
     TypeRegister register_t(env);
 
     jobject rive_file_obj = dmRiveJNI::LoadFileFromBuffer(env, cls, path, (const uint8_t*)file_data, (uint32_t)file_size);
@@ -157,13 +155,11 @@ JNIEXPORT jobject JNICALL Java_RiveFile_LoadFromBufferInternal(JNIEnv* env, jcla
         // Debug info
     }
 
-    printf("LoadFromBufferInternal: done!\n");
-
     DM_CHECK_JNI_ERROR();
     return rive_file_obj;
 }
 
-static void JNICALL Java_RiveFile_Destroy(JNIEnv* env, jclass cls, jobject rive_file)
+static void JNICALL Java_Rive_Destroy(JNIEnv* env, jclass cls, jobject rive_file)
 {
     DM_CHECK_JNI_ERROR();
     TypeRegister register_t(env);
@@ -171,7 +167,7 @@ static void JNICALL Java_RiveFile_Destroy(JNIEnv* env, jclass cls, jobject rive_
     DM_CHECK_JNI_ERROR();
 }
 
-static void JNICALL Java_RiveFile_Update(JNIEnv* env, jclass cls, jobject rive_file, jfloat dt)
+static void JNICALL Java_Rive_Update(JNIEnv* env, jclass cls, jobject rive_file, jfloat dt)
 {
     DM_CHECK_JNI_ERROR();
     TypeRegister register_t(env);
@@ -201,7 +197,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
     if (c == 0)
       return JNI_ERR;
 
-    #define DM_JNI_FUNCTION(_NAME, _TYPES) {(char*) # _NAME, (char*) _TYPES, reinterpret_cast<void*>(Java_RiveFile_ ## _NAME)}
+    #define DM_JNI_FUNCTION(_NAME, _TYPES) {(char*) # _NAME, (char*) _TYPES, reinterpret_cast<void*>(Java_Rive_ ## _NAME)}
 
     // Register your class' native methods.
     static const JNINativeMethod methods[] = {

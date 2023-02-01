@@ -57,7 +57,6 @@ RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char*
         Update(out, 0.0f);
     }
 
-    dmLogWarning("MAWE: %s: %p", __FUNCTION__, out);
     return out;
 }
 
@@ -71,8 +70,6 @@ static void DeleteRenderConstants(RiveFile* rive_file)
 
 void DestroyFile(RiveFile* rive_file)
 {
-    dmLogWarning("MAWE: %s: %p", __FUNCTION__, rive_file);
-
     if (rive_file->m_File)
     {
         free((void*)rive_file->m_Path);
@@ -144,17 +141,15 @@ static void Render(RiveFile* rive_file)
                                                        rive::AABB(0, 0, bounds.maxX-bounds.minX, bounds.maxY-bounds.minY),
                                                        bounds);
     renderer->save();
-    renderer->transform(viewTransform);
 
     rive::Mat2D transform;
-    //Mat4ToMat2D(c->m_World, transform);
 
     // Rive is using a different coordinate system that defold,
     // we have to adhere to how our projection matrixes are
     // constructed so we flip the renderer on the y axis here
     rive::Vec2D yflip(1.0f,-1.0f);
     transform = transform.scale(yflip);
-    renderer->transform(transform);
+    renderer->transform(viewTransform * transform);
 
     renderer->align(rive::Fit::none,
         rive::Alignment::center,

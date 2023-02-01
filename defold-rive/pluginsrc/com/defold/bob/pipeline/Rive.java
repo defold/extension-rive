@@ -32,15 +32,9 @@ public class Rive {
 
     static String getLibrarySuffix() {
         String os = System.getProperty("os.name").toLowerCase();
-        if (os.contains("mac")) {
-            return ".dylib";
-        }
-        if (os.contains("win")) {
-            return ".dll";
-        }
-        if (os.contains("linux")) {
-            return ".so";
-        }
+        if (os.contains("mac")) return ".dylib";
+        if (os.contains("win")) return ".dll";
+        if (os.contains("linux")) return ".so";
         return "";
     }
 
@@ -99,6 +93,7 @@ public class Rive {
     public static native RiveFile LoadFromBufferInternal(String path, byte[] buffer);
     public static native void Destroy(RiveFile rive_file);
     public static native void Update(RiveFile rive_file, float dt);
+    public static native void DebugPrint();
 
     public static class RiveFile {
         public String           path;
@@ -134,6 +129,12 @@ public class Rive {
         inputStream.read(bytes);
 
         return LoadFromBuffer(path, bytes);
+    }
+
+    public static void DebugPrintTest()
+    {
+        System.out.printf("MAWE: DebugPrintTest()\n");
+        Rive.DebugPrint();
     }
 
     // ////////////////////////////////////////////////////////////////////////////////
