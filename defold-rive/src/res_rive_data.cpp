@@ -35,12 +35,12 @@ namespace dmRive
         scene_data->m_Roots.SetSize(0);
         scene_data->m_Bones.SetSize(0);
 
-        rive::Artboard* artboard = scene_data->m_File->artboard();
+        std::unique_ptr<rive::ArtboardInstance> artboard = scene_data->m_File->artboardDefault();
         if (!artboard) {
             return;
         }
 
-        dmRive::BuildBoneHierarchy(artboard, &scene_data->m_Roots, &scene_data->m_Bones);
+        dmRive::BuildBoneHierarchy(artboard.get(), &scene_data->m_Roots, &scene_data->m_Bones);
 
         //dmRive::DebugBoneHierarchy(&scene_data->m_Roots);
 
@@ -57,7 +57,8 @@ namespace dmRive
     {
         scene_data->m_File = file;
 
-        rive::Artboard* artboard = file->artboard();
+        scene_data->m_ArtboardDefault = scene_data->m_File->artboardDefault();
+        rive::Artboard* artboard = scene_data->m_ArtboardDefault.get();
         if (!artboard)
             return;
 

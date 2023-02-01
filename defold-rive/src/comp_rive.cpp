@@ -12,6 +12,9 @@
 
 #if !defined(DM_RIVE_UNSUPPORTED)
 
+#include <string.h> // memset
+
+// rive-cpp
 #include <rive/animation/linear_animation_instance.hpp>
 #include <rive/animation/state_machine_instance.hpp>
 #include <rive/animation/state_machine_input.hpp>
@@ -24,6 +27,7 @@
 #include <rive/file.hpp>
 #include <rive/renderer.hpp>
 
+// Rive extension
 #include "comp_rive.h"
 #include "res_rive_data.h"
 #include "res_rive_scene.h"
@@ -34,28 +38,24 @@
 #include <common/factory.h>
 #include <common/tess_renderer.h>
 
-
-#include <string.h> // memset
-
-#include <dmsdk/gameobject/gameobject.h>
-#include <dmsdk/gameobject/component.h>
-#include <dmsdk/resource/resource.h>
+// DMSDK
+#include <dmsdk/dlib/log.h>
 #include <dmsdk/dlib/math.h>
+#include <dmsdk/dlib/object_pool.h>
+#include <dmsdk/dlib/profile.h>
+#include <dmsdk/gameobject/component.h>
+#include <dmsdk/gameobject/gameobject.h>
+#include <dmsdk/gamesys/property.h>
+#include <dmsdk/graphics/graphics.h>
+#include <dmsdk/render/render.h>
+#include <dmsdk/resource/resource.h>
+#include <gameobject/gameobject_ddf.h> // for creating bones where the rive scene bones are
 
 #include <dmsdk/gamesys/resources/res_skeleton.h>
 #include <dmsdk/gamesys/resources/res_rig_scene.h>
 #include <dmsdk/gamesys/resources/res_meshset.h>
 #include <dmsdk/gamesys/resources/res_animationset.h>
 #include <dmsdk/gamesys/resources/res_textureset.h>
-
-#include <dmsdk/dlib/log.h>
-#include <dmsdk/gamesys/property.h>
-#include <dmsdk/dlib/object_pool.h>
-
-#include <gameobject/gameobject_ddf.h> // for creating bones where the rive scene bones are
-#include <dmsdk/graphics/graphics.h>
-#include <dmsdk/render/render.h>
-#include <gameobject/gameobject_ddf.h>
 
 namespace dmRive
 {
@@ -223,7 +223,8 @@ namespace dmRive
         dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
 
         //Todo: choose artboard by index: m_ArtboardIndex = (index == REQUEST_DEFAULT_SCENE) ? 0 : index;
-        component->m_ArtboardInstance = data->m_File->artboardAt(0);
+        //component->m_ArtboardInstance = data->m_File->artboardAt(0);
+        component->m_ArtboardInstance = data->m_File->artboardDefault();
         component->m_ArtboardInstance->advance(0.0f);
 
         if (component->m_Resource->m_CreateGoBones)
