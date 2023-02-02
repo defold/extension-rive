@@ -12,8 +12,6 @@
 
 #if !defined(DM_RIVE_UNSUPPORTED)
 
-#include <assert.h>
-
 #include <rive/animation/linear_animation.hpp>
 #include <rive/animation/linear_animation_instance.hpp>
 #include <rive/animation/state_machine.hpp>

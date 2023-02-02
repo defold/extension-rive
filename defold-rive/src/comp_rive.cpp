@@ -75,7 +75,7 @@ namespace dmRive
     static bool PlayAnimation(RiveComponent* component, dmRive::RiveSceneData* data, dmhash_t anim_id,
                     dmGameObject::Playback playback_mode, float offset, float playback_rate);
     static bool PlayStateMachine(RiveComponent* component, dmRive::RiveSceneData* data, dmhash_t anim_id, float playback_rate);
-    static bool CreateBones(struct RiveWorld* world, RiveComponent* component, dmRive::RiveSceneData* data);
+    static bool CreateBones(struct RiveWorld* world, RiveComponent* component);
     static void DeleteBones(RiveComponent* component);
     static void UpdateBones(RiveComponent* component);
 
@@ -228,7 +228,11 @@ namespace dmRive
         component->m_ArtboardInstance->advance(0.0f);
 
         if (component->m_Resource->m_CreateGoBones)
-            CreateBones(world, component, data);
+        {
+            dmRive::GetAllBones(component->m_ArtboardInstance.get(), &component->m_Bones);
+            CreateBones(world, component);
+            UpdateBones(component);
+        }
 
         dmhash_t empty_id = dmHashString64("");
         dmhash_t anim_id = dmHashString64(component->m_Resource->m_DDF->m_DefaultAnimation);
@@ -656,8 +660,8 @@ namespace dmRive
                 component.m_ArtboardInstance->advance(dt * component.m_AnimationPlaybackRate);
             }
 
-
-            UpdateBones(&component); // after the artboard->advance();
+            if (component.m_Resource->m_CreateGoBones)
+                UpdateBones(&component); // after the artboard->advance();
 
             if (component.m_ReHash || (component.m_RenderConstants && dmGameSystem::AreRenderConstantsUpdated(component.m_RenderConstants)))
             {
@@ -1278,9 +1282,7 @@ namespace dmRive
 
     static void UpdateBones(RiveComponent* component)
     {
-        dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
-
-        rive::Artboard* artboard    = data->m_File->artboard();
+        rive::Artboard* artboard = component->m_ArtboardInstance.get();
 
         rive::AABB bounds = artboard->bounds();
         float cx = (bounds.maxX - bounds.minX) * 0.5f;
@@ -1293,9 +1295,9 @@ namespace dmRive
         for (uint32_t i = 0; i < num_bones; ++i)
         {
             dmGameObject::HInstance bone_instance = component->m_BoneGOs[i];
-            dmRive::RiveBone* bone = data->m_Bones[i];
+            rive::Bone* bone = component->m_Bones[i];
 
-            const rive::Mat2D& rt = bone->m_Bone->worldTransform();
+            const rive::Mat2D& rt = bone->worldTransform();
 
             dmVMath::Vector4 x_axis(rt.xx(), rt.xy(), 0, 0);
             dmVMath::Vector4 y_axis(rt.yx(), rt.yy(), 0, 0);
@@ -1320,20 +1322,18 @@ namespace dmRive
         }
     }
 
-    static bool CreateBones(RiveWorld* world, RiveComponent* component, dmRive::RiveSceneData* data)
+    static bool CreateBones(RiveWorld* world, RiveComponent* component)
     {
         dmGameObject::HInstance rive_instance = component->m_Instance;
         dmGameObject::HCollection collection = dmGameObject::GetCollection(rive_instance);
 
-        uint32_t num_bones = data->m_Bones.Size();
+        uint32_t num_bones = component->m_Bones.Size();
 
         component->m_BoneGOs.SetCapacity(num_bones);
         component->m_BoneGOs.SetSize(num_bones);
 
         for (uint32_t i = 0; i < num_bones; ++i)
         {
-            dmRive::RiveBone* bone = data->m_Bones[i];
-
             dmGameObject::HInstance bone_instance = dmGameObject::New(collection, 0x0);
             if (bone_instance == 0x0) {
                 DeleteBones(component);
@@ -1366,14 +1366,6 @@ namespace dmRive
             dmGameObject::SetParent(bone_instance, rive_instance);
         }
 
-        rive::Artboard* artboard = data->m_File->artboard();
-        if (artboard) {
-            artboard->advance(0.0f);
-        }
-
-        // Set the properties
-        UpdateBones(component);
-
         return true;
     }
 
@@ -1383,8 +1375,7 @@ namespace dmRive
 
     bool CompRiveGetBoneID(RiveComponent* component, dmhash_t bone_name, dmhash_t* id)
     {
-        dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
-        uint32_t num_bones = data->m_Bones.Size();
+        uint32_t num_bones = component->m_Bones.Size();
 
         // We need the arrays to be matching 1:1 (for lookup using the same indices)
         if (num_bones == 0 || component->m_BoneGOs.Size() != num_bones) {
@@ -1393,11 +1384,13 @@ namespace dmRive
 
         for (uint32_t i = 0; i < num_bones; ++i)
         {
-            dmRive::RiveBone* bone = data->m_Bones[i];
-            dmGameObject::HInstance bone_instance = component->m_BoneGOs[i];
+            rive::Bone* bone = component->m_Bones[i];
 
-            if (bone_name == bone->m_NameHash)
+            // Getting bones by name is rare, so I think it is ok to do the hash now, as opposed to have an array in each of the components.
+            dmhash_t name_hash = dmHashString64(bone->name().c_str());
+            if (bone_name == name_hash)
             {
+                dmGameObject::HInstance bone_instance = component->m_BoneGOs[i];
                 *id = dmGameObject::GetIdentifier(bone_instance);
                 return true;
             }

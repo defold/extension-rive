@@ -24,6 +24,7 @@ namespace rive
 {
     class StateMachineInstance;
     class LinearAnimationInstance;
+    class Bone;
 }
 
 namespace dmRive
@@ -33,6 +34,7 @@ namespace dmRive
     struct RiveModelResource;
     struct RiveBuffer;
 
+    // Keep this private from the scripting api
     struct RiveComponent
     {
         dmGameObject::HInstance                 m_Instance;
@@ -52,6 +54,7 @@ namespace dmRive
         float                                   m_AnimationPlaybackRate;
         int                                     m_AnimationCallbackRef;
 
+        dmArray<rive::Bone*>                    m_Bones;
         dmArray<dmGameObject::HInstance>        m_BoneGOs;
         dmArray<dmhash_t>                       m_StateMachineInputs; // A list of the hashed names for the state machine inputs. Index corresponds 1:1 to the statemachine inputs
 
@@ -74,9 +77,6 @@ namespace dmRive
     // bool CompRiveSetIKTargetInstance(RiveComponent* component, dmhash_t constraint_id, float mix, dmhash_t instance_id);
     // bool CompRiveSetIKTargetPosition(RiveComponent* component, dmhash_t constraint_id, float mix, Vectormath::Aos::Point3 position);
     // bool CompRiveResetIKTarget(RiveComponent* component, dmhash_t constraint_id);
-
-    // bool CompRiveSetSkin(RiveComponent* component, dmhash_t skin_id);
-    // bool CompRiveSetSkinSlot(RiveComponent* component, dmhash_t skin_id, dmhash_t slot_id);
 }
 
 #endif // DM_GAMESYS_COMP_RIVE_H

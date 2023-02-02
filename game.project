@@ -1,5 +1,4 @@
 [bootstrap]
-_main_collection = /main/loader.collectionc
 main_collection = /main/loader.collectionc
 render = /defold-rive/lua/rive.renderc
 

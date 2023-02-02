@@ -24,35 +24,11 @@
 #include <rive/animation/state_machine.hpp>
 
 #include "res_rive_data.h"
-#include <common/bones.h>
 #include <common/atlas.h>
 #include <common/factory.h>
 
 namespace dmRive
 {
-    static void SetupBones(RiveSceneData* scene_data, const char* path)
-    {
-        scene_data->m_Roots.SetSize(0);
-        scene_data->m_Bones.SetSize(0);
-
-        std::unique_ptr<rive::ArtboardInstance> artboard = scene_data->m_File->artboardDefault();
-        if (!artboard) {
-            return;
-        }
-
-        dmRive::BuildBoneHierarchy(artboard.get(), &scene_data->m_Roots, &scene_data->m_Bones);
-
-        //dmRive::DebugBoneHierarchy(&scene_data->m_Roots);
-
-        bool bones_ok = dmRive::ValidateBoneNames(&scene_data->m_Bones);
-        if (!bones_ok) {
-            dmLogWarning("Failed to validate bones for %s", path);
-            dmRive::FreeBones(&scene_data->m_Bones);
-            scene_data->m_Bones.SetSize(0);
-            scene_data->m_Roots.SetSize(0);
-        }
-    }
-
     static void SetupData(RiveSceneData* scene_data, rive::File* file, const char* path)
     {
         scene_data->m_File = file;
@@ -89,8 +65,6 @@ namespace dmRive
                 scene_data->m_StateMachines[i] = dmHashString64(state_machine->name().c_str());
             }
         }
-
-        SetupBones(scene_data, path);
     }
 
     static dmResource::Result ResourceType_RiveData_Create(const dmResource::ResourceCreateParams& params)
