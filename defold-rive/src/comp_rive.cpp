@@ -57,6 +57,10 @@
 #include <dmsdk/gamesys/resources/res_animationset.h>
 #include <dmsdk/gamesys/resources/res_textureset.h>
 
+DM_PROPERTY_GROUP(rmtp_Rive, "Rive");
+DM_PROPERTY_U32(rmtp_RiveBones, 0, FrameReset, "# rive bones", &rmtp_Rive);
+DM_PROPERTY_U32(rmtp_RiveComponents, 0, FrameReset, "# rive components", &rmtp_Rive);
+
 namespace dmRive
 {
     using namespace dmVMath;
@@ -497,7 +501,7 @@ namespace dmRive
 
     void UpdateTransforms(RiveWorld* world)
     {
-        //DM_PROFILE(RiveModel, "UpdateTransforms");
+        DM_PROFILE("UpdateTransforms");
 
         dmArray<RiveComponent*>& components = world->m_Components.GetRawObjects();
         uint32_t n = components.Size();
@@ -592,6 +596,8 @@ namespace dmRive
 
     dmGameObject::UpdateResult CompRiveUpdate(const dmGameObject::ComponentsUpdateParams& params, dmGameObject::ComponentsUpdateResult& update_result)
     {
+        DM_PROFILE("RiveModel");
+
         RiveWorld*                  world    = (RiveWorld*)params.m_World;
         dmRive::DefoldTessRenderer* renderer = world->m_Renderer;
 
@@ -601,6 +607,7 @@ namespace dmRive
 
         dmArray<RiveComponent*>& components = world->m_Components.GetRawObjects();
         const uint32_t count = components.Size();
+        DM_PROPERTY_ADD_U32(rmtp_RiveComponents, count);
 
         for (uint32_t i = 0; i < count; ++i)
         {
@@ -721,6 +728,8 @@ namespace dmRive
 
     dmGameObject::UpdateResult CompRiveRender(const dmGameObject::ComponentsRenderParams& params)
     {
+        DM_PROFILE("RiveModel");
+
         CompRiveContext* context = (CompRiveContext*)params.m_Context;
         dmRender::HRenderContext render_context = context->m_RenderContext;
         RiveWorld* world = (RiveWorld*)params.m_World;
@@ -1289,6 +1298,7 @@ namespace dmRive
         float cy = (bounds.maxY - bounds.minY) * 0.5f;
 
         uint32_t num_bones = component->m_BoneGOs.Size();
+        DM_PROPERTY_ADD_U32(rmtp_RiveBones, num_bones);
 
         dmVMath::Point3 go_pos = dmGameObject::GetPosition(component->m_Instance);
 
