@@ -5,14 +5,11 @@
 #include <stdio.h>
 namespace rive
 {
-	class TransformComponentConstraint : public TransformComponentConstraintBase
-	{
-	public:
-		TransformSpace minMaxSpace() const
-		{
-			return (TransformSpace)minMaxSpaceValue();
-		}
-	};
+class TransformComponentConstraint : public TransformComponentConstraintBase
+{
+public:
+    TransformSpace minMaxSpace() const { return (TransformSpace)minMaxSpaceValue(); }
+};
 } // namespace rive
 
 #endif

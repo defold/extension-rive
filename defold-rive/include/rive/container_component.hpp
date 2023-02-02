@@ -4,9 +4,8 @@
 #include <vector>
 namespace rive
 {
-	class ContainerComponent : public ContainerComponentBase
-	{
-	};
+class ContainerComponent : public ContainerComponentBase
+{};
 } // namespace rive
 
 #endif

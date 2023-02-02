@@ -7,12 +7,11 @@
 
 namespace rive
 {
-	class BlendStateDirectInstance
-	    : public BlendStateInstance<BlendStateDirect, BlendAnimationDirect>
-	{
-	public:
-		BlendStateDirectInstance(const BlendStateDirect* blendState);
-		void advance(float seconds, SMIInput** inputs) override;
-	};
+class BlendStateDirectInstance : public BlendStateInstance<BlendStateDirect, BlendAnimationDirect>
+{
+public:
+    BlendStateDirectInstance(const BlendStateDirect* blendState, ArtboardInstance* instance);
+    void advance(float seconds, Span<SMIInput*> inputs) override;
+};
 } // namespace rive
 #endif

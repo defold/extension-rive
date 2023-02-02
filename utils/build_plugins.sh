@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 
-# Run from the project foler (containing the game.project)
+# Run from the project folder (containing the game.project)
 
 set -e
 
 PROJECT=defold-rive
-BOB=bob.jar
-DEFAULT_SERVER=https://build.defold.com
+#BOB=bob.jar
+DEFAULT_SERVER=https://build-stage.defold.com
 
 if [ "" == "${BOB}" ]; then
-    BOB=~/work/defold/tmp/dynamo_home/share/java/bob.jar
+    BOB=${DYNAMO_HOME}/share/java/bob.jar
 fi
 
 echo "Using BOB=${BOB}"
@@ -70,14 +70,54 @@ function copy_results() {
     done
 }
 
-
 function build_plugin() {
     local platform=$1
     local platform_ne=$2
 
-    java -jar $BOB --platform=$platform build --build-artifacts=plugins --variant $VARIANT --build-server=$SERVER --defoldsdk=$DEFOLDSDK
+    java -jar $BOB --platform=$platform resolve build --build-artifacts=plugins --variant $VARIANT --build-server=$SERVER --defoldsdk=$DEFOLDSDK
 
     copy_results $platform $platform_ne
+}
+
+
+function delete_file() {
+    local file=$1
+    if [ -e "$file" ]; then
+        echo "Cleaning $file"
+        rm $file
+    fi
+}
+
+function delete_dir() {
+    local directory=$1
+    if [ -d "$directory" ]; then
+        echo "Cleaning $directory"
+        rm -rf $directory
+    fi
+}
+
+function clean_plugin() {
+    local platform=$1
+    local platform_ne=$2
+
+    delete_dir ./build/plugins/${PROJECT}/plugins/share
+    delete_dir ./build/plugins/${PROJECT}/plugins/lib/${platform_ne}
+
+    for path in $TARGET_DIR/share/*.jar; do
+        delete_file $path
+    done
+
+    for path in $TARGET_DIR/lib/$platform_ne/*.dylib; do
+        delete_file $path
+    done
+
+    for path in $TARGET_DIR/lib/$platform_ne/*.so; do
+        delete_file $path
+    done
+
+    for path in $TARGET_DIR/lib/$platform_ne/*.dll; do
+        delete_file $path
+    done
 }
 
 PLATFORMS=$1
@@ -99,7 +139,14 @@ for platform in $PLATFORMS; do
         platform_ne="x86_64-osx"
     fi
 
+    clean_plugin $platform $platform_ne
     build_plugin $platform $platform_ne
 done
 
-tree $TARGET_DIR
+if command -v tree >/dev/null 2>&1; then
+    # The tree command is available. Use it.
+    tree $TARGET_DIR
+else
+    # We don't have tree. Approximate its output using find and sed.
+    find $TARGET_DIR -print | sed -e "s;[^/]*/;|-- ;g;s;-- |;   |;g"
+fi

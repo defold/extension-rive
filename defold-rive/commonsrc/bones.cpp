@@ -95,7 +95,7 @@ static rive::Bone* FindParentBone(rive::Bone* bone)
     return 0;
 }
 
-static void GetAllBones(rive::Artboard* artboard, dmArray<rive::Bone*>* bones)
+void GetAllBones(rive::Artboard* artboard, dmArray<rive::Bone*>* bones)
 {
     const std::vector<rive::Core*>& objects = artboard->objects();
     uint32_t num_objects = (uint32_t)objects.size();

@@ -4,13 +4,18 @@
 
 namespace rive
 {
-	class BlendState1D : public BlendState1DBase
-	{
-	public:
-		StatusCode import(ImportStack& importStack) override;
+class BlendState1D : public BlendState1DBase
+{
+public:
+    //  -1 (4294967295) is our flag value for input not set. It means it wasn't set at edit
+    //  time.
+    const uint32_t noInputSpecified = -1;
+    bool hasValidInputId() const { return inputId() != noInputSpecified; }
 
-		StateInstance* makeInstance() const override;
-	};
+    StatusCode import(ImportStack& importStack) override;
+
+    std::unique_ptr<StateInstance> makeInstance(ArtboardInstance*) const override;
+};
 } // namespace rive
 
 #endif

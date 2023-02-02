@@ -3,11 +3,12 @@
 #include "rive/generated/shapes/paint/radial_gradient_base.hpp"
 namespace rive
 {
-	class RadialGradient : public RadialGradientBase
-	{
-	public:
-		void makeGradient(const Vec2D& start, const Vec2D& end) override;
-	};
+class RadialGradient : public RadialGradientBase
+{
+public:
+    void
+    makeGradient(Vec2D start, Vec2D end, const ColorInt[], const float[], size_t count) override;
+};
 } // namespace rive
 
 #endif

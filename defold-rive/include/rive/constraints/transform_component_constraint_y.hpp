@@ -4,11 +4,10 @@
 #include <stdio.h>
 namespace rive
 {
-	class TransformComponentConstraintY
-	    : public TransformComponentConstraintYBase
-	{
-	public:
-	};
+class TransformComponentConstraintY : public TransformComponentConstraintYBase
+{
+public:
+};
 } // namespace rive
 
 #endif

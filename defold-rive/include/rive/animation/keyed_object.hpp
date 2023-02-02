@@ -4,23 +4,24 @@
 #include <vector>
 namespace rive
 {
-	class Artboard;
-	class KeyedProperty;
-	class KeyedObject : public KeyedObjectBase
-	{
-	private:
-		std::vector<KeyedProperty*> m_KeyedProperties;
+class Artboard;
+class KeyedProperty;
+class KeyedObject : public KeyedObjectBase
+{
+private:
+    std::vector<std::unique_ptr<KeyedProperty>> m_KeyedProperties;
 
-	public:
-		~KeyedObject();
-		void addKeyedProperty(KeyedProperty* property);
+public:
+    KeyedObject();
+    ~KeyedObject() override;
+    void addKeyedProperty(std::unique_ptr<KeyedProperty>);
 
-		StatusCode onAddedDirty(CoreContext* context) override;
-		StatusCode onAddedClean(CoreContext* context) override;
-		void apply(Artboard* coreContext, float time, float mix);
+    StatusCode onAddedDirty(CoreContext* context) override;
+    StatusCode onAddedClean(CoreContext* context) override;
+    void apply(Artboard* coreContext, float time, float mix);
 
-		StatusCode import(ImportStack& importStack) override;
-	};
+    StatusCode import(ImportStack& importStack) override;
+};
 } // namespace rive
 
 #endif

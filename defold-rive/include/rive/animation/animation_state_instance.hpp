@@ -7,32 +7,26 @@
 
 namespace rive
 {
-	class AnimationState;
+class AnimationState;
 
-	/// Represents an instance of an animation state.
-	class AnimationStateInstance : public StateInstance
-	{
-	private:
-		LinearAnimationInstance m_AnimationInstance;
-		bool m_KeepGoing;
+/// Represents an instance of an animation state.
+class AnimationStateInstance : public StateInstance
+{
+private:
+    LinearAnimationInstance m_AnimationInstance;
+    bool m_KeepGoing;
 
-	public:
-		AnimationStateInstance(const AnimationState* animationState);
+public:
+    AnimationStateInstance(const AnimationState* animationState, ArtboardInstance* instance);
 
-		void advance(float seconds, SMIInput** inputs) override;
-		void apply(Artboard* artboard, float mix) override;
+    void advance(float seconds, Span<SMIInput*>) override;
+    void apply(float mix) override;
 
-		bool keepGoing() const override;
+    bool keepGoing() const override;
 
-		const LinearAnimationInstance* animationInstance() const
-		{
-			return &m_AnimationInstance;
-		}
+    const LinearAnimationInstance* animationInstance() const { return &m_AnimationInstance; }
 
-		LinearAnimationInstance* animationInstance()
-		{
-			return &m_AnimationInstance;
-		}
-	};
+    LinearAnimationInstance* animationInstance() { return &m_AnimationInstance; }
+};
 } // namespace rive
 #endif

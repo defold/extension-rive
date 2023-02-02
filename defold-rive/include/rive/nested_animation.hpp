@@ -4,18 +4,20 @@
 #include <stdio.h>
 namespace rive
 {
-	class NestedAnimation : public NestedAnimationBase
-	{
-	public:
-		StatusCode onAddedDirty(CoreContext* context) override;
+class ArtboardInstance;
 
-		// Advance animations and apply them to the artboard.
-		virtual void advance(float elapsedSeconds, Artboard* artboard) = 0;
+class NestedAnimation : public NestedAnimationBase
+{
+public:
+    StatusCode onAddedDirty(CoreContext* context) override;
 
-		// Initialize the animation (make instances as necessary) from the
-		// source artboard.
-		virtual void initializeAnimation(Artboard* artboard) = 0;
-	};
+    // Advance animations and apply them to the artboard.
+    virtual void advance(float elapsedSeconds) = 0;
+
+    // Initialize the animation (make instances as necessary) from the
+    // source artboard.
+    virtual void initializeAnimation(ArtboardInstance*) = 0;
+};
 } // namespace rive
 
 #endif

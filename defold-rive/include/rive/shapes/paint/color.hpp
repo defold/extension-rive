@@ -1,27 +1,36 @@
 #ifndef _RIVE_PAINT_COLOR_HPP_
 #define _RIVE_PAINT_COLOR_HPP_
 #include <cmath>
+#include <cstdint>
 
 namespace rive
 {
-	unsigned int colorARGB(int a, int r, int g, int b);
+using ColorInt = uint32_t;
 
-	unsigned int colorRed(unsigned int value);
+ColorInt colorARGB(int a, int r, int g, int b);
 
-	unsigned int colorGreen(unsigned int value);
+unsigned int colorRed(ColorInt value);
 
-	unsigned int colorBlue(unsigned int value);
+unsigned int colorGreen(ColorInt value);
 
-	unsigned int colorAlpha(unsigned int value);
+unsigned int colorBlue(ColorInt value);
 
-	float colorOpacity(unsigned int value);
+unsigned int colorAlpha(ColorInt value);
 
-	unsigned int colorWithAlpha(unsigned int value, unsigned int a);
+void UnpackColorToRGBA8(ColorInt color, uint8_t out[4]);
 
-	unsigned int colorWithOpacity(unsigned int value, float opacity);
+void UnpackColorToRGBA32F(ColorInt color, float out[4]);
 
-	unsigned int colorModulateOpacity(unsigned int value, float opacity);
+void UnpackColorToRGBA32FPremul(ColorInt color, float out[4]);
 
-	unsigned int colorLerp(unsigned int from, unsigned int to, float mix);
+float colorOpacity(unsigned int value);
+
+ColorInt colorWithAlpha(ColorInt value, unsigned int a);
+
+ColorInt colorWithOpacity(ColorInt value, float opacity);
+
+ColorInt colorModulateOpacity(ColorInt value, float opacity);
+
+ColorInt colorLerp(ColorInt from, ColorInt to, float mix);
 } // namespace rive
 #endif

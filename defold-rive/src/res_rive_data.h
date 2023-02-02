@@ -28,11 +28,10 @@ namespace dmRive
 
 	struct RiveSceneData
 	{
-		rive::File*               	m_File;
+		rive::File* 							m_File;
+		std::unique_ptr<rive::ArtboardInstance> m_ArtboardDefault;
 	    dmArray<dmhash_t> 			m_LinearAnimations;
 	    dmArray<dmhash_t> 			m_StateMachines;
-	    dmArray<dmRive::RiveBone*>  m_Roots;
-	    dmArray<dmRive::RiveBone*>  m_Bones;
 	};
 }
 

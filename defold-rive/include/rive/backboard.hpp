@@ -3,9 +3,8 @@
 #include "rive/generated/backboard_base.hpp"
 namespace rive
 {
-	class Backboard : public BackboardBase
-	{
-	};
+class Backboard : public BackboardBase
+{};
 } // namespace rive
 
 #endif

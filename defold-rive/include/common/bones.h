@@ -23,6 +23,7 @@ namespace dmRive
         rive::Bone* m_Bone;
     };
 
+    void GetAllBones(rive::Artboard* artboard, dmArray<rive::Bone*>* bones);
     void BuildBoneHierarchy(rive::Artboard* artboard, dmArray<RiveBone*>* roots, dmArray<RiveBone*>* bones);
     void FreeBones(dmArray<RiveBone*>* bones);
     void DebugBoneHierarchy(dmArray<RiveBone*>* roots);

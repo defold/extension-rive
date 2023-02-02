@@ -3,27 +3,28 @@ name: RiveExt
 platforms:
     common:
         context:
-            defines:    ["DM_DISABLE_LIBTESS"]
+            defines:    []
             symbols:    ["ResourceTypeRiveScene", "ResourceTypeRiveModel", "ResourceTypeRiveData", "ComponentTypeRive"]
 
+    x86_64-linux:
+        context:
+            flags:      ["-std=c++17"]
+
+    win32:
+        context:
+            defines:        ["_CRT_SECURE_NO_WARNINGS"]
+            flags:          ["-std=c++17", "-fno-rtti"]
+            cxxShFlags:     ["-std=c++17", "-fno-rtti"]
+            cxxLinkShFlags: ["-std=c++17"]
 
     x86_64-osx:
         context:
-            flags: ["-std=c++17"]
+            flags:      ["-std=c++17", "-fno-rtti"]
 
     ios:
         context:
             flags: ["-std=c++17", "-fno-aligned-allocation"]
 
-    armv7-ios:
+    web:
         context:
-            defines: ["DM_RIVE_UNSUPPORTED"]
-
-    x86_64-linux:
-        context:
-            flags: ["-std=c++17"]
-
-
-    x86_64-osx:
-        context:
-            flags: ["-std=c++17"]
+            flags: ["-std=c++17", "-fno-rtti"]

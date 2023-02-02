@@ -10,6 +10,8 @@ Thumbs.db
 builtins
 /utils/rive-cpp/build
 /utils/rive-cpp/rive-cpp*
+/utils/rive-cpp/earcut*
+/utils/rive-cpp/libtess2*
 /utils/rive-cpp/*.zip
 /bundle*
 bob.jar

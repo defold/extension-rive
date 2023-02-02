@@ -2,42 +2,43 @@
 #define _RIVE_SKIN_HPP_
 #include "rive/generated/bones/skin_base.hpp"
 #include "rive/math/mat2d.hpp"
+#include "rive/span.hpp"
 #include <stdio.h>
 #include <vector>
 
 namespace rive
 {
-	class Tendon;
-	class PathVertex;
-	class Skinnable;
+class Tendon;
+class Vertex;
+class Skinnable;
 
-	class Skin : public SkinBase
-	{
-		friend class Tendon;
+class Skin : public SkinBase
+{
+    friend class Tendon;
 
-	public:
-		~Skin();
+public:
+    ~Skin() override;
 
-	private:
-		Mat2D m_WorldTransform;
-		std::vector<Tendon*> m_Tendons;
-		float* m_BoneTransforms = nullptr;
-		Skinnable* m_Skinnable;
+private:
+    Mat2D m_WorldTransform;
+    std::vector<Tendon*> m_Tendons;
+    float* m_BoneTransforms = nullptr;
+    Skinnable* m_Skinnable;
 
-	protected:
-		void addTendon(Tendon* tendon);
+protected:
+    void addTendon(Tendon* tendon);
 
-	public:
-		StatusCode onAddedClean(CoreContext* context) override;
-		void buildDependencies() override;
-		void deform(std::vector<PathVertex*>& vertices);
-		void onDirty(ComponentDirt dirt) override;
-		void update(ComponentDirt value) override;
+public:
+    StatusCode onAddedClean(CoreContext* context) override;
+    void buildDependencies() override;
+    void deform(Span<Vertex*> vertices);
+    void onDirty(ComponentDirt dirt) override;
+    void update(ComponentDirt value) override;
 
 #ifdef TESTING
-		std::vector<Tendon*>& tendons() { return m_Tendons; }
+    std::vector<Tendon*>& tendons() { return m_Tendons; }
 #endif
-	};
+};
 } // namespace rive
 
 #endif

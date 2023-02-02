@@ -17,7 +17,7 @@
             [editor.gl :as gl]
             [editor.gl.shader :as shader]
             [editor.gl.texture :as texture]
-            [editor.gl.vertex :as vtx]
+            [editor.gl.vertex2 :as vtx]
             [editor.defold-project :as project]
             [editor.resource :as resource]
             [editor.resource-node :as resource-node]
@@ -29,15 +29,13 @@
             [editor.types :as types]
             [editor.outline :as outline]
             [editor.properties :as properties]
-            [editor.system :as system]
-            [service.log :as log]
-            [internal.util :as util]
             [util.murmur :as murmur])
   (:import [editor.gl.shader ShaderLifecycle]
            [com.jogamp.opengl GL GL2]
            [org.apache.commons.io IOUtils]
            [java.io IOException]
-           [javax.vecmath Matrix4d Point3d Vector3d Vector4d]))
+           [java.nio FloatBuffer IntBuffer]
+           [javax.vecmath Matrix4d Vector3d Vector4d]))
 
 
 (set! *warn-on-reflection* true)
@@ -59,70 +57,32 @@
 ;;     (prn (.toString m))
 ;;     (println "Method Name: " (.getName m) "(" (.getParameterTypes m) ")")
 ;;     (println "Return Type: " (.getReturnType m) "\n")))
-
-; More about JNA + Clojure
-; https://nakkaya.com/2009/11/16/java-native-access-from-clojure/
+;; TODO: Support public variables as well
 
 (def rive-plugin-cls (workspace/load-class! "com.dynamo.bob.pipeline.Rive"))
-(def rive-plugin-pointer-cls (workspace/load-class! "com.dynamo.bob.pipeline.Rive$RivePointer"))
-(def rive-plugin-aabb-cls (workspace/load-class! "com.dynamo.bob.pipeline.Rive$AABB"))
+(def rive-plugin-file-cls (workspace/load-class! "com.dynamo.bob.pipeline.Rive$RiveFile"))
 (def byte-array-cls (Class/forName "[B"))
-(def float-array-cls (Class/forName "[F"))
 
 (defn- plugin-invoke-static [^Class cls name types args]
   (let [method (.getMethod cls name types)]
     (.invoke method nil (into-array Object args))))
 
 (defn- plugin-load-file [bytes path]
-  (plugin-invoke-static rive-plugin-cls "RIVE_LoadFileFromBuffer" (into-array Class [byte-array-cls String]) [bytes path]))
+  (plugin-invoke-static rive-plugin-cls "LoadFromBufferInternal" (into-array Class [String byte-array-cls]) [path bytes]))
 
-(defn- plugin-get-num-animations [handle]
-  (plugin-invoke-static rive-plugin-cls "RIVE_GetNumAnimations" (into-array Class [rive-plugin-pointer-cls]) [handle]))
+(defn- plugin-destroy-file [file]
+  (plugin-invoke-static rive-plugin-cls "Destroy" (into-array Class [rive-plugin-file-cls]) [file]))
 
-(defn- plugin-get-animation ^String [handle index]
-  (plugin-invoke-static rive-plugin-cls "RIVE_GetAnimation" (into-array Class [rive-plugin-pointer-cls Integer/TYPE]) [handle (int index)]))
-
-;(defn- plugin-get-aabb ^"com.dynamo.bob.pipeline.Rive$AABB" [handle]
-(defn- plugin-get-aabb [handle]
-  (plugin-invoke-static rive-plugin-cls "RIVE_GetAABB" (into-array Class [rive-plugin-pointer-cls]) [handle]))
-
-(defn- plugin-get-vertex-size ^double []
-  (plugin-invoke-static rive-plugin-cls "RIVE_GetVertexSize" (into-array Class []) []))
-
-(defn- plugin-update-vertices [handle dt]
-  (plugin-invoke-static rive-plugin-cls "RIVE_UpdateVertices" (into-array Class [rive-plugin-pointer-cls Float/TYPE]) [handle (float dt)]))
-
-(defn- plugin-get-vertex-count [handle]
-  (plugin-invoke-static rive-plugin-cls "RIVE_GetVertexCount" (into-array Class [rive-plugin-pointer-cls]) [handle]))
-
-(defn- plugin-get-vertices [handle buffer]
-  (plugin-invoke-static rive-plugin-cls "RIVE_GetVertices" (into-array Class [rive-plugin-pointer-cls float-array-cls]) [handle buffer]))
-
-;(defn- plugin-get-bones ^"[Lcom.dynamo.bob.pipeline.Rive$Bone;" [handle]
-(defn- plugin-get-bones [handle]
-  (plugin-invoke-static rive-plugin-cls "RIVE_GetBones" (into-array Class [rive-plugin-pointer-cls]) [handle]))
-
-;(defn- plugin-get-state-machines ^"[Lcom.dynamo.bob.pipeline.Rive$StateMachine;" [handle]
-(defn- plugin-get-state-machines [handle]
-  (plugin-invoke-static rive-plugin-cls "RIVE_GetStateMachines" (into-array Class [rive-plugin-pointer-cls]) [handle]))
-
-;(defn- plugin-get-vertex-buffer-data ^"[Lcom.dynamo.bob.pipeline.Rive$RiveVertex;" [handle]
-(defn- plugin-get-vertex-buffer-data [handle]
-  (plugin-invoke-static rive-plugin-cls "RIVE_GetVertexBuffer" (into-array Class [rive-plugin-pointer-cls]) [handle]))
-
-(defn- plugin-get-index-buffer-data ^"[I" [handle]
-  (plugin-invoke-static rive-plugin-cls "RIVE_GetIndexBuffer" (into-array Class [rive-plugin-pointer-cls]) [handle]))
-
-;(defn- plugin-get-render-objects ^"[Lcom.dynamo.bob.pipeline.Rive$RenderObject;" [handle]
-(defn- plugin-get-render-objects [handle]
-  (plugin-invoke-static rive-plugin-cls "RIVE_GetRenderObjects" (into-array Class [rive-plugin-pointer-cls]) [handle]))
+(defn- plugin-update-file [file dt]
+  (plugin-invoke-static rive-plugin-cls "Update" (into-array Class [rive-plugin-file-cls float]) [file (float dt)]))
 
 
 ; .rivemodel
 (defn load-rive-model [project self resource content]
   (let [rive-scene-resource (workspace/resolve-resource resource (:scene content))
-        material (workspace/resolve-resource resource (:material content))]
+        material (workspace/resolve-resource resource (:material content))
         ;atlas          (workspace/resolve-resource resource (:atlas rivescene))
+        ]
 
     (concat
      (g/connect project :default-tex-params self :default-tex-params)
@@ -130,7 +90,9 @@
                      :rive-scene rive-scene-resource
                      :material material
                      :default-animation (:default-animation content)
-                     :default-state-machine (:default-state-machine content)))))
+                     :default-state-machine (:default-state-machine content)
+                     :blend-mode (:blend-mode content)
+                     :create-go-bones (:create-go-bones content)))))
 
 
 
@@ -200,7 +162,7 @@
   (property content g/Any)
   (property rive-handle g/Any) ; The cpp pointer
   (property animations g/Any)
-  (property state-machines g/Any)
+  (property state-machine-ids g/Any)
   (property aabb g/Any)
   (property vertices g/Any)
   (property bones g/Any)
@@ -209,44 +171,16 @@
 
   (output build-targets g/Any :cached produce-rive-file-build-targets))
 
-(defn- get-animations [handle]
-  (let [num-animations (plugin-get-num-animations handle)
-        indices (range num-animations)
-        animations (map (fn [index] (plugin-get-animation handle index)) indices)]
-    (concat [""] animations)))
-
-
 (set! *warn-on-reflection* false)
 
-(defn- get-state-machines [handle]
-  (let [state-machines (plugin-get-state-machines handle)
-        names (map (fn [sm] (.-name sm)) state-machines)]
-    (concat [""] names)))
-
-(defn- get-aabb [handle]
-  (let [paabb (plugin-get-aabb handle)
-        aabb (geom/coords->aabb [(.-minX paabb) (.-minY paabb) 0] [(.-maxX paabb) (.-maxY paabb) 0])]
+(defn- convert-aabb [rive-aabb]
+  (let [min (.-min rive-aabb)
+        max (.-max rive-aabb)
+        aabb (geom/coords->aabb [(.-x min) (.-y min) 0] [(.-x max) (.-y max) 0])]
     aabb))
 
-(set! *warn-on-reflection* true)
-
-(defn- rive-file->vertices [rive-handle dt]
-  (let [vtx-size-bytes (plugin-get-vertex-size) ; size in bytes
-        vtx-size (int (/ vtx-size-bytes 4)) ; number of floats per vertex
-        _ (plugin-update-vertices rive-handle dt)
-        vtx-count (plugin-get-vertex-count rive-handle)
-        vtx-buffer (float-array (* vtx-size vtx-count))
-        _ (plugin-get-vertices rive-handle vtx-buffer)
-        vertices (partition vtx-size (vec vtx-buffer))]
-    vertices))
-
-(set! *warn-on-reflection* false)
-
-; Creates the bone hierarcy
-(defn- is-root-bone? [bone]
-  (= -1 (.-parent bone)))
-
 (defn- create-bone [project parent-id rive-bone]
+  ; rive-bone is of type Rive$Bone (Rive.java)
   (let [name (.-name rive-bone)
         x (.-posX rive-bone)
         y (.-posY rive-bone)
@@ -268,40 +202,42 @@
 (defn- create-bone-hierarchy [project parent-id bones bone]
   (let [bone-tx-data (create-bone project parent-id bone)
         bone-id (tx-first-created bone-tx-data)
-        child-bones (map (fn [index] (get bones index)) (.-children bone))
+        child-bones (.-children bone)
         children-tx-data (mapcat (fn [child] (create-bone-hierarchy project bone-id bones child)) child-bones)]
     (concat bone-tx-data children-tx-data)))
 
-(set! *warn-on-reflection* true)
-
 (defn- create-bones [project parent-id bones]
-  (let [root-bones (filter is-root-bone? bones)
-        tx-data (mapcat (fn [bone] (create-bone-hierarchy project parent-id bones bone)) root-bones)]
-    tx-data))
+  ; bones is a hierarchy of Rive$Bone (Rive.java)
+  ; bones is a list of root bones
+  (mapcat (fn [bone] (create-bone-hierarchy project parent-id bones bone)) bones))
 
+(def my-atom (atom 0))
 
 ; Loads the .riv file
 (defn- load-rive-file
   [project node-id resource]
   (let [content (resource->bytes resource)
         rive-handle (plugin-load-file content (resource/resource->proj-path resource))
-        animations (get-animations rive-handle)
-        state-machines (get-state-machines rive-handle)
-        aabb (get-aabb rive-handle)
-        vertices (rive-file->vertices rive-handle 0.0)
-        bones (plugin-get-bones rive-handle)
+        _ (reset! my-atom rive-handle)
+        animations (.-animations rive-handle)
+        state-machines (.-stateMachines rive-handle)
+        state-machine-ids (map (fn [state-machine] (.-name state-machine)) state-machines)
+        _ (.Update rive-handle 0.0)
+        aabb (convert-aabb (.-aabb rive-handle))
+        bones (.-bones rive-handle)
 
         tx-data (concat
                  (g/set-property node-id :content content)
                  (g/set-property node-id :rive-handle rive-handle)
                  (g/set-property node-id :animations animations)
-                 (g/set-property node-id :state-machines state-machines)
+                 (g/set-property node-id :state-machine-ids state-machine-ids)
                  (g/set-property node-id :aabb aabb)
-                 (g/set-property node-id :vertices vertices)
                  (g/set-property node-id :bones bones))
 
         all-tx-data (concat tx-data (create-bones project node-id bones))]
     all-tx-data))
+
+(set! *warn-on-reflection* true)
 
 ; Rive Scene
 ; .rivescene (The "data" file) which in turn points to the .riv file
@@ -354,15 +290,6 @@
 (g/defnk produce-rivescene-pb [_node-id rive-file-resource]
   {:scene (resource/resource->proj-path rive-file-resource)})
 
-
-(set! *warn-on-reflection* false)
-
-(defn- transform-vertices-as-vec [vertices]
-  ; vertices is a float array with 2-tuples (x y)
-  (map (fn [vert] [(.x vert) (.y vert)] ) vertices))
-
-(set! *warn-on-reflection* true)
-
 (defn- renderable->handle [renderable]
   (get-in renderable [:user-data :rive-file-handle]))
 
@@ -386,27 +313,24 @@
 
 (def rive-id-shader (shader/make-shader ::id-shader rive-id-shader-vp rive-id-shader-fp {"id" :id}))
 
-(vtx/defvertex vtx-pos2
-  (vec2 position))
+(vtx/defvertex vtx-pos4
+  (vec4 position))
 
-(defn generate-vertex-buffer [verts]
-  ; verts should be in the format [[x y] [x y] ...]
-  (let [vcount (count verts)]
-    (when (> vcount 0)
-      ; vertices are vec2
-      (let [vb (->vtx-pos2 vcount)
-            vb-out (persistent! (reduce conj! vb verts))]
-        vb-out))))
-
+(set! *warn-on-reflection* false)
 
 (defn renderable->render-objects [renderable]
   (let [handle (renderable->handle renderable)
-        vb-data (plugin-get-vertex-buffer-data handle)
-        vb-data-transformed (transform-vertices-as-vec vb-data)
-        vb (generate-vertex-buffer vb-data-transformed)
-        ib (plugin-get-index-buffer-data handle)
-        render-objects (plugin-get-render-objects handle)]
+        vb-data (.vertices handle)
+        vb-data-float-buffer (FloatBuffer/wrap vb-data)
+        vb (vtx/wrap-vertex-buffer vtx-pos4 :static vb-data-float-buffer)
+
+        ib-data (.indices handle)
+        ib (IntBuffer/wrap ib-data)
+        
+        render-objects (.renderObjects handle)]
     {:vertex-buffer vb :index-buffer ib :render-objects render-objects :handle handle :renderable renderable}))
+
+(set! *warn-on-reflection* true)
 
 (defn collect-render-groups [renderables]
   (map renderable->render-objects renderables))
@@ -458,31 +382,26 @@
 (set! *warn-on-reflection* false)
 
 (defn- set-stencil-func! [^GL2 gl face-type ref ref-mask state]
-  (let [gl-func (stencil-func->gl-func (.m_Func state))
-        op-stencil-fail (stencil-op->gl-op (.m_OpSFail state))
-        op-depth-fail (stencil-op->gl-op (.m_OpDPFail state))
-        op-depth-pass (stencil-op->gl-op (.m_OpDPPass state))]
+  (let [gl-func (stencil-func->gl-func (.func state))
+        op-stencil-fail (stencil-op->gl-op (.opSFail state))
+        op-depth-fail (stencil-op->gl-op (.opDPFail state))
+        op-depth-pass (stencil-op->gl-op (.opDPPass state))]
     (.glStencilFuncSeparate gl face-type gl-func ref ref-mask)
     (.glStencilOpSeparate gl face-type op-stencil-fail op-depth-fail op-depth-pass)))
-
-(set! *warn-on-reflection* true)
 
 (defn- to-int [b]
   (bit-and 0xff (int b)))
 
-
-(set! *warn-on-reflection* false)
-
 ; See ApplyStencilTest in render.cpp for reference
 (defn- set-stencil-test-params! [^GL2 gl params]
-  (let [clear (.m_ClearBuffer params)
-        mask (to-int (.m_BufferMask params))
-        color-mask (.m_ColorBufferMask params)
-        separate-states (.m_SeparateFaceStates params)
-        ref (to-int (.m_Ref params))
-        ref-mask (to-int (.m_RefMask params))
-        state-front (.m_Front params)
-        state-back (if (not= separate-states 0) (.m_Back params) state-front)]
+  (let [clear (.clearBuffer params)
+        mask (to-int (.bufferMask params))
+        color-mask (.colorBufferMask params)
+        separate-states (.separateFaceStates params)
+        ref (to-int (.ref params))
+        ref-mask (to-int (.refMask params))
+        state-front (.front params)
+        state-back (if (not= separate-states 0) (.back params) state-front)]
     (when (not= clear 0)
       (.glStencilMask gl 0xFF)
       (.glClear gl GL/GL_STENCIL_BUFFER_BIT))
@@ -499,15 +418,14 @@
 (defn- vector4d-to-floats [^Vector4d val]
   (list (.x val) (.y val) (.z val) (.w val)))
 
-(def my-atom (atom {}))
-
 (defn- set-constant! [^GL2 gl shader constant]
-  (reset! my-atom constant)
 
-  (let [name-hash (.m_NameHash constant)
+  (let [name-hash (.nameHash constant)
         name (constant-hash->name name-hash)
-        count (.m_Count constant)
-        values (take count (vec (.m_Values constant)))
+        values-array (.values constant)
+        count (alength values-array)
+        ;; TODO: Make a helper function from Java instead!
+        values (vec (.values constant))
         vec4-vals (map to-vector4d values)
         dbl-vals (mapcat vector4d-to-floats vec4-vals)
         flt-vals (float-array dbl-vals)]
@@ -516,40 +434,42 @@
         (shader/set-uniform-array shader gl name count flt-vals)))))
 
 (defn- set-constants! [^GL2 gl shader ro]
-  (let [constants (take (.m_NumConstants ro) (.m_Constants ro))]
+  (let [constants (.constantBuffer ro)]
     (doall (map (fn [constant] (set-constant! gl shader constant)) constants))))
 
+(defmacro gl-draw-arrays-2 [gl prim-type start count]      `(.glDrawArrays ~(with-meta gl {:tag `GL}) ~prim-type ~start ~count))
+
 (defn- do-render-object! [^GL2 gl render-args shader renderable ro]
-  (let [start (.m_VertexStart ro) ; the name is from the engine, but in this case refers to the index
-        count (.m_VertexCount ro)
-        face-winding (if (not= (.m_FaceWindingCCW ro) 0) GL/GL_CCW GL/GL_CW)
-        _ (set-constants! gl shader ro)
-        ro-transform (double-array (.m (.m_WorldTransform ro)))
+  (let [start (.vertexStart ro) ; the name is from the engine, but in this case refers to the index
+        count (.vertexCount ro) ; count in number of indices
+        start (* start 2) ; offset in bytes
+        face-winding (if (not= (.faceWinding ro) 0) GL/GL_CCW GL/GL_CW)
+        
+        ro-transform (double-array (.m (.worldTransform ro)))
         renderable-transform (Matrix4d. (:world-transform renderable)) ; make a copy so we don't alter the original
         ro-matrix (doto (Matrix4d. ro-transform) (.transpose))
         shader-world-transform (doto renderable-transform (.mul ro-matrix))
-        is-tri-strip (not= (.m_IsTriangleStrip ro) 0)
+        primitive-type (.primitiveType ro)
+        is-tri-strip (= primitive-type 2)
+        gl-prim-type (if is-tri-strip GL/GL_TRIANGLE_STRIP GL/GL_TRIANGLES)
         render-args (merge render-args
                            (math/derive-render-transforms shader-world-transform
                                                           (:view render-args)
                                                           (:projection render-args)
                                                           (:texture render-args)))]
-      ;(.glBlendFunc gl GL/GL_SRC_ALPHA GL/GL_ONE_MINUS_SRC_ALPHA)
 
     (shader/set-uniform shader gl "world_view_proj" (:world-view-proj render-args))
-
-    (when (not= (.m_SetFaceWinding ro) 0)
+    (set-constants! gl shader ro)
+    (when (.setFaceWinding ro)
       (gl/gl-front-face gl face-winding))
-    (when (not= (.m_SetStencilTest ro) 0)
-      (set-stencil-test-params! gl (.m_StencilTestParams ro)))
-    (when is-tri-strip
-      (gl/gl-draw-arrays gl GL/GL_TRIANGLE_STRIP start count))
-    (when (not is-tri-strip)
-      (gl/gl-draw-elements gl GL/GL_TRIANGLES start count))))
+    (when (.setStencilTest ro)
+      (set-stencil-test-params! gl (.stencilTestParams ro)))
+
+    (gl/gl-draw-elements gl gl-prim-type start count)))
 
   (set! *warn-on-reflection* true)
 
-; Lent from gui_clipping.clj
+; Borrowed from gui_clipping.clj
 (defn- setup-gl [^GL2 gl]
   (.glEnable gl GL/GL_STENCIL_TEST)
   (.glClear gl GL/GL_STENCIL_BUFFER_BIT))
@@ -558,9 +478,9 @@
   (.glDisable gl GL/GL_STENCIL_TEST)
   (.glColorMask gl true true true true))
 
-
 (defn- render-group-transparent [^GL2 gl render-args override-shader group]
   (let [renderable (:renderable group)
+        node-id (:node-id renderable)
         user-data (:user-data renderable)
         blend-mode (:blend-mode user-data)
         gpu-texture (or (get user-data :gpu-texture) texture/white-pixel)
@@ -569,25 +489,25 @@
         vb (:vertex-buffer group)
         ib (:index-buffer group)
         render-objects (:render-objects group)
-        vertex-index-binding (vtx/use-with ::rive-trans vb ib shader)
-        ]
+        vertex-index-binding (vtx/use-with [node-id ::rive-trans] vb ib shader)]
+
     (gl/with-gl-bindings gl render-args [gpu-texture shader vertex-index-binding]
       (setup-gl gl)
       (gl/set-blend-mode gl blend-mode)
-      (doall (map (fn [ro] (do-render-object! gl render-args shader renderable ro)) render-objects))
+      (doseq [ro render-objects]
+        (do-render-object! gl render-args shader renderable ro))
       (restore-gl gl))))
 
 (defn- render-rive-scenes [^GL2 gl render-args renderables rcount]
   (let [pass (:pass render-args)]
     (condp = pass
       pass/transparent
-      (when-let [groups (collect-render-groups renderables)]
-        (doall (map (fn [renderable] (render-group-transparent gl render-args nil renderable)) groups)))
+      (doseq [group (collect-render-groups renderables)]
+        (render-group-transparent gl render-args nil group))
 
       pass/selection
-      (when-let [groups (collect-render-groups renderables)]
-        (doall (map (fn [renderable] (render-group-transparent gl render-args rive-id-shader renderable)) groups)))
-      )))
+      (doseq [group (collect-render-groups renderables)]
+        (render-group-transparent gl render-args rive-id-shader group)))))
 
 (defn- render-rive-outlines [^GL2 gl render-args renderables rcount]
   (assert (= (:pass render-args) pass/outline))
@@ -616,7 +536,7 @@
   {:aabb aabb
    :node-id _node-id
    :renderable {:render-fn render-rive-outlines
-                :tags #{:spine :outline}
+                :tags #{:rive :outline}
                 :batch-key ::outline
                 :passes [pass/outline]}})
 
@@ -638,7 +558,7 @@
                                             [:rive-handle :rive-file-handle]
                                             [:structure :scene-structure]
                                             [:animations :rive-anim-ids]
-                                            [:state-machines :rive-state-machine-ids]
+                                            [:state-machine-ids :rive-state-machine-ids]
                                             [:aabb :aabb]
                                             [:node-outline :source-outline]
                                             [:build-targets :dep-build-targets])))
@@ -703,12 +623,13 @@
 ; .rivemodel (The "instance" file)
 ;
 
-(g/defnk produce-rivemodel-pb [rive-scene-resource default-animation default-state-machine material-resource blend-mode]
+(g/defnk produce-rivemodel-pb [rive-scene-resource default-animation default-state-machine material-resource blend-mode create-go-bones]
   (let [pb {:scene (resource/resource->proj-path rive-scene-resource)
+            :material (resource/resource->proj-path material-resource)
             :default-animation default-animation
             :default-state-machine default-state-machine
-            :material (resource/resource->proj-path material-resource)
-            :blend-mode blend-mode}]
+            :blend-mode blend-mode
+            :create-go-bones create-go-bones}]
     pb))
 
 (defn- validate-model-default-animation [node-id rive-scene rive-anim-ids default-animation]
@@ -799,6 +720,7 @@
             (dynamic error (g/fnk [_node-id rive-anim-ids default-animation rive-scene]
                                   (validate-model-default-animation _node-id rive-scene rive-anim-ids default-animation)))
             (dynamic edit-type (g/fnk [rive-anim-ids] (properties/->choicebox rive-anim-ids))))
+  (property create-go-bones g/Bool (default false))
 
   (input dep-build-targets g/Any :array)
   (input rive-scene-resource resource/Resource)

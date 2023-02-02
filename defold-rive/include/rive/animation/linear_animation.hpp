@@ -5,35 +5,42 @@
 #include <vector>
 namespace rive
 {
-	class Artboard;
-	class KeyedObject;
+class Artboard;
+class KeyedObject;
 
-	class LinearAnimation : public LinearAnimationBase
-	{
-	private:
-		std::vector<KeyedObject*> m_KeyedObjects;
+class LinearAnimation : public LinearAnimationBase
+{
+private:
+    std::vector<std::unique_ptr<KeyedObject>> m_KeyedObjects;
 
-	public:
-		~LinearAnimation();
-		StatusCode onAddedDirty(CoreContext* context) override;
-		StatusCode onAddedClean(CoreContext* context) override;
-		void addKeyedObject(KeyedObject* object);
-		void apply(Artboard* artboard, float time, float mix = 1.0f) const;
+    friend class Artboard;
 
-		Loop loop() const { return (Loop)loopValue(); }
+public:
+    LinearAnimation();
+    ~LinearAnimation() override;
+    StatusCode onAddedDirty(CoreContext* context) override;
+    StatusCode onAddedClean(CoreContext* context) override;
+    void addKeyedObject(std::unique_ptr<KeyedObject>);
+    void apply(Artboard* artboard, float time, float mix = 1.0f) const;
 
-		StatusCode import(ImportStack& importStack) override;
+    Loop loop() const { return (Loop)loopValue(); }
 
-		float startSeconds() const;
-		float endSeconds() const;
-		float durationSeconds() const;
+    StatusCode import(ImportStack& importStack) override;
+
+    float startSeconds() const;
+    float endSeconds() const;
+    float durationSeconds() const;
+
+    /// Convert a global clock to local seconds (takes into consideration
+    /// work area start/end, speed, looping).
+    float globalToLocalSeconds(float seconds) const;
 
 #ifdef TESTING
-		size_t numKeyedObjects() { return m_KeyedObjects.size(); }
-		// Used in testing to check how many animations gets deleted.
-		static int deleteCount;
+    size_t numKeyedObjects() { return m_KeyedObjects.size(); }
+    // Used in testing to check how many animations gets deleted.
+    static int deleteCount;
 #endif
-	};
+};
 } // namespace rive
 
 #endif
