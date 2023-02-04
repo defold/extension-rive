@@ -845,9 +845,8 @@ namespace dmRive
         return -1;
     }
 
-    static rive::LinearAnimation* FindAnimation(dmRive::RiveSceneData* data, int* animation_index, dmhash_t anim_id)
+    static rive::LinearAnimation* FindAnimation(rive::Artboard* artboard, dmRive::RiveSceneData* data, int* animation_index, dmhash_t anim_id)
     {
-        rive::Artboard* artboard = data->m_File->artboard();
         int index = FindAnimationIndex(data->m_LinearAnimations.Begin(), data->m_LinearAnimations.Size(), anim_id);
         if (index == -1) {
             return 0;
@@ -856,9 +855,8 @@ namespace dmRive
         return artboard->animation(index);
     }
 
-    static rive::StateMachine* FindStateMachine(dmRive::RiveSceneData* data, int* state_machine_index, dmhash_t anim_id)
+    static rive::StateMachine* FindStateMachine(rive::Artboard* artboard, dmRive::RiveSceneData* data, int* state_machine_index, dmhash_t anim_id)
     {
-        rive::Artboard* artboard = data->m_File->artboard();
         int index = FindAnimationIndex(data->m_StateMachines.Begin(), data->m_StateMachines.Size(), anim_id);
         if (index == -1) {
             return 0;
@@ -871,7 +869,7 @@ namespace dmRive
                                 dmGameObject::Playback playback_mode, float offset, float playback_rate)
     {
         int animation_index;
-        rive::LinearAnimation* animation = FindAnimation(data, &animation_index, anim_id);
+        rive::LinearAnimation* animation = FindAnimation(component->m_ArtboardInstance.get(), data, &animation_index, anim_id);
 
         if (!animation) {
             return false;
@@ -929,7 +927,7 @@ namespace dmRive
     static bool PlayStateMachine(RiveComponent* component, dmRive::RiveSceneData* data, dmhash_t anim_id, float playback_rate)
     {
         int state_machine_index;
-        rive::StateMachine* state_machine = FindStateMachine(data, &state_machine_index, anim_id);
+        rive::StateMachine* state_machine = FindStateMachine(component->m_ArtboardInstance.get(), data, &state_machine_index, anim_id);
 
         if (!state_machine) {
             return false;
