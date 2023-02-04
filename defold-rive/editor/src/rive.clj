@@ -719,7 +719,7 @@
   (property default-animation g/Str
             (dynamic error (g/fnk [_node-id rive-anim-ids default-animation rive-scene]
                                   (validate-model-default-animation _node-id rive-scene rive-anim-ids default-animation)))
-            (dynamic edit-type (g/fnk [rive-anim-ids] (properties/->choicebox rive-anim-ids))))
+            (dynamic edit-type (g/fnk [rive-anim-ids] (properties/->choicebox (cons "" rive-anim-ids)))))
   (property create-go-bones g/Bool (default false))
 
   (input dep-build-targets g/Any :array)
