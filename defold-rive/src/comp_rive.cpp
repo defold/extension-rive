@@ -787,9 +787,8 @@ namespace dmRive
                 c->m_ArtboardInstance->draw(renderer);
             }
 
+            renderer->restore();
         }
-
-        renderer->restore();
 
         // Prepare list submit
         dmRender::RenderListEntry* render_list = dmRender::RenderListAlloc(render_context, count);
