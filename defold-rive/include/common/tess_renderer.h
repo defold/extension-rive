@@ -23,6 +23,7 @@
 #include <dmsdk/graphics/graphics.h>
 
 namespace dmRive {
+    struct Atlas;
 
 // // The actual graphics device image.
 // class DefoldRenderImageResource : public RefCnt {
@@ -181,12 +182,16 @@ private:
 
     dmArray<DrawDescriptor> m_DrawDescriptors;
 
+    Atlas* m_Atlas; // The current atlas lookup
+
     void applyClipping();
     //void setPipeline(sg_pipeline pipeline);
 
 public:
     DefoldTessRenderer();
     ~DefoldTessRenderer();
+    void SetAtlas(Atlas* atlas);
+
     void orthographicProjection(float left,
                                 float right,
                                 float bottom,

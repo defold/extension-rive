@@ -143,11 +143,51 @@ void DestroyAtlas(Atlas* atlas)
 
 Region* FindAtlasRegion(const Atlas* atlas, dmhash_t name_hash)
 {
-
     const uint32_t* pindex = atlas->m_NameToIndex.Get(name_hash);
     if (!pindex)
         return 0;
     return &atlas->m_Regions[*pindex];
+}
+
+void ConvertRegionToAtlasUV(const Region* region, uint32_t count, const float* uvs, float* outuvs)
+{
+    bool rotate = region->degrees == 90;
+    float offsetu = region->offset[0];
+    float offsetv = region->offset[1];
+    // Width of the image in atlas space
+    float width = region->uv2[0] - region->uv1[0];
+    float height = region->uv2[1] - region->uv1[1];
+
+    if (rotate)
+    {
+        float w = rotate ? -height : width;
+        float h = rotate ? width : height;
+        width = w;
+        height = h;
+    }
+
+    for (int i = 0; i < count; ++i)
+    {
+        float u = uvs[i*2+0];
+        float v = uvs[i*2+1];
+
+        printf("  uv: %f, %f\n", u, v);
+
+        // Rotate: R90(x,y) -> (-y,x)
+        float ru = rotate ? -v : u;
+        float rv = rotate ? u : v;
+
+        // Scale the coordinate by the image size in atlas space
+        float su = width * ru;
+        float sv = height * rv;
+
+        // Offset the uv to the correct place in the atlas
+        float outu = offsetu + su;
+        float outv = offsetv + sv;
+
+        outuvs[i*2+0] = outu;
+        outuvs[i*2+1] = outv;
+    }
 }
 
 

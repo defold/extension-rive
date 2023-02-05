@@ -27,19 +27,9 @@ namespace dmRive
         if (result != dmResource::RESULT_OK)
             return result;
 
-        resource->m_Texture = 0;
-
-        if (resource->m_DDF->m_Atlas[0] != 0)
-        {
-            result = dmResource::Get(factory, resource->m_DDF->m_Atlas, (void**) &resource->m_Texture);
-            if (result != dmResource::RESULT_OK)
-            {
-                return result;
-            }
-        }
-
         resource->m_Atlas = 0;
-        if (strcmp(resource->m_DDF->m_Atlas, "") != 0)
+        resource->m_TextureSet = 0;
+        if (resource->m_DDF->m_Atlas[0] != 0)
         {
             dmResource::Result result = dmResource::Get(factory, resource->m_DDF->m_Atlas, (void**) &resource->m_TextureSet); // .atlas -> .texturesetc
 
@@ -59,8 +49,6 @@ namespace dmRive
             dmDDF::FreeMessage(resource->m_DDF);
         if (resource->m_Scene != 0x0)
             dmResource::Release(factory, resource->m_Scene);
-        if (resource->m_Texture != 0x0)
-            dmResource::Release(factory, resource->m_Texture);
     }
 
     static dmResource::Result ResourceTypePreload(const dmResource::ResourcePreloadParams& params)

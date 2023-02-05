@@ -177,9 +177,12 @@ namespace dmRive
         RiveModelResource* resource = component->m_Resource;
         dmRiveDDF::RiveModelDesc* ddf = resource->m_DDF;
         dmRender::HMaterial material = GetMaterial(component, resource);
+        dmGameSystem::TextureSetResource* texture_set = resource->m_Scene->m_TextureSet;
         dmHashInit32(&state, reverse);
         dmHashUpdateBuffer32(&state, &material, sizeof(material));
         dmHashUpdateBuffer32(&state, &ddf->m_BlendMode, sizeof(ddf->m_BlendMode));
+        if (texture_set)
+            dmHashUpdateBuffer32(&state, &texture_set, sizeof(texture_set));
         if (component->m_RenderConstants)
             dmGameSystem::HashRenderConstants(component->m_RenderConstants, &state);
         component->m_MixedHash = dmHashFinal32(&state);
@@ -442,6 +445,8 @@ namespace dmRive
             ro.m_VertexCount       = draw_desc.m_IndicesCount;
             ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_SHORT;
             ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
+            if (resource->m_Scene->m_TextureSet)
+                ro.m_Textures[0] = resource->m_Scene->m_TextureSet->m_Texture;
 
             DO_LOG("Ro: %d, vx %d ix %d\n", i, draw_desc.m_VerticesCount, draw_desc.m_IndicesCount);
 
@@ -778,6 +783,8 @@ namespace dmRive
 
             // Store the inverse view so we can later go from screen to world.
             //m_InverseViewTransform = viewTransform.invertOrIdentity();
+
+            renderer->SetAtlas(c->m_Resource->m_Scene->m_Atlas);
 
             if (c->m_StateMachineInstance) {
                 c->m_StateMachineInstance->draw(renderer);

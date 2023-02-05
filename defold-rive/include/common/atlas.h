@@ -51,7 +51,8 @@ public:
 
 Atlas*      CreateAtlas(const dmGameSystemDDF::TextureSet* texture_set_ddf);
 void        DestroyAtlas(Atlas* atlas);
-Region*     FindAtlasRegion(Atlas* atlas, dmhash_t name_hash);
+Region*     FindAtlasRegion(const Atlas* atlas, dmhash_t name_hash);
+void        ConvertRegionToAtlasUV(const Region* region, uint32_t count, float* uvs);
 
 } // namespace dmRive
 

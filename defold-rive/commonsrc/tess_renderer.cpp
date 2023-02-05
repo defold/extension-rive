@@ -1,6 +1,7 @@
 // #include "rive/tess/sokol/sokol_tess_renderer.hpp"
 // #include "rive/tess/sokol/sokol_factory.hpp"
 
+#include <common/atlas.h>
 #include <common/types.h>
 #include <common/tess_renderer.h>
 #include <common/factory.h>
@@ -14,6 +15,7 @@
 //#include <generated/shader.h>
 #include <unordered_set>
 #include <dmsdk/dlib/array.h>
+#include <dmsdk/dlib/log.h>
 
 template<typename T>
 static void EnsureSize(dmArray<T>& a, uint32_t size)
@@ -602,6 +604,8 @@ DrawDescriptor DefoldRenderPath::drawFill()
 // }
 
 DefoldTessRenderer::DefoldTessRenderer() {
+    m_Atlas = 0;
+
     // m_meshPipeline = sg_make_pipeline((sg_pipeline_desc){
     //     .layout =
     //         {
@@ -863,6 +867,10 @@ DefoldTessRenderer::~DefoldTessRenderer() {
     // }
 }
 
+void DefoldTessRenderer::SetAtlas(Atlas* atlas) {
+    m_Atlas = atlas;
+}
+
 void DefoldTessRenderer::orthographicProjection(float left,
                                                float right,
                                                float bottom,
@@ -915,7 +923,7 @@ void DefoldTessRenderer::orthographicProjection(float left,
 
 void DefoldTessRenderer::drawImage(const rive::RenderImage* _image, rive::BlendMode, float opacity) {
     DefoldRenderImage* image = (DefoldRenderImage*)_image;
-    printf("drawImage\n");
+    //printf("drawImage '%s'\n", image?dmHashReverseSafe64(image->m_NameHash): "null");
     // vs_params_t vs_params;
 
     // const Mat2D& world = transform();
@@ -942,7 +950,24 @@ void DefoldTessRenderer::drawImageMesh(const rive::RenderImage* _image,
                                       rive::BlendMode blendMode,
                                       float opacity) {
     DefoldRenderImage* image = (DefoldRenderImage*)_image;
-    printf("drawImageMesh\n");
+    //printf("drawImageMesh '%s'\n", dmHashReverseSafe64(image->m_NameHash));
+
+    if (!m_Atlas)
+        return;
+
+    dmRive::Region* region = dmRive::FindAtlasRegion(m_Atlas, image->m_NameHash);
+    if (!region) {
+        dmLogError("Couldn't find region '%s' in atlas", dmHashReverseSafe64(image->m_NameHash));
+        return;
+    }
+
+    DefoldBuffer<float>* uvbuffer = (DefoldBuffer<float>*)uvCoords_f32.get();
+    int count = uvbuffer->count();
+    float* uvs = uvbuffer->m_Data;
+
+    //dmRive::ConvertRegionToAtlasUV(region, count/2, uvs, outuvs); // TODO: Where to write to?
+
+
     // vs_params_t vs_params;
 
     // const Mat2D& world = transform();

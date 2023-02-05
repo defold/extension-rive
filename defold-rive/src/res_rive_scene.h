@@ -13,7 +13,6 @@
 #ifndef DM_RES_RIVE_SCENE_H
 #define DM_RES_RIVE_SCENE_H
 
-#include <dmsdk/graphics/graphics.h>
 #include <dmsdk/gamesys/resources/res_textureset.h>
 
 #include "rive_ddf.h" // generated from the rive_ddf.proto
@@ -27,7 +26,6 @@ namespace dmRive
         dmRiveDDF::RiveSceneDesc*           m_DDF;
         dmGameSystem::TextureSetResource*   m_TextureSet;   // The atlas
         void*                               m_Scene; // The rive::File* ptr
-        dmGraphics::HTexture                m_Texture;
         Atlas*                              m_Atlas;
     };
 }
