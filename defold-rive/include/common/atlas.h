@@ -14,6 +14,7 @@
 #define DM_RIVE_ATLAS_H
 
 #include <stdint.h>
+#include <dmsdk/dlib/hash.h>
 #include <dmsdk/dlib/hashtable.h>
 
 #include <rive/renderer.hpp>
@@ -26,19 +27,21 @@ namespace dmGameSystemDDF {
 
 namespace dmRive {
 
-struct Region;
+struct Region
+{
+    float uv1[2];
+    float uv2[2];
+    float offset[2];     // x, y
+    float dimensions[2]; // width, height
+    uint16_t degrees;    // 0, 90, 180, 270
+};
 
-// class AtlasResolver : public rive::FileAssetResolver {
-// private:
-//     dmGameSystemDDF::TextureSet* m_TextureSet;
-//     dmHashTable64<uint32_t> m_NameToIndex;
-//     Region* m_Regions;
-//     uint32_t m_NumRegions;
+struct Atlas
+{
+    dmHashTable64<uint32_t> m_NameToIndex;
+    Region*                 m_Regions;
+};
 
-// public:
-//     AtlasResolver(dmGameSystemDDF::TextureSet* texture_set_ddf);
-//     void loadContents(rive::FileAsset& asset) override;
-// };
 
 class AtlasNameResolver : public rive::FileAssetResolver {
 public:
@@ -46,8 +49,9 @@ public:
     void loadContents(rive::FileAsset& asset) override;
 };
 
-Region* CreateRegions(const dmGameSystemDDF::TextureSet* texture_set_ddf, dmHashTable64<uint32_t>& name_to_index);
-Region* FindAtlasRegion(const dmHashTable64<uint32_t>& name_to_index, Region* regions, const char* name);
+Atlas*      CreateAtlas(const dmGameSystemDDF::TextureSet* texture_set_ddf);
+void        DestroyAtlas(Atlas* atlas);
+Region*     FindAtlasRegion(Atlas* atlas, dmhash_t name_hash);
 
 } // namespace dmRive
 

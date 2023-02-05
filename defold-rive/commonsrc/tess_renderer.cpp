@@ -913,7 +913,8 @@ void DefoldTessRenderer::orthographicProjection(float left,
     // }
 }
 
-void DefoldTessRenderer::drawImage(const rive::RenderImage* image, rive::BlendMode, float opacity) {
+void DefoldTessRenderer::drawImage(const rive::RenderImage* _image, rive::BlendMode, float opacity) {
+    DefoldRenderImage* image = (DefoldRenderImage*)_image;
     printf("drawImage\n");
     // vs_params_t vs_params;
 
@@ -934,12 +935,13 @@ void DefoldTessRenderer::drawImage(const rive::RenderImage* image, rive::BlendMo
     // sg_draw(0, 6, 1);
 }
 
-void DefoldTessRenderer::drawImageMesh(const rive::RenderImage* renderImage,
+void DefoldTessRenderer::drawImageMesh(const rive::RenderImage* _image,
                                       rive::rcp<rive::RenderBuffer> vertices_f32,
                                       rive::rcp<rive::RenderBuffer> uvCoords_f32,
                                       rive::rcp<rive::RenderBuffer> indices_u16,
                                       rive::BlendMode blendMode,
                                       float opacity) {
+    DefoldRenderImage* image = (DefoldRenderImage*)_image;
     printf("drawImageMesh\n");
     // vs_params_t vs_params;
 

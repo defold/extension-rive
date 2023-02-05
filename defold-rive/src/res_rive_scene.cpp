@@ -13,6 +13,7 @@
 #if !defined(DM_RIVE_UNSUPPORTED)
 
 #include "res_rive_scene.h"
+#include <common/atlas.h>
 
 #include <dmsdk/dlib/log.h>
 #include <dmsdk/resource/resource.h>
@@ -36,11 +37,24 @@ namespace dmRive
                 return result;
             }
         }
+
+        resource->m_Atlas = 0;
+        if (strcmp(resource->m_DDF->m_Atlas, "") != 0)
+        {
+            dmResource::Result result = dmResource::Get(factory, resource->m_DDF->m_Atlas, (void**) &resource->m_TextureSet); // .atlas -> .texturesetc
+
+            resource->m_Atlas = dmRive::CreateAtlas(resource->m_TextureSet->m_TextureSet);
+        }
+
         return dmResource::RESULT_OK;
     }
 
     static void ReleaseResources(dmResource::HFactory factory, RiveSceneResource* resource)
     {
+        if (resource->m_Atlas)
+            dmRive::DestroyAtlas(resource->m_Atlas);
+        if (resource->m_TextureSet)
+            dmResource::Release(factory, resource->m_TextureSet);
         if (resource->m_DDF != 0x0)
             dmDDF::FreeMessage(resource->m_DDF);
         if (resource->m_Scene != 0x0)
