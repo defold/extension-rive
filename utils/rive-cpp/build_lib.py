@@ -254,7 +254,7 @@ def setup_vars(platform):
         AR=os.path.join(toolchain,"/usr/bin/ar")
         RANLIB=os.path.join(toolchain,"/usr/bin/ranlib")
 
-        CXXFLAGS=["-stdlib=libc++", "-std=c++17", "-fno-exceptions", "-fno-rtti"]
+        CXXFLAGS=["-stdlib=libc++", "-std=c++17", "-fno-exceptions"]
         SYSROOT=['-isysroot', sysroot]
 
         if '-ios' in platform:
