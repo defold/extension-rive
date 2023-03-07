@@ -445,8 +445,11 @@ namespace dmRive
             ro.m_VertexCount       = draw_desc.m_IndicesCount;
             ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_SHORT;
             ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
+
             if (resource->m_Scene->m_TextureSet)
+            {
                 ro.m_Textures[0] = resource->m_Scene->m_TextureSet->m_Texture;
+            }
 
             DO_LOG("Ro: %d, vx %d ix %d\n", i, draw_desc.m_VerticesCount, draw_desc.m_IndicesCount);
 

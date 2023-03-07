@@ -24,6 +24,7 @@
 
 namespace dmRive {
     struct Atlas;
+    struct Region;
 
 // // The actual graphics device image.
 // class DefoldRenderImageResource : public RefCnt {
@@ -62,14 +63,16 @@ namespace dmRive {
 //     sg_buffer uvBuffer() const { return m_uvBuffer; }
 // };
 
-    struct VsUniforms {
+    struct VsUniforms
+    {
         rive::Mat4 world;
         rive::Vec2D gradientStart;
         rive::Vec2D gradientEnd;
         int fillType;
     };
 
-    struct FsUniforms {
+    struct FsUniforms
+    {
         int   fillType;
         float colors[16][4];
         float stops[4][4];
@@ -89,10 +92,12 @@ namespace dmRive {
         FsUniforms      m_FsUniforms;
         rive::BlendMode m_BlendMode;
         rive::Vec2D*    m_Vertices;
+        rive::Vec2D*    m_TexCoords;
         uint16_t*       m_Indices;
         DrawMode        m_DrawMode;
         uint32_t        m_VerticesCount;
         uint32_t        m_IndicesCount;
+        uint32_t        m_TexCoordsCount;
         uint8_t         m_ClipIndex;
     };
 
@@ -182,10 +187,14 @@ private:
 
     dmArray<DrawDescriptor> m_DrawDescriptors;
 
+    dmArray<rive::Vec2D> m_ScratchBufferVec2D;
+    dmArray<uint16_t> m_ScratchBufferIndices;
+
     Atlas* m_Atlas; // The current atlas lookup
 
-    void applyClipping();
-    //void setPipeline(sg_pipeline pipeline);
+    void          applyClipping();
+    rive::Vec2D*  getRegionUvs(dmRive::Region* region, float* texcoords_in, int texcoords_in_count);
+    void          putImage(DrawDescriptor& draw_desc, dmRive::Region* region);
 
 public:
     DefoldTessRenderer();

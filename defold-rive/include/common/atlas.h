@@ -26,33 +26,32 @@ namespace dmGameSystemDDF {
 }
 
 namespace dmRive {
+    struct Region
+    {
+        float uv1[2];
+        float uv2[2];
+        float offset[2];     // x, y
+        float dimensions[2]; // width, height
+        uint16_t degrees;    // 0, 90, 180, 270
+    };
 
-struct Region
-{
-    float uv1[2];
-    float uv2[2];
-    float offset[2];     // x, y
-    float dimensions[2]; // width, height
-    uint16_t degrees;    // 0, 90, 180, 270
-};
-
-struct Atlas
-{
-    dmHashTable64<uint32_t> m_NameToIndex;
-    Region*                 m_Regions;
-};
+    struct Atlas
+    {
+        dmHashTable64<uint32_t> m_NameToIndex;
+        Region*                 m_Regions;
+    };
 
 
-class AtlasNameResolver : public rive::FileAssetResolver {
-public:
-    AtlasNameResolver();
-    void loadContents(rive::FileAsset& asset) override;
-};
+    class AtlasNameResolver : public rive::FileAssetResolver {
+    public:
+        AtlasNameResolver();
+        void loadContents(rive::FileAsset& asset) override;
+    };
 
-Atlas*      CreateAtlas(const dmGameSystemDDF::TextureSet* texture_set_ddf);
-void        DestroyAtlas(Atlas* atlas);
-Region*     FindAtlasRegion(const Atlas* atlas, dmhash_t name_hash);
-void        ConvertRegionToAtlasUV(const Region* region, uint32_t count, float* uvs);
+    Atlas*      CreateAtlas(const dmGameSystemDDF::TextureSet* texture_set_ddf);
+    void        DestroyAtlas(Atlas* atlas);
+    Region*     FindAtlasRegion(const Atlas* atlas, dmhash_t name_hash);
+    void        ConvertRegionToAtlasUV(const Region* region, uint32_t count, const float* uvs, rive::Vec2D* outuvs);
 
 } // namespace dmRive
 

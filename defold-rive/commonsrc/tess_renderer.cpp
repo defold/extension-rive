@@ -188,8 +188,6 @@ void DefoldRenderPaint::draw(dmArray<DrawDescriptor>& drawDescriptors, VsUniform
         static_cast<Gradient*>(m_shader.get())->bind(vertexUniforms, m_uniforms);
     }
 
-    // printf("paint.draw\n");
-
     if (m_stroke != nullptr)
     {
         if (m_strokeDirty)
@@ -252,31 +250,7 @@ void DefoldRenderPaint::draw(dmArray<DrawDescriptor>& drawDescriptors, VsUniform
 
             EnsureSize(m_strokeOffsets, offsets.size());
             memcpy(m_strokeOffsets.Begin(), &offsets.front(), offsets.size() * sizeof(uint32_t));
-
-            /*
-            m_strokeIndexBuffer = sg_make_buffer((sg_buffer_desc){
-                .type = SG_BUFFERTYPE_INDEXBUFFER,
-                .data =
-                    {
-                        indices.data(),
-                        indices.size() * sizeof(uint16_t),
-                    },
-            });
-            */
         }
-
-        /*
-        if (m_strokeVertexBuffer.id == 0) {
-            return;
-        }
-
-        sg_bindings bind = {
-            .vertex_buffers[0] = m_strokeVertexBuffer,
-            .index_buffer = m_strokeIndexBuffer,
-        };
-
-        sg_apply_bindings(&bind);
-        */
 
         m_stroke->resetRenderOffset();
 
@@ -921,26 +895,107 @@ void DefoldTessRenderer::orthographicProjection(float left,
     // }
 }
 
-void DefoldTessRenderer::drawImage(const rive::RenderImage* _image, rive::BlendMode, float opacity) {
+void DefoldTessRenderer::putImage(DrawDescriptor& draw_desc, dmRive::Region* region)
+{
+    const int num_vertices  = 4;
+    const int num_texcoords = 4;
+    const int num_indices   = 6;
+
+    if (m_ScratchBufferVec2D.Full())
+    {
+        m_ScratchBufferVec2D.OffsetCapacity(num_vertices + num_texcoords);
+    }
+
+    uint32_t vx_index = m_ScratchBufferVec2D.Size();
+    float halfWidth  = region->dimensions[0] / 2.0f;
+    float halfHeight = region->dimensions[1] / 2.0f;
+
+    m_ScratchBufferVec2D.Push(rive::Vec2D(-halfWidth, -halfHeight));
+    m_ScratchBufferVec2D.Push(rive::Vec2D( halfWidth, -halfHeight));
+    m_ScratchBufferVec2D.Push(rive::Vec2D( halfWidth,  halfHeight));
+    m_ScratchBufferVec2D.Push(rive::Vec2D(-halfWidth,  halfHeight));
+
+    uint32_t uv_index = m_ScratchBufferVec2D.Size();
+
+    m_ScratchBufferVec2D.SetSize(m_ScratchBufferVec2D.Capacity());
+    rive::Vec2D* uv_ptr = &m_ScratchBufferVec2D[uv_index];
+
+    float texcoords[] = {
+        0.0f, 0.0f,
+        1.0f, 0.0f,
+        1.0f, 1.0f,
+        0.0f, 1.0f
+    };
+
+    dmRive::ConvertRegionToAtlasUV(region, 4, texcoords, uv_ptr);
+
+    if (m_ScratchBufferIndices.Full())
+    {
+        m_ScratchBufferIndices.OffsetCapacity(num_indices);
+    }
+    uint32_t indices_index = m_ScratchBufferIndices.Size();
+
+    m_ScratchBufferIndices.Push(0);
+    m_ScratchBufferIndices.Push(1);
+    m_ScratchBufferIndices.Push(2);
+    m_ScratchBufferIndices.Push(0);
+    m_ScratchBufferIndices.Push(2);
+    m_ScratchBufferIndices.Push(3);
+
+    draw_desc.m_Indices        = &m_ScratchBufferIndices[indices_index];
+    draw_desc.m_IndicesCount   = 6;
+    draw_desc.m_Vertices       = &m_ScratchBufferVec2D[vx_index];
+    draw_desc.m_VerticesCount  = 4;
+    draw_desc.m_TexCoords      = uv_ptr;
+    draw_desc.m_TexCoordsCount = 4;
+}
+
+void DefoldTessRenderer::drawImage(const rive::RenderImage* _image, rive::BlendMode blendMode, float opacity) {
     DefoldRenderImage* image = (DefoldRenderImage*)_image;
-    //printf("drawImage '%s'\n", image?dmHashReverseSafe64(image->m_NameHash): "null");
-    // vs_params_t vs_params;
 
-    // const Mat2D& world = transform();
-    // vs_params.mvp = m_Projection * world;
+    dmRive::Region* region = dmRive::FindAtlasRegion(m_Atlas, image->m_NameHash);
 
-    // auto sokolImage = static_cast<const SokolRenderImage*>(image);
-    // setPipeline(m_meshPipeline);
-    // sg_bindings bind = {
-    //     .vertex_buffers[0] = sokolImage->vertexBuffer(),
-    //     .vertex_buffers[1] = sokolImage->uvBuffer(),
-    //     .index_buffer = m_boundsIndices,
-    //     .fs_images[SLOT_tex] = sokolImage->image(),
-    // };
+    if (!region)
+    {
+        dmLogError("Couldn't find region '%s' in atlas", dmHashReverseSafe64(image->m_NameHash));
+        return;
+    }
 
-    // sg_apply_bindings(&bind);
-    // sg_apply_uniforms(SG_SHADERSTAGE_VS, SLOT_vs_params, SG_RANGE_REF(vs_params));
-    // sg_draw(0, 6, 1);
+    VsUniforms vs_params = {};
+    vs_params.world = transform();
+
+    FsUniforms fs_uniforms = {0};
+
+    DrawDescriptor desc = {};
+    desc.m_VsUniforms     = vs_params;
+    desc.m_FsUniforms     = fs_uniforms;
+    desc.m_DrawMode       = DRAW_MODE_DEFAULT;
+    desc.m_BlendMode      = blendMode;
+
+    putImage(desc, region);
+
+    if (m_DrawDescriptors.Full())
+    {
+        m_DrawDescriptors.OffsetCapacity(8);
+    }
+
+    m_DrawDescriptors.Push(desc);
+}
+
+rive::Vec2D* DefoldTessRenderer::getRegionUvs(dmRive::Region* region, float* texcoords_in, int texcoords_in_count)
+{
+    if (m_ScratchBufferVec2D.Full())
+    {
+        m_ScratchBufferVec2D.OffsetCapacity(texcoords_in_count);
+    }
+
+    uint32_t texcoord_index = m_ScratchBufferVec2D.Size();
+    m_ScratchBufferVec2D.SetSize(m_ScratchBufferVec2D.Capacity());
+
+    rive::Vec2D* texcoord_ptr = &m_ScratchBufferVec2D[texcoord_index];
+
+    dmRive::ConvertRegionToAtlasUV(region, texcoords_in_count/2, texcoords_in, texcoord_ptr);
+    return texcoord_ptr;
 }
 
 void DefoldTessRenderer::drawImageMesh(const rive::RenderImage* _image,
@@ -950,23 +1005,50 @@ void DefoldTessRenderer::drawImageMesh(const rive::RenderImage* _image,
                                       rive::BlendMode blendMode,
                                       float opacity) {
     DefoldRenderImage* image = (DefoldRenderImage*)_image;
-    //printf("drawImageMesh '%s'\n", dmHashReverseSafe64(image->m_NameHash));
 
     if (!m_Atlas)
+    {
         return;
+    }
 
     dmRive::Region* region = dmRive::FindAtlasRegion(m_Atlas, image->m_NameHash);
-    if (!region) {
+    if (!region)
+    {
         dmLogError("Couldn't find region '%s' in atlas", dmHashReverseSafe64(image->m_NameHash));
         return;
     }
 
+    DefoldBuffer<float>*   vertexbuffer = (DefoldBuffer<float>*)vertices_f32.get();
+    DefoldBuffer<uint16_t>* indexbuffer = (DefoldBuffer<uint16_t>*)indices_u16.get();
+
     DefoldBuffer<float>* uvbuffer = (DefoldBuffer<float>*)uvCoords_f32.get();
-    int count = uvbuffer->count();
-    float* uvs = uvbuffer->m_Data;
+    int count                     = uvbuffer->count();
+    float* uvs                    = uvbuffer->m_Data;
 
-    //dmRive::ConvertRegionToAtlasUV(region, count/2, uvs, outuvs); // TODO: Where to write to?
+    rive::Vec2D* region_uvs = getRegionUvs(region, uvs, count);
 
+    VsUniforms vs_params = {};
+    vs_params.world = transform();
+
+    FsUniforms fs_uniforms = {0};
+
+    DrawDescriptor desc = {};
+    desc.m_VsUniforms     = vs_params;
+    desc.m_FsUniforms     = fs_uniforms;
+    desc.m_Indices        = indexbuffer->m_Data;
+    desc.m_IndicesCount   = indexbuffer->count();
+    desc.m_Vertices       = (rive::Vec2D*) vertexbuffer->m_Data;
+    desc.m_VerticesCount  = vertexbuffer->count();
+    desc.m_TexCoords      = (rive::Vec2D*) region_uvs;
+    desc.m_TexCoordsCount = count / 2;
+    desc.m_DrawMode       = DRAW_MODE_DEFAULT;
+    desc.m_BlendMode      = blendMode;
+
+    if (m_DrawDescriptors.Full())
+    {
+        m_DrawDescriptors.OffsetCapacity(8);
+    }
+    m_DrawDescriptors.Push(desc);
 
     // vs_params_t vs_params;
 
@@ -1099,8 +1181,8 @@ void DefoldTessRenderer::applyClipping() {
 void DefoldTessRenderer::reset()
 {
     m_DrawDescriptors.SetSize(0);
-
-    //m_currentPipeline = {0};
+    m_ScratchBufferVec2D.SetSize(0);
+    m_ScratchBufferIndices.SetSize(0);
 }
 
 // void DefoldTessRenderer::setPipeline(sg_pipeline pipeline)
