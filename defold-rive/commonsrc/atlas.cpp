@@ -158,10 +158,12 @@ namespace dmRive {
         float offsetv = region->offset[1];
         // Width of the image in atlas space
         float width = region->uv2[0] - region->uv1[0];
-        float height = region->uv2[1] - region->uv1[1];
+        //float height = region->uv2[1] - region->uv1[1];
+        float height = region->uv1[1] - region->uv2[1];
 
         if (rotate)
         {
+            dmLogInfo("Rotated");
             float w = rotate ? -height : width;
             float h = rotate ? width : height;
             width = w;
@@ -173,19 +175,19 @@ namespace dmRive {
             float u = uvs[i*2+0];
             float v = uvs[i*2+1];
 
-            // printf("  uv: %f, %f\n", u, v);
-
             // Rotate: R90(x,y) -> (-y,x)
             float ru = rotate ? -v : u;
             float rv = rotate ? u : v;
 
             // Scale the coordinate by the image size in atlas space
             float su = width * ru;
-            float sv = height * rv;
+            float sv = height - height * rv;
 
             // Offset the uv to the correct place in the atlas
-            float outu = offsetu + su;
-            float outv = offsetv + sv;
+            float outu = region->uv1[0] + offsetu + su;
+            float outv = region->uv2[1] + offsetv + sv;
+
+            // dmLogInfo("  uv: %f, %f w/h: %f, %f", outu, outv, width, height);
 
             outuvs[i].x = outu;
             outuvs[i].y = outv;

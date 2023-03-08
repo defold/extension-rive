@@ -194,7 +194,7 @@ private:
 
     void          applyClipping();
     rive::Vec2D*  getRegionUvs(dmRive::Region* region, float* texcoords_in, int texcoords_in_count);
-    void          putImage(DrawDescriptor& draw_desc, dmRive::Region* region);
+    void          putImage(DrawDescriptor& draw_desc, dmRive::Region* region, const rive::Mat2D& uv_transform);
 
 public:
     DefoldTessRenderer();
