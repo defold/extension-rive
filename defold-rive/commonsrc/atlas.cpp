@@ -145,6 +145,11 @@ namespace dmRive {
 
     Region* FindAtlasRegion(const Atlas* atlas, dmhash_t name_hash)
     {
+        if (atlas == 0)
+        {
+            return 0;
+        }
+
         const uint32_t* pindex = atlas->m_NameToIndex.Get(name_hash);
         if (!pindex)
             return 0;

@@ -46,7 +46,7 @@ public class RiveSceneBuilder extends Builder<Void> {
 
         BuilderUtil.checkResource(this.project, input, "atlas", builder.getAtlas());
 
-        taskBuilder.addInput(project.getResource(project.getBuildDirectory() + BuilderUtil.replaceExt( builder.getAtlas(), "atlas", "texturesetc")));
+        taskBuilder.addInput(this.project.getResource(builder.getAtlas()).changeExt(".a.texturesetc"));
         return taskBuilder.build();
     }
 
@@ -56,7 +56,7 @@ public class RiveSceneBuilder extends Builder<Void> {
         RiveSceneDesc.Builder builder = RiveSceneDesc.newBuilder();
         ProtoUtil.merge(task.input(0), builder);
         builder.setScene(BuilderUtil.replaceExt(builder.getScene(), ".riv", ".rivc"));
-        builder.setAtlas(BuilderUtil.replaceExt(builder.getAtlas(), ".atlas", ".texturesetc"));
+        builder.setAtlas(BuilderUtil.replaceExt(builder.getAtlas(), ".atlas", ".a.texturesetc"));
 
         Message msg = builder.build();
         ByteArrayOutputStream out = new ByteArrayOutputStream(64 * 1024);
