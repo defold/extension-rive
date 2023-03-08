@@ -998,6 +998,7 @@ void DefoldTessRenderer::drawImage(const rive::RenderImage* _image, rive::BlendM
     desc.m_FsUniforms     = fs_uniforms;
     desc.m_DrawMode       = DRAW_MODE_DEFAULT;
     desc.m_BlendMode      = blendMode;
+    desc.m_ClipIndex      = m_clipCount;
 
     putImage(desc, region, image->uvTransform());
 
@@ -1070,6 +1071,7 @@ void DefoldTessRenderer::drawImageMesh(const rive::RenderImage* _image,
     desc.m_TexCoordsCount = count / 2;
     desc.m_DrawMode       = DRAW_MODE_DEFAULT;
     desc.m_BlendMode      = blendMode;
+    desc.m_ClipIndex      = m_clipCount;
 
     PushDrawDescriptor(m_DrawDescriptors, desc);
 }
