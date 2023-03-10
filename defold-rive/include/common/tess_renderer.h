@@ -86,6 +86,16 @@ namespace dmRive {
         DRAW_MODE_CLIP_INCR = 2,
     };
 
+    // Must match shader fill type
+    // Note: The 'texrtured' fill type is a Defold fill type so we can use the same shader for all content
+    enum FillType
+    {
+        FILL_TYPE_SOLID    = 0,
+        FILL_TYPE_LINEAR   = 1,
+        FILL_TYPE_RADIAL   = 2,
+        FILL_TYPE_TEXTURED = 3,
+    };
+
     struct DrawDescriptor
     {
         VsUniforms      m_VsUniforms;
@@ -113,11 +123,8 @@ namespace dmRive {
         rive::StrokeJoin                     m_strokeJoin;
         rive::StrokeCap                      m_strokeCap;
 
-        bool  m_strokeDirty = false;
+        bool  m_strokeDirty     = false;
         float m_strokeThickness = 0.0f;
-
-        // sg_buffer m_strokeVertexBuffer = {0};
-        // sg_buffer m_strokeIndexBuffer = {0};
 
         dmArray<rive::Vec2D> m_strokeVertices;
         dmArray<uint16_t>    m_strokeIndices;

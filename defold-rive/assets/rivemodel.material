@@ -33,3 +33,11 @@ fragment_constants {
     w: 1.0
   }
 }
+samplers {
+  name: "texture_sampler"
+  wrap_u: WRAP_MODE_REPEAT
+  wrap_v: WRAP_MODE_REPEAT
+  filter_min: FILTER_MODE_MIN_LINEAR
+  filter_mag: FILTER_MODE_MAG_LINEAR
+  max_anisotropy: 0.0
+}

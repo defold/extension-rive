@@ -20,7 +20,7 @@
 
 #include <rive/assets/image_asset.hpp>
 
-#if 1
+#if 0
 #define DEBUGLOG(...) dmLogWarning("DEBUG: " __VA_ARGS__)
 #else
 #define DEBUGLOG(...)

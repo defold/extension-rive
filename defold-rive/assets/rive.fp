@@ -1,16 +1,21 @@
-#define FILL_TYPE_SOLID  0
-#define FILL_TYPE_LINEAR 1
-#define FILL_TYPE_RADIAL 2
+#define FILL_TYPE_SOLID    0
+#define FILL_TYPE_LINEAR   1
+#define FILL_TYPE_RADIAL   2
+#define FILL_TYPE_TEXTURED 3
+
 #define MAX_COLORS       16
 #define MAX_STOPS        4
 
 uniform vec4  colors[MAX_COLORS];
 uniform vec4  stops[MAX_STOPS];
-//varying vec2 vx_position;
+
+varying vec2 var_texcoord0;
 varying vec2 gradient_uv;
 
 uniform highp vec4  gradientLimits;
 uniform highp vec4  properties; // x: filltype, y: stopcount
+
+uniform sampler2D texture_sampler;
 
 void main()
 {
@@ -19,11 +24,15 @@ void main()
     int iStopCount = int(properties.y);
     int iFillType  = int(properties.x);
 
-    vec4 fragColor = vec4(vec3(1.0), 1.0);
+    vec4 fragColor = vec4(vec3(0.0), 1.0);
 
     if (iFillType == FILL_TYPE_SOLID)
     {
         fragColor = vec4(colors[0].rgb * colors[0].a, colors[0].a);
+    }
+    else if (iFillType == FILL_TYPE_TEXTURED)
+    {
+        fragColor = texture2D(texture_sampler, var_texcoord0);
     }
     else
     {

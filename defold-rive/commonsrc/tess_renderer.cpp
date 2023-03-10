@@ -17,6 +17,8 @@
 #include <dmsdk/dlib/array.h>
 #include <dmsdk/dlib/log.h>
 
+static int draw_count = 0;
+
 template<typename T>
 static void EnsureSize(dmArray<T>& a, uint32_t size)
 {
@@ -185,7 +187,6 @@ static void PushDrawDescriptor(dmArray<DrawDescriptor>& drawDescriptors, DrawDes
 {
     if (drawDescriptors.Full())
     {
-        dmLogInfo("FULl %d - %d", drawDescriptors.Size(), drawDescriptors.Capacity());
         drawDescriptors.OffsetCapacity(8);
     }
     drawDescriptors.Push(desc);
@@ -833,14 +834,6 @@ DefoldTessRenderer::DefoldTessRenderer() {
 }
 
 DefoldTessRenderer::~DefoldTessRenderer() {
-    // sg_destroy_buffer(m_boundsIndices);
-    // sg_destroy_pipeline(m_meshPipeline);
-    // sg_destroy_pipeline(m_incClipPipeline);
-    // sg_destroy_pipeline(m_decClipPipeline);
-    // for (std::size_t i = 0; i <= maxClippingPaths; i++) {
-    //     sg_destroy_pipeline(m_pathPipeline[i]);
-    //     sg_destroy_pipeline(m_pathScreenPipeline[i]);
-    // }
 }
 
 void DefoldTessRenderer::SetAtlas(Atlas* atlas) {
@@ -980,18 +973,21 @@ void DefoldTessRenderer::drawImage(const rive::RenderImage* _image, rive::BlendM
 
     dmRive::Region* region = dmRive::FindAtlasRegion(m_Atlas, image->m_NameHash);
 
+    // dmLogInfo("drawImage: %s", dmHashReverseSafe64(image->m_NameHash));
+
     if (!region)
     {
         dmLogError("Couldn't find region '%s' in atlas", dmHashReverseSafe64(image->m_NameHash));
         return;
     }
 
-    // dmLogInfo("drawImage: %s", dmHashReverseSafe64(image->m_NameHash));
+    applyClipping();
 
     VsUniforms vs_params = {};
     vs_params.world = transform();
 
     FsUniforms fs_uniforms = {0};
+    fs_uniforms.fillType = (int) FillType::FILL_TYPE_TEXTURED;
 
     DrawDescriptor desc = {};
     desc.m_VsUniforms     = vs_params;
@@ -1009,7 +1005,6 @@ rive::Vec2D* DefoldTessRenderer::getRegionUvs(dmRive::Region* region, float* tex
 {
     if (m_ScratchBufferVec2D.Full())
     {
-        dmLogInfo("getRegionUvs / SCRATCH BUFFER 2D %d - %d", m_ScratchBufferVec2D.Size(), m_ScratchBufferVec2D.Capacity());
         m_ScratchBufferVec2D.OffsetCapacity(texcoords_in_count);
     }
 
@@ -1030,6 +1025,11 @@ void DefoldTessRenderer::drawImageMesh(const rive::RenderImage* _image,
                                       float opacity) {
     DefoldRenderImage* image = (DefoldRenderImage*)_image;
 
+    //if (draw_count == 1)
+    {
+        dmLogInfo("drawImageMesh: %s", dmHashReverseSafe64(image->m_NameHash));
+    }
+
     if (!m_Atlas)
     {
         return;
@@ -1042,7 +1042,7 @@ void DefoldTessRenderer::drawImageMesh(const rive::RenderImage* _image,
         return;
     }
 
-    // dmLogInfo("drawImageMesh: %s", dmHashReverseSafe64(image->m_NameHash));
+    applyClipping();
 
     // print_mat2d(image->uvTransform());
 
@@ -1059,6 +1059,8 @@ void DefoldTessRenderer::drawImageMesh(const rive::RenderImage* _image,
     vs_params.world = transform();
 
     FsUniforms fs_uniforms = {0};
+
+    fs_uniforms.fillType = (int) FillType::FILL_TYPE_TEXTURED;
 
     DrawDescriptor desc = {};
     desc.m_VsUniforms     = vs_params;
@@ -1079,7 +1081,13 @@ void DefoldTessRenderer::drawImageMesh(const rive::RenderImage* _image,
 
 void DefoldTessRenderer::restore() {
     TessRenderer::restore();
+
+    //dmLogInfo("DefoldTessRenderer::restore, stack size == %d", m_Stack.size());
+
     if (m_Stack.size() == 1) {
+
+        //dmLogInfo("DefoldTessRenderer::restore - applying clip");
+
         // When we've fully restored, immediately update clip to not wait for next draw.
         applyClipping();
         //m_currentPipeline = {0};
@@ -1088,11 +1096,14 @@ void DefoldTessRenderer::restore() {
 
 void DefoldTessRenderer::applyClipping() {
     if (!m_IsClippingDirty) {
+        //dmLogInfo("Clipping is not dirty!");
         return;
     }
     m_IsClippingDirty = false;
 
     rive::RenderState& state = m_Stack.back();
+
+    //dmLogInfo("applyClipping: %d", state.clipPaths.size());
 
     auto currentClipLength = m_ClipPaths.Size();
     if (currentClipLength == state.clipPaths.size()) {
@@ -1105,6 +1116,7 @@ void DefoldTessRenderer::applyClipping() {
             }
         }
         if (allSame) {
+            //dmLogInfo("applyClipping: all the same!");
             return;
         }
     }
@@ -1154,10 +1166,7 @@ void DefoldTessRenderer::applyClipping() {
             continue;
         }
         // Draw nextClipPath.path() with incr pipeline
-        // setPipeline(m_incClipPipeline);
         vs_uniforms.world = nextClipPath.transform();
-        // sg_apply_uniforms(SG_SHADERSTAGE_VS, SLOT_vs_path_params, SG_RANGE_REF(vs_uniforms));
-        // sg_apply_uniforms(SG_SHADERSTAGE_FS, SLOT_fs_path_uniforms, SG_RANGE_REF(uniforms));
         auto path = static_cast<DefoldRenderPath*>(nextClipPath.path());
         DrawDescriptor desc = path->drawFill();
 
@@ -1175,28 +1184,27 @@ void DefoldTessRenderer::applyClipping() {
     EnsureSize(m_ClipPaths, state.clipPaths.size());
     memcpy(m_ClipPaths.Begin(), &state.clipPaths.front(), state.clipPaths.size() * sizeof(rive::SubPath));
 
+    //if (draw_count == 1)
+    {
+        //dmLogInfo("applyClipping, num clippers: %d", m_clipCount);
+    }
+
     // m_ClipPaths = state.clipPaths;
 }
 
 void DefoldTessRenderer::reset()
 {
+    dmLogInfo("render::reset");
+    draw_count++;
     m_DrawDescriptors.SetSize(0);
     m_ScratchBufferVec2D.SetSize(0);
     m_ScratchBufferIndices.SetSize(0);
 }
 
-// void DefoldTessRenderer::setPipeline(sg_pipeline pipeline)
-// {
-//     if (m_currentPipeline.id == pipeline.id) {
-//         return;
-//     }
-//     m_currentPipeline = pipeline;
-//     sg_apply_pipeline(pipeline);
-// }
-
 void DefoldTessRenderer::drawPath(rive::RenderPath* path, rive::RenderPaint* _paint) {
     auto paint = static_cast<DefoldRenderPaint*>(_paint);
 
+    //dmLogInfo("DefoldTessRenderer::drawPath");
     applyClipping();
     // vs_path_params_t vs_params = {.fillType = 0};
     // const Mat2D& world = transform();
@@ -1243,10 +1251,12 @@ std::unique_ptr<rive::RenderPaint> DefoldFactory::makeRenderPaint() {
 
 // Returns a full-formed RenderPath -- can be treated as immutable
 std::unique_ptr<rive::RenderPath> DefoldFactory::makeRenderPath(rive::RawPath& rawPath, rive::FillRule rule) {
+    //dmLogInfo("makeRenderPath");
     return std::make_unique<DefoldRenderPath>(rawPath, rule);
 }
 
 std::unique_ptr<rive::RenderPath> DefoldFactory::makeEmptyRenderPath() {
+    //dmLogInfo("makeEmptyRenderPath");
     return std::make_unique<DefoldRenderPath>();
 }
 
