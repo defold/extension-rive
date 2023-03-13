@@ -26,43 +26,6 @@ namespace dmRive {
     struct Atlas;
     struct Region;
 
-// // The actual graphics device image.
-// class DefoldRenderImageResource : public RefCnt {
-// private:
-//     sg_image m_gpuResource;
-
-// public:
-//     // bytes is expected to be tightly packed RGBA*width*height.
-//     DefoldRenderImageResource(const uint8_t* bytes, uint32_t width, uint32_t height);
-//     ~DefoldRenderImageResource();
-
-//     sg_image image() const { return m_gpuResource; }
-// };
-
-// The unique render image associated with a given source Rive asset. Can be stored in sub-region of
-// an actual graphics device image (DefoldRenderImageResource).
-// class DefoldRenderImage : public RenderImage {
-// private:
-//     rcp<DefoldRenderImageResource> m_gpuImage;
-//     sg_buffer m_vertexBuffer;
-//     sg_buffer m_uvBuffer;
-
-// public:
-//     // Needed by std::unique_ptr
-//     // DefoldRenderImage() {}
-
-//     DefoldRenderImage(rcp<DefoldRenderImageResource> image,
-//                      uint32_t width,
-//                      uint32_t height,
-//                      const Mat2D& uvTransform);
-
-//     ~DefoldRenderImage() override;
-
-//     sg_image image() const { return m_gpuImage->image(); }
-//     sg_buffer vertexBuffer() const { return m_vertexBuffer; }
-//     sg_buffer uvBuffer() const { return m_uvBuffer; }
-// };
-
     struct VsUniforms
     {
         rive::Mat4 world;

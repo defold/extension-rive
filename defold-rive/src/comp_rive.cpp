@@ -305,6 +305,40 @@ namespace dmRive
         }
     }
 
+    /*
+    rive::BlendMode::srcOver
+    rive::BlendMode::screen
+    rive::BlendMode::overlay
+    rive::BlendMode::darken
+    rive::BlendMode::lighten
+    rive::BlendMode::colorDodge
+    rive::BlendMode::colorBurn
+    rive::BlendMode::hardLight
+    rive::BlendMode::softLight
+    rive::BlendMode::difference
+    rive::BlendMode::exclusion
+    rive::BlendMode::multiply
+    rive::BlendMode::hue
+    rive::BlendMode::saturation
+    rive::BlendMode::color
+    rive::BlendMode::luminosity
+    */
+
+    static void GetBlendFactorsFromBlendMode(rive::BlendMode blend_mode, dmGraphics::BlendFactor* src, dmGraphics::BlendFactor* dst)
+    {
+        switch(blend_mode)
+        {
+            case rive::BlendMode::srcOver:
+                *src = dmGraphics::BLEND_FACTOR_ONE;
+                *dst = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            break;
+
+            default:
+                *src = dmGraphics::BLEND_FACTOR_SRC_ALPHA;
+                *dst = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            break;
+        }
+    }
 
     static void GetBlendFactorsFromBlendMode(dmRiveDDF::RiveModelDesc::BlendMode blend_mode, dmGraphics::BlendFactor* src, dmGraphics::BlendFactor* dst)
     {
@@ -445,6 +479,7 @@ namespace dmRive
             ro.m_VertexCount       = draw_desc.m_IndicesCount;
             ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_SHORT;
             ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
+            ro.m_SetBlendFactors   = 1;
 
             if (resource->m_Scene->m_TextureSet)
             {
@@ -496,6 +531,8 @@ namespace dmRive
             dmRive::ApplyDrawMode(ro, draw_desc.m_DrawMode, draw_desc.m_ClipIndex);
 
             memcpy(&ro.m_WorldTransform, &vs_uniforms.world, sizeof(vs_uniforms.world));
+
+            GetBlendFactorsFromBlendMode(draw_desc.m_BlendMode, &ro.m_SourceBlendFactor, &ro.m_DestinationBlendFactor);
         }
 
         // uint32_t num_ros_used = ProcessRiveEvents(ctx, renderer, vb_begin, ix_begin, RiveEventCallback_RenderObject, &engine_ctx);

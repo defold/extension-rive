@@ -1,6 +1,3 @@
-// #include "rive/tess/sokol/sokol_tess_renderer.hpp"
-// #include "rive/tess/sokol/sokol_factory.hpp"
-
 #include <common/atlas.h>
 #include <common/types.h>
 #include <common/tess_renderer.h>
@@ -12,12 +9,18 @@
 #include <rive/tess/tess_renderer.hpp>
 #include <rive/tess/tess_render_path.hpp>
 #include <rive/tess/contour_stroke.hpp>
-//#include <generated/shader.h>
 #include <unordered_set>
 #include <dmsdk/dlib/array.h>
 #include <dmsdk/dlib/log.h>
 
-static int draw_count = 0;
+template<typename T>
+static void EnsureCapacity(dmArray<T>& a, uint32_t capacity)
+{
+    if (a.Capacity() < capacity)
+    {
+        a.SetCapacity(capacity);
+    }
+}
 
 template<typename T>
 static void EnsureSize(dmArray<T>& a, uint32_t size)
@@ -232,15 +235,16 @@ void DefoldRenderPaint::draw(dmArray<DrawDescriptor>& drawDescriptors, VsUniform
             // m_strokeOffsets.clear();
             while (true) {
                 std::size_t strokeStart, strokeEnd;
-                if (!m_stroke->nextRenderOffset(strokeStart, strokeEnd)) {
+                if (!m_stroke->nextRenderOffset(strokeStart, strokeEnd))
+                {
                     break;
                 }
 
-                // printf("SS: %d, SE: %d\n", (int) strokeStart, (int) strokeEnd);
-
                 std::size_t length = strokeEnd - strokeStart;
-                if (length > 2) {
-                    for (std::size_t i = 0, end = length - 2; i < end; i++) {
+                if (length > 2)
+                {
+                    for (std::size_t i = 0, end = length - 2; i < end; i++)
+                    {
                         if ((i % 2) == 1) {
                             indices.push_back(i + strokeStart);
                             indices.push_back(i + 1 + strokeStart);
@@ -430,12 +434,7 @@ void DefoldTessRenderer::putImage(DrawDescriptor& draw_desc, dmRive::Region* reg
     const int num_texcoords = 4;
     const int num_indices   = 6;
 
-    if (m_ScratchBufferVec2D.Full())
-    {
-        m_ScratchBufferVec2D.OffsetCapacity(num_vertices + num_texcoords);
-    }
-
-    // print_mat2d(uv_transform);
+    EnsureCapacity(m_ScratchBufferVec2D, m_ScratchBufferVec2D.Size() + num_vertices + num_texcoords);
 
     uint32_t vx_index = m_ScratchBufferVec2D.Size();
     float halfWidth  = region->dimensions[0] / 2.0f;
@@ -482,10 +481,7 @@ void DefoldTessRenderer::putImage(DrawDescriptor& draw_desc, dmRive::Region* reg
 
     // dmRive::ConvertRegionToAtlasUV(region, 4, (float*) rive_uvs, uv_ptr);
 
-    if (m_ScratchBufferIndices.Full())
-    {
-        m_ScratchBufferIndices.OffsetCapacity(num_indices);
-    }
+    EnsureCapacity(m_ScratchBufferIndices, m_ScratchBufferIndices.Size() + num_indices);
     uint32_t indices_index = m_ScratchBufferIndices.Size();
 
     m_ScratchBufferIndices.Push(0);
@@ -503,18 +499,43 @@ void DefoldTessRenderer::putImage(DrawDescriptor& draw_desc, dmRive::Region* reg
     draw_desc.m_TexCoordsCount = 4;
 }
 
-void DefoldTessRenderer::drawImage(const rive::RenderImage* _image, rive::BlendMode blendMode, float opacity) {
+const char* BlendModeToStr(rive::BlendMode blendMode)
+{
+    switch(blendMode)
+    {
+        case rive::BlendMode::srcOver: return "BlendMode::srcOver";
+        case rive::BlendMode::screen: return "BlendMode::screen";
+        case rive::BlendMode::overlay: return "BlendMode::overlay";
+        case rive::BlendMode::darken: return "BlendMode::darken";
+        case rive::BlendMode::lighten: return "BlendMode::lighten";
+        case rive::BlendMode::colorDodge: return "BlendMode::colorDodge";
+        case rive::BlendMode::colorBurn: return "BlendMode::colorBurn";
+        case rive::BlendMode::hardLight: return "BlendMode::hardLight";
+        case rive::BlendMode::softLight: return "BlendMode::softLight";
+        case rive::BlendMode::difference: return "BlendMode::difference";
+        case rive::BlendMode::exclusion: return "BlendMode::exclusion";
+        case rive::BlendMode::multiply: return "BlendMode::multiply";
+        case rive::BlendMode::hue: return "BlendMode::hue";
+        case rive::BlendMode::saturation: return "BlendMode::saturation";
+        case rive::BlendMode::color: return "BlendMode::color";
+        case rive::BlendMode::luminosity: return "BlendMode::luminosity";
+    }
+    return "";
+}
+
+void DefoldTessRenderer::drawImage(const rive::RenderImage* _image, rive::BlendMode blendMode, float opacity)
+{
     DefoldRenderImage* image = (DefoldRenderImage*)_image;
 
     dmRive::Region* region = dmRive::FindAtlasRegion(m_Atlas, image->m_NameHash);
-
-    // dmLogInfo("drawImage: %s", dmHashReverseSafe64(image->m_NameHash));
 
     if (!region)
     {
         dmLogError("Couldn't find region '%s' in atlas", dmHashReverseSafe64(image->m_NameHash));
         return;
     }
+
+    // dmLogInfo("drawImage '%s' with blendMode: %s and opacity: %f", dmHashReverseSafe64(image->m_NameHash), BlendModeToStr(blendMode), opacity);
 
     applyClipping();
 
@@ -538,10 +559,7 @@ void DefoldTessRenderer::drawImage(const rive::RenderImage* _image, rive::BlendM
 
 rive::Vec2D* DefoldTessRenderer::getRegionUvs(dmRive::Region* region, float* texcoords_in, int texcoords_in_count)
 {
-    if (m_ScratchBufferVec2D.Full())
-    {
-        m_ScratchBufferVec2D.OffsetCapacity(texcoords_in_count);
-    }
+    EnsureCapacity(m_ScratchBufferVec2D, m_ScratchBufferVec2D.Size() + texcoords_in_count);
 
     uint32_t texcoord_index = m_ScratchBufferVec2D.Size();
     m_ScratchBufferVec2D.SetSize(m_ScratchBufferVec2D.Size() + texcoords_in_count);
@@ -557,18 +575,9 @@ void DefoldTessRenderer::drawImageMesh(const rive::RenderImage* _image,
                                       rive::rcp<rive::RenderBuffer> uvCoords_f32,
                                       rive::rcp<rive::RenderBuffer> indices_u16,
                                       rive::BlendMode blendMode,
-                                      float opacity) {
+                                      float opacity)
+{
     DefoldRenderImage* image = (DefoldRenderImage*)_image;
-
-    //if (draw_count == 1)
-    {
-        dmLogInfo("drawImageMesh: %s", dmHashReverseSafe64(image->m_NameHash));
-    }
-
-    if (!m_Atlas)
-    {
-        return;
-    }
 
     dmRive::Region* region = dmRive::FindAtlasRegion(m_Atlas, image->m_NameHash);
     if (!region)
@@ -578,8 +587,6 @@ void DefoldTessRenderer::drawImageMesh(const rive::RenderImage* _image,
     }
 
     applyClipping();
-
-    // print_mat2d(image->uvTransform());
 
     DefoldBuffer<float>*   vertexbuffer = (DefoldBuffer<float>*)vertices_f32.get();
     DefoldBuffer<uint16_t>* indexbuffer = (DefoldBuffer<uint16_t>*)indices_u16.get();
@@ -613,32 +620,23 @@ void DefoldTessRenderer::drawImageMesh(const rive::RenderImage* _image,
     PushDrawDescriptor(m_DrawDescriptors, desc);
 }
 
-
 void DefoldTessRenderer::restore() {
     TessRenderer::restore();
 
-    //dmLogInfo("DefoldTessRenderer::restore, stack size == %d", m_Stack.size());
-
-    if (m_Stack.size() == 1) {
-
-        //dmLogInfo("DefoldTessRenderer::restore - applying clip");
-
+    if (m_Stack.size() == 1)
+    {
         // When we've fully restored, immediately update clip to not wait for next draw.
         applyClipping();
-        //m_currentPipeline = {0};
     }
 }
 
 void DefoldTessRenderer::applyClipping() {
     if (!m_IsClippingDirty) {
-        //dmLogInfo("Clipping is not dirty!");
         return;
     }
     m_IsClippingDirty = false;
 
     rive::RenderState& state = m_Stack.back();
-
-    //dmLogInfo("applyClipping: %d", state.clipPaths.size());
 
     auto currentClipLength = m_ClipPaths.Size();
     if (currentClipLength == state.clipPaths.size()) {
@@ -651,7 +649,6 @@ void DefoldTessRenderer::applyClipping() {
             }
         }
         if (allSame) {
-            //dmLogInfo("applyClipping: all the same!");
             return;
         }
     }
@@ -675,12 +672,8 @@ void DefoldTessRenderer::applyClipping() {
         }
         if (decr) {
             // Draw appliedPath.path() with decr pipeline
-
-            // setPipeline(m_decClipPipeline);
             vs_uniforms.world = appliedPath.transform();
 
-            //sg_apply_uniforms(SG_SHADERSTAGE_VS, SLOT_vs_path_params, SG_RANGE_REF(vs_uniforms));
-            //sg_apply_uniforms(SG_SHADERSTAGE_FS, SLOT_fs_path_uniforms, SG_RANGE_REF(uniforms));
             auto path = static_cast<DefoldRenderPath*>(appliedPath.path());
             DrawDescriptor desc = path->drawFill();
 
@@ -718,19 +711,10 @@ void DefoldTessRenderer::applyClipping() {
 
     EnsureSize(m_ClipPaths, state.clipPaths.size());
     memcpy(m_ClipPaths.Begin(), &state.clipPaths.front(), state.clipPaths.size() * sizeof(rive::SubPath));
-
-    //if (draw_count == 1)
-    {
-        //dmLogInfo("applyClipping, num clippers: %d", m_clipCount);
-    }
-
-    // m_ClipPaths = state.clipPaths;
 }
 
 void DefoldTessRenderer::reset()
 {
-    //dmLogInfo("render::reset");
-    draw_count++;
     m_DrawDescriptors.SetSize(0);
     m_ScratchBufferVec2D.SetSize(0);
     m_ScratchBufferIndices.SetSize(0);
@@ -739,19 +723,7 @@ void DefoldTessRenderer::reset()
 void DefoldTessRenderer::drawPath(rive::RenderPath* path, rive::RenderPaint* _paint) {
     auto paint = static_cast<DefoldRenderPaint*>(_paint);
 
-    //dmLogInfo("DefoldTessRenderer::drawPath");
     applyClipping();
-    // vs_path_params_t vs_params = {.fillType = 0};
-    // const Mat2D& world = transform();
-
-    // vs_params.mvp = m_Projection * world;
-    // switch (sokolPaint->blendMode()) {
-    //     case BlendMode::srcOver: setPipeline(m_pathPipeline[m_clipCount]); break;
-    //     case BlendMode::screen: setPipeline(m_pathScreenPipeline[m_clipCount]); break;
-    //     case BlendMode::colorDodge: setPipeline(m_pathAdditivePipeline[m_clipCount]); break;
-    //     case BlendMode::multiply: setPipeline(m_pathMultiplyPipeline[m_clipCount]); break;
-    //     default: setPipeline(m_pathScreenPipeline[m_clipCount]); break;
-    // }
 
     VsUniforms vs_params = {};
     vs_params.world = transform();
@@ -786,12 +758,10 @@ std::unique_ptr<rive::RenderPaint> DefoldFactory::makeRenderPaint() {
 
 // Returns a full-formed RenderPath -- can be treated as immutable
 std::unique_ptr<rive::RenderPath> DefoldFactory::makeRenderPath(rive::RawPath& rawPath, rive::FillRule rule) {
-    //dmLogInfo("makeRenderPath");
     return std::make_unique<DefoldRenderPath>(rawPath, rule);
 }
 
 std::unique_ptr<rive::RenderPath> DefoldFactory::makeEmptyRenderPath() {
-    //dmLogInfo("makeEmptyRenderPath");
     return std::make_unique<DefoldRenderPath>();
 }
 
@@ -801,54 +771,3 @@ std::unique_ptr<rive::RenderImage> DefoldFactory::decodeImage(rive::Span<const u
 }
 
 } // namespace dmRive
-
-// SokolRenderImageResource::SokolRenderImageResource(const uint8_t* bytes,
-//                                                    uint32_t width,
-//                                                    uint32_t height) :
-//     m_gpuResource(sg_make_image((sg_image_desc){
-//         .width = (int)width,
-//         .height = (int)height,
-//         .data.subimage[0][0] = {bytes, width * height * 4},
-//         .pixel_format = SG_PIXELFORMAT_RGBA8,
-//     })) {}
-// SokolRenderImageResource::~SokolRenderImageResource() { sg_destroy_image(m_gpuResource); }
-
-// SokolRenderImage::SokolRenderImage(rcp<SokolRenderImageResource> image,
-//                                    uint32_t width,
-//                                    uint32_t height,
-//                                    const Mat2D& uvTransform) :
-
-//     RenderImage(uvTransform),
-//     m_gpuImage(image)
-
-// {
-//     float halfWidth = width / 2.0f;
-//     float halfHeight = height / 2.0f;
-//     Vec2D points[] = {
-//         Vec2D(-halfWidth, -halfHeight),
-//         Vec2D(halfWidth, -halfHeight),
-//         Vec2D(halfWidth, halfHeight),
-//         Vec2D(-halfWidth, halfHeight),
-//     };
-//     m_vertexBuffer = sg_make_buffer((sg_buffer_desc){
-//         .type = SG_BUFFERTYPE_VERTEXBUFFER,
-//         .data = SG_RANGE(points),
-//     });
-
-//     Vec2D uv[] = {
-//         uvTransform * Vec2D(0.0f, 0.0f),
-//         uvTransform * Vec2D(1.0f, 0.0f),
-//         uvTransform * Vec2D(1.0f, 1.0f),
-//         uvTransform * Vec2D(0.0f, 1.0f),
-//     };
-
-//     m_uvBuffer = sg_make_buffer((sg_buffer_desc){
-//         .type = SG_BUFFERTYPE_VERTEXBUFFER,
-//         .data = SG_RANGE(uv),
-//     });
-// }
-
-// SokolRenderImage::~SokolRenderImage() {
-//     sg_destroy_buffer(m_vertexBuffer);
-//     sg_destroy_buffer(m_uvBuffer);
-// }
