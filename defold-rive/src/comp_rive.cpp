@@ -483,7 +483,7 @@ namespace dmRive
 
             if (resource->m_Scene->m_TextureSet)
             {
-                ro.m_Textures[0] = resource->m_Scene->m_TextureSet->m_Texture;
+                ro.m_Textures[0] = resource->m_Scene->m_TextureSet->m_Texture->m_Texture;
             }
 
             DO_LOG("Ro: %d, vx %d ix %d\n", i, draw_desc.m_VerticesCount, draw_desc.m_IndicesCount);
