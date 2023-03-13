@@ -387,8 +387,6 @@ void DefoldTessRenderer::orthographicProjection(float left,
     m_Projection[6] = 0.0f;
     m_Projection[7] = 0.0f;
 
-//#ifdef SOKOL_GLCORE33
-    // Use OpenGL version
     m_Projection[8] = 0.0f;
     m_Projection[9] = 0.0f;
     m_Projection[10] = 2.0f / (near - far);
@@ -398,27 +396,6 @@ void DefoldTessRenderer::orthographicProjection(float left,
     m_Projection[13] = (top + bottom) / (bottom - top);
     m_Projection[14] = (far + near) / (near - far);
     m_Projection[15] = 1.0f;
-// #else
-//     // NDC are slightly different in Metal:
-//     // https://metashapes.com/blog/opengl-metal-projection-matrix-problem/
-//     m_Projection[8] = 0.0f;
-//     m_Projection[9] = 0.0f;
-//     m_Projection[10] = 1.0f / (far - near);
-//     m_Projection[11] = 0.0f;
-
-//     m_Projection[12] = (right + left) / (left - right);
-//     m_Projection[13] = (top + bottom) / (bottom - top);
-//     m_Projection[14] = near / (near - far);
-//     m_Projection[15] = 1.0f;
-// #endif
-    // for (int i = 0; i < 4; i++) {
-    //     int b = i * 4;
-    //     printf("%f\t%f\t%f\t%f\n",
-    //            m_Projection[b],
-    //            m_Projection[b + 1],
-    //            m_Projection[b + 2],
-    //            m_Projection[b + 3]);
-    // }
 }
 
 static void print_mat2d(const rive::Mat2D& m)
@@ -433,17 +410,21 @@ void DefoldTessRenderer::putImage(DrawDescriptor& draw_desc, dmRive::Region* reg
     const int num_vertices  = 4;
     const int num_texcoords = 4;
     const int num_indices   = 6;
-
-    EnsureCapacity(m_ScratchBufferVec2D, m_ScratchBufferVec2D.Size() + num_vertices + num_texcoords);
+    const bool rotate       = region->degrees == 90;
+    const float halfWidth   = region->dimensions[0] / 2.0f;
+    const float halfHeight  = rotate ? 1.0 - region->dimensions[1] / 2.0f : region->dimensions[1] / 2.0f;
 
     uint32_t vx_index = m_ScratchBufferVec2D.Size();
-    float halfWidth  = region->dimensions[0] / 2.0f;
-    float halfHeight = region->dimensions[1] / 2.0f;
 
-    bool rotate = region->degrees == 90;
+    EnsureSize(m_ScratchBufferVec2D, vx_index + num_vertices + num_texcoords);
 
-    rive::Vec2D rive_uvs[4];
+    rive::Vec2D* vx_write_ptr = &m_ScratchBufferVec2D[vx_index];
+    vx_write_ptr[0]           = rive::Vec2D(-halfWidth, -halfHeight);
+    vx_write_ptr[1]           = rive::Vec2D( halfWidth, -halfHeight);
+    vx_write_ptr[2]           = rive::Vec2D( halfWidth,  halfHeight);
+    vx_write_ptr[3]           = rive::Vec2D(-halfWidth,  halfHeight);
 
+    rive::Vec2D* tc_write_ptr = vx_write_ptr + num_vertices;
     rive::Vec2D uv0(region->uv1[0], region->uv1[1]);
     rive::Vec2D uv1(region->uv2[0], region->uv1[1]);
     rive::Vec2D uv2(region->uv2[0], region->uv2[1]);
@@ -451,52 +432,36 @@ void DefoldTessRenderer::putImage(DrawDescriptor& draw_desc, dmRive::Region* reg
 
     if (rotate)
     {
-        rive_uvs[0] = uv_transform * uv2;
-        rive_uvs[1] = uv_transform * uv1;
-        rive_uvs[2] = uv_transform * uv0;
-        rive_uvs[3] = uv_transform * uv3;
-        halfHeight  = 1.0 - halfHeight;
+        tc_write_ptr[0] = uv_transform * uv2;
+        tc_write_ptr[1] = uv_transform * uv1;
+        tc_write_ptr[2] = uv_transform * uv0;
+        tc_write_ptr[3] = uv_transform * uv3;
     }
     else
     {
-        rive_uvs[0] = uv_transform * rive::Vec2D(region->uv1[0], region->uv1[1]);
-        rive_uvs[1] = uv_transform * rive::Vec2D(region->uv2[0], region->uv1[1]);
-        rive_uvs[2] = uv_transform * rive::Vec2D(region->uv2[0], region->uv2[1]);
-        rive_uvs[3] = uv_transform * rive::Vec2D(region->uv1[0], region->uv2[1]);
+        tc_write_ptr[0] = uv_transform * uv0;
+        tc_write_ptr[1] = uv_transform * uv1;
+        tc_write_ptr[2] = uv_transform * uv2;
+        tc_write_ptr[3] = uv_transform * uv3;
     }
 
-    m_ScratchBufferVec2D.Push(rive::Vec2D(-halfWidth, -halfHeight));
-    m_ScratchBufferVec2D.Push(rive::Vec2D( halfWidth, -halfHeight));
-    m_ScratchBufferVec2D.Push(rive::Vec2D( halfWidth,  halfHeight));
-    m_ScratchBufferVec2D.Push(rive::Vec2D(-halfWidth,  halfHeight));
-
-    uint32_t uv_index = m_ScratchBufferVec2D.Size();
-
-    m_ScratchBufferVec2D.Push(rive_uvs[0]);
-    m_ScratchBufferVec2D.Push(rive_uvs[1]);
-    m_ScratchBufferVec2D.Push(rive_uvs[2]);
-    m_ScratchBufferVec2D.Push(rive_uvs[3]);
-
-    rive::Vec2D* uv_ptr = &m_ScratchBufferVec2D[uv_index];
-
-    // dmRive::ConvertRegionToAtlasUV(region, 4, (float*) rive_uvs, uv_ptr);
-
-    EnsureCapacity(m_ScratchBufferIndices, m_ScratchBufferIndices.Size() + num_indices);
     uint32_t indices_index = m_ScratchBufferIndices.Size();
+    EnsureSize(m_ScratchBufferIndices, m_ScratchBufferIndices.Size() + num_indices);
+    uint16_t* indices_write_ptr = &m_ScratchBufferIndices[indices_index];
 
-    m_ScratchBufferIndices.Push(0);
-    m_ScratchBufferIndices.Push(1);
-    m_ScratchBufferIndices.Push(2);
-    m_ScratchBufferIndices.Push(0);
-    m_ScratchBufferIndices.Push(2);
-    m_ScratchBufferIndices.Push(3);
+    indices_write_ptr[0] = 0;
+    indices_write_ptr[1] = 1;
+    indices_write_ptr[2] = 2;
+    indices_write_ptr[3] = 0;
+    indices_write_ptr[4] = 2;
+    indices_write_ptr[5] = 3;
 
-    draw_desc.m_Indices        = &m_ScratchBufferIndices[indices_index];
-    draw_desc.m_IndicesCount   = 6;
-    draw_desc.m_Vertices       = &m_ScratchBufferVec2D[vx_index];
-    draw_desc.m_VerticesCount  = 4;
-    draw_desc.m_TexCoords      = uv_ptr;
-    draw_desc.m_TexCoordsCount = 4;
+    draw_desc.m_Indices        = indices_write_ptr;
+    draw_desc.m_IndicesCount   = num_indices;
+    draw_desc.m_Vertices       = vx_write_ptr;
+    draw_desc.m_VerticesCount  = num_vertices;
+    draw_desc.m_TexCoords      = tc_write_ptr;
+    draw_desc.m_TexCoordsCount = num_texcoords;
 }
 
 const char* BlendModeToStr(rive::BlendMode blendMode)
@@ -559,12 +524,10 @@ void DefoldTessRenderer::drawImage(const rive::RenderImage* _image, rive::BlendM
 
 rive::Vec2D* DefoldTessRenderer::getRegionUvs(dmRive::Region* region, float* texcoords_in, int texcoords_in_count)
 {
-    EnsureCapacity(m_ScratchBufferVec2D, m_ScratchBufferVec2D.Size() + texcoords_in_count);
+    uint32_t tc_index = m_ScratchBufferVec2D.Size();
+    EnsureSize(m_ScratchBufferVec2D, tc_index + texcoords_in_count);
 
-    uint32_t texcoord_index = m_ScratchBufferVec2D.Size();
-    m_ScratchBufferVec2D.SetSize(m_ScratchBufferVec2D.Size() + texcoords_in_count);
-
-    rive::Vec2D* texcoord_ptr = &m_ScratchBufferVec2D[texcoord_index];
+    rive::Vec2D* texcoord_ptr = &m_ScratchBufferVec2D[tc_index];
 
     dmRive::ConvertRegionToAtlasUV(region, texcoords_in_count/2, texcoords_in, texcoord_ptr);
     return texcoord_ptr;
@@ -595,13 +558,10 @@ void DefoldTessRenderer::drawImageMesh(const rive::RenderImage* _image,
     int count                     = uvbuffer->count();
     float* uvs                    = uvbuffer->m_Data;
 
-    rive::Vec2D* region_uvs = getRegionUvs(region, uvs, count);
-
     VsUniforms vs_params = {};
     vs_params.world = transform();
 
     FsUniforms fs_uniforms = {0};
-
     fs_uniforms.fillType = (int) FillType::FILL_TYPE_TEXTURED;
 
     DrawDescriptor desc = {};
@@ -611,7 +571,7 @@ void DefoldTessRenderer::drawImageMesh(const rive::RenderImage* _image,
     desc.m_IndicesCount   = indexbuffer->count();
     desc.m_Vertices       = (rive::Vec2D*) vertexbuffer->m_Data;
     desc.m_VerticesCount  = vertexbuffer->count();
-    desc.m_TexCoords      = (rive::Vec2D*) region_uvs;
+    desc.m_TexCoords      = getRegionUvs(region, uvs, count);
     desc.m_TexCoordsCount = count / 2;
     desc.m_DrawMode       = DRAW_MODE_DEFAULT;
     desc.m_BlendMode      = blendMode;
