@@ -20,7 +20,7 @@
 
 #include <rive/assets/image_asset.hpp>
 
-#if 0
+#if 1
 #define DEBUGLOG(...) dmLogWarning("DEBUG: " __VA_ARGS__)
 #else
 #define DEBUGLOG(...)
@@ -145,11 +145,6 @@ namespace dmRive {
 
     Region* FindAtlasRegion(const Atlas* atlas, dmhash_t name_hash)
     {
-        if (atlas == 0)
-        {
-            return 0;
-        }
-
         const uint32_t* pindex = atlas->m_NameToIndex.Get(name_hash);
         if (!pindex)
             return 0;
@@ -158,21 +153,25 @@ namespace dmRive {
 
     void ConvertRegionToAtlasUV(const Region* region, uint32_t count, const float* uvs, rive::Vec2D* outuvs)
     {
-        bool rotate = region->degrees == 90;
+        bool rotate   = region->degrees == 90;
         float offsetu = region->offset[0];
         float offsetv = region->offset[1];
+
         // Width of the image in atlas space
-        float width = region->uv2[0] - region->uv1[0];
-        //float height = region->uv2[1] - region->uv1[1];
+        float width  = region->uv2[0] - region->uv1[0];
         float height = region->uv1[1] - region->uv2[1];
 
         if (rotate)
         {
-            dmLogInfo("Rotated");
-            float w = rotate ? -height : width;
-            float h = rotate ? width : height;
-            width = w;
-            height = h;
+            width    = region->uv1[0] - region->uv2[0];
+            height   = region->uv2[1] - region->uv1[1];
+            offsetu += region->uv1[0];
+            offsetv += region->uv1[1];
+        }
+        else
+        {
+            offsetu += region->uv1[0];
+            offsetv += region->uv2[1];
         }
 
         for (int i = 0; i < count; ++i)
@@ -189,8 +188,8 @@ namespace dmRive {
             float sv = height - height * rv;
 
             // Offset the uv to the correct place in the atlas
-            float outu = region->uv1[0] + offsetu + su;
-            float outv = region->uv2[1] + offsetv + sv;
+            float outu = offsetu + su;
+            float outv = offsetv + sv;
 
             // dmLogInfo("  uv: %f, %f w/h: %f, %f", outu, outv, width, height);
 

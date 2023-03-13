@@ -292,106 +292,6 @@ void DefoldRenderPaint::draw(dmArray<DrawDescriptor>& drawDescriptors, VsUniform
     }
 }
 
-// void draw(vs_path_params_t& vertexUniforms, DefoldRenderPath* path) {
-//     if (m_shader) {
-//         static_cast<Gradient*>(m_shader.get())->bind(vertexUniforms, m_uniforms);
-//     }
-
-//     sg_apply_uniforms(SG_SHADERSTAGE_VS, SLOT_vs_path_params, SG_RANGE_REF(vertexUniforms));
-//     sg_apply_uniforms(SG_SHADERSTAGE_FS, SLOT_fs_path_uniforms, SG_RANGE_REF(m_uniforms));
-//     if (m_stroke != nullptr) {
-//         if (m_strokeDirty) {
-//             static Mat2D identity;
-//             m_stroke->reset();
-//             path->extrudeStroke(m_stroke.get(),
-//                                 m_strokeJoin,
-//                                 m_strokeCap,
-//                                 m_strokeThickness / 2.0f,
-//                                 identity);
-//             m_strokeDirty = false;
-
-//             const std::vector<Vec2D>& strip = m_stroke->triangleStrip();
-
-//             sg_destroy_buffer(m_strokeVertexBuffer);
-//             sg_destroy_buffer(m_strokeIndexBuffer);
-//             auto size = strip.size();
-//             if (size <= 2) {
-//                 m_strokeVertexBuffer = {0};
-//                 m_strokeIndexBuffer = {0};
-//                 return;
-//             }
-
-//             m_strokeVertexBuffer = sg_make_buffer((sg_buffer_desc){
-//                 .type = SG_BUFFERTYPE_VERTEXBUFFER,
-//                 .data =
-//                     {
-//                         strip.data(),
-//                         strip.size() * sizeof(Vec2D),
-//                     },
-//             });
-
-//             // Let's use a tris index buffer so we can keep the same sokol pipeline.
-//             std::vector<uint16_t> indices;
-
-//             // Build them by stroke offsets (where each offset represents a sub-path, or a move
-//             // to)
-//             m_stroke->resetRenderOffset();
-//             m_StrokeOffsets.clear();
-//             while (true) {
-//                 std::size_t strokeStart, strokeEnd;
-//                 if (!m_stroke->nextRenderOffset(strokeStart, strokeEnd)) {
-//                     break;
-//                 }
-//                 std::size_t length = strokeEnd - strokeStart;
-//                 if (length > 2) {
-//                     for (std::size_t i = 0, end = length - 2; i < end; i++) {
-//                         if ((i % 2) == 1) {
-//                             indices.push_back(i + strokeStart);
-//                             indices.push_back(i + 1 + strokeStart);
-//                             indices.push_back(i + 2 + strokeStart);
-//                         } else {
-//                             indices.push_back(i + strokeStart);
-//                             indices.push_back(i + 2 + strokeStart);
-//                             indices.push_back(i + 1 + strokeStart);
-//                         }
-//                     }
-//                     m_StrokeOffsets.push_back(indices.size());
-//                 }
-//             }
-
-//             m_strokeIndexBuffer = sg_make_buffer((sg_buffer_desc){
-//                 .type = SG_BUFFERTYPE_INDEXBUFFER,
-//                 .data =
-//                     {
-//                         indices.data(),
-//                         indices.size() * sizeof(uint16_t),
-//                     },
-//             });
-//         }
-//         if (m_strokeVertexBuffer.id == 0) {
-//             return;
-//         }
-
-//         sg_bindings bind = {
-//             .vertex_buffers[0] = m_strokeVertexBuffer,
-//             .index_buffer = m_strokeIndexBuffer,
-//         };
-
-//         sg_apply_bindings(&bind);
-
-//         m_stroke->resetRenderOffset();
-//         // path->drawStroke(m_stroke.get());
-//         std::size_t start = 0;
-//         for (auto end : m_StrokeOffsets) {
-//             sg_draw(start, end - start, 1);
-//             start = end;
-//         }
-
-//     } else {
-//         path->drawFill();
-//     }
-// }
-
 DefoldRenderPath::DefoldRenderPath()
 {
 }
@@ -454,383 +354,10 @@ DrawDescriptor DefoldRenderPath::drawFill()
     desc.m_Vertices      = m_vertices.Begin();
     desc.m_VerticesCount = m_vertices.Size();
     return desc;
-
-    // if (triangulate()) {
-    //     sg_destroy_buffer(m_vertexBuffer);
-    //     sg_destroy_buffer(m_indexBuffer);
-    //     if (m_indices.size() == 0 || m_vertices.size() == 0) {
-    //         m_vertexBuffer = {0};
-    //         m_indexBuffer = {0};
-    //         return;
-    //     }
-
-    //     m_vertexBuffer = sg_make_buffer((sg_buffer_desc){
-    //         .type = SG_BUFFERTYPE_VERTEXBUFFER,
-    //         .data =
-    //             {
-    //                 m_vertices.data(),
-    //                 m_vertices.size() * sizeof(Vec2D),
-    //             },
-    //     });
-
-    //     m_indexBuffer = sg_make_buffer((sg_buffer_desc){
-    //         .type = SG_BUFFERTYPE_INDEXBUFFER,
-    //         .data =
-    //             {
-    //                 m_indices.data(),
-    //                 m_indices.size() * sizeof(uint16_t),
-    //             },
-    //     });
-    // }
-
-    // if (m_vertexBuffer.id == 0) {
-    //     return;
-    // }
-
-    // sg_bindings bind = {
-    //     .vertex_buffers[0] = m_vertexBuffer,
-    //     .index_buffer = m_indexBuffer,
-    // };
-
-    // sg_apply_bindings(&bind);
-    // sg_draw(0, m_indices.size(), 1);
 }
-
-// class SokolBuffer : public RenderBuffer {
-// private:
-//     sg_buffer m_Buffer;
-
-// public:
-//     SokolBuffer(size_t count, const sg_buffer_desc& desc) :
-//         RenderBuffer(count), m_Buffer(sg_make_buffer(desc)) {}
-//     ~SokolBuffer() { sg_destroy_buffer(m_Buffer); }
-
-//     sg_buffer buffer() { return m_Buffer; }
-// };
-
-// rcp<RenderBuffer> SokolFactory::makeBufferU16(Span<const uint16_t> span) {
-//     return rcp<RenderBuffer>(new SokolBuffer(span.size(),
-//                                              (sg_buffer_desc){
-//                                                  .type = SG_BUFFERTYPE_INDEXBUFFER,
-//                                                  .data =
-//                                                      {
-//                                                          span.data(),
-//                                                          span.size_bytes(),
-//                                                      },
-//                                              }));
-// }
-
-// rcp<RenderBuffer> SokolFactory::makeBufferU32(Span<const uint32_t> span) {
-//     return rcp<RenderBuffer>(new SokolBuffer(span.size(),
-//                                              (sg_buffer_desc){
-//                                                  .type = SG_BUFFERTYPE_INDEXBUFFER,
-//                                                  .data =
-//                                                      {
-//                                                          span.data(),
-//                                                          span.size_bytes(),
-//                                                      },
-//                                              }));
-// }
-// rcp<RenderBuffer> SokolFactory::makeBufferF32(Span<const float> span) {
-//     return rcp<RenderBuffer>(new SokolBuffer(span.size(),
-//                                              (sg_buffer_desc){
-//                                                  .type = SG_BUFFERTYPE_VERTEXBUFFER,
-//                                                  .data =
-//                                                      {
-//                                                          span.data(),
-//                                                          span.size_bytes(),
-//                                                      },
-//                                              }));
-// }
-
-// sg_pipeline vectorPipeline(sg_shader shader,
-//                            sg_blend_state blend,
-//                            sg_stencil_state stencil,
-//                            sg_color_mask colorMask = SG_COLORMASK_RGBA) {
-//     return sg_make_pipeline((sg_pipeline_desc){
-//         .layout =
-//             {
-//                 .attrs =
-//                     {
-//                         [ATTR_vs_path_position] =
-//                             {
-//                                 .format = SG_VERTEXFORMAT_FLOAT2,
-//                                 .buffer_index = 0,
-//                             },
-//                     },
-//             },
-//         .shader = shader,
-//         .index_type = SG_INDEXTYPE_UINT16,
-//         .cull_mode = SG_CULLMODE_NONE,
-//         .depth =
-//             {
-//                 .compare = SG_COMPAREFUNC_ALWAYS,
-//                 .write_enabled = false,
-//             },
-//         .colors =
-//             {
-//                 [0] =
-//                     {
-//                         .write_mask = colorMask,
-//                         .blend = blend,
-//                     },
-//             },
-//         .stencil = stencil,
-//         .label = "path-pipeline",
-//     });
-// }
 
 DefoldTessRenderer::DefoldTessRenderer() {
     m_Atlas = 0;
-
-    // m_meshPipeline = sg_make_pipeline((sg_pipeline_desc){
-    //     .layout =
-    //         {
-    //             .attrs =
-    //                 {
-    //                     [ATTR_vs_position] = {.format = SG_VERTEXFORMAT_FLOAT2, .buffer_index = 0},
-    //                     [ATTR_vs_texcoord0] = {.format = SG_VERTEXFORMAT_FLOAT2, .buffer_index = 1},
-    //                 },
-    //         },
-    //     .shader = sg_make_shader(rive_tess_shader_desc(sg_query_backend())),
-    //     .index_type = SG_INDEXTYPE_UINT16,
-    //     .cull_mode = SG_CULLMODE_NONE,
-    //     .depth =
-    //         {
-    //             .compare = SG_COMPAREFUNC_ALWAYS,
-    //             .write_enabled = false,
-    //         },
-    //     .colors =
-    //         {
-    //             [0] =
-    //                 {
-    //                     .write_mask = SG_COLORMASK_RGBA,
-    //                     .blend =
-    //                         {
-    //                             .enabled = true,
-    //                             .src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA,
-    //                             .dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-    //                         },
-    //                 },
-    //         },
-    //     .label = "mesh-pipeline",
-    // });
-
-    // auto uberShader = sg_make_shader(rive_tess_path_shader_desc(sg_query_backend()));
-
-    // assert(maxClippingPaths < 256);
-
-    // // Src Over Pipelines
-    // {
-    //     m_pathPipeline[0] = vectorPipeline(uberShader,
-    //                                        {
-    //                                            .enabled = true,
-    //                                            .src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA,
-    //                                            .dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-    //                                        },
-    //                                        {
-    //                                            .enabled = false,
-    //                                        });
-
-    //     for (std::size_t i = 1; i <= maxClippingPaths; i++) {
-    //         m_pathPipeline[i] =
-    //             vectorPipeline(uberShader,
-    //                            {
-    //                                .enabled = true,
-    //                                .src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA,
-    //                                .dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-    //                            },
-    //                            {
-    //                                .enabled = true,
-    //                                .ref = (uint8_t)i,
-    //                                .read_mask = 0xFF,
-    //                                .write_mask = 0x00,
-    //                                .front =
-    //                                    {
-    //                                        .compare = SG_COMPAREFUNC_EQUAL,
-    //                                    },
-    //                                .back =
-    //                                    {
-    //                                        .compare = SG_COMPAREFUNC_EQUAL,
-    //                                    },
-    //                            });
-    //     }
-    // }
-
-    // // Screen Pipelines
-    // {
-    //     m_pathScreenPipeline[0] =
-    //         vectorPipeline(uberShader,
-    //                        {
-    //                            .enabled = true,
-    //                            .src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA,
-    //                            .dst_factor_rgb = SG_BLENDFACTOR_ONE,
-    //                            .src_factor_alpha = SG_BLENDFACTOR_SRC_ALPHA,
-    //                            .dst_factor_alpha = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-    //                        },
-    //                        {
-    //                            .enabled = false,
-    //                        });
-
-    //     for (std::size_t i = 1; i <= maxClippingPaths; i++) {
-    //         m_pathScreenPipeline[i] =
-    //             vectorPipeline(uberShader,
-    //                            {
-    //                                .enabled = true,
-    //                                .src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA,
-    //                                .dst_factor_rgb = SG_BLENDFACTOR_ONE,
-    //                                .src_factor_alpha = SG_BLENDFACTOR_SRC_ALPHA,
-    //                                .dst_factor_alpha = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-    //                            },
-    //                            {
-    //                                .enabled = true,
-    //                                .ref = (uint8_t)i,
-    //                                .read_mask = 0xFF,
-    //                                .write_mask = 0x00,
-    //                                .front =
-    //                                    {
-    //                                        .compare = SG_COMPAREFUNC_EQUAL,
-    //                                    },
-    //                                .back =
-    //                                    {
-    //                                        .compare = SG_COMPAREFUNC_EQUAL,
-    //                                    },
-    //                            });
-    //     }
-    // }
-
-    // // Additive Pipelines
-    // {
-    //     m_pathAdditivePipeline[0] = vectorPipeline(uberShader,
-    //                                                {
-    //                                                    .enabled = true,
-    //                                                    .src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA,
-    //                                                    .dst_factor_rgb = SG_BLENDFACTOR_ONE,
-    //                                                },
-    //                                                {
-    //                                                    .enabled = false,
-    //                                                });
-
-    //     for (std::size_t i = 1; i <= maxClippingPaths; i++) {
-    //         m_pathAdditivePipeline[i] =
-    //             vectorPipeline(uberShader,
-    //                            {
-    //                                .enabled = true,
-    //                                .src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA,
-    //                                .dst_factor_rgb = SG_BLENDFACTOR_ONE,
-    //                            },
-    //                            {
-    //                                .enabled = true,
-    //                                .ref = (uint8_t)i,
-    //                                .read_mask = 0xFF,
-    //                                .write_mask = 0x00,
-    //                                .front =
-    //                                    {
-    //                                        .compare = SG_COMPAREFUNC_EQUAL,
-    //                                    },
-    //                                .back =
-    //                                    {
-    //                                        .compare = SG_COMPAREFUNC_EQUAL,
-    //                                    },
-    //                            });
-    //     }
-    // }
-
-    // // Multiply Pipelines
-    // {
-    //     m_pathMultiplyPipeline[0] =
-    //         vectorPipeline(uberShader,
-    //                        {
-    //                            .enabled = true,
-    //                            .src_factor_rgb = SG_BLENDFACTOR_DST_COLOR,
-    //                            .dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-    //                        },
-    //                        {
-    //                            .enabled = false,
-    //                        });
-
-    //     for (std::size_t i = 1; i <= maxClippingPaths; i++) {
-    //         m_pathMultiplyPipeline[i] =
-    //             vectorPipeline(uberShader,
-    //                            {
-    //                                .enabled = true,
-    //                                .src_factor_rgb = SG_BLENDFACTOR_DST_COLOR,
-    //                                .dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-    //                            },
-    //                            {
-    //                                .enabled = true,
-    //                                .ref = (uint8_t)i,
-    //                                .read_mask = 0xFF,
-    //                                .write_mask = 0x00,
-    //                                .front =
-    //                                    {
-    //                                        .compare = SG_COMPAREFUNC_EQUAL,
-    //                                    },
-    //                                .back =
-    //                                    {
-    //                                        .compare = SG_COMPAREFUNC_EQUAL,
-    //                                    },
-    //                            });
-    //     }
-    // }
-
-    // m_incClipPipeline = vectorPipeline(uberShader,
-    //                                    {
-    //                                        .enabled = false,
-    //                                    },
-    //                                    {
-    //                                        .enabled = true,
-    //                                        .read_mask = 0xFF,
-    //                                        .write_mask = 0xFF,
-    //                                        .front =
-    //                                            {
-    //                                                .compare = SG_COMPAREFUNC_ALWAYS,
-    //                                                .depth_fail_op = SG_STENCILOP_KEEP,
-    //                                                .fail_op = SG_STENCILOP_KEEP,
-    //                                                .pass_op = SG_STENCILOP_INCR_CLAMP,
-    //                                            },
-    //                                        .back =
-    //                                            {
-    //                                                .compare = SG_COMPAREFUNC_ALWAYS,
-    //                                                .depth_fail_op = SG_STENCILOP_KEEP,
-    //                                                .fail_op = SG_STENCILOP_KEEP,
-    //                                                .pass_op = SG_STENCILOP_INCR_CLAMP,
-    //                                            },
-    //                                    },
-    //                                    SG_COLORMASK_NONE);
-
-    // m_decClipPipeline = vectorPipeline(uberShader,
-    //                                    {
-    //                                        .enabled = false,
-    //                                    },
-    //                                    {
-    //                                        .enabled = true,
-    //                                        .read_mask = 0xFF,
-    //                                        .write_mask = 0xFF,
-    //                                        .front =
-    //                                            {
-    //                                                .compare = SG_COMPAREFUNC_ALWAYS,
-    //                                                .depth_fail_op = SG_STENCILOP_KEEP,
-    //                                                .fail_op = SG_STENCILOP_KEEP,
-    //                                                .pass_op = SG_STENCILOP_DECR_CLAMP,
-    //                                            },
-    //                                        .back =
-    //                                            {
-    //                                                .compare = SG_COMPAREFUNC_ALWAYS,
-    //                                                .depth_fail_op = SG_STENCILOP_KEEP,
-    //                                                .fail_op = SG_STENCILOP_KEEP,
-    //                                                .pass_op = SG_STENCILOP_DECR_CLAMP,
-    //                                            },
-    //                                    },
-    //                                    SG_COLORMASK_NONE);
-
-    // uint16_t indices[] = {0, 1, 2, 0, 2, 3};
-
-    // m_boundsIndices = sg_make_buffer((sg_buffer_desc){
-    //     .type = SG_BUFFERTYPE_INDEXBUFFER,
-    //     .data = SG_RANGE(indices),
-    // });
-
 }
 
 DefoldTessRenderer::~DefoldTessRenderer() {
@@ -914,29 +441,37 @@ void DefoldTessRenderer::putImage(DrawDescriptor& draw_desc, dmRive::Region* reg
     float halfWidth  = region->dimensions[0] / 2.0f;
     float halfHeight = region->dimensions[1] / 2.0f;
 
+    bool rotate = region->degrees == 90;
+
+    rive::Vec2D rive_uvs[4];
+
+    rive::Vec2D uv0(region->uv1[0], region->uv1[1]);
+    rive::Vec2D uv1(region->uv2[0], region->uv1[1]);
+    rive::Vec2D uv2(region->uv2[0], region->uv2[1]);
+    rive::Vec2D uv3(region->uv1[0], region->uv2[1]);
+
+    if (rotate)
+    {
+        rive_uvs[0] = uv_transform * uv2;
+        rive_uvs[1] = uv_transform * uv1;
+        rive_uvs[2] = uv_transform * uv0;
+        rive_uvs[3] = uv_transform * uv3;
+        halfHeight  = 1.0 - halfHeight;
+    }
+    else
+    {
+        rive_uvs[0] = uv_transform * rive::Vec2D(region->uv1[0], region->uv1[1]);
+        rive_uvs[1] = uv_transform * rive::Vec2D(region->uv2[0], region->uv1[1]);
+        rive_uvs[2] = uv_transform * rive::Vec2D(region->uv2[0], region->uv2[1]);
+        rive_uvs[3] = uv_transform * rive::Vec2D(region->uv1[0], region->uv2[1]);
+    }
+
     m_ScratchBufferVec2D.Push(rive::Vec2D(-halfWidth, -halfHeight));
     m_ScratchBufferVec2D.Push(rive::Vec2D( halfWidth, -halfHeight));
     m_ScratchBufferVec2D.Push(rive::Vec2D( halfWidth,  halfHeight));
     m_ScratchBufferVec2D.Push(rive::Vec2D(-halfWidth,  halfHeight));
 
     uint32_t uv_index = m_ScratchBufferVec2D.Size();
-
-    //m_ScratchBufferVec2D.SetSize(uv_index + num_texcoords);
-    //rive::Vec2D* uv_ptr = &m_ScratchBufferVec2D[uv_index];
-
-    /*
-    region->uv1[0] = minU;
-    region->uv1[1] = maxV;
-    region->uv2[0] = maxU;
-    region->uv2[1] = minV;
-    */
-
-    rive::Vec2D rive_uvs[] = {
-        uv_transform * rive::Vec2D(region->uv1[0], region->uv1[1]),
-        uv_transform * rive::Vec2D(region->uv2[0], region->uv1[1]),
-        uv_transform * rive::Vec2D(region->uv2[0], region->uv2[1]),
-        uv_transform * rive::Vec2D(region->uv1[0], region->uv2[1]),
-    };
 
     m_ScratchBufferVec2D.Push(rive_uvs[0]);
     m_ScratchBufferVec2D.Push(rive_uvs[1]);
@@ -1194,7 +729,7 @@ void DefoldTessRenderer::applyClipping() {
 
 void DefoldTessRenderer::reset()
 {
-    dmLogInfo("render::reset");
+    //dmLogInfo("render::reset");
     draw_count++;
     m_DrawDescriptors.SetSize(0);
     m_ScratchBufferVec2D.SetSize(0);
