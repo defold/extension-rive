@@ -14,15 +14,6 @@
 #include <dmsdk/dlib/log.h>
 
 template<typename T>
-static void EnsureCapacity(dmArray<T>& a, uint32_t capacity)
-{
-    if (a.Capacity() < capacity)
-    {
-        a.SetCapacity(capacity);
-    }
-}
-
-template<typename T>
 static void EnsureSize(dmArray<T>& a, uint32_t size)
 {
     if (a.Capacity() < size)
