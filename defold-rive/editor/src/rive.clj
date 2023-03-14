@@ -579,7 +579,7 @@
             (dynamic error (g/fnk [_node-id atlas]
                                   (validate-scene-atlas _node-id atlas))))
 
-; This property isn't visible, but here to allow us to preview the .spinescene        
+; This property isn't visible, but here to allow us to preview the .spinescene
   (property material resource/Resource
             (value (gu/passthrough material-resource))
             (set (fn [evaluation-context self old-value new-value]

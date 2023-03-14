@@ -20,7 +20,7 @@
 
 #include <rive/assets/image_asset.hpp>
 
-#if 1
+#if 0
 #define DEBUGLOG(...) dmLogWarning("DEBUG: " __VA_ARGS__)
 #else
 #define DEBUGLOG(...)
@@ -219,7 +219,7 @@ namespace dmRive {
             if (name_ext_end)
                 name_ext_end[0] = 0;
 
-            dmLogWarning("Found Asset: %s", name_str);
+            DEBUGLOG("Found Asset: %s", name_str);
             dmhash_t name_hash = dmHashString64(name_str);
 
             free(name_str);

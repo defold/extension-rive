@@ -464,30 +464,6 @@ void DefoldTessRenderer::putImage(DrawDescriptor& draw_desc, dmRive::Region* reg
     draw_desc.m_TexCoordsCount = num_texcoords;
 }
 
-const char* BlendModeToStr(rive::BlendMode blendMode)
-{
-    switch(blendMode)
-    {
-        case rive::BlendMode::srcOver: return "BlendMode::srcOver";
-        case rive::BlendMode::screen: return "BlendMode::screen";
-        case rive::BlendMode::overlay: return "BlendMode::overlay";
-        case rive::BlendMode::darken: return "BlendMode::darken";
-        case rive::BlendMode::lighten: return "BlendMode::lighten";
-        case rive::BlendMode::colorDodge: return "BlendMode::colorDodge";
-        case rive::BlendMode::colorBurn: return "BlendMode::colorBurn";
-        case rive::BlendMode::hardLight: return "BlendMode::hardLight";
-        case rive::BlendMode::softLight: return "BlendMode::softLight";
-        case rive::BlendMode::difference: return "BlendMode::difference";
-        case rive::BlendMode::exclusion: return "BlendMode::exclusion";
-        case rive::BlendMode::multiply: return "BlendMode::multiply";
-        case rive::BlendMode::hue: return "BlendMode::hue";
-        case rive::BlendMode::saturation: return "BlendMode::saturation";
-        case rive::BlendMode::color: return "BlendMode::color";
-        case rive::BlendMode::luminosity: return "BlendMode::luminosity";
-    }
-    return "";
-}
-
 void DefoldTessRenderer::drawImage(const rive::RenderImage* _image, rive::BlendMode blendMode, float opacity)
 {
     DefoldRenderImage* image = (DefoldRenderImage*)_image;
@@ -500,15 +476,16 @@ void DefoldTessRenderer::drawImage(const rive::RenderImage* _image, rive::BlendM
         return;
     }
 
-    // dmLogInfo("drawImage '%s' with blendMode: %s and opacity: %f", dmHashReverseSafe64(image->m_NameHash), BlendModeToStr(blendMode), opacity);
-
     applyClipping();
+
+    // dmLogInfo("blend_mode: %s, opacity: %f", BlendModeToStr(blendMode), opacity);
 
     VsUniforms vs_params = {};
     vs_params.world = transform();
 
-    FsUniforms fs_uniforms = {0};
-    fs_uniforms.fillType = (int) FillType::FILL_TYPE_TEXTURED;
+    FsUniforms fs_uniforms   = {0};
+    fs_uniforms.fillType     = (int) FillType::FILL_TYPE_TEXTURED;
+    fs_uniforms.colors[0][3] = opacity;
 
     DrawDescriptor desc = {};
     desc.m_VsUniforms     = vs_params;
@@ -561,8 +538,9 @@ void DefoldTessRenderer::drawImageMesh(const rive::RenderImage* _image,
     VsUniforms vs_params = {};
     vs_params.world = transform();
 
-    FsUniforms fs_uniforms = {0};
-    fs_uniforms.fillType = (int) FillType::FILL_TYPE_TEXTURED;
+    FsUniforms fs_uniforms   = {0};
+    fs_uniforms.fillType     = (int) FillType::FILL_TYPE_TEXTURED;
+    fs_uniforms.colors[0][3] = opacity;
 
     DrawDescriptor desc = {};
     desc.m_VsUniforms     = vs_params;

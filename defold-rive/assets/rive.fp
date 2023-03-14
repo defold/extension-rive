@@ -28,11 +28,13 @@ void main()
 
     if (iFillType == FILL_TYPE_SOLID)
     {
-        fragColor = vec4(colors[0].rgb * colors[0].a, colors[0].a);
+        fragColor = colors[0];
     }
     else if (iFillType == FILL_TYPE_TEXTURED)
     {
-        fragColor = texture2D(texture_sampler, var_texcoord0);
+        fragColor      = texture2D(texture_sampler, var_texcoord0);
+        //fragColor.rgb *= colors[0].a;
+        fragColor.a  *= colors[0].a;
     }
     else
     {
