@@ -19,6 +19,9 @@
 namespace dmRive {
 
 class DefoldRenderImage : public rive::RenderImage {
+private:
+    
+
 public:
     dmhash_t m_NameHash;
     DefoldRenderImage(dmhash_t name_hash);

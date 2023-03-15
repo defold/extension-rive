@@ -177,9 +177,12 @@ namespace dmRive
         RiveModelResource* resource = component->m_Resource;
         dmRiveDDF::RiveModelDesc* ddf = resource->m_DDF;
         dmRender::HMaterial material = GetMaterial(component, resource);
+        dmGameSystem::TextureSetResource* texture_set = resource->m_Scene->m_TextureSet;
         dmHashInit32(&state, reverse);
         dmHashUpdateBuffer32(&state, &material, sizeof(material));
         dmHashUpdateBuffer32(&state, &ddf->m_BlendMode, sizeof(ddf->m_BlendMode));
+        if (texture_set)
+            dmHashUpdateBuffer32(&state, &texture_set, sizeof(texture_set));
         if (component->m_RenderConstants)
             dmGameSystem::HashRenderConstants(component->m_RenderConstants, &state);
         component->m_MixedHash = dmHashFinal32(&state);
@@ -302,6 +305,85 @@ namespace dmRive
         }
     }
 
+    /*
+    rive::BlendMode::srcOver
+    rive::BlendMode::screen
+    rive::BlendMode::overlay
+    rive::BlendMode::darken
+    rive::BlendMode::lighten
+    rive::BlendMode::colorDodge
+    rive::BlendMode::colorBurn
+    rive::BlendMode::hardLight
+    rive::BlendMode::softLight
+    rive::BlendMode::difference
+    rive::BlendMode::exclusion
+    rive::BlendMode::multiply
+    rive::BlendMode::hue
+    rive::BlendMode::saturation
+    rive::BlendMode::color
+    rive::BlendMode::luminosity
+    */
+
+    const char* BlendModeToStr(rive::BlendMode blendMode)
+    {
+        switch(blendMode)
+        {
+            case rive::BlendMode::srcOver: return "BlendMode::srcOver";
+            case rive::BlendMode::screen: return "BlendMode::screen";
+            case rive::BlendMode::overlay: return "BlendMode::overlay";
+            case rive::BlendMode::darken: return "BlendMode::darken";
+            case rive::BlendMode::lighten: return "BlendMode::lighten";
+            case rive::BlendMode::colorDodge: return "BlendMode::colorDodge";
+            case rive::BlendMode::colorBurn: return "BlendMode::colorBurn";
+            case rive::BlendMode::hardLight: return "BlendMode::hardLight";
+            case rive::BlendMode::softLight: return "BlendMode::softLight";
+            case rive::BlendMode::difference: return "BlendMode::difference";
+            case rive::BlendMode::exclusion: return "BlendMode::exclusion";
+            case rive::BlendMode::multiply: return "BlendMode::multiply";
+            case rive::BlendMode::hue: return "BlendMode::hue";
+            case rive::BlendMode::saturation: return "BlendMode::saturation";
+            case rive::BlendMode::color: return "BlendMode::color";
+            case rive::BlendMode::luminosity: return "BlendMode::luminosity";
+        }
+        return "";
+    }
+
+    static void GetBlendFactorsFromBlendMode(rive::BlendMode blend_mode, dmGraphics::BlendFactor* src, dmGraphics::BlendFactor* dst)
+    {
+        switch(blend_mode)
+        {
+            case rive::BlendMode::srcOver:
+                // JG: Some textures look strange without one here for src, but the sokol viewer sets these blend modes so not sure what to do here
+                //*src = dmGraphics::BLEND_FACTOR_ONE;
+                *src = dmGraphics::BLEND_FACTOR_SRC_ALPHA;
+                *dst = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            break;
+
+            case rive::BlendMode::colorDodge:
+                *src = dmGraphics::BLEND_FACTOR_DST_COLOR; // SG_BLENDFACTOR_SRC_ALPHA
+                *dst = dmGraphics::BLEND_FACTOR_ONE;       // SG_BLENDFACTOR_ONE;
+            break;
+
+            case rive::BlendMode::multiply:
+                *src = dmGraphics::BLEND_FACTOR_DST_COLOR;           // SG_BLENDFACTOR_DST_COLOR
+                *dst = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA; // SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA
+            break;
+
+            case rive::BlendMode::screen:
+                *src = dmGraphics::BLEND_FACTOR_ONE_MINUS_DST_COLOR;
+                *dst = dmGraphics::BLEND_FACTOR_ONE;
+            break;
+
+            default:
+                if ((int) blend_mode != 0)
+                {
+                    dmLogOnceWarning("Blend mode '%s' (%d) is not supported, defaulting to '%s'", BlendModeToStr(blend_mode), (int) blend_mode, BlendModeToStr(rive::BlendMode::srcOver));
+                }
+                *src = dmGraphics::BLEND_FACTOR_SRC_ALPHA;
+                *dst = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            break;
+        }
+    }
 
     static void GetBlendFactorsFromBlendMode(dmRiveDDF::RiveModelDesc::BlendMode blend_mode, dmGraphics::BlendFactor* src, dmGraphics::BlendFactor* dst)
     {
@@ -442,6 +524,12 @@ namespace dmRive
             ro.m_VertexCount       = draw_desc.m_IndicesCount;
             ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_SHORT;
             ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
+            ro.m_SetBlendFactors   = 1;
+
+            if (resource->m_Scene->m_TextureSet)
+            {
+                ro.m_Textures[0] = resource->m_Scene->m_TextureSet->m_Texture->m_Texture;
+            }
 
             DO_LOG("Ro: %d, vx %d ix %d\n", i, draw_desc.m_VerticesCount, draw_desc.m_IndicesCount);
 
@@ -488,6 +576,8 @@ namespace dmRive
             dmRive::ApplyDrawMode(ro, draw_desc.m_DrawMode, draw_desc.m_ClipIndex);
 
             memcpy(&ro.m_WorldTransform, &vs_uniforms.world, sizeof(vs_uniforms.world));
+
+            GetBlendFactorsFromBlendMode(draw_desc.m_BlendMode, &ro.m_SourceBlendFactor, &ro.m_DestinationBlendFactor);
         }
 
         // uint32_t num_ros_used = ProcessRiveEvents(ctx, renderer, vb_begin, ix_begin, RiveEventCallback_RenderObject, &engine_ctx);
@@ -778,6 +868,8 @@ namespace dmRive
 
             // Store the inverse view so we can later go from screen to world.
             //m_InverseViewTransform = viewTransform.invertOrIdentity();
+
+            renderer->SetAtlas(c->m_Resource->m_Scene->m_Atlas);
 
             if (c->m_StateMachineInstance) {
                 c->m_StateMachineInstance->draw(renderer);

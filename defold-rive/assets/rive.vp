@@ -5,14 +5,16 @@ uniform lowp vec4 cover;
 uniform highp vec4 properties; // x: filltype, y: stopcount
 uniform highp vec4 gradientLimits;
 
-attribute highp vec4 position;
+attribute highp vec2 position;
+attribute highp vec2 texcoord0;
 
-//varying vec2 vx_position;
+varying vec2 var_texcoord0;
 varying vec2 gradient_uv;
 
-#define FILL_TYPE_SOLID  0
-#define FILL_TYPE_LINEAR 1
-#define FILL_TYPE_RADIAL 2
+#define FILL_TYPE_SOLID    0
+#define FILL_TYPE_LINEAR   1
+#define FILL_TYPE_RADIAL   2
+#define FILL_TYPE_TEXTURED 3
 
 mat4 get_local_mat()
 {
@@ -28,6 +30,8 @@ void main()
     int fillType       = int(properties.x);
     vec2 gradientStart = gradientLimits.xy;
     vec2 gradientStop  = gradientLimits.zw;
+
+    var_texcoord0 = texcoord0;
 
     if(fillType == FILL_TYPE_LINEAR)
     {

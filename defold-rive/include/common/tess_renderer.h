@@ -23,52 +23,19 @@
 #include <dmsdk/graphics/graphics.h>
 
 namespace dmRive {
+    struct Atlas;
+    struct Region;
 
-// // The actual graphics device image.
-// class DefoldRenderImageResource : public RefCnt {
-// private:
-//     sg_image m_gpuResource;
-
-// public:
-//     // bytes is expected to be tightly packed RGBA*width*height.
-//     DefoldRenderImageResource(const uint8_t* bytes, uint32_t width, uint32_t height);
-//     ~DefoldRenderImageResource();
-
-//     sg_image image() const { return m_gpuResource; }
-// };
-
-// The unique render image associated with a given source Rive asset. Can be stored in sub-region of
-// an actual graphics device image (DefoldRenderImageResource).
-// class DefoldRenderImage : public RenderImage {
-// private:
-//     rcp<DefoldRenderImageResource> m_gpuImage;
-//     sg_buffer m_vertexBuffer;
-//     sg_buffer m_uvBuffer;
-
-// public:
-//     // Needed by std::unique_ptr
-//     // DefoldRenderImage() {}
-
-//     DefoldRenderImage(rcp<DefoldRenderImageResource> image,
-//                      uint32_t width,
-//                      uint32_t height,
-//                      const Mat2D& uvTransform);
-
-//     ~DefoldRenderImage() override;
-
-//     sg_image image() const { return m_gpuImage->image(); }
-//     sg_buffer vertexBuffer() const { return m_vertexBuffer; }
-//     sg_buffer uvBuffer() const { return m_uvBuffer; }
-// };
-
-    struct VsUniforms {
+    struct VsUniforms
+    {
         rive::Mat4 world;
         rive::Vec2D gradientStart;
         rive::Vec2D gradientEnd;
         int fillType;
     };
 
-    struct FsUniforms {
+    struct FsUniforms
+    {
         int   fillType;
         float colors[16][4];
         float stops[4][4];
@@ -82,16 +49,28 @@ namespace dmRive {
         DRAW_MODE_CLIP_INCR = 2,
     };
 
+    // Must match shader fill type
+    // Note: The 'texrtured' fill type is a Defold fill type so we can use the same shader for all content
+    enum FillType
+    {
+        FILL_TYPE_SOLID    = 0,
+        FILL_TYPE_LINEAR   = 1,
+        FILL_TYPE_RADIAL   = 2,
+        FILL_TYPE_TEXTURED = 3,
+    };
+
     struct DrawDescriptor
     {
         VsUniforms      m_VsUniforms;
         FsUniforms      m_FsUniforms;
         rive::BlendMode m_BlendMode;
         rive::Vec2D*    m_Vertices;
+        rive::Vec2D*    m_TexCoords;
         uint16_t*       m_Indices;
         DrawMode        m_DrawMode;
         uint32_t        m_VerticesCount;
         uint32_t        m_IndicesCount;
+        uint32_t        m_TexCoordsCount;
         uint8_t         m_ClipIndex;
     };
 
@@ -107,11 +86,8 @@ namespace dmRive {
         rive::StrokeJoin                     m_strokeJoin;
         rive::StrokeCap                      m_strokeCap;
 
-        bool  m_strokeDirty = false;
+        bool  m_strokeDirty     = false;
         float m_strokeThickness = 0.0f;
-
-        // sg_buffer m_strokeVertexBuffer = {0};
-        // sg_buffer m_strokeIndexBuffer = {0};
 
         dmArray<rive::Vec2D> m_strokeVertices;
         dmArray<uint16_t>    m_strokeIndices;
@@ -181,12 +157,20 @@ private:
 
     dmArray<DrawDescriptor> m_DrawDescriptors;
 
-    void applyClipping();
-    //void setPipeline(sg_pipeline pipeline);
+    dmArray<rive::Vec2D> m_ScratchBufferVec2D;
+    dmArray<uint16_t> m_ScratchBufferIndices;
+
+    Atlas* m_Atlas; // The current atlas lookup
+
+    void          applyClipping();
+    rive::Vec2D*  getRegionUvs(dmRive::Region* region, float* texcoords_in, int texcoords_in_count);
+    void          putImage(DrawDescriptor& draw_desc, dmRive::Region* region, const rive::Mat2D& uv_transform);
 
 public:
     DefoldTessRenderer();
     ~DefoldTessRenderer();
+    void SetAtlas(Atlas* atlas);
+
     void orthographicProjection(float left,
                                 float right,
                                 float bottom,
