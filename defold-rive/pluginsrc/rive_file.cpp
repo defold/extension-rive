@@ -157,6 +157,8 @@ static void Render(RiveFile* rive_file)
         bounds.width(), bounds.height()),
         bounds);
 
+    // renderer->SetAtlas(c->m_Resource->m_Scene->m_Atlas);
+
     if (rive_file->m_StateMachineInstance) {
         rive_file->m_StateMachineInstance->draw(renderer);
     } else if (rive_file->m_AnimationInstance) {
@@ -302,10 +304,18 @@ static void Render(RiveFile* rive_file)
 
 }
 
-void Update(RiveFile* rive_file, float dt)
+//  Buffer texture_set_buffer, int texture_set_buffer_size
+void Update(RiveFile* rive_file, float dt, void* texture_set_buffer, size_t texture_set_buffer_size)
 {
     if (!rive_file->m_File)
         return;
+
+    printf("UPDATE\n");
+
+    if (texture_set_buffer)
+    {
+        printf("YES WE HAVE A BUFFER!\n");
+    }
 
     rive_file->m_Renderer->reset();
     if (rive_file->m_StateMachineInstance)

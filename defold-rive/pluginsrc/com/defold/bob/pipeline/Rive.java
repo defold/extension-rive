@@ -92,7 +92,7 @@ public class Rive {
 
     public static native RiveFile LoadFromBufferInternal(String path, byte[] buffer);
     public static native void Destroy(RiveFile rive_file);
-    public static native void Update(RiveFile rive_file, float dt);
+    public static native void Update(RiveFile rive_file, float dt, Buffer texture_set_buffer, int texture_set_buffer_size);
     public static native void DebugPrint();
 
     public static class RiveFile {
@@ -114,6 +114,18 @@ public class Rive {
         public void Update(float dt) {
             Rive.Update(this, dt);
         }
+    }
+
+    public static void UpdateInternal(RiveFile rive_file, float dt, byte[] texture_set_pb)
+    {
+        if (texture_set_pb == null)
+        {
+            System.out.printf("The atlas protobuf is null");
+            return;
+        }
+
+        Buffer texture_set_buffer = ByteBuffer.wrap(texture_set_pb);
+        Rive.Update(rive_file, dt, texture_set_buffer, texture_set_buffer.capacity());
     }
 
     public static RiveFile LoadFromBuffer(String path, byte[] bytes)
