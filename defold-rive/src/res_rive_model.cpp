@@ -23,7 +23,10 @@ namespace dmRive
     {
         dmResource::Result result = dmResource::Get(factory, resource->m_DDF->m_Scene, (void**) &resource->m_Scene);
         if (result != dmResource::RESULT_OK)
+        {
             return result;
+        }
+
         result = dmResource::Get(factory, resource->m_DDF->m_Material, (void**) &resource->m_Material);
         if (result != dmResource::RESULT_OK)
         {
