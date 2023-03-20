@@ -4,6 +4,7 @@
 #include "common/atlas.h"
 #include "common/tess_renderer.h"
 
+#include <dmsdk/ddf/ddf.h>
 #include <dmsdk/dlib/log.h>
 
 #include <rive/artboard.hpp>
@@ -12,6 +13,8 @@
 #include <rive/animation/linear_animation_instance.hpp>
 #include <rive/animation/state_machine.hpp>
 #include <rive/animation/state_machine_instance.hpp>
+
+#include <gamesys/texture_set_ddf.h>
 
 namespace dmRive
 {
@@ -54,7 +57,7 @@ RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char*
         dmRive::SetupBones(out);
 
         PlayAnimation(out, 0);
-        Update(out, 0.0f);
+        Update(out, 0.0f, 0, 0);
     }
 
     return out;
@@ -157,8 +160,6 @@ static void Render(RiveFile* rive_file)
         bounds.width(), bounds.height()),
         bounds);
 
-    // renderer->SetAtlas(c->m_Resource->m_Scene->m_Atlas);
-
     if (rive_file->m_StateMachineInstance) {
         rive_file->m_StateMachineInstance->draw(renderer);
     } else if (rive_file->m_AnimationInstance) {
@@ -235,7 +236,7 @@ static void Render(RiveFile* rive_file)
     RiveVertex* vb_write = vb_begin;
     uint16_t* ix_write = ix_begin;
 
-    //printf("Ro_Count: %d\n", ro_count);
+    dmLogInfo("File: %s - Ro_Count: %d", rive_file->m_Path, ro_count);
 
     for (int i = 0; i < ro_count; ++i)
     {
@@ -300,21 +301,44 @@ static void Render(RiveFile* rive_file)
         dmRive::ApplyDrawMode(ro, draw_desc.m_DrawMode, draw_desc.m_ClipIndex);
 
         memcpy(&ro.m_WorldTransform, &vs_uniforms.world, sizeof(vs_uniforms.world));
-    }
 
+        dmLogInfo("  RO color0: %f, %f, %f, %f", fs_uniforms.colors[0][0], fs_uniforms.colors[0][1], fs_uniforms.colors[0][2], fs_uniforms.colors[0][3]);
+    }
 }
 
-//  Buffer texture_set_buffer, int texture_set_buffer_size
-void Update(RiveFile* rive_file, float dt, void* texture_set_buffer, size_t texture_set_buffer_size)
+static dmGameSystemDDF::TextureSet* LoadAtlasFromBuffer(void* buffer, size_t buffer_size)
+{
+    dmGameSystemDDF::TextureSet* texture_set_ddf;
+    dmDDF::Result e  = dmDDF::LoadMessage(buffer, (uint32_t)buffer_size, &texture_set_ddf);
+
+    if (e != dmDDF::RESULT_OK)
+    {
+        return 0;
+    }
+    return texture_set_ddf;
+}
+
+void Update(RiveFile* rive_file, float dt, const uint8_t* texture_set_data, uint32_t texture_set_data_length)
 {
     if (!rive_file->m_File)
-        return;
-
-    printf("UPDATE\n");
-
-    if (texture_set_buffer)
     {
-        printf("YES WE HAVE A BUFFER!\n");
+        return;
+    }
+
+    dmGameSystemDDF::TextureSet* texture_set_ddf = 0;
+    Atlas* atlas = 0;
+
+    if (texture_set_data && texture_set_data_length > 0)
+    {
+        texture_set_ddf = LoadAtlasFromBuffer((void*) texture_set_data, texture_set_data_length);
+        if (!texture_set_ddf)
+        {
+            dmLogError("Couldn't load atlas for rive scene %s", rive_file->m_Path);
+            return;
+        }
+
+        atlas = dmRive::CreateAtlas(texture_set_ddf);
+        rive_file->m_Renderer->SetAtlas(atlas);
     }
 
     rive_file->m_Renderer->reset();
@@ -330,6 +354,12 @@ void Update(RiveFile* rive_file, float dt, void* texture_set_buffer, size_t text
         rive_file->m_ArtboardInstance->advance(dt);
     }
     Render(rive_file);
+
+    if (atlas)
+    {
+        dmRive::DestroyAtlas(atlas);
+        dmDDF::FreeMessage(texture_set_ddf);
+    }
 }
 
 

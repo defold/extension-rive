@@ -43,7 +43,7 @@ void        DestroyFile(RiveFile* rive_file);
 void        SetupBones(RiveFile* file);
 
 void        PlayAnimation(RiveFile* rive_file, int index);
-void        Update(RiveFile* rive_file, float dt);
+void        Update(RiveFile* rive_file, float dt, const uint8_t* texture_set_data, uint32_t texture_set_data_length);
 
 } // namespace
 

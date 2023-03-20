@@ -32,6 +32,30 @@ static void fillColorBuffer(float* buffer, rive::ColorInt value) {
 
 namespace dmRive
 {
+    const char* BlendModeToStr(rive::BlendMode blendMode)
+    {
+        switch(blendMode)
+        {
+            case rive::BlendMode::srcOver: return "BlendMode::srcOver";
+            case rive::BlendMode::screen: return "BlendMode::screen";
+            case rive::BlendMode::overlay: return "BlendMode::overlay";
+            case rive::BlendMode::darken: return "BlendMode::darken";
+            case rive::BlendMode::lighten: return "BlendMode::lighten";
+            case rive::BlendMode::colorDodge: return "BlendMode::colorDodge";
+            case rive::BlendMode::colorBurn: return "BlendMode::colorBurn";
+            case rive::BlendMode::hardLight: return "BlendMode::hardLight";
+            case rive::BlendMode::softLight: return "BlendMode::softLight";
+            case rive::BlendMode::difference: return "BlendMode::difference";
+            case rive::BlendMode::exclusion: return "BlendMode::exclusion";
+            case rive::BlendMode::multiply: return "BlendMode::multiply";
+            case rive::BlendMode::hue: return "BlendMode::hue";
+            case rive::BlendMode::saturation: return "BlendMode::saturation";
+            case rive::BlendMode::color: return "BlendMode::color";
+            case rive::BlendMode::luminosity: return "BlendMode::luminosity";
+        }
+        return "";
+    }
+
     class Gradient : public rive::RenderShader {
     private:
         rive::Vec2D m_start;
@@ -469,7 +493,7 @@ void DefoldTessRenderer::drawImage(const rive::RenderImage* _image, rive::BlendM
 
     applyClipping();
 
-    // dmLogInfo("blend_mode: %s, opacity: %f", BlendModeToStr(blendMode), opacity);
+    dmLogInfo("blend_mode: %s, opacity: %f", BlendModeToStr(blendMode), opacity);
 
     VsUniforms vs_params = {};
     vs_params.world = transform();

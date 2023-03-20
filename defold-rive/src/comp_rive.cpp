@@ -324,30 +324,6 @@ namespace dmRive
     rive::BlendMode::luminosity
     */
 
-    const char* BlendModeToStr(rive::BlendMode blendMode)
-    {
-        switch(blendMode)
-        {
-            case rive::BlendMode::srcOver: return "BlendMode::srcOver";
-            case rive::BlendMode::screen: return "BlendMode::screen";
-            case rive::BlendMode::overlay: return "BlendMode::overlay";
-            case rive::BlendMode::darken: return "BlendMode::darken";
-            case rive::BlendMode::lighten: return "BlendMode::lighten";
-            case rive::BlendMode::colorDodge: return "BlendMode::colorDodge";
-            case rive::BlendMode::colorBurn: return "BlendMode::colorBurn";
-            case rive::BlendMode::hardLight: return "BlendMode::hardLight";
-            case rive::BlendMode::softLight: return "BlendMode::softLight";
-            case rive::BlendMode::difference: return "BlendMode::difference";
-            case rive::BlendMode::exclusion: return "BlendMode::exclusion";
-            case rive::BlendMode::multiply: return "BlendMode::multiply";
-            case rive::BlendMode::hue: return "BlendMode::hue";
-            case rive::BlendMode::saturation: return "BlendMode::saturation";
-            case rive::BlendMode::color: return "BlendMode::color";
-            case rive::BlendMode::luminosity: return "BlendMode::luminosity";
-        }
-        return "";
-    }
-
     static void GetBlendFactorsFromBlendMode(rive::BlendMode blend_mode, dmGraphics::BlendFactor* src, dmGraphics::BlendFactor* dst)
     {
         switch(blend_mode)
@@ -377,7 +353,7 @@ namespace dmRive
             default:
                 if ((int) blend_mode != 0)
                 {
-                    dmLogOnceWarning("Blend mode '%s' (%d) is not supported, defaulting to '%s'", BlendModeToStr(blend_mode), (int) blend_mode, BlendModeToStr(rive::BlendMode::srcOver));
+                    dmLogOnceWarning("Blend mode '%s' (%d) is not supported, defaulting to '%s'", dmRive::BlendModeToStr(blend_mode), (int) blend_mode, BlendModeToStr(rive::BlendMode::srcOver));
                 }
                 *src = dmGraphics::BLEND_FACTOR_SRC_ALPHA;
                 *dst = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;

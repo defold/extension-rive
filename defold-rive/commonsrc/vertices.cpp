@@ -71,8 +71,6 @@ void CopyVertices(const dmRive::DrawDescriptor& draw_desc, uint32_t vertex_offse
     uint32_t tc_count = draw_desc.m_TexCoordsCount;
     bool has_texcoords = draw_desc.m_TexCoords != 0;
 
-    printf("CopyVertices: has_texcoords = %s\n", (has_texcoords ? "True" : "False"));
-
     for (int i = 0; i < vertex_count; ++i)
     {
         rive::Vec2D& vtx = draw_desc.m_Vertices[i];

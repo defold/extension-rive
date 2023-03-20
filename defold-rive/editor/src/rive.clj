@@ -509,6 +509,7 @@
 (defn- render-rive-scenes [^GL2 gl render-args renderables rcount]
   (let [pass (:pass render-args)
         render-groups (collect-render-groups renderables)]
+       (prn 'render-rive-scenes)
        (doseq [group render-groups]
               (plugin-update-file (:handle group) (/ 1.0 60.0) (:texture-set-pb group)))
     (condp = pass
