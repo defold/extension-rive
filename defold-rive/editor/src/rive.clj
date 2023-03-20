@@ -247,8 +247,7 @@
 
 
 (defn- prop-resource-error [nil-severity _node-id prop-kw prop-value prop-name]
-  (or (validation/prop-error nil-severity _node-id prop-kw validation/prop-nil? prop-value prop-name)
-      (validation/prop-error :fatal _node-id prop-kw validation/prop-resource-not-exists? prop-value prop-name)))
+  (validation/prop-error :fatal _node-id prop-kw validation/prop-resource-not-exists? prop-value prop-name))
 
 ; The properties of the .rivescene (see RiveSceneDesc in rive_ddf.proto)
 ; The "scene" should point to a .riv file
@@ -266,7 +265,14 @@
 
 (defn- build-rive-scene [resource dep-resources user-data]
   (let [pb (:proto-msg user-data)
-        pb (reduce #(assoc %1 (first %2) (second %2)) pb (map (fn [[label res]] [label (resource/proj-path (get dep-resources res))]) (:dep-resources user-data)))]
+        pb (reduce
+             #(assoc %1 (first %2) (second %2))
+             pb
+             (map
+               (fn [[label res]]
+                   (when (not (nil? res))
+                         [label (resource/proj-path (get dep-resources res))]))
+               (:dep-resources user-data)))]
     {:resource resource :content (protobuf/map->bytes (workspace/load-class! "com.dynamo.rive.proto.Rive$RiveSceneDesc") pb)}))
 
 

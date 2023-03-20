@@ -93,6 +93,7 @@ namespace dmRive
         dmResource::HFactory        m_Factory;
         dmRender::HRenderContext    m_RenderContext;
         dmGraphics::HContext        m_GraphicsContext;
+        dmGraphics::HTexture        m_NullTexture;
         uint32_t                    m_MaxInstanceCount;
     };
 
