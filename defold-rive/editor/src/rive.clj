@@ -21,7 +21,6 @@
             [editor.defold-project :as project]
             [editor.resource :as resource]
             [editor.resource-node :as resource-node]
-            [editor.scene-picking :as scene-picking]
             [editor.render :as render]
             [editor.validation :as validation]
             [editor.workspace :as workspace]
@@ -517,7 +516,8 @@
         render-groups (collect-render-groups renderables)]
        (prn 'render-rive-scenes)
        (doseq [group render-groups]
-              (plugin-update-file (:handle group) (/ 1.0 60.0) (:texture-set-pb group)))
+         ;; TODO: Check if we can supply 0.0 here for delta-time instead of Float/MIN_VALUE.
+         (plugin-update-file (:handle group) Float/MIN_VALUE (:texture-set-pb group)))
     (condp = pass
       pass/transparent
       (doseq [group render-groups]
@@ -859,5 +859,3 @@
 (defn return-plugin []
   (fn [x] (load-plugin-rive x)))
 (return-plugin)
-
-
