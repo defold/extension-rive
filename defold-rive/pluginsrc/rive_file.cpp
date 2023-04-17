@@ -236,8 +236,6 @@ static void Render(RiveFile* rive_file)
     RiveVertex* vb_write = vb_begin;
     uint16_t* ix_write = ix_begin;
 
-    dmLogInfo("File: %s - Ro_Count: %d", rive_file->m_Path, ro_count);
-
     for (int i = 0; i < ro_count; ++i)
     {
         dmRive::DrawDescriptor& draw_desc = draw_descriptors[i];
@@ -301,18 +299,6 @@ static void Render(RiveFile* rive_file)
         dmRive::ApplyDrawMode(ro, draw_desc.m_DrawMode, draw_desc.m_ClipIndex);
 
         memcpy(&ro.m_WorldTransform, &vs_uniforms.world, sizeof(vs_uniforms.world));
-
-        switch(draw_desc.m_DrawMode) {
-            case DRAW_MODE_DEFAULT:
-                dmLogInfo("  DRAW_MODE_DEFAULT");
-                break;
-            case DRAW_MODE_CLIP_DECR:
-                dmLogInfo("  DRAW_MODE_CLIP_DECR");
-                break;
-            case DRAW_MODE_CLIP_INCR:
-                dmLogInfo("  DRAW_MODE_CLIP_INCR");
-                break;
-        }
     }
 }
 
