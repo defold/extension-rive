@@ -492,7 +492,6 @@
   (.glColorMask gl true true true true))
 
 (defn- render-group-transparent [^GL2 gl render-args override-shader group]
-       (prn 'render-group-transparent)
   (let [renderable (:renderable group)
         node-id (:node-id renderable)
         user-data (:user-data renderable)
@@ -515,7 +514,6 @@
 (defn- render-rive-scenes [^GL2 gl render-args renderables rcount]
   (let [pass (:pass render-args)
         render-groups (collect-render-groups renderables)]
-       (prn 'render-rive-scenes)
        (doseq [group render-groups]
               (plugin-update-file (:handle group) (/ 1.0 60.0) (:texture-set-pb group)))
     (condp = pass
@@ -530,14 +528,6 @@
 (defn- render-rive-outlines [^GL2 gl render-args renderables rcount]
   (assert (= (:pass render-args) pass/outline))
   (render/render-aabb-outline gl render-args ::rive-outline renderables rcount))
-
-#_
-(g/defnk produce-model-data-handle-updatable [_node-id rive-file-handle]
-  (when (not (nil? rive-file-handle))
-       {:node-id       _node-id
-        :name          "Rive Model Updater"
-        :update-fn     (fn [state {:keys [dt]}] (plugin-update-file rive-file-handle dt))
-        :initial-state {}}))
 
 (g/defnk produce-main-scene [_node-id material-shader rive-file-handle rive-anim-ids aabb gpu-texture default-tex-params rive-scene-pb scene-structure texture-set-pb]
   (when rive-file-handle
@@ -567,12 +557,10 @@
                 :batch-key ::outline
                 :passes [pass/outline]}})
 
-(g/defnk produce-rivescene [_node-id rive-file-handle aabb main-scene gpu-texture scene-structure #_updatable]
-         (println 'produce-rivescene)
+(g/defnk produce-rivescene [_node-id rive-file-handle aabb main-scene gpu-texture scene-structure]
   (when rive-file-handle
     (if (some? main-scene)
       (-> main-scene
-          #_(assoc :updatable updatable)
           (assoc :children [(make-rive-outline-scene _node-id aabb)]))
       {:node-id _node-id :aabb aabb})))
 
@@ -643,7 +631,6 @@
   (output build-targets g/Any :cached produce-rivescene-build-targets)
   (output rive-scene-pb g/Any :cached produce-rivescene-pb)
   (output main-scene g/Any :cached produce-main-scene)
-           ;(output updatable g/Any :cached produce-model-data-handle-updatable)
   (output scene g/Any :cached produce-rivescene)
   (output scene-structure g/Any (gu/passthrough scene-structure))
   (output material-shader ShaderLifecycle (gu/passthrough material-shader))

@@ -412,8 +412,6 @@ void Update(JNIEnv* env, jclass cls, jobject rive_file_obj, jfloat dt, const uin
         return;
     }
 
-    dmLogInfo("rive_jni::Update");
-
     dmRive::Update(rive_file, dt, texture_set_data, texture_set_data_length);
 
     // TODO: Update bone positions

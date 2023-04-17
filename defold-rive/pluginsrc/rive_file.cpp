@@ -302,8 +302,6 @@ static void Render(RiveFile* rive_file)
 
         memcpy(&ro.m_WorldTransform, &vs_uniforms.world, sizeof(vs_uniforms.world));
 
-        dmLogInfo("  RO color0: %f, %f, %f, %f", fs_uniforms.colors[0][0], fs_uniforms.colors[0][1], fs_uniforms.colors[0][2], fs_uniforms.colors[0][3]);
-
         switch(draw_desc.m_DrawMode) {
             case DRAW_MODE_DEFAULT:
                 dmLogInfo("  DRAW_MODE_DEFAULT");

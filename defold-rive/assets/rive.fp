@@ -33,7 +33,7 @@ void main()
     else if (iFillType == FILL_TYPE_TEXTURED)
     {
         fragColor      = texture2D(texture_sampler, var_texcoord0);
-        // fragColor.rgb *= colors[0].a;
+        //fragColor.rgb *= colors[0].a;
         fragColor.a  *= colors[0].a;
     }
     else

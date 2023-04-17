@@ -493,8 +493,6 @@ void DefoldTessRenderer::drawImage(const rive::RenderImage* _image, rive::BlendM
 
     applyClipping();
 
-    dmLogInfo("blend_mode: %s, opacity: %f", BlendModeToStr(blendMode), opacity);
-
     VsUniforms vs_params = {};
     vs_params.world = transform();
 
