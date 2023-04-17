@@ -514,8 +514,7 @@
   (let [pass (:pass render-args)
         render-groups (collect-render-groups renderables)]
        (doseq [group render-groups]
-         ;; TODO: Check if we can supply 0.0 here for delta-time instead of Float/MIN_VALUE.
-         (plugin-update-file (:handle group) Float/MIN_VALUE (:texture-set-pb group)))
+         (plugin-update-file (:handle group) 0.0 (:texture-set-pb group)))
     (condp = pass
       pass/transparent
       (doseq [group render-groups]
