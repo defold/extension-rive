@@ -26,6 +26,8 @@ namespace dmRive {
     struct Atlas;
     struct Region;
 
+    const char* BlendModeToStr(rive::BlendMode blendMode);
+
     struct VsUniforms
     {
         rive::Mat4 world;
@@ -133,25 +135,7 @@ namespace dmRive {
 class DefoldTessRenderer : public rive::TessRenderer {
 private:
     static const std::size_t maxClippingPaths = 16;
-    // sg_pipeline m_meshPipeline;
-    // sg_pipeline m_currentPipeline = {0};
     int m_clipCount = 0;
-
-    // // Src Over Pipelines
-    // sg_pipeline m_pathPipeline[maxClippingPaths + 1];
-
-    // // Screen Pipelines
-    // sg_pipeline m_pathScreenPipeline[maxClippingPaths + 1];
-
-    // // Additive
-    // sg_pipeline m_pathAdditivePipeline[maxClippingPaths + 1];
-
-    // // Multiply
-    // sg_pipeline m_pathMultiplyPipeline[maxClippingPaths + 1];
-
-    // sg_pipeline m_incClipPipeline;
-    // sg_pipeline m_decClipPipeline;
-    // sg_buffer m_boundsIndices;
 
     dmArray<rive::SubPath> m_ClipPaths;
 

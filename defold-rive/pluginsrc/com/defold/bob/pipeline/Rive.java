@@ -92,7 +92,7 @@ public class Rive {
 
     public static native RiveFile LoadFromBufferInternal(String path, byte[] buffer);
     public static native void Destroy(RiveFile rive_file);
-    public static native void Update(RiveFile rive_file, float dt);
+    public static native void Update(RiveFile rive_file, float dt, byte[] texture_set_buffer);
     public static native void DebugPrint();
 
     public static class RiveFile {
@@ -106,14 +106,20 @@ public class Rive {
         public StateMachine[]   stateMachines;
         public Bone[]           bones;
         public RenderObject[]   renderObjects;
+        public byte[]           texture_set_bytes;
 
         public void Destroy() {
             Rive.Destroy(this);
         }
 
         public void Update(float dt) {
-            Rive.Update(this, dt);
+            Rive.Update(this, dt, texture_set_bytes);
         }
+    }
+
+    public static void UpdateInternal(RiveFile rive_file, float dt, byte[] texture_set_pb)
+    {
+        Rive.Update(rive_file, dt, texture_set_pb);
     }
 
     public static RiveFile LoadFromBuffer(String path, byte[] bytes)

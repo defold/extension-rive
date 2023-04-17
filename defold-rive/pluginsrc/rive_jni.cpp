@@ -404,13 +404,15 @@ void DestroyFile(JNIEnv* env, jclass cls, jobject rive_file_obj)
     dmRive::DestroyFile(rive_file);
 }
 
-void Update(JNIEnv* env, jclass cls, jobject rive_file_obj, jfloat dt)
+void Update(JNIEnv* env, jclass cls, jobject rive_file_obj, jfloat dt, const uint8_t* texture_set_data, uint32_t texture_set_data_length)
 {
     dmRive::RiveFile* rive_file = FromObject(env, rive_file_obj);
     if (!rive_file || !rive_file->m_File)
+    {
         return;
+    }
 
-    dmRive::Update(rive_file, dt);
+    dmRive::Update(rive_file, dt, texture_set_data, texture_set_data_length);
 
     // TODO: Update bone positions
 

@@ -167,11 +167,22 @@ static void JNICALL Java_Rive_Destroy(JNIEnv* env, jclass cls, jobject rive_file
     DM_CHECK_JNI_ERROR();
 }
 
-static void JNICALL Java_Rive_Update(JNIEnv* env, jclass cls, jobject rive_file, jfloat dt)
+static void JNICALL Java_Rive_Update(JNIEnv* env, jclass cls, jobject rive_file, jfloat dt, jbyteArray texture_set_bytes)
 {
     DM_CHECK_JNI_ERROR();
+
+    jsize texture_set_size = 0;
+    jbyte* texture_set_data = 0;
+
+    if (texture_set_bytes != NULL)
+    {
+        texture_set_size = env->GetArrayLength(texture_set_bytes);
+        texture_set_data = env->GetByteArrayElements(texture_set_bytes, 0);
+        DM_CHECK_JNI_ERROR();
+    }
+
     TypeRegister register_t(env);
-    dmRiveJNI::Update(env, cls, rive_file, dt);
+    dmRiveJNI::Update(env, cls, rive_file, dt, (const uint8_t*) texture_set_data, (uint32_t) texture_set_size);
     DM_CHECK_JNI_ERROR();
 }
 
@@ -203,7 +214,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
     static const JNINativeMethod methods[] = {
         DM_JNI_FUNCTION(LoadFromBufferInternal, "(Ljava/lang/String;[B)Lcom/dynamo/bob/pipeline/Rive$RiveFile;"),
         DM_JNI_FUNCTION(Destroy, "(Lcom/dynamo/bob/pipeline/Rive$RiveFile;)V"),
-        DM_JNI_FUNCTION(Update, "(Lcom/dynamo/bob/pipeline/Rive$RiveFile;F)V"),
+        DM_JNI_FUNCTION(Update, "(Lcom/dynamo/bob/pipeline/Rive$RiveFile;F[B)V"),
         //DM_JNI_FUNCTION(AddressOf, "(Ljava/lang/Object;)J"),
     };
     #undef DM_JNI_FUNCTION

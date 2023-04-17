@@ -122,6 +122,8 @@ namespace dmRive {
         atlas->m_NameToIndex.SetCapacity(n_animations/2+1, n_animations);
         atlas->m_Regions = new Region[n_animations];
 
+        DEBUGLOG("CreateAtlas, num animations: %d", n_animations);
+
         for (uint32_t i = 0; i < n_animations; ++i)
         {
             dmGameSystemDDF::TextureSetAnimation* animation_ddf = &animations[i];

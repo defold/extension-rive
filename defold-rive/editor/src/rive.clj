@@ -21,7 +21,6 @@
             [editor.defold-project :as project]
             [editor.resource :as resource]
             [editor.resource-node :as resource-node]
-            [editor.scene-picking :as scene-picking]
             [editor.render :as render]
             [editor.validation :as validation]
             [editor.workspace :as workspace]
@@ -73,17 +72,13 @@
 (defn- plugin-destroy-file [file]
   (plugin-invoke-static rive-plugin-cls "Destroy" (into-array Class [rive-plugin-file-cls]) [file]))
 
-(defn- plugin-update-file [file dt]
-  (plugin-invoke-static rive-plugin-cls "Update" (into-array Class [rive-plugin-file-cls float]) [file (float dt)]))
-
+(defn- plugin-update-file [file dt bytes-texture-set]
+  (plugin-invoke-static rive-plugin-cls "UpdateInternal" (into-array Class [rive-plugin-file-cls Float/TYPE byte-array-cls]) [file (float dt) bytes-texture-set]))
 
 ; .rivemodel
 (defn load-rive-model [project self resource content]
   (let [rive-scene-resource (workspace/resolve-resource resource (:scene content))
-        material (workspace/resolve-resource resource (:material content))
-        ;atlas    (workspace/resolve-resource resource (:atlas content))
-        ]
-
+        material (workspace/resolve-resource resource (:material content))]
     (concat
      (g/connect project :default-tex-params self :default-tex-params)
      (g/set-property self
@@ -300,6 +295,9 @@
 (defn- renderable->handle [renderable]
   (get-in renderable [:user-data :rive-file-handle]))
 
+(defn- renderable->texture-set-pb [renderable]
+  (get-in renderable [:user-data :texture-set-pb]))
+
 
 (shader/defshader rive-id-shader-vp
   (attribute vec2 position)
@@ -320,22 +318,29 @@
 
 (def rive-id-shader (shader/make-shader ::id-shader rive-id-shader-vp rive-id-shader-fp {"id" :id}))
 
-(vtx/defvertex vtx-pos4
-  (vec4 position))
+(vtx/defvertex vtx-textured
+ (vec2 position)
+ (vec2 texcoord0))
 
 (set! *warn-on-reflection* false)
 
 (defn renderable->render-objects [renderable]
   (let [handle (renderable->handle renderable)
+        texture-set-pb (renderable->texture-set-pb renderable)
         vb-data (.vertices handle)
         vb-data-float-buffer (FloatBuffer/wrap vb-data)
-        vb (vtx/wrap-vertex-buffer vtx-pos4 :static vb-data-float-buffer)
+        vb (vtx/wrap-vertex-buffer vtx-textured :static vb-data-float-buffer)
 
         ib-data (.indices handle)
         ib (IntBuffer/wrap ib-data)
         
         render-objects (.renderObjects handle)]
-    {:vertex-buffer vb :index-buffer ib :render-objects render-objects :handle handle :renderable renderable}))
+    {:vertex-buffer vb
+     :index-buffer ib
+     :render-objects render-objects
+     :handle handle
+     :texture-set-pb texture-set-pb
+     :renderable renderable}))
 
 (set! *warn-on-reflection* true)
 
@@ -451,7 +456,7 @@
         count (.vertexCount ro) ; count in number of indices
         start (* start 2) ; offset in bytes
         face-winding (if (not= (.faceWinding ro) 0) GL/GL_CCW GL/GL_CW)
-        
+
         ro-transform (double-array (.m (.worldTransform ro)))
         renderable-transform (Matrix4d. (:world-transform renderable)) ; make a copy so we don't alter the original
         ro-matrix (doto (Matrix4d. ro-transform) (.transpose))
@@ -506,10 +511,13 @@
       (restore-gl gl))))
 
 (defn- render-rive-scenes [^GL2 gl render-args renderables rcount]
-  (let [pass (:pass render-args)]
+  (let [pass (:pass render-args)
+        render-groups (collect-render-groups renderables)]
+       (doseq [group render-groups]
+         (plugin-update-file (:handle group) 0.0 (:texture-set-pb group)))
     (condp = pass
       pass/transparent
-      (doseq [group (collect-render-groups renderables)]
+      (doseq [group render-groups]
         (render-group-transparent gl render-args nil group))
 
       pass/selection
@@ -520,7 +528,7 @@
   (assert (= (:pass render-args) pass/outline))
   (render/render-aabb-outline gl render-args ::rive-outline renderables rcount))
 
-(g/defnk produce-main-scene [_node-id material-shader rive-file-handle rive-anim-ids aabb gpu-texture default-tex-params rive-scene-pb scene-structure]
+(g/defnk produce-main-scene [_node-id material-shader rive-file-handle rive-anim-ids aabb gpu-texture default-tex-params rive-scene-pb scene-structure texture-set-pb]
   (when rive-file-handle
     (let [blend-mode :blend-mode-alpha]
       (assoc {:node-id _node-id :aabb aabb}
@@ -536,6 +544,7 @@
                                       ;:gpu-texture gpu-texture
                                       :gpu-texture (or gpu-texture texture/white-pixel)
                                       ;:tex-params default-tex-params
+                                      :texture-set-pb texture-set-pb
                                       :blend-mode blend-mode}
                           :passes [pass/transparent pass/selection]}))))
 
@@ -550,7 +559,8 @@
 (g/defnk produce-rivescene [_node-id rive-file-handle aabb main-scene gpu-texture scene-structure]
   (when rive-file-handle
     (if (some? main-scene)
-      (assoc main-scene :children [(make-rive-outline-scene _node-id aabb)])
+      (-> main-scene
+          (assoc :children [(make-rive-outline-scene _node-id aabb)]))
       {:node-id _node-id :aabb aabb})))
 
 (g/defnode RiveSceneNode
@@ -835,5 +845,3 @@
 (defn return-plugin []
   (fn [x] (load-plugin-rive x)))
 (return-plugin)
-
-
