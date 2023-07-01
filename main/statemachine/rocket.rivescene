@@ -1,1 +1,2 @@
 scene: "/main/statemachine/rocket.riv"
+atlas: "/defold-rive/assets/empty.atlas"
