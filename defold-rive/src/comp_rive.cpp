@@ -167,7 +167,7 @@ namespace dmRive
     }
 
     static inline dmRender::HMaterial GetMaterial(const RiveComponent* component, const RiveModelResource* resource) {
-        return component->m_Material ? component->m_Material : resource->m_Material;
+        return component->m_Material ? component->m_Material : resource->m_Material->m_Material;
     }
 
     static void ReHash(RiveComponent* component)

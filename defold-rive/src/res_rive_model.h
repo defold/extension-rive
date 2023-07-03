@@ -14,6 +14,7 @@
 #define DM_RES_RIVE_MODEL_H
 
 #include <dmsdk/render/render.h>
+#include <dmsdk/gamesys/resources/res_material.h>
 
 #include "rive_ddf.h" // generated from the rive_ddf.proto
 
@@ -21,11 +22,11 @@ namespace dmRive
 {
     struct RiveModelResource
     {
-        dmRiveDDF::RiveModelDesc*   m_DDF;
-        struct RiveSceneResource*   m_Scene;
-        dmRender::HMaterial         m_Material;
-        uint8_t                     m_CreateGoBones:1;
-        uint8_t                     :7;
+        dmRiveDDF::RiveModelDesc*       m_DDF;
+        struct RiveSceneResource*       m_Scene;
+        dmGameSystem::MaterialResource* m_Material;
+        uint8_t                         m_CreateGoBones:1;
+        uint8_t                         :7;
     };
 }
 
