@@ -91,11 +91,11 @@ Apart from the properties *Id*, *Position* and *Rotation* the following componen
 
 
 ## Runtime manipulation
-*Rive Model* components can be manipulated at runtime through a number of different functions and properties (refer to the [API docs for usage](/ref/rive/)).
+*Rive Model* components can be manipulated at runtime through a number of different functions and properties (refer to the [API docs for usage](/extension-rive/rive_api/)).
 
 
 ### Playing animations
-To play animations on a *Rive Model* component, simply call the [`rive.play_anim()`](/ref/rive#rive.play_anim) function:
+To play animations on a *Rive Model* component, simply call the [`rive.play_anim()`](/extension-rive/rive_api/#rive.play_anim) function:
 
 ```lua
 function init(self)
@@ -138,14 +138,14 @@ A *Rive Model* component also has a number of different properties that can be m
 : The normalized animation cursor (`number`).
 
 `material`
-: The spine model material (`hash`). You can change this using a material resource property and `go.set()`. Refer to the [API reference for an example](/ref/spine/#material).
+: The rive model material (`hash`). You can change this using a material resource property and `go.set()`. Refer to the [API reference for an example](/extension-rive/rive_api/#material).
 
 `playback_rate`
 : The animation playback rate (`number`).
 
 
 ### Interacting with state machines
-To interact with a state machine in a *Rive Model* component it first needs to be started using [`rive.play_state_machine()`](/ref/rive#rive.play_state_machine). Once it has been started it can be interacted with using [`go.set()`](/ref/go#go.set):
+To interact with a state machine in a *Rive Model* component it first needs to be started using [`rive.play_state_machine()`](/extension-rive/rive_api/#rive.play_state_machine). Once it has been started it can be interacted with using [`go.set()`](/ref/go#go.set):
 
 ```lua
 -- Start the state machine named "State Machine 1"
@@ -164,7 +164,7 @@ The individual bones in the *Rive Scene* skeleton are represented internally as 
 
 ![Rive model hierarchy](rive-bones.png)
 
-With the bone name at hand, it is possible to retrieve the instance id of the bone in runtime. The function [`rive.get_go()`](/ref/rive#rive.get_go) returns the id of the specified bone and it is, for instance, possible to child other game objects under the animated game object:
+With the bone name at hand, it is possible to retrieve the instance id of the bone in runtime. The function [`rive.get_go()`](/extension-rive/rive_api/#rive.get_go) returns the id of the specified bone and it is, for instance, possible to child other game objects under the animated game object:
 
 ```lua
 -- Attach pistol game object to the left forearm
