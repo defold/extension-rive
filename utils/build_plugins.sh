@@ -122,7 +122,7 @@ function clean_plugin() {
 
 PLATFORMS=$1
 if [ "" == "${PLATFORMS}" ]; then
-    PLATFORMS="x86_64-macos x86_64-linux x86_64-win32"
+    PLATFORMS="x86_64-macos arm64-macos x86_64-linux x86_64-win32"
 fi
 
 echo "Building ${PLATFORMS}"
@@ -137,6 +137,10 @@ for platform in $PLATFORMS; do
 
     if [ "$platform" == "x86_64-macos" ]; then
         platform_ne="x86_64-osx"
+    fi
+
+    if [ "$platform" == "arm64-macos" ]; then
+        platform_ne="arm64-osx"
     fi
 
     clean_plugin $platform $platform_ne
