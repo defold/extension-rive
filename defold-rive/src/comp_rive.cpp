@@ -206,7 +206,21 @@ namespace dmRive
 
         //Todo: choose artboard by index: m_ArtboardIndex = (index == REQUEST_DEFAULT_SCENE) ? 0 : index;
         //component->m_ArtboardInstance = data->m_File->artboardAt(0);
-        component->m_ArtboardInstance = data->m_File->artboardDefault();
+
+        if (component->m_Resource->m_DDF->m_Artboard)
+        {
+            component->m_ArtboardInstance = data->m_File->artboardNamed(component->m_Resource->m_DDF->m_Artboard);
+
+            if (!component->m_ArtboardInstance)
+            {
+                dmLogWarning("Could not find artboard with name '%s'", component->m_Resource->m_DDF->m_Artboard);
+            }
+        }
+
+        if (!component->m_ArtboardInstance)
+        {
+            component->m_ArtboardInstance = data->m_File->artboardDefault();
+        }
         component->m_ArtboardInstance->advance(0.0f);
 
         if (component->m_Resource->m_CreateGoBones)

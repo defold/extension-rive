@@ -29,6 +29,7 @@ message RiveModelDesc
     optional BlendMode blend_mode           = 4 [default = BLEND_MODE_ALPHA];
     optional string default_state_machine   = 5;
     optional bool create_go_bones           = 6 [default=false];
+    optional string artboard                = 7;
 
     // E.g. various per-instance tesselation options
     //optional float tesselation_option1    = 4 [default = 0.0];
