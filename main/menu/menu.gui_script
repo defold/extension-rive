@@ -1,7 +1,7 @@
 local dirtylarry = require "dirtylarry/dirtylarry"
 
 
-local BUTTONS = { "car", "nested", "bones", "cursor", "state", "stroke" }
+local BUTTONS = { "car", "nested", "bones", "cursor", "state", "stroke", "sophiahud" }
 local COLUMNS = 3
 local WIDTH = 220
 local HEIGHT = 70

@@ -220,12 +220,58 @@ namespace dmRive
         return 1;
     }
 
+    static int RiveComp_PointerMove(lua_State* L)
+    {
+        DM_LUA_STACK_CHECK(L, 0);
+
+        RiveComponent* component = 0;
+        dmGameObject::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
+        lua_Number x = luaL_checknumber(L, 2);
+        lua_Number y = luaL_checknumber(L, 3);
+
+        CompRivePointerMove(component, x, y);
+
+        return 0;
+    }
+
+    static int RiveComp_PointerUp(lua_State* L)
+    {
+        DM_LUA_STACK_CHECK(L, 0);
+
+        RiveComponent* component = 0;
+        dmGameObject::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
+        lua_Number x = luaL_checknumber(L, 2);
+        lua_Number y = luaL_checknumber(L, 3);
+
+        CompRivePointerUp(component, x, y);
+
+        return 0;
+    }
+
+    static int RiveComp_PointerDown(lua_State* L)
+    {
+        DM_LUA_STACK_CHECK(L, 0);
+
+        RiveComponent* component = 0;
+        dmGameObject::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
+        lua_Number x = luaL_checknumber(L, 2);
+        lua_Number y = luaL_checknumber(L, 3);
+
+        CompRivePointerDown(component, x, y);
+
+        return 0;
+    }
+
+
     static const luaL_reg RIVE_FUNCTIONS[] =
     {
         {"play_anim",           RiveComp_PlayAnim},
         {"play_state_machine",  RiveComp_PlayStateMachine},
         {"cancel",              RiveComp_Cancel},
         {"get_go",              RiveComp_GetGO},
+        {"pointer_move",        RiveComp_PointerMove},
+        {"pointer_up",          RiveComp_PointerUp},
+        {"pointer_down",        RiveComp_PointerDown},
         {0, 0}
     };
 

@@ -103,12 +103,12 @@ nodes {
   clipping_inverted: false
   alpha: 1.0
   overridden_fields: 4
-  overridden_fields: 45
   template_node_child: true
   size_mode: SIZE_MODE_MANUAL
   custom_type: 0
-  enabled: false
+  enabled: true
   visible: true
+  material: ""
 }
 nodes {
   position {
@@ -177,6 +177,7 @@ nodes {
   custom_type: 0
   enabled: true
   visible: true
+  material: ""
 }
 material: "/builtins/materials/gui.material"
 adjust_reference: ADJUST_REFERENCE_PARENT

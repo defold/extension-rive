@@ -73,6 +73,10 @@ namespace dmRive
 
     // Get the game object identifier
     bool CompRiveGetBoneID(RiveComponent* component, dmhash_t bone_name, dmhash_t* id);
+    
+    void CompRivePointerMove(RiveComponent* component, float x, float y);
+    void CompRivePointerUp(RiveComponent* component, float x, float y);
+    void CompRivePointerDown(RiveComponent* component, float x, float y);
 
     // bool CompRiveSetIKTargetInstance(RiveComponent* component, dmhash_t constraint_id, float mix, dmhash_t instance_id);
     // bool CompRiveSetIKTargetPosition(RiveComponent* component, dmhash_t constraint_id, float mix, Vectormath::Aos::Point3 position);

@@ -377,7 +377,7 @@ namespace dmRive
 
             renderer->save();
 
-            // Rive is using a different coordinate system that defold,
+            // Rive is using a different coordinate system than defold,
             // we have to adhere to how our projection matrixes are
             // constructed so we flip the renderer on the y axis here
             rive::Vec2D yflip(1.0f,-1.0f);
@@ -1242,6 +1242,37 @@ namespace dmRive
         }
 
         return false;
+    }
+
+
+    void CompRivePointerMove(RiveComponent* component, float x, float y)
+    {
+        if (component->m_StateMachineInstance)
+        {
+            rive::AABB bounds = component->m_ArtboardInstance->bounds();
+            rive::Vec2D p(x, bounds.height() - y);
+            component->m_StateMachineInstance->pointerMove(p);
+        }
+    }
+
+    void CompRivePointerUp(RiveComponent* component, float x, float y)
+    {
+        if (component->m_StateMachineInstance)
+        {
+            rive::AABB bounds = component->m_ArtboardInstance->bounds();
+            rive::Vec2D p(x, bounds.height() - y);
+            component->m_StateMachineInstance->pointerUp(p);
+        }
+    }
+
+    void CompRivePointerDown(RiveComponent* component, float x, float y)
+    {
+        if (component->m_StateMachineInstance)
+        {
+            rive::AABB bounds = component->m_ArtboardInstance->bounds();
+            rive::Vec2D p(x, bounds.height() - y);
+            component->m_StateMachineInstance->pointerDown(p);
+        }
     }
 }
 

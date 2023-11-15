@@ -114,3 +114,60 @@
       - name: id
         type: hash
         desc: Id of the game object
+
+#*****************************************************************************************************
+
+  - name: pointer_move
+    type: function
+    desc: Forward mouse/touch movement to a component
+
+    parameters:
+      - name: url
+        type: url
+        desc: The Rive model
+
+      - name: x
+        type: number
+        desc: Horizontal position
+
+      - name: y
+        type: number
+        desc: Vertical position
+
+#*****************************************************************************************************
+
+  - name: pointer_up
+    type: function
+    desc: Forward mouse/touch release event to a component
+
+    parameters:
+      - name: url
+        type: url
+        desc: The Rive model
+
+      - name: x
+        type: number
+        desc: Horizontal position
+
+      - name: y
+        type: number
+        desc: Vertical position
+
+#*****************************************************************************************************
+
+  - name: pointer_down
+    type: function
+    desc: Forward mouse/touch press event to a component
+
+    parameters:
+      - name: url
+        type: url
+        desc: The Rive model
+
+      - name: x
+        type: number
+        desc: Horizontal position
+
+      - name: y
+        type: number
+        desc: Vertical position
