@@ -22,11 +22,6 @@ namespace dmRive {
 
 class DefoldBuffer : public rive::RenderBuffer {
 public:
-    /*
-    SokolBuffer(RenderBufferType type, RenderBufferFlags renderBufferFlags, size_t sizeInBytes) :
-        RenderBuffer(type, renderBufferFlags, sizeInBytes), m_mappedMemory(new char[sizeInBytes])
-        */
-
     DefoldBuffer(rive::RenderBufferType type, rive::RenderBufferFlags renderBufferFlags, size_t sizeInBytes)
     : rive::RenderBuffer(type, renderBufferFlags, sizeInBytes)
     , m_Data(new char[sizeInBytes])
@@ -56,11 +51,9 @@ public:
 
     void onUnmap() override
     {
-        // ???
     }
 };
 
-#if 0
 class DefoldFactory : public rive::Factory {
 
 public:
@@ -92,8 +85,7 @@ public:
 
     std::unique_ptr<rive::RenderPaint> makeRenderPaint() override;
 
-    std::unique_ptr<rive::RenderImage> decodeImage(rive::Span<const uint8_t> data) override;
+    rive::rcp<rive::RenderImage> decodeImage(rive::Span<const uint8_t> data) override;
 };
-#endif
 } // namespace rive
 #endif

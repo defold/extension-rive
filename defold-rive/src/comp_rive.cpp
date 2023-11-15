@@ -360,7 +360,7 @@ namespace dmRive
         uint32_t width, height;
         GetDimensions(world->m_RiveRenderContext, &width, &height);
 
-        // rive::Mat2D viewTransform = GetViewTransform(world->m_RiveRenderContext, render_context);
+        rive::Mat2D viewTransform = GetViewTransform(world->m_RiveRenderContext, render_context);
         rive::Renderer* renderer = GetRiveRenderer(world->m_RiveRenderContext);
 
         for (uint32_t *i=begin;i!=end;i++)
@@ -374,11 +374,6 @@ namespace dmRive
             Mat4ToMat2D(c->m_World, transform);
 
             rive::AABB bounds = c->m_ArtboardInstance->bounds();
-
-            rive::Mat2D viewTransform = rive::computeAlignment(rive::Fit::contain,
-                                                               rive::Alignment::center,
-                                                               rive::AABB(0, 0, bounds.maxX-bounds.minX, bounds.maxY-bounds.minY),
-                                                               bounds);
 
             renderer->save();
 

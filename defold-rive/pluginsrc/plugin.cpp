@@ -16,7 +16,7 @@ __declspec(dllexport) int dummyFunc()
 // Rive includes
 #include <rive/artboard.hpp>
 #include <rive/file.hpp>
-#include <rive/file_asset_resolver.hpp>
+#include <rive/file_asset_loader.hpp>
 // Due to an X11.h issue (Likely Ubuntu 16.04 issue) we include the Rive/C++17 includes first
 
 //#include <dmsdk/sdk.h>
