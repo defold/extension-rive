@@ -1,5 +1,6 @@
 #ifndef _RIVE_STATE_TRANSITION_HPP_
 #define _RIVE_STATE_TRANSITION_HPP_
+#include "rive/animation/cubic_interpolator.hpp"
 #include "rive/animation/state_transition_flags.hpp"
 #include "rive/generated/animation/state_transition_base.hpp"
 #include <stdio.h>
@@ -12,7 +13,7 @@ class StateMachineLayerImporter;
 class StateTransitionImporter;
 class TransitionCondition;
 class StateInstance;
-class SMIInput;
+class StateMachineInstance;
 class LinearAnimation;
 class LinearAnimationInstance;
 
@@ -34,6 +35,7 @@ private:
         return static_cast<StateTransitionFlags>(flags());
     }
     LayerState* m_StateTo = nullptr;
+    CubicInterpolator* m_Interpolator = nullptr;
 
     std::vector<TransitionCondition*> m_Conditions;
     void addCondition(TransitionCondition* condition);
@@ -41,6 +43,7 @@ private:
 public:
     ~StateTransition() override;
     const LayerState* stateTo() const { return m_StateTo; }
+    inline CubicInterpolator* interpolator() const { return m_Interpolator; }
 
     StatusCode onAddedDirty(CoreContext* context) override;
     StatusCode onAddedClean(CoreContext* context) override;
@@ -56,7 +59,7 @@ public:
     /// Returns AllowTransition::yes when this transition can be taken from
     /// stateFrom with the given inputs.
     AllowTransition allowed(StateInstance* stateFrom,
-                            Span<SMIInput*> inputs,
+                            StateMachineInstance* stateMachineInstance,
                             bool ignoreTriggers) const;
 
     /// Whether the animation is held at exit or if it keeps advancing
@@ -100,8 +103,8 @@ public:
 
     /// Provide the animation instance to use for computing percentage
     /// durations for exit time.
-    virtual const LinearAnimationInstance*
-    exitTimeAnimationInstance(const StateInstance* from) const;
+    virtual const LinearAnimationInstance* exitTimeAnimationInstance(
+        const StateInstance* from) const;
 
     /// Provide the animation to use for computing percentage durations for
     /// exit time.

@@ -19,7 +19,9 @@
 
 #include <rive/renderer.hpp>
 #include <rive/assets/file_asset.hpp>
-#include <rive/file_asset_resolver.hpp>
+#include <rive/file_asset_loader.hpp>
+
+#include "renderer.h"
 
 namespace dmGameSystemDDF {
     struct TextureSet;
@@ -42,10 +44,13 @@ namespace dmRive {
     };
 
 
-    class AtlasNameResolver : public rive::FileAssetResolver {
+    class AtlasNameResolver : public rive::FileAssetLoader {
     public:
-        AtlasNameResolver();
-        void loadContents(rive::FileAsset& asset) override;
+        AtlasNameResolver(HRenderContext context);
+
+        bool loadContents(rive::FileAsset& asset, rive::Span<const uint8_t> inBandBytes);
+    private:
+        HRenderContext m_RiveRenderContext;
     };
 
     Atlas*      CreateAtlas(const dmGameSystemDDF::TextureSet* texture_set_ddf);

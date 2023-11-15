@@ -19,6 +19,7 @@ public:
         {
             case CubicValueInterpolatorBase::typeKey:
             case CubicInterpolatorBase::typeKey:
+            case KeyFrameInterpolatorBase::typeKey:
                 return true;
             default:
                 return false;

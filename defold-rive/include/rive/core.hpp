@@ -12,6 +12,9 @@ class ImportStack;
 class Core
 {
 public:
+    Core() = default;
+    Core(const Core&) = default;
+    const uint32_t emptyId = -1;
     static const int invalidPropertyKey = 0;
     virtual ~Core() {}
     virtual uint16_t coreType() const = 0;

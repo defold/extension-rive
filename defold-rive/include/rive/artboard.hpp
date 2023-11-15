@@ -9,6 +9,8 @@
 #include "rive/math/aabb.hpp"
 #include "rive/renderer.hpp"
 #include "rive/shapes/shape_paint_container.hpp"
+#include "rive/text/text_value_run.hpp"
+#include "rive/event.hpp"
 
 #include <queue>
 #include <vector>
@@ -26,6 +28,9 @@ class ArtboardInstance;
 class LinearAnimationInstance;
 class Scene;
 class StateMachineInstance;
+class Joystick;
+class TextValueRun;
+class Event;
 
 class Artboard : public ArtboardBase, public CoreContext, public ShapePaintContainer
 {
@@ -37,10 +42,14 @@ private:
     std::vector<Core*> m_Objects;
     std::vector<LinearAnimation*> m_Animations;
     std::vector<StateMachine*> m_StateMachines;
+    std::vector<TextValueRun*> m_TextValueRuns;
+    std::vector<Event*> m_Events;
     std::vector<Component*> m_DependencyOrder;
     std::vector<Drawable*> m_Drawables;
     std::vector<DrawTarget*> m_DrawTargets;
     std::vector<NestedArtboard*> m_NestedArtboards;
+    std::vector<Joystick*> m_Joysticks;
+    bool m_JoysticksApplyBeforeUpdate = true;
 
     unsigned int m_DirtDepth = 0;
     std::unique_ptr<RenderPath> m_BackgroundPath;
@@ -62,7 +71,8 @@ public:
     void addObject(Core* object);
     void addAnimation(LinearAnimation* object);
     void addStateMachine(StateMachine* object);
-    void addNestedArtboard(NestedArtboard* object);
+    void addTextValueRun(TextValueRun* object);
+    void addEvent(Event* object);
 
 public:
     Artboard() {}
@@ -97,6 +107,7 @@ public:
         kHideFG,
     };
     void draw(Renderer* renderer, DrawOption = DrawOption::kNormal);
+    void addToRenderPath(RenderPath* path, const Mat2D& transform);
 
 #ifdef TESTING
     RenderPath* clipPath() const { return m_ClipPath.get(); }
@@ -109,6 +120,7 @@ public:
     AABB bounds() const;
 
     // Can we hide these from the public? (they use playable)
+    bool isTranslucent() const;
     bool isTranslucent(const LinearAnimation*) const;
     bool isTranslucent(const LinearAnimationInstance*) const;
 
@@ -124,11 +136,30 @@ public:
         return nullptr;
     }
 
+    template <typename T = Component> std::vector<T*> find()
+    {
+        std::vector<T*> results;
+        for (auto object : m_Objects)
+        {
+            if (object != nullptr && object->is<T>())
+            {
+                results.push_back(static_cast<T*>(object));
+            }
+        }
+        return results;
+    }
+
     size_t animationCount() const { return m_Animations.size(); }
     std::string animationNameAt(size_t index) const;
 
     size_t stateMachineCount() const { return m_StateMachines.size(); }
     std::string stateMachineNameAt(size_t index) const;
+
+    size_t textValueRunCount() const { return m_TextValueRuns.size(); }
+    TextValueRun* textValueRunAt(size_t index) const;
+
+    size_t eventCount() const { return m_Events.size(); }
+    Event* eventAt(size_t index) const;
 
     LinearAnimation* firstAnimation() const { return animation(0); }
     LinearAnimation* animation(const std::string& name) const;
@@ -143,10 +174,55 @@ public:
     // provided.
     int defaultStateMachineIndex() const;
 
-    /// Make an instance of this artboard, must be explictly deleted when no
-    /// longer needed.
-    // Deprecated...
-    std::unique_ptr<ArtboardInstance> instance() const;
+    /// Make an instance of this artboard.
+    template <typename T = ArtboardInstance> std::unique_ptr<T> instance() const
+    {
+        std::unique_ptr<T> artboardClone(new T);
+        artboardClone->copy(*this);
+
+        artboardClone->m_Factory = m_Factory;
+        artboardClone->m_FrameOrigin = m_FrameOrigin;
+        artboardClone->m_IsInstance = true;
+
+        std::vector<Core*>& cloneObjects = artboardClone->m_Objects;
+        cloneObjects.push_back(artboardClone.get());
+
+        if (!m_Objects.empty())
+        {
+            // Skip first object (artboard).
+            auto itr = m_Objects.begin();
+            while (++itr != m_Objects.end())
+            {
+                auto object = *itr;
+                cloneObjects.push_back(object == nullptr ? nullptr : object->clone());
+            }
+        }
+
+        for (auto animation : m_Animations)
+        {
+            artboardClone->m_Animations.push_back(animation);
+        }
+        for (auto stateMachine : m_StateMachines)
+        {
+            artboardClone->m_StateMachines.push_back(stateMachine);
+        }
+        for (auto textRun : m_TextValueRuns)
+        {
+            artboardClone->m_TextValueRuns.push_back(textRun);
+        }
+        for (auto event : m_Events)
+        {
+            artboardClone->m_Events.push_back(event);
+        }
+
+        if (artboardClone->initialize() != StatusCode::Ok)
+        {
+            artboardClone = nullptr;
+        }
+
+        assert(artboardClone->isInstance());
+        return artboardClone;
+    }
 
     /// Returns true if the artboard is an instance of another
     bool isInstance() const { return m_IsInstance; }

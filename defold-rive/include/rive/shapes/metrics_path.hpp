@@ -21,9 +21,10 @@ private:
 
 public:
     const std::vector<MetricsPath*>& paths() const { return m_Paths; }
+    rcp<ContourMeasure> contourMeasure() const { return m_Contour; }
 
     void addPath(CommandPath* path, const Mat2D& transform) override;
-    void reset() override;
+    void rewind() override;
     void moveTo(float x, float y) override;
     void lineTo(float x, float y) override;
     void cubicTo(float ox, float oy, float ix, float iy, float x, float y) override;
@@ -35,6 +36,9 @@ public:
     /// from startLength to endLength of this MetricsPath. Requires
     /// computeLength be called prior to trimming.
     void trim(float startLength, float endLength, bool moveTo, RenderPath* result);
+
+    /// Add this MetricsPath to a raw path with a transform.
+    RawPath::Iter addToRawPath(RawPath& rawPath, const Mat2D& transform) const;
 
 private:
     float computeLength(const Mat2D& transform);
@@ -64,7 +68,7 @@ public:
     void addPath(CommandPath* path, const Mat2D& transform) override;
 
     void fillRule(FillRule value) override;
-    void reset() override;
+    void rewind() override;
     void moveTo(float x, float y) override;
     void lineTo(float x, float y) override;
     void cubicTo(float ox, float oy, float ix, float iy, float x, float y) override;

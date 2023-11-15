@@ -19,10 +19,11 @@ private:
 public:
     AnimationStateInstance(const AnimationState* animationState, ArtboardInstance* instance);
 
-    void advance(float seconds, Span<SMIInput*>) override;
+    void advance(float seconds, StateMachineInstance* stateMachineInstance) override;
     void apply(float mix) override;
 
     bool keepGoing() const override;
+    void clearSpilledTime() override;
 
     const LinearAnimationInstance* animationInstance() const { return &m_AnimationInstance; }
 

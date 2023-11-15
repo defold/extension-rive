@@ -20,31 +20,55 @@
 
 namespace dmRive {
 
-template<typename T>
 class DefoldBuffer : public rive::RenderBuffer {
 public:
+    /*
+    SokolBuffer(RenderBufferType type, RenderBufferFlags renderBufferFlags, size_t sizeInBytes) :
+        RenderBuffer(type, renderBufferFlags, sizeInBytes), m_mappedMemory(new char[sizeInBytes])
+        */
+
+    DefoldBuffer(rive::RenderBufferType type, rive::RenderBufferFlags renderBufferFlags, size_t sizeInBytes)
+    : rive::RenderBuffer(type, renderBufferFlags, sizeInBytes)
+    , m_Data(new char[sizeInBytes])
+    {
+        // No copy
+    }
+
+    /*
     DefoldBuffer(rive::Span<const T> data)
     : rive::RenderBuffer(data.size())
     , m_Data(new T[count()])
     {
         memcpy(m_Data, data.begin(), sizeof(T)*count());
     }
+    */
 
     ~DefoldBuffer() {
         delete[] m_Data;
     }
 
-    T* m_Data;
+    char* m_Data;
+
+    void* onMap() override
+    {
+        return m_Data;
+    }
+
+    void onUnmap() override
+    {
+        // ???
+    }
 };
 
+#if 0
 class DefoldFactory : public rive::Factory {
 
 public:
     DefoldFactory();
 
-    rive::rcp<rive::RenderBuffer> makeBufferU16(rive::Span<const uint16_t>) override;
-    rive::rcp<rive::RenderBuffer> makeBufferU32(rive::Span<const uint32_t>) override;
-    rive::rcp<rive::RenderBuffer> makeBufferF32(rive::Span<const float>) override;
+    rive::rcp<rive::RenderBuffer> makeRenderBuffer(rive::RenderBufferType,
+                                                   rive::RenderBufferFlags,
+                                                   size_t sizeInBytes) override;
 
     rive::rcp<rive::RenderShader> makeLinearGradient(float sx,
                                          float sy,
@@ -70,5 +94,6 @@ public:
 
     std::unique_ptr<rive::RenderImage> decodeImage(rive::Span<const uint8_t> data) override;
 };
+#endif
 } // namespace rive
 #endif

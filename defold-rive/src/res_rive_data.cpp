@@ -29,9 +29,10 @@
 
 namespace dmRive
 {
-    static void SetupData(RiveSceneData* scene_data, rive::File* file, const char* path)
+    static void SetupData(RiveSceneData* scene_data, rive::File* file, const char* path, HRenderContext rive_render_context)
     {
         scene_data->m_File = file;
+        scene_data->m_RiveRenderContext = rive_render_context;
 
         scene_data->m_ArtboardDefault = scene_data->m_File->artboardDefault();
         rive::Artboard* artboard = scene_data->m_ArtboardDefault.get();
@@ -69,17 +70,20 @@ namespace dmRive
 
     static dmResource::Result ResourceType_RiveData_Create(const dmResource::ResourceCreateParams& params)
     {
-        dmRive::DefoldFactory* rive_factory = (dmRive::DefoldFactory*)params.m_Context;
-        rive::Span<uint8_t> data((uint8_t*)params.m_Buffer, params.m_BufferSize);
+        HRenderContext render_context_res = (HRenderContext) params.m_Context;
+
+        rive::Factory* rive_factory = GetRiveFactory(render_context_res);
+
+        rive::Span<const uint8_t> data((const uint8_t*)params.m_Buffer, params.m_BufferSize);
 
         // Creates DefoldRenderImage with a hashed name for each image resource
-        AtlasNameResolver atlas_resolver = AtlasNameResolver();
+        AtlasNameResolver atlas_resolver = AtlasNameResolver(render_context_res);
 
         rive::ImportResult result;
         std::unique_ptr<rive::File> file = rive::File::import(data,
                                                         rive_factory,
                                                         &result,
-                                                        &atlas_resolver);
+                                                        (rive::FileAssetLoader*) &atlas_resolver);
 
         if (result != rive::ImportResult::success)
         {
@@ -89,7 +93,7 @@ namespace dmRive
 
         RiveSceneData* scene_data = new RiveSceneData();
 
-        SetupData(scene_data, file.release(), params.m_Filename);
+        SetupData(scene_data, file.release(), params.m_Filename, render_context_res);
 
         params.m_Resource->m_Resource     = (void*) scene_data;
         params.m_Resource->m_ResourceSize = 0;
@@ -112,10 +116,12 @@ namespace dmRive
 
     static dmResource::Result ResourceType_RiveData_Recreate(const dmResource::ResourceRecreateParams& params)
     {
-        dmRive::DefoldFactory* rive_factory = (dmRive::DefoldFactory*)params.m_Context;
+        HRenderContext render_context_res = (HRenderContext) params.m_Context;
         rive::Span<uint8_t> data((uint8_t*)params.m_Buffer, params.m_BufferSize);
 
-        AtlasNameResolver atlas_resolver = AtlasNameResolver();
+        rive::Factory* rive_factory = GetRiveFactory(render_context_res);
+
+        AtlasNameResolver atlas_resolver = AtlasNameResolver(render_context_res);
 
         rive::ImportResult result;
         std::unique_ptr<rive::File> file = rive::File::import(data,
@@ -138,7 +144,7 @@ namespace dmRive
 
         RiveSceneData* scene_data = new RiveSceneData();
 
-        SetupData(scene_data, file.release(), params.m_Filename);
+        SetupData(scene_data, file.release(), params.m_Filename, render_context_res);
 
         params.m_Resource->m_Resource     = (void*) scene_data;
         params.m_Resource->m_ResourceSize = 0;
@@ -148,11 +154,12 @@ namespace dmRive
 
     static dmResource::Result RegisterResourceType_RiveData(dmResource::ResourceTypeRegisterContext& ctx)
     {
-        dmRive::DefoldFactory* rive_ext_context = new dmRive::DefoldFactory();
-        ctx.m_Contexts->Put(ctx.m_NameHash, rive_ext_context);
+        HRenderContext rive_render_context = NewRenderContext();
+
+        ctx.m_Contexts->Put(ctx.m_NameHash, rive_render_context);
         return dmResource::RegisterType(ctx.m_Factory,
                                            ctx.m_Name,
-                                           rive_ext_context,
+                                           rive_render_context,
                                            0, // preload
                                            ResourceType_RiveData_Create,
                                            0, // post create
@@ -163,8 +170,10 @@ namespace dmRive
 
     static dmResource::Result DeregisterResourceType_RiveData(dmResource::ResourceTypeRegisterContext& ctx)
     {
-        dmRive::DefoldFactory** context = (dmRive::DefoldFactory**)ctx.m_Contexts->Get(ctx.m_NameHash);
-        delete *context;
+        HRenderContext* context = (HRenderContext*) ctx.m_Contexts->Get(ctx.m_NameHash);
+        DeleteRenderContext(context);
+
+        // delete *context;
         return dmResource::RESULT_OK;
     }
 }

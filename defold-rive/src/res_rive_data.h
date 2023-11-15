@@ -16,6 +16,7 @@
 #include <stdint.h>
 #include <dmsdk/dlib/array.h>
 #include <dmsdk/dlib/hash.h>
+#include "renderer.h"
 
 namespace rive
 {
@@ -29,6 +30,7 @@ namespace dmRive
 	struct RiveSceneData
 	{
 		rive::File* 							m_File;
+		HRenderContext                          m_RiveRenderContext;
 		std::unique_ptr<rive::ArtboardInstance> m_ArtboardDefault;
 	    dmArray<dmhash_t> 						m_LinearAnimations;
 	    dmArray<dmhash_t> 						m_StateMachines;

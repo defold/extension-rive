@@ -18,6 +18,8 @@
 #include <dmsdk/dlib/log.h>
 #include <dmsdk/resource/resource.h>
 
+#include "renderer.h"
+
 namespace dmRive
 {
     static dmResource::Result AcquireResources(dmResource::HFactory factory, RiveSceneResource* resource, const char* filename)
@@ -38,7 +40,7 @@ namespace dmRive
             resource->m_Atlas = dmRive::CreateAtlas(resource->m_TextureSet->m_TextureSet);
         }
 
-        return dmResource::RESULT_OK;
+        return LoadShaders(factory, &resource->m_Shaders);
     }
 
     static void ReleaseResources(dmResource::HFactory factory, RiveSceneResource* resource)
@@ -51,6 +53,8 @@ namespace dmRive
             dmDDF::FreeMessage(resource->m_DDF);
         if (resource->m_Scene != 0x0)
             dmResource::Release(factory, resource->m_Scene);
+
+        ReleaseShaders(factory, &resource->m_Shaders);
     }
 
     static dmResource::Result ResourceTypePreload(const dmResource::ResourcePreloadParams& params)

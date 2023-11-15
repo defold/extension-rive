@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <vector>
 #include "rive/animation/linear_animation_instance.hpp"
+#include "rive/animation/keyed_callback_reporter.hpp"
 #include "rive/listener_type.hpp"
 #include "rive/scene.hpp"
 
@@ -21,23 +22,28 @@ class Shape;
 class StateMachineLayerInstance;
 class HitShape;
 class NestedArtboard;
+class Event;
+class KeyedProperty;
 
-class StateMachineInstance : public Scene
+class EventReport
 {
-    friend class SMIInput;
+public:
+    EventReport(Event* event, float secondsDelay) : m_event(event), m_secondsDelay(secondsDelay) {}
+    Event* event() const { return m_event; }
+    float secondsDelay() const { return m_secondsDelay; }
 
 private:
-    const StateMachine* m_Machine;
-    bool m_NeedsAdvance = false;
+    Event* m_event;
+    float m_secondsDelay;
+};
 
-    std::vector<SMIInput*> m_InputInstances; // we own each pointer
-    size_t m_LayerCount;
-    StateMachineLayerInstance* m_Layers;
+class StateMachineInstance : public Scene, public KeyedCallbackReporter
+{
+    friend class SMIInput;
+    friend class KeyedProperty;
 
+private:
     void markNeedsAdvance();
-
-    std::vector<std::unique_ptr<HitShape>> m_HitShapes;
-    std::vector<NestedArtboard*> m_HitNestedArtboards;
 
     /// Provide a hitListener if you want to process a down or an up for the pointer position
     /// too.
@@ -45,6 +51,7 @@ private:
 
     template <typename SMType, typename InstType>
     InstType* getNamedInput(const std::string& name) const;
+    void notifyEventListeners(std::vector<EventReport> events, NestedArtboard* source);
 
 public:
     StateMachineInstance(const StateMachine* machine, ArtboardInstance* instance);
@@ -59,9 +66,9 @@ public:
     bool needsAdvance() const;
 
     // Returns a pointer to the instance's stateMachine
-    const StateMachine* stateMachine() const { return m_Machine; }
+    const StateMachine* stateMachine() const { return m_machine; }
 
-    size_t inputCount() const override { return m_InputInstances.size(); }
+    size_t inputCount() const override { return m_inputInstances.size(); }
     SMIInput* input(size_t index) const override;
     SMIBool* getBool(const std::string& name) const override;
     SMINumber* getNumber(const std::string& name) const override;
@@ -72,7 +79,7 @@ public:
 
     // The number of state changes that occurred across all layers on the
     // previous advance.
-    size_t stateChangedCount() const;
+    std::size_t stateChangedCount() const;
 
     // Returns the state name for states that changed in layers on the
     // previously called advance. If the index of out of range, it returns
@@ -91,7 +98,43 @@ public:
 
     /// Allow anything referencing a concrete StateMachineInstace access to
     /// the backing artboard (explicitly not allowed on Scenes).
-    Artboard* artboard() { return m_ArtboardInstance; }
+    Artboard* artboard() { return m_artboardInstance; }
+
+    void setParentStateMachineInstance(StateMachineInstance* instance)
+    {
+        m_parentStateMachineInstance = instance;
+    }
+    StateMachineInstance* parentStateMachineInstance() { return m_parentStateMachineInstance; }
+
+    void setParentNestedArtboard(NestedArtboard* artboard) { m_parentNestedArtboard = artboard; }
+    NestedArtboard* parentNestedArtboard() { return m_parentNestedArtboard; }
+
+    /// Tracks an event that reported, will be cleared at the end of the next advance.
+    void reportEvent(Event* event, float secondsDelay = 0.0f);
+
+    /// Gets the number of events that reported since the last advance.
+    std::size_t reportedEventCount() const;
+
+    /// Gets a reported event at an index < reportedEventCount().
+    const EventReport reportedEventAt(std::size_t index) const;
+
+    /// Report which time based events have elapsed on a timeline within this
+    /// state machine.
+    void reportKeyedCallback(uint32_t objectId,
+                             uint32_t propertyKey,
+                             float elapsedSeconds) override;
+
+private:
+    std::vector<EventReport> m_reportedEvents;
+    const StateMachine* m_machine;
+    bool m_needsAdvance = false;
+    std::vector<SMIInput*> m_inputInstances; // we own each pointer
+    size_t m_layerCount;
+    StateMachineLayerInstance* m_layers;
+    std::vector<std::unique_ptr<HitShape>> m_hitShapes;
+    std::vector<NestedArtboard*> m_hitNestedArtboards;
+    StateMachineInstance* m_parentStateMachineInstance = nullptr;
+    NestedArtboard* m_parentNestedArtboard = nullptr;
 };
 } // namespace rive
 #endif

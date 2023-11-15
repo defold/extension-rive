@@ -13,20 +13,9 @@ DefoldFactory::DefoldFactory()
 {
 }
 
-rive::rcp<rive::RenderBuffer> DefoldFactory::makeBufferU16(rive::Span<const uint16_t> data)
+rive::rcp<rive::RenderBuffer> DefoldFactory::makeRenderBuffer(rive::RenderBufferType type, rive::RenderBufferFlags flags, size_t sizeInBytes)
 {
-    return rive::rcp<rive::RenderBuffer>(new DefoldBuffer<uint16_t>(data));
+    return rive::rcp<rive::RenderBuffer>(new DefoldBuffer(type, flags, sizeInBytes));
 }
-
-rive::rcp<rive::RenderBuffer> DefoldFactory::makeBufferU32(rive::Span<const uint32_t> data)
-{
-    return rive::rcp<rive::RenderBuffer>(new DefoldBuffer<uint32_t>(data));
-}
-
-rive::rcp<rive::RenderBuffer> DefoldFactory::makeBufferF32(rive::Span<const float> data)
-{
-    return rive::rcp<rive::RenderBuffer>(new DefoldBuffer<float>(data));
-}
-
 
 } // namespace dmRive

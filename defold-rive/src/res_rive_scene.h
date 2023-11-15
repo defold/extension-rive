@@ -15,6 +15,8 @@
 
 #include <dmsdk/gamesys/resources/res_textureset.h>
 
+#include "renderer.h"
+
 #include "rive_ddf.h" // generated from the rive_ddf.proto
 
 namespace dmRive
@@ -27,6 +29,7 @@ namespace dmRive
         dmGameSystem::TextureSetResource*   m_TextureSet;   // The atlas
         void*                               m_Scene; // The rive::File* ptr
         Atlas*                              m_Atlas;
+        ShaderResources*                    m_Shaders;
     };
 }
 

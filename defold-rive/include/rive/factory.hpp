@@ -6,7 +6,7 @@
 #define _RIVE_FACTORY_HPP_
 
 #include "rive/renderer.hpp"
-#include "rive/text.hpp"
+#include "rive/text_engine.hpp"
 #include "rive/refcnt.hpp"
 #include "rive/span.hpp"
 #include "rive/math/aabb.hpp"
@@ -27,9 +27,9 @@ public:
     Factory() {}
     virtual ~Factory() {}
 
-    virtual rcp<RenderBuffer> makeBufferU16(Span<const uint16_t>) = 0;
-    virtual rcp<RenderBuffer> makeBufferU32(Span<const uint32_t>) = 0;
-    virtual rcp<RenderBuffer> makeBufferF32(Span<const float>) = 0;
+    virtual rcp<RenderBuffer> makeRenderBuffer(RenderBufferType,
+                                               RenderBufferFlags,
+                                               size_t sizeInBytes) = 0;
 
     virtual rcp<RenderShader> makeLinearGradient(float sx,
                                                  float sy,
@@ -56,9 +56,9 @@ public:
 
     virtual std::unique_ptr<RenderPaint> makeRenderPaint() = 0;
 
-    virtual std::unique_ptr<RenderImage> decodeImage(Span<const uint8_t>) = 0;
+    virtual rcp<RenderImage> decodeImage(Span<const uint8_t>) = 0;
 
-    virtual rcp<Font> decodeFont(Span<const uint8_t>) { return nullptr; }
+    virtual rcp<Font> decodeFont(Span<const uint8_t>);
 
     // Non-virtual helpers
 

@@ -205,11 +205,12 @@ namespace dmRive {
     }
 
 
-    AtlasNameResolver::AtlasNameResolver()
+    AtlasNameResolver::AtlasNameResolver(HRenderContext context)
+    : m_RiveRenderContext(context)
     {
     }
 
-    void AtlasNameResolver::loadContents(rive::FileAsset& _asset)
+    bool AtlasNameResolver::loadContents(rive::FileAsset& _asset, rive::Span<const uint8_t> inBandBytes)
     {
         if (_asset.is<rive::ImageAsset>()) {
             rive::ImageAsset* asset = _asset.as<rive::ImageAsset>();
@@ -219,16 +220,21 @@ namespace dmRive {
             char* name_ext_end = strrchr(name_str, '.');
 
             if (name_ext_end)
+            {
                 name_ext_end[0] = 0;
+            }
 
             DEBUGLOG("Found Asset: %s", name_str);
             dmhash_t name_hash = dmHashString64(name_str);
 
             free(name_str);
 
-    // TODO: Possibly store rotation and location
-            asset->renderImage(std::make_unique<DefoldRenderImage>(name_hash));
+            asset->renderImage(CreateRiveRenderImage(m_RiveRenderContext, (void*) inBandBytes.data(), inBandBytes.size()));
+
+            return true;
         }
+
+        return false;
     }
 
 

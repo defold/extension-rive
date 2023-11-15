@@ -7,6 +7,10 @@ namespace rive
 class NestedBool : public NestedBoolBase
 {
 public:
+    void applyValue() override;
+
+protected:
+    void nestedValueChanged() override;
 };
 } // namespace rive
 

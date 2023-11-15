@@ -59,10 +59,40 @@ template <typename Dst, typename Src> Dst bit_cast(const Src& src)
     RIVE_INLINE_MEMCPY(&dst, &src, sizeof(Dst));
     return dst;
 }
+
+// Returns the 1-based index of the most significat bit in x.
+//
+//   0    -> 0
+//   1    -> 1
+//   2..3 -> 2
+//   4..7 -> 3
+//   ...
+//
+RIVE_ALWAYS_INLINE static uint32_t msb(uint32_t x)
+{
+    if (x == 0)
+    {
+        return 0; // __builtin_clz is undefined for x=0, and the double method doesn't work either.
+    }
+#if defined(__clang__) || defined(__GNUC__)
+    return 32 - __builtin_clz(x);
+#else
+    uint64_t doubleBits = bit_cast<uint64_t>(static_cast<double>(x));
+    return (doubleBits >> 52) - 1022;
+#endif
+}
+
+// Returns x rounded up to the next multiple of N.
+// If x is already a multiple of N, returns x.
+template <size_t N> RIVE_ALWAYS_INLINE constexpr size_t round_up_to_multiple_of(size_t x)
+{
+    static_assert(N != 0 && (N & (N - 1)) == 0,
+                  "math::round_up_to_multiple_of<> only supports powers of 2.");
+    return (x + (N - 1)) & ~(N - 1);
+}
 } // namespace math
 
 template <typename T> T lerp(const T& a, const T& b, float t) { return a + (b - a) * t; }
-
 } // namespace rive
 
 #endif

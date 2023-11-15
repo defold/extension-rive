@@ -24,7 +24,10 @@ private:
 
 public:
     dmhash_t m_NameHash;
-    DefoldRenderImage(dmhash_t name_hash);
+    DefoldRenderImage(dmhash_t name_hash)
+    : m_NameHash(name_hash)
+    {
+    }
 };
 
 

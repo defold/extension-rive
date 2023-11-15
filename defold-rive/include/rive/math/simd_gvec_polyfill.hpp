@@ -27,8 +27,11 @@ constexpr static Swizzle PackSwizzle2(uint32_t sourceVectorLength, uint32_t i0, 
 {
     return (i1 << 5) | (i0 << 3) | sourceVectorLength;
 }
-constexpr static Swizzle
-PackSwizzle4(uint32_t sourceVectorLength, uint32_t i0, uint32_t i1, uint32_t i2, uint32_t i3)
+constexpr static Swizzle PackSwizzle4(uint32_t sourceVectorLength,
+                                      uint32_t i0,
+                                      uint32_t i1,
+                                      uint32_t i2,
+                                      uint32_t i3)
 {
     return (i3 << 9) | (i2 << 7) | PackSwizzle2(sourceVectorLength, i0, i1);
 }
@@ -121,6 +124,8 @@ template <typename T> struct gvec_data<T, 4>
         // operator= is just a memcpy. So: "float.xz = float4.xz" would also assign y and w.
         gvec<T, 4, PackSwizzle4(4, 1, 0, 3, 2)> yxwz;
         gvec<T, 4, PackSwizzle4(4, 2, 3, 0, 1)> zwxy;
+        gvec<T, 4, PackSwizzle4(4, 2, 1, 0, 3)> zyxw;
+        gvec<T, 4, PackSwizzle4(4, 0, 3, 2, 1)> xwzy;
     };
 };
 
@@ -302,6 +307,7 @@ ENABLE_SWIZZLE2(min)
 ENABLE_SWIZZLE2(max)
 ENABLE_SWIZZLE3(clamp)
 ENABLE_SWIZZLE3F(mix)
+ENABLE_SWIZZLE3F(precise_mix)
 ENABLE_SWIZZLE3IT(if_then_else)
 template <typename T, int N, Swizzle Z> void store(void* dst, gvec<T, N, Z> vec)
 {

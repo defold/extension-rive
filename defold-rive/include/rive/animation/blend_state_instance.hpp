@@ -6,6 +6,7 @@
 #include "rive/animation/state_instance.hpp"
 #include "rive/animation/blend_state.hpp"
 #include "rive/animation/linear_animation_instance.hpp"
+#include "rive/animation/state_machine_instance.hpp"
 
 namespace rive
 {
@@ -52,14 +53,20 @@ public:
 
     bool keepGoing() const override { return m_KeepGoing; }
 
-    void advance(float seconds, Span<SMIInput*>) override
+    void advance(float seconds, StateMachineInstance* stateMachineInstance) override
     {
-        m_KeepGoing = false;
+        // NOTE: we are intentionally ignoring the animationInstances' keepGoing
+        // return value.
+        // Blend states need to keep blending forever, as even if the animation
+        // does not change the mix values may
         for (auto& animation : m_AnimationInstances)
         {
-            if (animation.m_AnimationInstance.advance(seconds))
+            if (animation.m_AnimationInstance.keepGoing())
             {
-                m_KeepGoing = true;
+                // Should animations with m_Mix == 0.0 advance? They will
+                // trigger events and the event properties (if any) will not be
+                // updated by animationInstance.apply
+                animation.m_AnimationInstance.advance(seconds, stateMachineInstance);
             }
         }
     }
@@ -69,6 +76,10 @@ public:
         for (auto& animation : m_AnimationInstances)
         {
             float m = mix * animation.m_Mix;
+            if (m == 0.0f)
+            {
+                continue;
+            }
             animation.m_AnimationInstance.apply(m);
         }
     }

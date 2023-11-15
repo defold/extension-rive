@@ -24,3 +24,5 @@ include_dirs = defold-rive
 max_draw_calls = 1024
 max_debug_vertices = 50000
 
+[native_extension]
+app_manifest = /game.appmanifest

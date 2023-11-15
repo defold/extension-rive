@@ -101,8 +101,10 @@ public:
 
     SimpleArray<T>& operator=(SimpleArray<T>&& other)
     {
-        this->m_ptr = other.m_ptr;
-        this->m_size = other.m_size;
+        SimpleArrayHelper<T>::DestructArray(m_ptr, m_ptr + m_size);
+        free(m_ptr);
+        m_ptr = other.m_ptr;
+        m_size = other.m_size;
         other.m_ptr = nullptr;
         other.m_size = 0;
         return *this;
@@ -222,13 +224,13 @@ private:
     T* m_write;
 };
 
-template <typename T>
-SimpleArray<T>::SimpleArray(SimpleArrayBuilder<T>&& other) : m_size(other.size())
+template <typename T> SimpleArray<T>::SimpleArray(SimpleArrayBuilder<T>&& other)
 {
     // Bring the capacity down to the actual size (this should keep the same
     // ptr, but that's not guaranteed, so we copy the ptr after the realloc).
     other.resize(other.size());
     m_ptr = other.m_ptr;
+    m_size = other.m_size;
     other.m_ptr = nullptr;
     other.m_size = 0;
 }

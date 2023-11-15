@@ -38,6 +38,9 @@
 #include <common/factory.h>
 #include <common/tess_renderer.h>
 
+// Defold Rive Renderer
+#include "renderer.h"
+
 // DMSDK
 #include <dmsdk/dlib/log.h>
 #include <dmsdk/dlib/math.h>
@@ -90,26 +93,21 @@ namespace dmRive
         {
             memset(this, 0, sizeof(*this));
         }
-        dmResource::HFactory        m_Factory;
-        dmRender::HRenderContext    m_RenderContext;
-        dmGraphics::HContext        m_GraphicsContext;
-        dmGraphics::HTexture        m_NullTexture;
-        uint32_t                    m_MaxInstanceCount;
+        dmResource::HFactory     m_Factory;
+        dmRender::HRenderContext m_RenderContext;
+        dmGraphics::HContext     m_GraphicsContext;
+        dmGraphics::HTexture     m_NullTexture;
+        uint32_t                 m_MaxInstanceCount;
     };
 
     // One per collection
     struct RiveWorld
     {
-        CompRiveContext*                    m_Ctx;
-        dmRive::DefoldTessRenderer*         m_Renderer;
-        dmObjectPool<RiveComponent*>        m_Components;
+        CompRiveContext*                        m_Ctx;
+        HRenderContext                          m_RiveRenderContext;
+        dmObjectPool<RiveComponent*>            m_Components;
         dmArray<dmRender::RenderObject>         m_RenderObjects;
         dmArray<dmRender::HNamedConstantBuffer> m_RenderConstants; // 1:1 mapping with the render objects
-        dmGraphics::HVertexDeclaration      m_VertexDeclaration;
-        dmGraphics::HVertexBuffer           m_VertexBuffer;
-        dmArray<RiveVertex>                 m_VertexBufferData;
-        dmGraphics::HIndexBuffer            m_IndexBuffer;
-        dmArray<uint16_t>                   m_IndexBufferData;
     };
 
     dmGameObject::CreateResult CompRiveNewWorld(const dmGameObject::ComponentNewWorldParams& params)
@@ -118,27 +116,12 @@ namespace dmRive
         RiveWorld* world         = new RiveWorld();
 
         world->m_Ctx = context;
-
-        world->m_Renderer = new DefoldTessRenderer();
         world->m_Components.SetCapacity(context->m_MaxInstanceCount);
         world->m_RenderObjects.SetCapacity(context->m_MaxInstanceCount);
         world->m_RenderConstants.SetCapacity(context->m_MaxInstanceCount);
         world->m_RenderConstants.SetSize(context->m_MaxInstanceCount);
+
         memset(world->m_RenderConstants.Begin(), 0, sizeof(dmGameSystem::HComponentRenderConstants)*world->m_RenderConstants.Capacity());
-
-        dmGraphics::HVertexStreamDeclaration stream_declaration = dmGraphics::NewVertexStreamDeclaration(context->m_GraphicsContext);
-        dmGraphics::AddVertexStream(stream_declaration, "position", 2, dmGraphics::TYPE_FLOAT, false);
-        dmGraphics::AddVertexStream(stream_declaration, "texcoord0", 2, dmGraphics::TYPE_FLOAT, false);
-
-        world->m_VertexDeclaration = dmGraphics::NewVertexDeclaration(context->m_GraphicsContext, stream_declaration);
-        world->m_VertexBuffer      = dmGraphics::NewVertexBuffer(context->m_GraphicsContext, 0, 0x0, dmGraphics::BUFFER_USAGE_DYNAMIC_DRAW);
-        world->m_IndexBuffer       = dmGraphics::NewIndexBuffer(context->m_GraphicsContext, 0, 0x0, dmGraphics::BUFFER_USAGE_DYNAMIC_DRAW);
-
-        dmGraphics::DeleteVertexStreamDeclaration(stream_declaration);
-
-        // TODO: Make this count configurable and/or grow accordingly
-        world->m_VertexBufferData.SetCapacity(context->m_MaxInstanceCount * 512);
-        world->m_IndexBufferData.SetCapacity(context->m_MaxInstanceCount * 512);
 
         *params.m_World = world;
 
@@ -150,17 +133,8 @@ namespace dmRive
     dmGameObject::CreateResult CompRiveDeleteWorld(const dmGameObject::ComponentDeleteWorldParams& params)
     {
         RiveWorld* world = (RiveWorld*)params.m_World;
-        dmGraphics::DeleteVertexDeclaration(world->m_VertexDeclaration);
-        dmGraphics::DeleteVertexBuffer(world->m_VertexBuffer);
-        dmGraphics::DeleteIndexBuffer(world->m_IndexBuffer);
 
         dmResource::UnregisterResourceReloadedCallback(((CompRiveContext*)params.m_Context)->m_Factory, ResourceReloadedCallback, world);
-
-        for (uint32_t i = 0; i < world->m_RenderConstants.Size(); ++i)
-        {
-            if (world->m_RenderConstants[i])
-                dmRender::DeleteNamedConstantBuffer(world->m_RenderConstants[i]);
-        }
 
         delete world;
         return dmGameObject::CREATE_RESULT_OK;
@@ -184,8 +158,6 @@ namespace dmRive
         dmHashUpdateBuffer32(&state, &ddf->m_BlendMode, sizeof(ddf->m_BlendMode));
         if (texture_set)
             dmHashUpdateBuffer32(&state, &texture_set, sizeof(texture_set));
-        if (component->m_RenderConstants)
-            dmGameSystem::HashRenderConstants(component->m_RenderConstants, &state);
         component->m_MixedHash = dmHashFinal32(&state);
         component->m_ReHash = 0;
     }
@@ -306,25 +278,6 @@ namespace dmRive
         }
     }
 
-    /*
-    rive::BlendMode::srcOver
-    rive::BlendMode::screen
-    rive::BlendMode::overlay
-    rive::BlendMode::darken
-    rive::BlendMode::lighten
-    rive::BlendMode::colorDodge
-    rive::BlendMode::colorBurn
-    rive::BlendMode::hardLight
-    rive::BlendMode::softLight
-    rive::BlendMode::difference
-    rive::BlendMode::exclusion
-    rive::BlendMode::multiply
-    rive::BlendMode::hue
-    rive::BlendMode::saturation
-    rive::BlendMode::color
-    rive::BlendMode::luminosity
-    */
-
     static void GetBlendFactorsFromBlendMode(rive::BlendMode blend_mode, dmGraphics::BlendFactor* src, dmGraphics::BlendFactor* dst)
     {
         switch(blend_mode)
@@ -352,10 +305,12 @@ namespace dmRive
             break;
 
             default:
+                /*
                 if ((int) blend_mode != 0)
                 {
                     dmLogOnceWarning("Blend mode '%s' (%d) is not supported, defaulting to '%s'", dmRive::BlendModeToStr(blend_mode), (int) blend_mode, BlendModeToStr(rive::BlendMode::srcOver));
                 }
+                */
                 *src = dmGraphics::BLEND_FACTOR_SRC_ALPHA;
                 *dst = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
             break;
@@ -395,177 +350,67 @@ namespace dmRive
 
     static void RenderBatch(RiveWorld* world, dmRender::HRenderContext render_context, dmRender::RenderListEntry *buf, uint32_t* begin, uint32_t* end)
     {
-        dmRive::DefoldTessRenderer* renderer = world->m_Renderer;
         RiveComponent*              first    = (RiveComponent*) buf[*begin].m_UserData;
-        RiveModelResource*          resource = first->m_Resource;
+        dmRive::RiveSceneResource* scene_res = first->m_Resource->m_Scene;
+        dmRive::RiveSceneData* data          = (dmRive::RiveSceneData*) scene_res->m_Scene;
+        world->m_RiveRenderContext           = data->m_RiveRenderContext;
 
-        uint32_t ro_count         = 0;
-        uint32_t vertex_count     = 0;
-        uint32_t index_count      = 0;
+        RenderBegin(world->m_RiveRenderContext, scene_res->m_Shaders);
 
-        dmRive::DrawDescriptor* draw_descriptors;
-        renderer->getDrawDescriptors(&draw_descriptors, &ro_count);
+        uint32_t width, height;
+        GetDimensions(world->m_RiveRenderContext, &width, &height);
 
-        for (int i = 0; i < ro_count; ++i)
+        // rive::Mat2D viewTransform = GetViewTransform(world->m_RiveRenderContext, render_context);
+        rive::Renderer* renderer = GetRiveRenderer(world->m_RiveRenderContext);
+
+        for (uint32_t *i=begin;i!=end;i++)
         {
-            vertex_count += draw_descriptors[i].m_VerticesCount;
-            index_count += draw_descriptors[i].m_IndicesCount;
-        }
+            RiveComponent* c = (RiveComponent*) buf[*i].m_UserData;
 
-        // Make sure we have enough free render objects
-        if (world->m_RenderObjects.Remaining() < ro_count)
-        {
-            uint32_t grow = ro_count - world->m_RenderObjects.Remaining();
-            world->m_RenderObjects.OffsetCapacity(grow);
+            if (!c->m_Enabled || !c->m_AddedToUpdate)
+                continue;
 
-            uint32_t prev_size = world->m_RenderConstants.Size();
-            world->m_RenderConstants.OffsetCapacity(grow);
-            world->m_RenderConstants.SetSize(world->m_RenderConstants.Capacity());
-            memset(world->m_RenderConstants.Begin() + prev_size, 0, sizeof(dmGameSystem::HComponentRenderConstants)*grow);
+            rive::Mat2D transform;
+            Mat4ToMat2D(c->m_World, transform);
 
-            assert(world->m_RenderObjects.Capacity() == world->m_RenderConstants.Capacity());
-        }
+            rive::AABB bounds = c->m_ArtboardInstance->bounds();
 
-        uint32_t ro_index = world->m_RenderObjects.Size();
+            rive::Mat2D viewTransform = rive::computeAlignment(rive::Fit::contain,
+                                                               rive::Alignment::center,
+                                                               rive::AABB(0, 0, bounds.maxX-bounds.minX, bounds.maxY-bounds.minY),
+                                                               bounds);
 
-        // Make sure we have enough room for new vertex data
-        dmArray<RiveVertex> &vertex_buffer = world->m_VertexBufferData;
-        if (vertex_buffer.Remaining() < vertex_count)
-        {
-            vertex_buffer.OffsetCapacity(vertex_count - vertex_buffer.Remaining());
-        }
+            renderer->save();
 
-        RiveVertex* vb_begin = vertex_buffer.End();
-        RiveVertex* vb_end = vb_begin;
-        vertex_buffer.SetSize(vertex_buffer.Capacity());
+            // Rive is using a different coordinate system that defold,
+            // we have to adhere to how our projection matrixes are
+            // constructed so we flip the renderer on the y axis here
+            rive::Vec2D yflip(1.0f,-1.0f);
+            transform = transform.scale(yflip);
 
-        // Make sure we have enough room for new index data
-        dmArray<uint16_t> &index_buffer = world->m_IndexBufferData;
-        if (index_buffer.Remaining() < index_count)
-        {
-            index_buffer.OffsetCapacity(index_count - index_buffer.Remaining());
-        }
+            renderer->transform(viewTransform * transform);
 
-        uint16_t* ix_begin = index_buffer.End();
-        index_buffer.SetSize(index_buffer.Capacity());
+            renderer->align(rive::Fit::none,
+                rive::Alignment::center,
+                rive::AABB(-bounds.width(), -bounds.height(),
+                bounds.width(), bounds.height()),
+                bounds);
 
-        uint32_t ro_offset = world->m_RenderObjects.Size();
-        world->m_RenderObjects.SetSize(world->m_RenderObjects.Size() + ro_count);
+            // Store the inverse view so we can later go from screen to world.
+            //m_InverseViewTransform = viewTransform.invertOrIdentity();
 
-        dmRender::RenderObject* render_objects = world->m_RenderObjects.Begin() + ro_offset;
-        dmRender::HNamedConstantBuffer* render_constants = world->m_RenderConstants.Begin() + ro_offset;
+            // renderer->SetAtlas(c->m_Resource->m_Scene->m_Atlas);
 
-        dmRender::HMaterial material = GetMaterial(first, resource);
-
-        dmhash_t constant_names[4] = {UNIFORM_PROPERTIES, UNIFORM_GRADIENT_LIMITS, UNIFORM_COLOR, UNIFORM_STOPS};
-        dmRender::HConstant material_constants[4];
-        dmRenderDDF::MaterialDesc::ConstantType material_constant_types[4];
-
-        // Currently, the dmRender::GetMaterialProgramConstant isn't part of the dmSdk
-        material_constant_types[0] =
-        material_constant_types[1] =
-        material_constant_types[2] =
-        material_constant_types[3] = dmRenderDDF::MaterialDesc::CONSTANT_TYPE_USER;
-
-        // ro_count = 0;
-        uint32_t index_offset = 0;
-        uint32_t vertex_offset = 0;
-        RiveVertex* vb_write = vb_begin;
-        uint16_t* ix_write = (uint16_t*) ix_begin;
-
-        bool debug_info = false;
-    #define DO_LOG(...) \
-        if (debug_info) printf(__VA_ARGS__);
-
-        DO_LOG("Ro_Count: %d\n", ro_count);
-
-        for (int i = 0; i < ro_count; ++i)
-        {
-            if (!render_constants[i])
-            {
-                render_constants[i] = dmRender::NewNamedConstantBuffer();
+            if (c->m_StateMachineInstance) {
+                c->m_StateMachineInstance->draw(renderer);
+            } else if (c->m_AnimationInstance) {
+                c->m_AnimationInstance->draw(renderer);
+            } else {
+                c->m_ArtboardInstance->draw(renderer);
             }
 
-            dmRive::DrawDescriptor& draw_desc = draw_descriptors[i];
-            dmRender::RenderObject& ro = render_objects[i];
-
-            memset(&ro.m_StencilTestParams, 0, sizeof(ro.m_StencilTestParams));
-            ro.m_StencilTestParams.Init();
-            ro.Init();
-
-            ro.m_VertexDeclaration = world->m_VertexDeclaration;
-            ro.m_VertexBuffer      = world->m_VertexBuffer;
-            ro.m_IndexBuffer       = world->m_IndexBuffer;
-            ro.m_Material          = material;
-            ro.m_VertexStart       = index_offset * sizeof(uint16_t); // byte offset
-            ro.m_VertexCount       = draw_desc.m_IndicesCount;
-            ro.m_IndexType         = dmGraphics::TYPE_UNSIGNED_SHORT;
-            ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
-            ro.m_SetBlendFactors   = 1;
-
-            if (resource->m_Scene->m_TextureSet)
-            {
-                ro.m_Textures[0] = resource->m_Scene->m_TextureSet->m_Texture->m_Texture;
-            }
-
-            DO_LOG("Ro: %d, vx %d ix %d\n", i, draw_desc.m_VerticesCount, draw_desc.m_IndicesCount);
-
-            dmRive::CopyVertices(draw_desc, vertex_offset, vb_write, ix_write);
-
-            index_offset += draw_desc.m_IndicesCount;
-            vertex_offset += draw_desc.m_VerticesCount;
-            ix_write += draw_desc.m_IndicesCount;
-            vb_write += draw_desc.m_VerticesCount;
-
-            DO_LOG("\n");
-
-        #undef DO_LOG
-
-            const dmRive::FsUniforms fs_uniforms = draw_desc.m_FsUniforms;
-            const dmRive::VsUniforms vs_uniforms = draw_desc.m_VsUniforms;
-            const int MAX_STOPS = 4;
-            const int MAX_COLORS = 16;
-            const int num_stops = fs_uniforms.stopCount > 1 ? fs_uniforms.stopCount : 1;
-
-            dmVMath::Vector4 properties((float)fs_uniforms.fillType, (float) fs_uniforms.stopCount, 0.0f, 0.0f);
-            dmVMath::Vector4 gradient_limits(vs_uniforms.gradientStart.x, vs_uniforms.gradientStart.y, vs_uniforms.gradientEnd.x, vs_uniforms.gradientEnd.y);
-
-            ro.m_ConstantBuffer = render_constants[i];
-
-            // Follows the size+order of constant_names
-            dmVMath::Vector4* constant_values[4] = {
-                (dmVMath::Vector4*) &properties,
-                (dmVMath::Vector4*) &gradient_limits,
-                (dmVMath::Vector4*) fs_uniforms.colors,
-                (dmVMath::Vector4*) fs_uniforms.stops
-            };
-            uint32_t constant_value_counts[4] = {
-                1,
-                1,
-                sizeof(fs_uniforms.colors) / sizeof(dmVMath::Vector4),
-                sizeof(fs_uniforms.stops) / sizeof(dmVMath::Vector4)
-            };
-            for (uint32_t i = 0; i < DM_ARRAY_SIZE(constant_names); ++i)
-            {
-                dmRender::SetNamedConstant(ro.m_ConstantBuffer, constant_names[i], constant_values[i], constant_value_counts[i], material_constant_types[i]);
-            }
-
-            dmRive::ApplyDrawMode(ro, draw_desc.m_DrawMode, draw_desc.m_ClipIndex);
-
-            memcpy(&ro.m_WorldTransform, &vs_uniforms.world, sizeof(vs_uniforms.world));
-
-            GetBlendFactorsFromBlendMode(draw_desc.m_BlendMode, &ro.m_SourceBlendFactor, &ro.m_DestinationBlendFactor);
+            renderer->restore();
         }
-
-        // uint32_t num_ros_used = ProcessRiveEvents(ctx, renderer, vb_begin, ix_begin, RiveEventCallback_RenderObject, &engine_ctx);
-
-        // if (num_ros_used < ro_count)
-        // {
-        //     world->m_RenderObjects.SetSize(world->m_RenderObjects.Size() - (ro_count - num_ros_used));
-        //     ro_count = num_ros_used;
-        // }
-
-        AddToRender(render_context, render_objects, ro_count);
     }
 
     void UpdateTransforms(RiveWorld* world)
@@ -666,11 +511,7 @@ namespace dmRive
     dmGameObject::UpdateResult CompRiveUpdate(const dmGameObject::ComponentsUpdateParams& params, dmGameObject::ComponentsUpdateResult& update_result)
     {
         DM_PROFILE("RiveModel");
-
-        RiveWorld*                  world    = (RiveWorld*)params.m_World;
-        dmRive::DefoldTessRenderer* renderer = world->m_Renderer;
-
-        renderer->reset();
+        RiveWorld* world    = (RiveWorld*)params.m_World;
 
         float dt = params.m_UpdateContext->m_DT;
 
@@ -761,15 +602,6 @@ namespace dmRive
         {
             case dmRender::RENDER_LIST_OPERATION_BEGIN:
             {
-                dmGraphics::SetVertexBufferData(world->m_VertexBuffer, 0, 0, dmGraphics::BUFFER_USAGE_DYNAMIC_DRAW);
-                dmGraphics::SetIndexBufferData(world->m_IndexBuffer, 0, 0, dmGraphics::BUFFER_USAGE_DYNAMIC_DRAW);
-
-                world->m_RenderObjects.SetSize(0);
-                dmArray<RiveVertex>& vertex_buffer = world->m_VertexBufferData;
-                vertex_buffer.SetSize(0);
-
-                dmArray<uint16_t>& index_buffer = world->m_IndexBufferData;
-                index_buffer.SetSize(0);
                 break;
             }
             case dmRender::RENDER_LIST_OPERATION_BATCH:
@@ -779,13 +611,9 @@ namespace dmRive
             }
             case dmRender::RENDER_LIST_OPERATION_END:
             {
-                dmGraphics::SetVertexBufferData(world->m_VertexBuffer, sizeof(RiveVertex) * world->m_VertexBufferData.Size(),
-                                                world->m_VertexBufferData.Begin(), dmGraphics::BUFFER_USAGE_DYNAMIC_DRAW);
-
-                if (world->m_IndexBufferData.Size() > 0) // Until 1.4.3 is out with a fix
+                if (world->m_RiveRenderContext)
                 {
-                    dmGraphics::SetIndexBufferData(world->m_IndexBuffer, sizeof(uint16_t) * world->m_IndexBufferData.Size(),
-                                                    world->m_IndexBufferData.Begin(), dmGraphics::BUFFER_USAGE_DYNAMIC_DRAW);
+                    RenderEnd(world->m_RiveRenderContext);
                 }
                 break;
             }
@@ -802,7 +630,6 @@ namespace dmRive
         CompRiveContext* context = (CompRiveContext*)params.m_Context;
         dmRender::HRenderContext render_context = context->m_RenderContext;
         RiveWorld* world = (RiveWorld*)params.m_World;
-        dmRive::DefoldTessRenderer* renderer = world->m_Renderer;
 
         dmArray<RiveComponent*>& components = world->m_Components.GetRawObjects();
         const uint32_t count = components.Size();
@@ -812,52 +639,6 @@ namespace dmRive
         }
 
         UpdateTransforms(world);
-
-        for (uint32_t i = 0; i < count; ++i)
-        {
-            RiveComponent* c = components[i];
-
-            if (!c->m_Enabled || !c->m_AddedToUpdate)
-                continue;
-            rive::AABB bounds = c->m_ArtboardInstance->bounds();
-            rive::Mat2D viewTransform = rive::computeAlignment(rive::Fit::contain,
-                                                               rive::Alignment::center,
-                                                               rive::AABB(0, 0, bounds.maxX-bounds.minX, bounds.maxY-bounds.minY),
-                                                               bounds);
-            renderer->save();
-
-            rive::Mat2D transform;
-            Mat4ToMat2D(c->m_World, transform);
-
-            // Rive is using a different coordinate system that defold,
-            // we have to adhere to how our projection matrixes are
-            // constructed so we flip the renderer on the y axis here
-            rive::Vec2D yflip(1.0f,-1.0f);
-            transform = transform.scale(yflip);
-
-            renderer->transform(viewTransform * transform);
-
-            renderer->align(rive::Fit::none,
-                rive::Alignment::center,
-                rive::AABB(-bounds.width(), -bounds.height(),
-                bounds.width(), bounds.height()),
-                bounds);
-
-            // Store the inverse view so we can later go from screen to world.
-            //m_InverseViewTransform = viewTransform.invertOrIdentity();
-
-            renderer->SetAtlas(c->m_Resource->m_Scene->m_Atlas);
-
-            if (c->m_StateMachineInstance) {
-                c->m_StateMachineInstance->draw(renderer);
-            } else if (c->m_AnimationInstance) {
-                c->m_AnimationInstance->draw(renderer);
-            } else {
-                c->m_ArtboardInstance->draw(renderer);
-            }
-
-            renderer->restore();
-        }
 
         // Prepare list submit
         dmRender::RenderListEntry* render_list = dmRender::RenderListAlloc(render_context, count);
@@ -985,7 +766,6 @@ namespace dmRive
         component->m_StateMachineInstance  = nullptr;
         component->m_AnimationInstance     = component->m_ArtboardInstance->animationAt(animation_index);
         component->m_AnimationInstance->inputCount();
-
         component->m_AnimationInstance->time(play_time + offset_value);
         component->m_AnimationInstance->loopValue((int)loop_value);
         component->m_AnimationInstance->direction(play_direction);
@@ -1003,9 +783,8 @@ namespace dmRive
 
         CompRiveAnimationReset(component);
 
-        component->m_AnimationInstance      = nullptr;
-        component->m_StateMachineInstance   = component->m_ArtboardInstance->stateMachineAt(state_machine_index);
-
+        component->m_AnimationInstance     = nullptr;
+        component->m_StateMachineInstance  = component->m_ArtboardInstance->stateMachineAt(state_machine_index);
         component->m_AnimationPlaybackRate = playback_rate;
 
         // update the list of current state machine inputs
@@ -1299,12 +1078,6 @@ namespace dmRive
         rivectx->m_GraphicsContext  = *(dmGraphics::HContext*)ctx->m_Contexts.Get(dmHashString64("graphics"));
         rivectx->m_RenderContext    = *(dmRender::HRenderContext*)ctx->m_Contexts.Get(dmHashString64("render"));
         rivectx->m_MaxInstanceCount = dmConfigFile::GetInt(ctx->m_Config, "rive.max_instance_count", 128);
-        //rivectx->m_RiveFactory      = new dmRive::DefoldFactory();
-        //rivectx->m_RiveRenderer     = new dmRive::DefoldTessRenderer();
-
-        // rive::g_Ctx = rivectx->m_RiveContext;
-        // rive::setRenderMode(rivectx->m_RiveContext, rive::MODE_STENCIL_TO_COVER);
-        // rive::setBufferCallbacks(rivectx->m_RiveContext, dmRive::RequestBufferCallback, dmRive::DestroyBufferCallback, 0x0);
 
         // after script/anim/gui, before collisionobject
         // the idea is to let the scripts/animations update the game object instance,
@@ -1335,7 +1108,6 @@ namespace dmRive
     static dmGameObject::Result ComponentTypeDestroy(const dmGameObject::ComponentTypeCreateCtx* ctx, dmGameObject::ComponentType* type)
     {
         CompRiveContext* rivectx = (CompRiveContext*)ComponentTypeGetContext(type);
-        //delete rivectx->m_RiveFactory;
         delete rivectx;
         return dmGameObject::RESULT_OK;
     }

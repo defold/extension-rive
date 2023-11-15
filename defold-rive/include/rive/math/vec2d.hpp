@@ -13,7 +13,6 @@ public:
 
     constexpr Vec2D() : x(0), y(0) {}
     constexpr Vec2D(float x, float y) : x(x), y(y) {}
-    constexpr Vec2D(const Vec2D&) = default;
 
     float lengthSquared() const { return x * x + y * y; }
     float length() const;
@@ -23,8 +22,11 @@ public:
     float normalizeLength()
     {
         const float len = this->length();
-        x /= len;
-        y /= len;
+        if (len > 0)
+        {
+            x /= len;
+            y /= len;
+        }
         return len;
     }
 
@@ -47,6 +49,7 @@ public:
     static inline Vec2D lerp(Vec2D a, Vec2D b, float f);
 
     static Vec2D transformDir(const Vec2D& a, const Mat2D& m);
+    static Vec2D transformMat2D(const Vec2D& a, const Mat2D& m);
 
     static float dot(Vec2D a, Vec2D b) { return a.x * b.x + a.y * b.y; }
     static float cross(Vec2D a, Vec2D b) { return a.x * b.y - a.y * b.x; }

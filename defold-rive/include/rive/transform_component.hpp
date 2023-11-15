@@ -7,6 +7,7 @@ namespace rive
 {
 class Constraint;
 class WorldTransformComponent;
+class AABB;
 class TransformComponent : public TransformComponentBase
 {
 private:
@@ -16,9 +17,7 @@ private:
     std::vector<Constraint*> m_Constraints;
 
 public:
-#ifdef TESTING
     const std::vector<Constraint*>& constraints() const { return m_Constraints; }
-#endif
     StatusCode onAddedClean(CoreContext* context) override;
     void buildDependencies() override;
     void update(ComponentDirt value) override;
@@ -45,6 +44,7 @@ public:
     void scaleYChanged() override;
 
     void addConstraint(Constraint* constraint);
+    virtual AABB localBounds() const;
 };
 } // namespace rive
 
