@@ -71,9 +71,7 @@ function update(self)
 
     render.set_projection(get_projection(self))
 
-    render.enable_state(render.STATE_STENCIL_TEST)
     render.draw(self.rive_pred)
-    render.disable_state(render.STATE_STENCIL_TEST)
 
     render.draw(self.tile_pred)
     render.draw(self.particle_pred)
