@@ -13,7 +13,11 @@ set -e
 
 PLUGIN_PLATFORM_DIR=$(realpath ./defold-rive/plugins/lib/x86_64-linux)
 if [ "Darwin" == "$(uname)" ]; then
-    PLUGIN_PLATFORM_DIR=$(realpath ./defold-rive/plugins/lib/x86_64-osx)
+    if [ "arm64" == "$(arch)" ]; then
+        PLUGIN_PLATFORM_DIR=$(realpath ./defold-rive/plugins/lib/arm64-osx)
+    else
+        PLUGIN_PLATFORM_DIR=$(realpath ./defold-rive/plugins/lib/x86_64-osx)
+    fi
 fi
 
 if [ -z "${JAR}" ]; then

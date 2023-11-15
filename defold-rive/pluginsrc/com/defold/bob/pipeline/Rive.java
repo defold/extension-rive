@@ -107,6 +107,7 @@ public class Rive {
         public Bone[]           bones;
         public RenderObject[]   renderObjects;
         public byte[]           texture_set_bytes;
+        public String[]         artboards;
 
         public void Destroy() {
             Rive.Destroy(this);
@@ -300,6 +301,17 @@ public class Rive {
         DebugAabb("AABB", rive_file.aabb, 0);
 
         rive_file.Update(0.0f);
+
+        System.out.printf("--------------------------------\n");
+
+        System.out.printf("Num artboards: %d\n", rive_file.artboards.length);
+        for (String artboard : rive_file.artboards)
+        {
+            PrintIndent(1);
+            System.out.printf("'%s'\n", artboard);
+        }
+
+        System.out.printf("--------------------------------\n");
 
         System.out.printf("Num animations: %d\n", rive_file.animations.length);
         for (String animation : rive_file.animations)
