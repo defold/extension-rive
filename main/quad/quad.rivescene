@@ -1,2 +1,2 @@
-scene: "/main/quad/quad_clipping.riv"
+scene: "/main/quad/quad.riv"
 atlas: "/defold-rive/assets/empty.atlas"

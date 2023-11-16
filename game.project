@@ -30,3 +30,5 @@ app_manifest = /game.appmanifest
 [collection_proxy]
 max_count = 16
 
+[shader]
+output_spirv = 1
