@@ -1,0 +1,38 @@
+go.property("health", 100)
+go.property("shield", 100)
+
+function init(self)
+	msg.post(".", "acquire_input_focus")
+	go.animate("#", "health", go.PLAYBACK_LOOP_PINGPONG, 0, go.EASING_INOUTQUAD, 5)
+	go.animate("#", "shield", go.PLAYBACK_LOOP_PINGPONG, 0, go.EASING_INOUTQUAD, 4, 2)
+end
+
+function update(self, dt)
+	go.set("#hud", "Health", self.health)
+	go.set("#hud", "Shield", self.shield)
+end
+
+function on_input(self, action_id, action)
+	if action_id == hash("touch") then
+		if action.pressed then
+			go.set("#hud", "Fire", true)
+		elseif action.released then
+			go.set("#hud", "Fire", false)
+		end
+	elseif action_id == hash("1") then
+		if action.pressed then
+			print("weapon 1")
+			go.set("#hud", "Weapon ID", -1)
+		end
+	elseif action_id == hash("2") then
+		if action.pressed then
+			print("weapon 2")
+			go.set("#hud", "Weapon ID", 0)
+		end
+	elseif action_id == hash("3") then
+		if action.pressed then
+			print("weapon 3")
+			go.set("#hud", "Weapon ID", 1)
+		end
+	end
+end

@@ -11,8 +11,8 @@ background_color {
 }
 nodes {
   position {
-    x: 69.0
-    y: 41.0
+    x: 66.0
+    y: 36.0
     z: 0.0
     w: 1.0
   }
@@ -103,10 +103,11 @@ nodes {
   clipping_inverted: false
   alpha: 1.0
   overridden_fields: 4
+  overridden_fields: 45
   template_node_child: true
   size_mode: SIZE_MODE_MANUAL
   custom_type: 0
-  enabled: true
+  enabled: false
   visible: true
   material: ""
 }

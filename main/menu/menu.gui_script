@@ -1,7 +1,16 @@
 local dirtylarry = require "dirtylarry/dirtylarry"
 
 
-local BUTTONS = { "car", "nested", "bones", "cursor", "state", "stroke", "sophiahud" }
+local BUTTONS = {
+	"car",
+	"nested",
+	--"bones",
+	--"cursor",
+	--"state",
+	--"stroke",
+	"sophiahud",
+	"scifihud"
+ }
 local COLUMNS = 3
 local WIDTH = 220
 local HEIGHT = 70
@@ -18,7 +27,7 @@ function init(self)
 		gui.set_text(larrylabel, id:upper())
 
 		local x = 280 + ((i - 1) % COLUMNS) * WIDTH
-		local y = 580 - math.floor((i - 1) / COLUMNS) * HEIGHT
+		local y = 400 - math.floor((i - 1) / COLUMNS) * HEIGHT
 		gui.set_position(larrybutton, vmath.vector3(x, y, 0))
 	end
 	gui.delete_node(node)

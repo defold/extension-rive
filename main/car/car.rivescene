@@ -1,2 +1,2 @@
-scene: "/assets/off_road_car.riv"
+scene: "/assets/rive/off_road_car.riv"
 atlas: "/defold-rive/assets/empty.atlas"

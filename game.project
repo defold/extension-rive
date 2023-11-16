@@ -7,7 +7,7 @@ shared_state = 1
 
 [display]
 width = 960
-height = 640
+height = 540
 high_dpi = 1
 
 [android]
@@ -26,3 +26,7 @@ max_debug_vertices = 50000
 
 [native_extension]
 app_manifest = /game.appmanifest
+
+[collection_proxy]
+max_count = 10
+
