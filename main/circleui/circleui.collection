@@ -1,0 +1,82 @@
+name: "circleui"
+instances {
+  id: "back"
+  prototype: "/main/menu/back.go"
+  position {
+    x: 0.0
+    y: 0.0
+    z: 0.0
+  }
+  rotation {
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0
+  }
+  scale3 {
+    x: 1.0
+    y: 1.0
+    z: 1.0
+  }
+}
+scale_along_z: 0
+embedded_instances {
+  id: "go"
+  data: "components {\n"
+  "  id: \"circleui\"\n"
+  "  component: \"/main/circleui/circleui.script\"\n"
+  "  position {\n"
+  "    x: 0.0\n"
+  "    y: 0.0\n"
+  "    z: 0.0\n"
+  "  }\n"
+  "  rotation {\n"
+  "    x: 0.0\n"
+  "    y: 0.0\n"
+  "    z: 0.0\n"
+  "    w: 1.0\n"
+  "  }\n"
+  "  property_decls {\n"
+  "  }\n"
+  "}\n"
+  "embedded_components {\n"
+  "  id: \"ui\"\n"
+  "  type: \"rivemodel\"\n"
+  "  data: \"scene: \\\"/main/circleui/circleui.rivescene\\\"\\n"
+  "default_animation: \\\"\\\"\\n"
+  "material: \\\"/defold-rive/assets/rivemodel.material\\\"\\n"
+  "blend_mode: BLEND_MODE_ALPHA\\n"
+  "default_state_machine: \\\"State Machine 1\\\"\\n"
+  "create_go_bones: false\\n"
+  "artboard: \\\"main\\\"\\n"
+  "\"\n"
+  "  position {\n"
+  "    x: 0.0\n"
+  "    y: 0.0\n"
+  "    z: 0.0\n"
+  "  }\n"
+  "  rotation {\n"
+  "    x: 0.0\n"
+  "    y: 0.0\n"
+  "    z: 0.0\n"
+  "    w: 1.0\n"
+  "  }\n"
+  "}\n"
+  ""
+  position {
+    x: 1000.0
+    y: 837.0
+    z: 0.0
+  }
+  rotation {
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0
+  }
+  scale3 {
+    x: 1.0
+    y: 1.0
+    z: 1.0
+  }
+}

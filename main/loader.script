@@ -9,6 +9,7 @@ end
 function init(self)
 	self.current_proxy = nil
 	msg.post(".", "acquire_input_focus")
+	msg.post("@render:", "use_fixed_fit_projection")
 	msg.post("#", "show_screen", { id = "menu" })
 end
 

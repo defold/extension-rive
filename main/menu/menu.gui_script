@@ -9,7 +9,10 @@ local BUTTONS = {
 	--{ id = "state", text = "State" },
 	{ id = "sophiahud", text = "Sophia" },
 	{ id = "scifihud", text = "Sci-fi" },
-	--{ id = "takethis", text = "Take This!" },
+	--{ id = "circleui", text = "Circle UI" },
+	{ id = "takethis", text = "Take This!" },
+	{ id = "ac2", text = "AC2" },
+	{ id = "grimley", text = "Grimley" },
  }
 local COLUMNS = 3
 local WIDTH = 220
