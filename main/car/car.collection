@@ -27,7 +27,7 @@ embedded_instances {
   "  component: \"/assets/test.rivemodel\"\n"
   "  position {\n"
   "    x: 0.0\n"
-  "    y: 254.0\n"
+  "    y: 0.0\n"
   "    z: 0.0\n"
   "  }\n"
   "  rotation {\n"
@@ -35,6 +35,8 @@ embedded_instances {
   "    y: 0.0\n"
   "    z: 0.0\n"
   "    w: 1.0\n"
+  "  }\n"
+  "  property_decls {\n"
   "  }\n"
   "}\n"
   "components {\n"
@@ -51,11 +53,13 @@ embedded_instances {
   "    z: 0.0\n"
   "    w: 1.0\n"
   "  }\n"
+  "  property_decls {\n"
+  "  }\n"
   "}\n"
   ""
   position {
     x: 256.0
-    y: 256.0
+    y: 269.0
     z: 0.0
   }
   rotation {
@@ -85,6 +89,8 @@ embedded_instances {
   "    y: 0.0\n"
   "    z: 0.0\n"
   "    w: 1.0\n"
+  "  }\n"
+  "  property_decls {\n"
   "  }\n"
   "}\n"
   ""

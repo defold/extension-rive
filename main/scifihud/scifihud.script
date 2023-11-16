@@ -1,15 +1,9 @@
-go.property("health", 100)
-go.property("shield", 100)
-
 function init(self)
 	msg.post(".", "acquire_input_focus")
-	go.animate("#", "health", go.PLAYBACK_LOOP_PINGPONG, 0, go.EASING_INOUTQUAD, 5)
-	go.animate("#", "shield", go.PLAYBACK_LOOP_PINGPONG, 0, go.EASING_INOUTQUAD, 4, 2)
-end
-
-function update(self, dt)
-	go.set("#hud", "Health", self.health)
-	go.set("#hud", "Shield", self.shield)
+	go.set("#hud", "Health", 100)
+	go.set("#hud", "Shield", 100)
+	go.animate("#hud", "Health", go.PLAYBACK_LOOP_PINGPONG, 0, go.EASING_INOUTQUAD, 5)
+	go.animate("#hud", "Shield", go.PLAYBACK_LOOP_PINGPONG, 0, go.EASING_INOUTQUAD, 4, 2)
 end
 
 function on_input(self, action_id, action)

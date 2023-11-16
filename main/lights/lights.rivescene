@@ -1,2 +1,2 @@
-scene: "/main/nested/lights.riv"
+scene: "/main/lights/lights.riv"
 atlas: "/defold-rive/assets/empty.atlas"
