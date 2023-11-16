@@ -28,5 +28,5 @@ max_debug_vertices = 50000
 app_manifest = /game.appmanifest
 
 [collection_proxy]
-max_count = 10
+max_count = 16
 
