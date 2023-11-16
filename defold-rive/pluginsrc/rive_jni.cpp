@@ -436,4 +436,18 @@ void Update(JNIEnv* env, jclass cls, jobject rive_file_obj, jfloat dt, const uin
     UpdateJNIRenderData(env, rive_file_obj, rive_file);
 }
 
+void SetArtboard(JNIEnv* env, jclass cls, jobject rive_file_obj, const char* artboard)
+{
+    dmRive::RiveFile* rive_file = FromObject(env, rive_file_obj);
+    if (!rive_file || !rive_file->m_File)
+    {
+        return;
+    }
+
+    dmRive::SetArtboard(rive_file, artboard);
+
+    UpdateJNIRenderData(env, rive_file_obj, rive_file);
+}
+
+
 } // namespace

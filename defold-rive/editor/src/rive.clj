@@ -75,6 +75,9 @@
 (defn- plugin-update-file [file dt bytes-texture-set]
   (plugin-invoke-static rive-plugin-cls "UpdateInternal" (into-array Class [rive-plugin-file-cls Float/TYPE byte-array-cls]) [file (float dt) bytes-texture-set]))
 
+(defn- plugin-set-artboard [file artboard]
+  (plugin-invoke-static rive-plugin-cls "SetArtboardInternal" (into-array Class [rive-plugin-file-cls String]) [file artboard]))
+
 ; .rivemodel
 (defn load-rive-model [project self resource content]
   (let [rive-scene-resource (workspace/resolve-resource resource (:scene content))
@@ -742,6 +745,7 @@
                                             [:atlas-resource :atlas-resource]
                                             [:texture-set-pb :texture-set-pb]
                                             [:main-scene :rive-main-scene]
+                                            [:rive-file-handle :rive-file-handle]
                                             [:rive-artboards :rive-artboards]
                                             [:rive-anim-ids :rive-anim-ids]
                                             [:rive-state-machine-ids :rive-state-machine-ids]
@@ -782,6 +786,7 @@
   (property create-go-bones g/Bool (default false))
 
   (input dep-build-targets g/Any :array)
+  (input rive-file-handle g/Any)
   (input rive-scene-resource resource/Resource)
   (input rive-main-scene g/Any)
   (input scene-structure g/Any)
@@ -802,10 +807,11 @@
   (output anim-ids g/Any :cached (g/fnk [anim-data] (vec (sort (keys anim-data)))))
   (output state-machine-ids g/Any :cached (g/fnk [anim-data] (vec (sort (keys anim-data)))))
   (output material-shader ShaderLifecycle (gu/passthrough material-shader))
-  (output scene g/Any :cached (g/fnk [_node-id rive-main-scene material-shader]
+  (output scene g/Any :cached (g/fnk [_node-id rive-file-handle artboard rive-main-scene artboard default-animation material-shader]
                                      (if (and (some? material-shader) (some? (:renderable rive-main-scene)))
                                        (let [aabb (:aabb rive-main-scene)
-                                             rive-scene-node-id (:node-id rive-main-scene)]
+                                             rive-scene-node-id (:node-id rive-main-scene)
+                                             _ (plugin-set-artboard rive-file-handle artboard )]
                                          (-> rive-main-scene
                                              (assoc-in [:renderable :user-data :shader] material-shader)
                                         ;;;;;;;;;;;(assoc :gpu-texture texture/white-pixel)

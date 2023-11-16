@@ -93,6 +93,7 @@ public class Rive {
     public static native RiveFile LoadFromBufferInternal(String path, byte[] buffer);
     public static native void Destroy(RiveFile rive_file);
     public static native void Update(RiveFile rive_file, float dt, byte[] texture_set_buffer);
+    public static native void SetArtboard(RiveFile rive_file, String artboard);
     public static native void DebugPrint();
 
     public static class RiveFile {
@@ -121,6 +122,11 @@ public class Rive {
     public static void UpdateInternal(RiveFile rive_file, float dt, byte[] texture_set_pb)
     {
         Rive.Update(rive_file, dt, texture_set_pb);
+    }
+
+    public static void SetArtboardInternal(RiveFile rive_file, String artboard)
+    {
+        Rive.SetArtboard(rive_file, artboard);
     }
 
     public static RiveFile LoadFromBuffer(String path, byte[] bytes)
