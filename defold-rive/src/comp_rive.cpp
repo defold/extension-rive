@@ -81,6 +81,8 @@ namespace dmRive
     // static const dmhash_t UNIFORM_TRANSFORM_LOCAL = dmHashString64("transform_local");
     // static const dmhash_t UNIFORM_COVER           = dmHashString64("cover");
 
+    static float g_DisplayFactor = 1.0f;
+
     static void ResourceReloadedCallback(const dmResource::ResourceReloadedParams& params);
     static void DestroyComponent(struct RiveWorld* world, uint32_t index);
     static void CompRiveAnimationReset(RiveComponent* component);
@@ -379,8 +381,6 @@ namespace dmRive
         rive::Mat2D viewTransform = GetViewTransform(world->m_RiveRenderContext, render_context);
         rive::Renderer* renderer = GetRiveRenderer(world->m_RiveRenderContext);
 
-        float device_dpi = dmGraphics::GetDisplayScaleFactor(world->m_Ctx->m_GraphicsContext);
-
         for (uint32_t *i=begin;i!=end;i++)
         {
             RiveComponent* c = (RiveComponent*) buf[*i].m_UserData;
@@ -398,7 +398,7 @@ namespace dmRive
             // Rive is using a different coordinate system than defold,
             // we have to adhere to how our projection matrixes are
             // constructed so we flip the renderer on the y axis here
-            rive::Vec2D yflip(device_dpi, -device_dpi);
+            rive::Vec2D yflip(g_DisplayFactor, -g_DisplayFactor);
             transform = transform.scale(yflip);
 
             renderer->transform(viewTransform * transform);
@@ -1090,6 +1090,8 @@ namespace dmRive
         rivectx->m_GraphicsContext  = *(dmGraphics::HContext*)ctx->m_Contexts.Get(dmHashString64("graphics"));
         rivectx->m_RenderContext    = *(dmRender::HRenderContext*)ctx->m_Contexts.Get(dmHashString64("render"));
         rivectx->m_MaxInstanceCount = dmConfigFile::GetInt(ctx->m_Config, "rive.max_instance_count", 128);
+
+        g_DisplayFactor = dmGraphics::GetDisplayScaleFactor(rivectx->m_GraphicsContext);
 
         // after script/anim/gui, before collisionobject
         // the idea is to let the scripts/animations update the game object instance,

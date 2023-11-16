@@ -1,6 +1,6 @@
 function init(self)
 	msg.post(".", "acquire_input_focus")
-	self.scale = (sys.get_config_int("display.high_dpi") == 1) and 2 or 1
+	self.scale = 1 -- (sys.get_config_int("display.high_dpi") == 1) and 2 or 1
 end
 
 function on_input(self, action_id, action)
