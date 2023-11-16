@@ -70,7 +70,12 @@ function update(self)
     render.disable_state(render.STATE_CULL_FACE)
 
     render.set_projection(get_projection(self))
+
+    render.set_projection(vmath.matrix4_orthographic(0, render.get_window_width(), 0, render.get_window_height(), -1, 1))
+    
     render.draw(self.rive_pred)
+
+    render.set_viewport(0, 0, render.get_window_width(), render.get_window_height())
 
     render.draw(self.tile_pred)
     render.draw(self.particle_pred)

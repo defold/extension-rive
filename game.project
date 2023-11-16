@@ -8,7 +8,7 @@ shared_state = 1
 [display]
 width = 960
 height = 540
-high_dpi = 1
+high_dpi = 0
 
 [android]
 input_method = HiddenInputField
@@ -32,3 +32,4 @@ max_count = 10
 
 [shader]
 output_spirv = 1
+

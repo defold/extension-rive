@@ -64,6 +64,11 @@ DM_PROPERTY_GROUP(rmtp_Rive, "Rive");
 DM_PROPERTY_U32(rmtp_RiveBones, 0, FrameReset, "# rive bones", &rmtp_Rive);
 DM_PROPERTY_U32(rmtp_RiveComponents, 0, FrameReset, "# rive components", &rmtp_Rive);
 
+namespace dmGraphics
+{
+    float GetDisplayScaleFactor(HContext context);
+}
+
 namespace dmRive
 {
     using namespace dmVMath;
@@ -374,6 +379,8 @@ namespace dmRive
         rive::Mat2D viewTransform = GetViewTransform(world->m_RiveRenderContext, render_context);
         rive::Renderer* renderer = GetRiveRenderer(world->m_RiveRenderContext);
 
+        float device_dpi = dmGraphics::GetDisplayScaleFactor(world->m_Ctx->m_GraphicsContext);
+
         for (uint32_t *i=begin;i!=end;i++)
         {
             RiveComponent* c = (RiveComponent*) buf[*i].m_UserData;
@@ -391,15 +398,14 @@ namespace dmRive
             // Rive is using a different coordinate system than defold,
             // we have to adhere to how our projection matrixes are
             // constructed so we flip the renderer on the y axis here
-            rive::Vec2D yflip(1.0f,-1.0f);
+            rive::Vec2D yflip(device_dpi, -device_dpi);
             transform = transform.scale(yflip);
 
             renderer->transform(viewTransform * transform);
 
             renderer->align(rive::Fit::none,
                 rive::Alignment::center,
-                rive::AABB(-bounds.width(), -bounds.height(),
-                bounds.width(), bounds.height()),
+                rive::AABB(-bounds.width(), -bounds.height(), bounds.width(), bounds.height()),
                 bounds);
 
             // Store the inverse view so we can later go from screen to world.
