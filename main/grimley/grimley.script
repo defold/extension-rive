@@ -1,0 +1,6 @@
+function init(self)
+	--rive.play_anim("#model", "panelAnimateOn", go.PLAYBACK_LOOP_FORWARD)
+	--rive.play_anim("#model", "cape", go.PLAYBACK_LOOP_FORWARD)
+	--rive.play_anim("#model", "bodyLoop", go.PLAYBACK_LOOP_FORWARD)
+		
+end

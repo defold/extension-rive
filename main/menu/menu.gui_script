@@ -12,6 +12,7 @@ local BUTTONS = {
 	--{ id = "circleui", text = "Circle UI" },
 	{ id = "takethis", text = "Take This!" },
 	{ id = "ac2", text = "AC2" },
+	{ id = "grimley", text = "Grimley" },
  }
 local COLUMNS = 3
 local WIDTH = 220
