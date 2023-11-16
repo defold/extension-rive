@@ -42,7 +42,7 @@ namespace dmRive
     rive::Renderer*              GetRiveRenderer(HRenderContext context);
     rive::Mat2D                  GetViewTransform(HRenderContext context, dmRender::HRenderContext render_context);
     void                         GetDimensions(HRenderContext context, uint32_t* width, uint32_t* height);
-    void                         RenderBegin(HRenderContext context, ShaderResources* shaders);
+    void                         RenderBegin(HRenderContext context, ShaderResources* shaders, dmResource::HFactory factory);
     void                         RenderEnd(HRenderContext context);
     dmResource::Result           LoadShaders(dmResource::HFactory factory, ShaderResources** resources);
     void                         ReleaseShaders(dmResource::HFactory factory, ShaderResources** resources);

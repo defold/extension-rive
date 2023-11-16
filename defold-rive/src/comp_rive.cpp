@@ -369,7 +369,7 @@ namespace dmRive
         dmRive::RiveSceneData* data          = (dmRive::RiveSceneData*) scene_res->m_Scene;
         world->m_RiveRenderContext           = data->m_RiveRenderContext;
 
-        RenderBegin(world->m_RiveRenderContext, scene_res->m_Shaders);
+        RenderBegin(world->m_RiveRenderContext, scene_res->m_Shaders, world->m_Ctx->m_Factory);
 
         uint32_t width, height;
         GetDimensions(world->m_RiveRenderContext, &width, &height);
