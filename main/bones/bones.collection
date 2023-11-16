@@ -48,6 +48,7 @@ embedded_instances {
   "blend_mode: BLEND_MODE_ALPHA\\n"
   "default_state_machine: \\\"\\\"\\n"
   "create_go_bones: true\\n"
+  "artboard: \\\"\\\"\\n"
   "\"\n"
   "  position {\n"
   "    x: 0.0\n"
