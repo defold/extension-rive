@@ -1255,13 +1255,22 @@ namespace dmRive
         return false;
     }
 
+    static rive::Vec2D WorldToLocal(RiveComponent* component, float x, float y)
+    {
+        rive::AABB bounds = component->m_ArtboardInstance->bounds();
+        Matrix4 world_inv = dmVMath::Inverse(component->m_World);
+        Vector4 local = world_inv * Point3(x, y, 0);
+        float bounds_width_half = bounds.width() * 0.5f;
+        float bounds_height_half = bounds.height() * 0.5f;
+        rive::Vec2D p(local.getX() + bounds_width_half, bounds_height_half - local.getY());
+        return p;
+    }
 
     void CompRivePointerMove(RiveComponent* component, float x, float y)
     {
         if (component->m_StateMachineInstance)
         {
-            rive::AABB bounds = component->m_ArtboardInstance->bounds();
-            rive::Vec2D p(x, bounds.height() - y);
+            rive::Vec2D p = WorldToLocal(component, x, y);
             component->m_StateMachineInstance->pointerMove(p);
         }
     }
@@ -1270,8 +1279,7 @@ namespace dmRive
     {
         if (component->m_StateMachineInstance)
         {
-            rive::AABB bounds = component->m_ArtboardInstance->bounds();
-            rive::Vec2D p(x, bounds.height() - y);
+            rive::Vec2D p = WorldToLocal(component, x, y);
             component->m_StateMachineInstance->pointerUp(p);
         }
     }
@@ -1280,8 +1288,7 @@ namespace dmRive
     {
         if (component->m_StateMachineInstance)
         {
-            rive::AABB bounds = component->m_ArtboardInstance->bounds();
-            rive::Vec2D p(x, bounds.height() - y);
+            rive::Vec2D p = WorldToLocal(component, x, y);
             component->m_StateMachineInstance->pointerDown(p);
         }
     }
