@@ -204,9 +204,6 @@ namespace dmRive
 
         dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
 
-        //Todo: choose artboard by index: m_ArtboardIndex = (index == REQUEST_DEFAULT_SCENE) ? 0 : index;
-        //component->m_ArtboardInstance = data->m_File->artboardAt(0);
-
         if (component->m_Resource->m_DDF->m_Artboard)
         {
             component->m_ArtboardInstance = data->m_File->artboardNamed(component->m_Resource->m_DDF->m_Artboard);
