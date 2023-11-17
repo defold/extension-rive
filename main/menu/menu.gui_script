@@ -13,6 +13,7 @@ local BUTTONS = {
 	{ id = "takethis", text = "Take This!" },
 	{ id = "ac2", text = "AC2" },
 	{ id = "grimley", text = "Grimley" },
+	{ id = "fighting-game", text = "Fight!" },
  }
 local COLUMNS = 3
 local WIDTH = 220

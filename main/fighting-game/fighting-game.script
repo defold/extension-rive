@@ -1,0 +1,40 @@
+function init(self)
+	--rive.play_anim("#model", "panelAnimateOn", go.PLAYBACK_LOOP_FORWARD)
+	--rive.play_anim("#model", "cape", go.PLAYBACK_LOOP_FORWARD)
+	--rive.play_anim("#model", "bodyLoop", go.PLAYBACK_LOOP_FORWARD)
+	msg.post(".", "acquire_input_focus")
+
+	self.player_one_selection = { x = 1, y = 0, selected = false }
+	self.player_two_selection = { x = 5, y = 0, selected = false }
+end
+
+function clamp_and_get_selection(self, sel)
+	if sel.x < 1 then sel.x = 1
+	elseif sel.x > 5 then sel.x = 5 end
+	if sel.y < 0 then sel.y = 0
+	elseif sel.y > 1 then sel.y = 1 end
+	return sel.y * 5 + sel.x
+end
+
+function on_input(self, action_id, action)
+
+	if action.released then
+		if action_id == hash("right") then
+			self.player_one_selection.x = self.player_one_selection.x + 1
+			go.set("#model", "player1MasterSelection", clamp_and_get_selection(self, self.player_one_selection))
+		elseif action_id == hash("left") then
+			self.player_one_selection.x = self.player_one_selection.x - 1
+			go.set("#model", "player1MasterSelection", clamp_and_get_selection(self, self.player_one_selection))
+		elseif action_id == hash("down") then
+			self.player_one_selection.y = self.player_one_selection.y + 1
+			go.set("#model", "player1MasterSelection", clamp_and_get_selection(self, self.player_one_selection))
+		elseif action_id == hash("up") then
+			self.player_one_selection.y = self.player_one_selection.y - 1
+			go.set("#model", "player1MasterSelection", clamp_and_get_selection(self, self.player_one_selection))
+		elseif action_id == hash("enter") then
+			self.player_one_selection.selected = not self.player_one_selection.selected
+			go.set("#model", "player1MasterConfirmed", self.player_one_selection.selected)
+		end
+	end
+end
+	
