@@ -1265,12 +1265,14 @@ namespace dmRive
 
     static rive::Vec2D WorldToLocal(RiveComponent* component, float x, float y)
     {
+        float scale = g_DisplayFactor;
+
         rive::AABB bounds = component->m_ArtboardInstance->bounds();
         Matrix4 world_inv = dmVMath::Inverse(component->m_World);
-        Vector4 local = world_inv * Point3(x, y, 0);
+        Vector4 local = (world_inv * Point3(x*scale, y*scale, 0));
         float bounds_width_half = bounds.width() * 0.5f;
         float bounds_height_half = bounds.height() * 0.5f;
-        rive::Vec2D p(local.getX() + bounds_width_half, bounds_height_half - local.getY());
+        rive::Vec2D p((local.getX() + bounds.width()) / scale, (bounds.height() - local.getY()) / scale);
         return p;
     }
 
