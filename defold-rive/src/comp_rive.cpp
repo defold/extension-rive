@@ -520,6 +520,38 @@ namespace dmRive
         }
     }
 
+    static void CompRiveEventTriggerCallback(RiveComponent& component, const char* name)
+    {
+        dmMessage::URL sender;
+        dmMessage::URL receiver  = component.m_Listener;
+
+        if (!GetSender(&component, &sender))
+        {
+            dmLogError("Could not send event_trigger to listener because of incomplete component.");
+            return;
+        }
+
+        dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component.m_Resource->m_Scene->m_Scene;
+        dmhash_t message_id         = dmRiveDDF::RiveEventTrigger::m_DDFDescriptor->m_NameHash;
+
+        dmRiveDDF::RiveEventTrigger message;
+        message.m_Name = name;
+        // message.m_Name = "foobar\0";
+        // message.m_Trigger = 1;
+        // message.m_Number = 1234;
+        // message.m_Text = "Hello";
+
+        uintptr_t descriptor = (uintptr_t)dmRiveDDF::RiveEventTrigger::m_DDFDescriptor;
+        uint32_t data_size   = sizeof(dmRiveDDF::RiveEventTrigger);
+
+        dmMessage::Result result = dmMessage::Post(&sender, &receiver, message_id, 0, component.m_AnimationCallbackRef, descriptor, &message, data_size, 0);
+        dmMessage::ResetURL(&component.m_Listener);
+        if (result != dmMessage::RESULT_OK)
+        {
+            dmLogError("Could not send event_trigger to listener. %d", result);
+        }
+    }
+
     dmGameObject::UpdateResult CompRiveUpdate(const dmGameObject::ComponentsUpdateParams& params, dmGameObject::ComponentsUpdateResult& update_result)
     {
         DM_PROFILE("RiveModel");
@@ -556,6 +588,15 @@ namespace dmRive
             if (component.m_StateMachineInstance)
             {
                 component.m_StateMachineInstance->advanceAndApply(dt * component.m_AnimationPlaybackRate);
+
+                size_t event_count = component.m_StateMachineInstance->reportedEventCount();
+                for (size_t i = 0; i < event_count; i++)
+                {
+                    rive::EventReport reported_event = component.m_StateMachineInstance->reportedEventAt(i);
+                    dmLogInfo("reported event count %zu, %s", event_count, reported_event.event()->name().c_str()); 
+                    const char* name = reported_event.event()->name().c_str();
+                    CompRiveEventTriggerCallback(component, name);
+                }
             }
             else if (component.m_AnimationInstance)
             {
@@ -840,8 +881,8 @@ namespace dmRive
                 {
                     bool result = PlayStateMachine(component, data, anim_id, ddf->m_PlaybackRate);
                     if (result) {
-                        //component->m_AnimationCallbackRef  = params.m_Message->m_UserData2;
-                        //component->m_Listener              = params.m_Message->m_Sender;
+                        component->m_AnimationCallbackRef  = params.m_Message->m_UserData2;
+                        component->m_Listener              = params.m_Message->m_Sender;
                     } else {
                         dmLogError("Couldn't play state machine named '%s'", dmHashReverseSafe64(anim_id));
                     }

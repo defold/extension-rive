@@ -11,9 +11,10 @@ local BUTTONS = {
 	{ id = "scifihud", text = "Sci-fi" },
 	--{ id = "circleui", text = "Circle UI" },
 	{ id = "takethis", text = "Take This!" },
-	{ id = "ac2", text = "AC2" },
+	{ id = "ac2", text = "Assassin" },
 	{ id = "grimley", text = "Grimley" },
 	{ id = "fighting-game", text = "Fight!" },
+	{ id = "ghost", text = "Ghost UI" },
  }
 local COLUMNS = 3
 local WIDTH = 220

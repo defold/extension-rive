@@ -141,16 +141,15 @@ namespace dmRive
             }
         }
 
-        // Not supported yet
-        // if (top > 3) // completed cb
-        // {
-        //     if (lua_isfunction(L, 4))
-        //     {
-        //         lua_pushvalue(L, 4);
-        //         // NOTE: By convention m_FunctionRef is offset by LUA_NOREF, see message.h in dlib
-        //         functionref = dmScript::RefInInstance(L) - LUA_NOREF;
-        //     }
-        // }
+        if (top > 3) // completed cb
+        {
+            if (lua_isfunction(L, 4))
+            {
+                lua_pushvalue(L, 4);
+                // NOTE: By convention m_FunctionRef is offset by LUA_NOREF, see message.h in dlib
+                functionref = dmScript::RefInInstance(L) - LUA_NOREF;
+            }
+        }
 
         dmRiveDDF::RivePlayAnimation msg;
         msg.m_AnimationId       = anim_id;
