@@ -24,6 +24,10 @@
 #include <rive/animation/state_machine_number.hpp>
 #include <rive/animation/loop.hpp>
 #include <rive/bones/bone.hpp>
+#include <rive/custom_property.hpp>
+#include <rive/custom_property_boolean.hpp>
+#include <rive/custom_property_number.hpp>
+#include <rive/custom_property_string.hpp>
 #include <rive/file.hpp>
 #include <rive/renderer.hpp>
 
@@ -46,8 +50,10 @@
 #include <dmsdk/dlib/math.h>
 #include <dmsdk/dlib/object_pool.h>
 #include <dmsdk/dlib/profile.h>
+#include <dmsdk/dlib/dstrings.h>
 #include <dmsdk/gameobject/component.h>
 #include <dmsdk/gameobject/gameobject.h>
+#include <dmsdk/gameobject/script.h>
 #include <dmsdk/gamesys/property.h>
 #include <dmsdk/graphics/graphics.h>
 #include <dmsdk/render/render.h>
@@ -494,7 +500,7 @@ namespace dmRive
     {
         assert(component.m_AnimationInstance);
         dmMessage::URL sender;
-        dmMessage::URL receiver  = component.m_Listener;
+        dmMessage::URL receiver = component.m_Listener;
 
         if (!GetSender(&component, &sender))
         {
@@ -520,36 +526,56 @@ namespace dmRive
         }
     }
 
-    static void CompRiveEventTriggerCallback(RiveComponent& component, const char* name)
+    static void CompRiveEventTriggeredCallback(RiveComponent& component, rive::EventReport reported_event)
     {
-        dmMessage::URL sender;
-        dmMessage::URL receiver  = component.m_Listener;
-
-        if (!GetSender(&component, &sender))
+        if (!component.m_EventCallbackData)
         {
-            dmLogError("Could not send event_trigger to listener because of incomplete component.");
+            dmLogInfo("No event trigger callback set.");
             return;
         }
 
-        dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component.m_Resource->m_Scene->m_Scene;
-        dmhash_t message_id         = dmRiveDDF::RiveEventTrigger::m_DDFDescriptor->m_NameHash;
+        dmMessage::URL sender;
 
-        dmRiveDDF::RiveEventTrigger message;
-        message.m_Name = name;
-        // message.m_Name = "foobar\0";
-        // message.m_Trigger = 1;
-        // message.m_Number = 1234;
-        // message.m_Text = "Hello";
-
-        uintptr_t descriptor = (uintptr_t)dmRiveDDF::RiveEventTrigger::m_DDFDescriptor;
-        uint32_t data_size   = sizeof(dmRiveDDF::RiveEventTrigger);
-
-        dmMessage::Result result = dmMessage::Post(&sender, &receiver, message_id, 0, component.m_AnimationCallbackRef, descriptor, &message, data_size, 0);
-        dmMessage::ResetURL(&component.m_Listener);
-        if (result != dmMessage::RESULT_OK)
+        if (!GetSender(&component, &sender))
         {
-            dmLogError("Could not send event_trigger to listener. %d", result);
+            dmLogError("Rive component is incomplete.");
+            return;
         }
+
+        rive::Event* event = reported_event.event();
+        const char* event_name = event->name().c_str();
+        for (auto child : event->children())
+        {
+            if (child->is<rive::CustomProperty>())
+            {
+                if (!child->name().empty())
+                {
+                    const char* key = child->name().c_str();
+                    switch (child->coreType())
+                    {
+                        case rive::CustomPropertyBoolean::typeKey:
+                        {
+                            bool b = child->as<rive::CustomPropertyBoolean>()->propertyValue();
+                            break;
+                        }
+                        case rive::CustomPropertyString::typeKey:
+                        {
+                            const char* s = child->as<rive::CustomPropertyString>()->propertyValue().c_str();
+                            break;
+                        }
+                        case rive::CustomPropertyNumber::typeKey:
+                        {
+                            float f = child->as<rive::CustomPropertyNumber>()->propertyValue();
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        dmRive::RiveEventCallback callback;
+        callback = component.m_EventCallbackData->m_EventCallback;
+        callback(component.m_EventCallbackData, sender, event_name);
     }
 
     dmGameObject::UpdateResult CompRiveUpdate(const dmGameObject::ComponentsUpdateParams& params, dmGameObject::ComponentsUpdateResult& update_result)
@@ -593,9 +619,7 @@ namespace dmRive
                 for (size_t i = 0; i < event_count; i++)
                 {
                     rive::EventReport reported_event = component.m_StateMachineInstance->reportedEventAt(i);
-                    dmLogInfo("reported event count %zu, %s", event_count, reported_event.event()->name().c_str()); 
-                    const char* name = reported_event.event()->name().c_str();
-                    CompRiveEventTriggerCallback(component, name);
+                    CompRiveEventTriggeredCallback(component, reported_event);
                 }
             }
             else if (component.m_AnimationInstance)
@@ -879,9 +903,20 @@ namespace dmRive
 
                 if (ddf->m_IsStateMachine)
                 {
+                    if (params.m_Message->m_DataSize == sizeof(dmRiveDDF::RivePlayAnimation) + sizeof(dmRive::RiveEventCallbackData))
+                    {
+                        if (component->m_EventCallbackData)
+                        {
+                            free(component->m_EventCallbackData);
+                            component->m_EventCallbackData = 0;
+                        }
+                        component->m_EventCallbackData = (dmRive::RiveEventCallbackData*)malloc(sizeof(dmRive::RiveEventCallbackData));
+                        memcpy(component->m_EventCallbackData, (params.m_Message->m_Data) + sizeof(dmRiveDDF::RivePlayAnimation), sizeof(dmRive::RiveEventCallbackData));
+                    }
+
                     bool result = PlayStateMachine(component, data, anim_id, ddf->m_PlaybackRate);
                     if (result) {
-                        component->m_AnimationCallbackRef  = params.m_Message->m_UserData2;
+                        component->m_AnimationCallbackRef  = 0;
                         component->m_Listener              = params.m_Message->m_Sender;
                     } else {
                         dmLogError("Couldn't play state machine named '%s'", dmHashReverseSafe64(anim_id));

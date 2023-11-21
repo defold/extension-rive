@@ -102,6 +102,36 @@ namespace dmRive
         return 0;
     }
 
+    void OnRiveEvent(void* callback_data, dmMessage::URL component, const char* event_name)
+    {
+        RiveEventCallbackData* event_callback_data = (RiveEventCallbackData*)callback_data;
+
+        dmScript::LuaCallbackInfo* lua_callback = (dmScript::LuaCallbackInfo*)event_callback_data->m_ScriptCallback;
+        if (!dmScript::IsCallbackValid(lua_callback))
+        {
+            dmLogInfo("Rive event callback is not valid");
+            return;
+        }
+
+        lua_State* L = dmScript::GetCallbackLuaContext(lua_callback);
+
+        DM_LUA_STACK_CHECK(L, 0);
+
+        if (!dmScript::SetupCallback(lua_callback))
+        {
+            dmLogError("Failed to setup rive event callback (has the calling script been destroyed?)");
+            dmScript::DestroyCallback(lua_callback);
+            event_callback_data->m_ScriptCallback = 0x0;
+            return;
+        }
+
+        // dmScript::PushURL(L, component);
+        lua_pushstring(L, event_name);
+        dmScript::PCall(L, 2, 0);
+
+        dmScript::TeardownCallback(lua_callback);
+    }
+
     /*# play a state machine on a rive model
      * Plays a specified state machine on a rive model component with specified playback
      * mode and parameters.
@@ -116,11 +146,16 @@ namespace dmRive
         dmhash_t anim_id          = dmScript::CheckHashOrString(L, 2);
         lua_Number offset         = 0.0;
         lua_Number playback_rate  = 1.0;
-        int functionref           = 0;
+        uintptr_t functionref     = 0;
 
         dmMessage::URL receiver;
         dmMessage::URL sender;
         dmScript::ResolveURL(L, 1, &receiver, &sender);
+
+
+        const uint32_t msg_size = sizeof(dmRiveDDF::RivePlayAnimation) + sizeof(dmRive::RiveEventCallbackData);
+        char msg_buf[msg_size];
+
 
         if (top > 2) // table with args
         {
@@ -143,22 +178,35 @@ namespace dmRive
 
         if (top > 3) // completed cb
         {
-            if (lua_isfunction(L, 4))
+            dmRive::RiveEventCallbackData data;
+            data.m_ScriptCallback = dmScript::CreateCallback(dmScript::GetMainThread(L), -1);
+            if (data.m_ScriptCallback == 0x0)
             {
-                lua_pushvalue(L, 4);
-                // NOTE: By convention m_FunctionRef is offset by LUA_NOREF, see message.h in dlib
-                functionref = dmScript::RefInInstance(L) - LUA_NOREF;
+                return DM_LUA_ERROR("particlefx.play failed to create callback");
             }
+
+            data.m_EventCallback = OnRiveEvent;
+            memcpy(msg_buf + sizeof(dmRiveDDF::RivePlayAnimation), &data, sizeof(dmRive::RiveEventCallbackData));
         }
 
-        dmRiveDDF::RivePlayAnimation msg;
-        msg.m_AnimationId       = anim_id;
-        msg.m_Playback          = 0;
-        msg.m_Offset            = 0;
-        msg.m_PlaybackRate      = playback_rate;
-        msg.m_IsStateMachine    = true;
+        dmRiveDDF::RivePlayAnimation* msg = (dmRiveDDF::RivePlayAnimation*)&msg_buf;
+        msg->m_AnimationId       = anim_id;
+        msg->m_Playback          = 0;
+        msg->m_Offset            = 0;
+        msg->m_PlaybackRate      = playback_rate;
+        msg->m_IsStateMachine    = true;
 
-        dmMessage::Post(&sender, &receiver, dmRiveDDF::RivePlayAnimation::m_DDFDescriptor->m_NameHash, (uintptr_t)instance, (uintptr_t)functionref, (uintptr_t)dmRiveDDF::RivePlayAnimation::m_DDFDescriptor, &msg, sizeof(msg), 0);
+        dmMessage::Post(
+            &sender,
+            &receiver,
+            dmRiveDDF::RivePlayAnimation::m_DDFDescriptor->m_NameHash,
+            (uintptr_t)instance,
+            0,
+            (uintptr_t)dmRiveDDF::RivePlayAnimation::m_DDFDescriptor,
+            (void*)msg_buf,
+            msg_size,
+            0);
+
         return 0;
     }
 
