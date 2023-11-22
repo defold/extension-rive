@@ -69,10 +69,8 @@ function update(self)
     render.set_blend_func(render.BLEND_SRC_ALPHA, render.BLEND_ONE_MINUS_SRC_ALPHA)
     render.disable_state(render.STATE_CULL_FACE)
 
-    render.set_projection(get_projection(self))
-
-    render.set_projection(vmath.matrix4_orthographic(0, render.get_window_width(), 0, render.get_window_height(), -1, 1))
-    
+    -- To match the Rive projection, we have to use a fullscreen orthographic projection to align Defold content with Rive
+    render.set_projection(vmath.matrix4_orthographic(0, render.get_window_width(), 0, render.get_window_height(), -1, 1))    
     render.draw(self.rive_pred)
 
     render.set_viewport(0, 0, render.get_window_width(), render.get_window_height())

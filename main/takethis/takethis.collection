@@ -22,7 +22,24 @@ instances {
 scale_along_z: 0
 embedded_instances {
   id: "go"
-  data: "embedded_components {\n"
+  data: "components {\n"
+  "  id: \"align_to_center\"\n"
+  "  component: \"/main/align_to_center.script\"\n"
+  "  position {\n"
+  "    x: 0.0\n"
+  "    y: 0.0\n"
+  "    z: 0.0\n"
+  "  }\n"
+  "  rotation {\n"
+  "    x: 0.0\n"
+  "    y: 0.0\n"
+  "    z: 0.0\n"
+  "    w: 1.0\n"
+  "  }\n"
+  "  property_decls {\n"
+  "  }\n"
+  "}\n"
+  "embedded_components {\n"
   "  id: \"rivemodel\"\n"
   "  type: \"rivemodel\"\n"
   "  data: \"scene: \\\"/main/takethis/takethis.rivescene\\\"\\n"
@@ -47,8 +64,8 @@ embedded_instances {
   "}\n"
   ""
   position {
-    x: 960.0
-    y: 540.0
+    x: 480.0
+    y: 270.0
     z: 0.0
   }
   rotation {
