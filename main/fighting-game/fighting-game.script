@@ -4,6 +4,11 @@ function init(self)
 	--rive.play_anim("#model", "bodyLoop", go.PLAYBACK_LOOP_FORWARD)
 	msg.post(".", "acquire_input_focus")
 
+	rive.play_state_machine("#model", "State Machine 1", nil, function(self, message_id, message)
+		print("play_state_machine", message_id)
+	end)
+	
+
 	self.player_one_selection = { x = 1, y = 0, selected = false }
 	self.player_two_selection = { x = 5, y = 0, selected = false }
 end

@@ -34,6 +34,20 @@ namespace dmRive
     struct RiveModelResource;
     struct RiveBuffer;
 
+    // callback for event trigger
+    typedef void (*RiveEventCallback)(void* callback_data, dmMessage::URL component, const char* event_name);
+
+    // struct to hold script callback data for events
+    struct RiveEventCallbackData
+    {
+        RiveEventCallbackData()
+        {
+        }
+
+        RiveEventCallback m_EventCallback;
+        void* m_ScriptCallback;
+    };
+
     // Keep this private from the scripting api
     struct RiveComponent
     {
@@ -53,6 +67,8 @@ namespace dmRive
         dmGameObject::Playback                  m_AnimationPlayback;
         float                                   m_AnimationPlaybackRate;
         int                                     m_AnimationCallbackRef;
+
+        RiveEventCallbackData*                  m_EventCallbackData;
 
         dmArray<rive::Bone*>                    m_Bones;
         dmArray<dmGameObject::HInstance>        m_BoneGOs;
