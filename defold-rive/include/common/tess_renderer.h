@@ -37,11 +37,13 @@ namespace dmRive {
         int fillType;
     };
 
+    const size_t MAX_NUM_STOPS = 16;
+
     struct FsUniforms
     {
         int   fillType;
-        float colors[16][4];
-        float stops[4][4];
+        float colors[MAX_NUM_STOPS][4];
+        float stops[MAX_NUM_STOPS/4][4];
         int   stopCount;
     };
 

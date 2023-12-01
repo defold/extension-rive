@@ -112,6 +112,9 @@ namespace dmRive
         void bind(VsUniforms& vertexUniforms, FsUniforms& fragmentUniforms)
         {
             auto stopCount = m_stops.size();
+            if (stopCount > MAX_NUM_STOPS)
+                stopCount = MAX_NUM_STOPS;
+
             vertexUniforms.fillType      = fragmentUniforms.fillType = m_type;
             vertexUniforms.gradientStart = m_start;
             vertexUniforms.gradientEnd   = m_end;
@@ -672,15 +675,16 @@ namespace dmRive
         m_ScratchBufferIndices.SetSize(0);
     }
 
-    void DefoldTessRenderer::drawPath(rive::RenderPath* path, rive::RenderPaint* _paint) {
+    void DefoldTessRenderer::drawPath(rive::RenderPath* _path, rive::RenderPaint* _paint) {
         auto paint = static_cast<DefoldRenderPaint*>(_paint);
+        auto path = static_cast<DefoldRenderPath*>(_path);
 
         applyClipping();
 
         VsUniforms vs_params = {};
         vs_params.world = transform();
 
-        static_cast<DefoldRenderPaint*>(paint)->draw(m_DrawDescriptors, vs_params, static_cast<DefoldRenderPath*>(path), paint->blendMode(), m_clipCount);
+        paint->draw(m_DrawDescriptors, vs_params, path, paint->blendMode(), m_clipCount);
     }
 
     // The factory implementations are here since they belong to the actual renderer.

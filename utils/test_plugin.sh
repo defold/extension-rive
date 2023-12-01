@@ -38,4 +38,4 @@ JNI_DEBUG_FLAGS="-Xcheck:jni"
 
 export DM_RIVE_LOG_LEVEL=DEBUG
 
-java ${JNI_DEBUG_FLAGS} -Djava.library.path=${PLUGIN_PLATFORM_DIR} -Djni.library.path=${PLUGIN_PLATFORM_DIR} -cp ${JAR} ${CLASS_NAME} $*
+java ${JNI_DEBUG_FLAGS} -Djava.library.path=${PLUGIN_PLATFORM_DIR} -Djni.library.path=${PLUGIN_PLATFORM_DIR} -cp ${JAR}:${BOB} ${CLASS_NAME} $*

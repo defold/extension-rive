@@ -209,7 +209,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
     dmLogDebug("JNI_OnLoad Rive ->\n");
 
     JNIEnv* env;
-    if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) != JNI_OK) {
+    if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_8) != JNI_OK) {
         printf("JNI_OnLoad GetEnv error\n");
         return JNI_ERR;
     }
