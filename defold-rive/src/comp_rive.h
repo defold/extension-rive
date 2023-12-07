@@ -14,6 +14,7 @@
 #define DM_GAMESYS_COMP_RIVE_H
 
 #include <stdint.h>
+#include <dmsdk/sdk.h>
 #include <dmsdk/dlib/hash.h>
 #include <dmsdk/dlib/vmath.h>
 #include <dmsdk/dlib/transform.h>
@@ -35,7 +36,7 @@ namespace dmRive
     struct RiveBuffer;
 
     // callback for event trigger
-    typedef void (*RiveEventCallback)(void* callback_data, dmMessage::URL component, const char* event_name);
+    typedef void (*RiveEventCallback)(void* callback_data, dmMessage::URL component, rive::Event* event);
 
     // struct to hold script callback data for events
     struct RiveEventCallbackData
@@ -90,6 +91,9 @@ namespace dmRive
     // Get the game object identifier
     bool CompRiveGetBoneID(RiveComponent* component, dmhash_t bone_name, dmhash_t* id);
     
+    void CompRivePushEventName(lua_State* L, rive::Event* event);
+    void CompRivePushEventProperties(lua_State* L, rive::Event* event);
+
     void CompRivePointerMove(RiveComponent* component, float x, float y);
     void CompRivePointerUp(RiveComponent* component, float x, float y);
     void CompRivePointerDown(RiveComponent* component, float x, float y);

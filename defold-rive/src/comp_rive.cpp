@@ -46,6 +46,7 @@
 #include "renderer.h"
 
 // DMSDK
+#include <dmsdk/sdk.h>
 #include <dmsdk/dlib/log.h>
 #include <dmsdk/dlib/math.h>
 #include <dmsdk/dlib/object_pool.h>
@@ -543,39 +544,10 @@ namespace dmRive
         }
 
         rive::Event* event = reported_event.event();
-        const char* event_name = event->name().c_str();
-        for (auto child : event->children())
-        {
-            if (child->is<rive::CustomProperty>())
-            {
-                if (!child->name().empty())
-                {
-                    const char* key = child->name().c_str();
-                    switch (child->coreType())
-                    {
-                        case rive::CustomPropertyBoolean::typeKey:
-                        {
-                            bool b = child->as<rive::CustomPropertyBoolean>()->propertyValue();
-                            break;
-                        }
-                        case rive::CustomPropertyString::typeKey:
-                        {
-                            const char* s = child->as<rive::CustomPropertyString>()->propertyValue().c_str();
-                            break;
-                        }
-                        case rive::CustomPropertyNumber::typeKey:
-                        {
-                            float f = child->as<rive::CustomPropertyNumber>()->propertyValue();
-                            break;
-                        }
-                    }
-                }
-            }
-        }
 
         dmRive::RiveEventCallback callback;
         callback = component.m_EventCallbackData->m_EventCallback;
-        callback(component.m_EventCallbackData, sender, event_name);
+        callback(component.m_EventCallbackData, sender, event);
     }
 
     dmGameObject::UpdateResult CompRiveUpdate(const dmGameObject::ComponentsUpdateParams& params, dmGameObject::ComponentsUpdateResult& update_result)
@@ -1312,6 +1284,55 @@ namespace dmRive
     // ******************************************************************************
     // SCRIPTING HELPER FUNCTIONS
     // ******************************************************************************
+
+    void CompRivePushEventName(lua_State* L, rive::Event* event)
+    {
+        const char* event_name = event->name().c_str();
+        lua_pushstring(L, event_name);
+    }
+
+    void CompRivePushEventProperties(lua_State* L, rive::Event* event)
+    {
+        lua_newtable(L);
+
+        for (auto child : event->children())
+        {
+            if (child->is<rive::CustomProperty>())
+            {
+                if (!child->name().empty())
+                {
+                    const char* key = child->name().c_str();
+                    switch (child->coreType())
+                    {
+                        case rive::CustomPropertyBoolean::typeKey:
+                        {
+                            bool b = child->as<rive::CustomPropertyBoolean>()->propertyValue();
+                            lua_pushstring(L, key);
+                            lua_pushboolean(L, b);
+                            lua_settable(L, -3);
+                            break;
+                        }
+                        case rive::CustomPropertyString::typeKey:
+                        {
+                            const char* s = child->as<rive::CustomPropertyString>()->propertyValue().c_str();
+                            lua_pushstring(L, key);
+                            lua_pushstring(L, s);
+                            lua_settable(L, -3);
+                            break;
+                        }
+                        case rive::CustomPropertyNumber::typeKey:
+                        {
+                            float f = child->as<rive::CustomPropertyNumber>()->propertyValue();
+                            lua_pushstring(L, key);
+                            lua_pushnumber(L, f);
+                            lua_settable(L, -3);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     bool CompRiveGetBoneID(RiveComponent* component, dmhash_t bone_name, dmhash_t* id)
     {

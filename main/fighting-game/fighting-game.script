@@ -1,11 +1,9 @@
 function init(self)
-	--rive.play_anim("#model", "panelAnimateOn", go.PLAYBACK_LOOP_FORWARD)
-	--rive.play_anim("#model", "cape", go.PLAYBACK_LOOP_FORWARD)
-	--rive.play_anim("#model", "bodyLoop", go.PLAYBACK_LOOP_FORWARD)
 	msg.post(".", "acquire_input_focus")
 
 	rive.play_state_machine("#model", "State Machine 1", nil, function(self, message_id, message)
 		print("play_state_machine", message_id)
+		pprint(message)
 	end)
 	
 
