@@ -84,6 +84,22 @@
             type: constant
             desc: The rate with which the animation will be played. Must be positive.
 
+      - name: callback_function
+        type: function
+        desc: function to call when a playback event occurs
+        parameters:
+          - name: self
+            type: object
+            desc: The context of the calling script
+
+          - name: message_id
+            type: hash
+            desc: The name of the event
+
+          - name: message
+            type: table
+            desc: A table that contains the event propertiesresponse
+
 #*****************************************************************************************************
 
   - name: cancel
