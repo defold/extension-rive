@@ -102,7 +102,7 @@ namespace dmRive
         return 0;
     }
 
-    void OnRiveEvent(void* callback_data, dmMessage::URL component, const char* event_name)
+    void OnRiveEvent(void* callback_data, dmMessage::URL component, rive::Event* event)
     {
         RiveEventCallbackData* event_callback_data = (RiveEventCallbackData*)callback_data;
 
@@ -125,9 +125,9 @@ namespace dmRive
             return;
         }
 
-        // dmScript::PushURL(L, component);
-        lua_pushstring(L, event_name);
-        dmScript::PCall(L, 2, 0);
+        CompRivePushEventName(L, event);
+        CompRivePushEventProperties(L, event);
+        dmScript::PCall(L, 3, 0);
 
         dmScript::TeardownCallback(lua_callback);
     }
