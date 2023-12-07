@@ -98,7 +98,7 @@
 
           - name: message
             type: table
-            desc: A table that contains the event propertiesresponse
+            desc: A table that contains the event properties
 
 #*****************************************************************************************************
 
