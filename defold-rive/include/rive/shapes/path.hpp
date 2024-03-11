@@ -37,7 +37,7 @@ class Path : public PathBase
 {
 protected:
     Shape* m_Shape = nullptr;
-    std::unique_ptr<CommandPath> m_CommandPath;
+    rcp<CommandPath> m_CommandPath;
     std::vector<PathVertex*> m_Vertices;
     bool m_deferredPathDirt = false;
     PathSpace m_DefaultPathSpace = PathSpace::Neither;
@@ -47,6 +47,7 @@ public:
     StatusCode onAddedClean(CoreContext* context) override;
     void buildDependencies() override;
     virtual const Mat2D& pathTransform() const;
+    bool collapse(bool value) override;
     CommandPath* commandPath() const { return m_CommandPath.get(); }
     void update(ComponentDirt value) override;
 
@@ -56,6 +57,7 @@ public:
     virtual void markPathDirty();
     virtual bool isPathClosed() const { return true; }
     void onDirty(ComponentDirt dirt) override;
+    inline bool isHidden() const { return (pathFlags() & 0x1) == 0x1; }
 #ifdef ENABLE_QUERY_FLAT_VERTICES
     FlattenedPath* makeFlat(bool transformToParent);
 #endif

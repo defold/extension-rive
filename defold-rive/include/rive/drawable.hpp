@@ -3,6 +3,8 @@
 #include "rive/generated/drawable_base.hpp"
 #include "rive/hit_info.hpp"
 #include "rive/renderer.hpp"
+#include "rive/clip_result.hpp"
+#include "rive/drawable_flag.hpp"
 #include <vector>
 
 namespace rive
@@ -14,6 +16,7 @@ class DrawRules;
 class Drawable : public DrawableBase
 {
     friend class Artboard;
+    friend class StateMachineInstance;
 
 private:
     std::vector<ClippingShape*> m_ClippingShapes;
@@ -25,7 +28,7 @@ private:
 
 public:
     BlendMode blendMode() const { return (BlendMode)blendModeValue(); }
-    bool clip(Renderer* renderer) const;
+    ClipResult clip(Renderer* renderer) const;
     virtual void draw(Renderer* renderer) = 0;
     virtual Core* hitTest(HitInfo*, const Mat2D&) = 0;
     void addClippingShape(ClippingShape* shape);
@@ -33,9 +36,15 @@ public:
 
     inline bool isHidden() const
     {
-        // For now we have a single drawable flag, when we have more we can
-        // make an actual enum for this.
-        return (drawableFlags() & 0x1) == 0x1 || hasDirt(ComponentDirt::Collapsed);
+        return (static_cast<DrawableFlag>(drawableFlags()) & DrawableFlag::Hidden) ==
+                   DrawableFlag::Hidden ||
+               hasDirt(ComponentDirt::Collapsed);
+    }
+
+    inline bool isTargetOpaque() const
+    {
+        return (static_cast<DrawableFlag>(drawableFlags()) & DrawableFlag::Opaque) ==
+               DrawableFlag::Opaque;
     }
 };
 } // namespace rive

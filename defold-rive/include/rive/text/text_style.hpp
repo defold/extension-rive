@@ -18,6 +18,7 @@ class RenderPaint;
 
 class TextVariationHelper;
 class TextStyleAxis;
+class TextStyleFeature;
 class TextStyle : public TextStyleBase, public ShapePaintContainer, public FileAssetReferencer
 {
 private:
@@ -38,6 +39,7 @@ public:
     void draw(Renderer* renderer);
     Core* clone() const override;
     void addVariation(TextStyleAxis* axis);
+    void addFeature(TextStyleFeature* feature);
     void updateVariableFont();
     StatusCode onAddedClean(CoreContext* context) override;
     void onDirty(ComponentDirt dirt) override;
@@ -49,13 +51,15 @@ protected:
 
 private:
     std::unique_ptr<TextVariationHelper> m_variationHelper;
-    std::unordered_map<float, std::unique_ptr<RenderPath>> m_opacityPaths;
+    std::unordered_map<float, rcp<RenderPath>> m_opacityPaths;
     rcp<Font> m_variableFont;
-    std::unique_ptr<RenderPath> m_path;
+    rcp<RenderPath> m_path;
     bool m_hasContents = false;
     std::vector<Font::Coord> m_coords;
     std::vector<TextStyleAxis*> m_variations;
-    std::vector<std::unique_ptr<RenderPaint>> m_paintPool;
+    std::vector<rcp<RenderPaint>> m_paintPool;
+    std::vector<TextStyleFeature*> m_styleFeatures;
+    std::vector<Font::Feature> m_features;
 };
 } // namespace rive
 
