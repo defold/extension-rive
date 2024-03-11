@@ -1,10 +1,13 @@
 function init(self)
 	msg.post(".", "acquire_input_focus")
 
+	-- This seems to cause a crash?
+	--[[
 	rive.play_state_machine("#model", "State Machine 1", nil, function(self, message_id, message)
 		print("play_state_machine", message_id)
 		pprint(message)
 	end)
+	--]]
 	
 
 	self.player_one_selection = { x = 1, y = 0, selected = false }

@@ -48,7 +48,8 @@ namespace dmRive {
     public:
         AtlasNameResolver(HRenderContext context);
 
-        bool loadContents(rive::FileAsset& asset, rive::Span<const uint8_t> inBandBytes);
+        bool loadContents(rive::FileAsset& asset, rive::Span<const uint8_t> inBandBytes, rive::Factory* factory);
+
     private:
         HRenderContext m_RiveRenderContext;
     };

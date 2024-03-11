@@ -210,9 +210,10 @@ namespace dmRive {
     {
     }
 
-    bool AtlasNameResolver::loadContents(rive::FileAsset& _asset, rive::Span<const uint8_t> inBandBytes)
+    bool AtlasNameResolver::loadContents(rive::FileAsset& _asset, rive::Span<const uint8_t> inBandBytes, rive::Factory* factory)
     {
-        if (_asset.is<rive::ImageAsset>()) {
+        if (_asset.is<rive::ImageAsset>())
+        {
             rive::ImageAsset* asset = _asset.as<rive::ImageAsset>();
             const std::string& name = asset->name();
 

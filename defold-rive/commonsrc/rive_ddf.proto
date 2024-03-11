@@ -54,6 +54,14 @@ message RiveAnimationDone
     required uint32 playback     = 2; // matches dmGameObject::Playback in gameobject.h
 }
 
+message RiveEventTrigger
+{
+    required string name  = 1;
+    optional float number = 2;
+    optional bool trigger = 3;
+    optional string text  = 4;
+}
+
 // Function wrapper documented in gamesys_script.cpp
 message SetConstantRiveModel
 {

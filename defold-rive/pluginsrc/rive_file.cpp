@@ -314,30 +314,6 @@ static dmGameSystemDDF::TextureSet* LoadAtlasFromBuffer(void* buffer, size_t buf
     return texture_set_ddf;
 }
 
-void SetArtboard(RiveFile* rive_file, const char* artboard)
-{
-    if (!rive_file->m_File)
-    {
-        return;
-    }
-
-    if (artboard != 0)
-    {
-        rive_file->m_ArtboardInstance = rive_file->m_File->artboardNamed(artboard);
-    }
-
-    if (!rive_file->m_ArtboardInstance)
-    {
-        rive_file->m_ArtboardInstance = rive_file->m_File->artboardAt(0);
-    }
-    rive_file->m_ArtboardInstance->advance(0.0f);
-
-    dmRive::SetupBones(rive_file);
-
-    PlayAnimation(rive_file, 0);
-    Update(rive_file, 0.0f, 0, 0);
-}
-
 void Update(RiveFile* rive_file, float dt, const uint8_t* texture_set_data, uint32_t texture_set_data_length)
 {
     if (!rive_file->m_File)

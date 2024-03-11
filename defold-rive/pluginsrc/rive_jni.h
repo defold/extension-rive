@@ -29,7 +29,6 @@ namespace dmRiveJNI
     jobject LoadFileFromBuffer(JNIEnv* env, jclass cls, const char* path, const uint8_t* data, uint32_t data_length);
     void    DestroyFile(JNIEnv* env, jclass cls, jobject rive_file);
     void    Update(JNIEnv* env, jclass cls, jobject rive_file, jfloat dt, const uint8_t* texture_set_data, uint32_t texture_set_data_length);
-    void    SetArtboard(JNIEnv* env, jclass cls, jobject rive_file, const char* artboard);
 }
 
 
