@@ -44,7 +44,6 @@ void        SetupBones(RiveFile* file);
 
 void        PlayAnimation(RiveFile* rive_file, int index);
 void        Update(RiveFile* rive_file, float dt, const uint8_t* texture_set_data, uint32_t texture_set_data_length);
-void        SetArtboard(RiveFile* rive_file, const char* artboard);
 
 } // namespace
 

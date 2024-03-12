@@ -79,11 +79,11 @@ public:
                                          size_t count) override;
 
     // Returns a full-formed RenderPath -- can be treated as immutable
-    std::unique_ptr<rive::RenderPath> makeRenderPath(rive::RawPath&, rive::FillRule) override;
+    rive::rcp<rive::RenderPath> makeRenderPath(rive::RawPath&, rive::FillRule) override;
 
-    std::unique_ptr<rive::RenderPath> makeEmptyRenderPath() override;
+    rive::rcp<rive::RenderPath> makeEmptyRenderPath() override;
 
-    std::unique_ptr<rive::RenderPaint> makeRenderPaint() override;
+    rive::rcp<rive::RenderPaint> makeRenderPaint() override;
 
     rive::rcp<rive::RenderImage> decodeImage(rive::Span<const uint8_t> data) override;
 };

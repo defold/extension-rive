@@ -186,18 +186,6 @@ static void JNICALL Java_Rive_Update(JNIEnv* env, jclass cls, jobject rive_file,
     DM_CHECK_JNI_ERROR();
 }
 
-static void JNICALL Java_Rive_SetArtboard(JNIEnv* env, jclass cls, jobject rive_file, jstring _artboard)
-{
-    DM_CHECK_JNI_ERROR();
-
-    dmDefoldJNI::ScopedString j_artboard(env, _artboard);
-    const char* artboard = j_artboard.m_String;
-
-    TypeRegister register_t(env);
-    dmRiveJNI::SetArtboard(env, cls, rive_file, artboard);
-    DM_CHECK_JNI_ERROR();
-}
-
 // static JNIEXPORT jlong JNICALL Java_RiveFile_AddressOf(JNIEnv* env, jclass cls, jobject object)
 // {
 //     TypeRegister register_t(env);
@@ -209,7 +197,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
     dmLogDebug("JNI_OnLoad Rive ->\n");
 
     JNIEnv* env;
-    if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_8) != JNI_OK) {
+    if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) != JNI_OK) {
         printf("JNI_OnLoad GetEnv error\n");
         return JNI_ERR;
     }
@@ -227,7 +215,6 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
         DM_JNI_FUNCTION(LoadFromBufferInternal, "(Ljava/lang/String;[B)Lcom/dynamo/bob/pipeline/Rive$RiveFile;"),
         DM_JNI_FUNCTION(Destroy, "(Lcom/dynamo/bob/pipeline/Rive$RiveFile;)V"),
         DM_JNI_FUNCTION(Update, "(Lcom/dynamo/bob/pipeline/Rive$RiveFile;F[B)V"),
-        DM_JNI_FUNCTION(SetArtboard, "(Lcom/dynamo/bob/pipeline/Rive$RiveFile;Ljava/lang/String;)V"),
         //DM_JNI_FUNCTION(AddressOf, "(Ljava/lang/Object;)J"),
     };
     #undef DM_JNI_FUNCTION
@@ -240,3 +227,4 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
     dmLogDebug("JNI_OnLoad return.\n");
     return JNI_VERSION_1_8;
 }
+

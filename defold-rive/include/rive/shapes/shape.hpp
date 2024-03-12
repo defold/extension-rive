@@ -44,6 +44,11 @@ public:
     void pathChanged();
     void addDefaultPathSpace(PathSpace space);
     StatusCode onAddedDirty(CoreContext* context) override;
+    bool isEmpty();
+    void pathCollapseChanged();
+
+    AABB computeWorldBounds(const Mat2D* xform = nullptr) const;
+    AABB computeLocalBounds() const;
 };
 } // namespace rive
 

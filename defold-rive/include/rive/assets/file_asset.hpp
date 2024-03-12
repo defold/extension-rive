@@ -3,6 +3,7 @@
 #include "rive/assets/file_asset_referencer.hpp"
 #include "rive/generated/assets/file_asset_base.hpp"
 #include "rive/span.hpp"
+#include "rive/simple_array.hpp"
 #include <string>
 
 namespace rive
@@ -20,7 +21,7 @@ public:
 
     void decodeCdnUuid(Span<const uint8_t> value) override;
     void copyCdnUuid(const FileAssetBase& object) override;
-    virtual bool decode(Span<const uint8_t>, Factory*) = 0;
+    virtual bool decode(SimpleArray<uint8_t>&, Factory*) = 0;
     virtual std::string fileExtension() const = 0;
     StatusCode import(ImportStack& importStack) override;
     const std::vector<FileAssetReferencer*> fileAssetReferencers()
@@ -35,13 +36,18 @@ public:
 
     void removeFileAssetReferencer(FileAssetReferencer* referencer)
     {
-        m_fileAssetReferencers.erase(
-            std::remove_if(m_fileAssetReferencers.begin(),
-                           m_fileAssetReferencers.end(),
-                           [&referencer](FileAssetReferencer* otherReferencer) {
-                               return otherReferencer == referencer;
-                           }),
-            m_fileAssetReferencers.end());
+        auto itr = m_fileAssetReferencers.begin();
+        while (itr != m_fileAssetReferencers.end())
+        {
+            if (*itr == referencer)
+            {
+                itr = m_fileAssetReferencers.erase(itr);
+            }
+            else
+            {
+                itr++;
+            }
+        }
     }
 
     std::string uniqueFilename() const;
