@@ -85,10 +85,3 @@ platforms:
       libs: [graphics_vulkan]
       linkFlags: []
       jetifier: true
-  win32:
-    context:
-      excludeLibs: []
-      excludeSymbols: []
-      symbols: [GraphicsAdapterVulkan]
-      libs: [libgraphics_vulkan.lib, vulkan-1.lib]
-      linkFlags: []
