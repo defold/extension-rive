@@ -1,11 +1,11 @@
 platforms:
   arm64-ios:
     context:
-      excludeLibs: []
-      excludeSymbols: []
+      excludeLibs: [graphics]
+      excludeSymbols: [GraphicsAdapterOpenGL]
       symbols: [GraphicsAdapterVulkan]
       libs: [graphics_vulkan, MoltenVK]
-      frameworks: [Metal, QuartzCore]
+      frameworks: [Metal, IOSurface, QuartzCore]
       linkFlags: []
   x86_64-ios:
     context:
@@ -15,37 +15,51 @@ platforms:
       libs: []
       frameworks: []
       linkFlags: []
-  android:
+  armv7-android:
     context:
-      excludeLibs: []
-      excludeJars: []
-      excludeSymbols: []
+      excludeLibs: [graphics]
+      excludeSymbols: [GraphicsAdapterOpenGL]
       symbols: [GraphicsAdapterVulkan]
       libs: [graphics_vulkan]
-      linkFlags: []
-      jetifier: true
-  osx:
+  arm64-android:
     context:
-      excludeLibs: []
-      excludeSymbols: []
+      excludeLibs: [graphics]
+      excludeSymbols: [GraphicsAdapterOpenGL]
       symbols: [GraphicsAdapterVulkan]
-      libs: [graphics_vulkan_experimental, MoltenVK]
+      libs: [graphics_vulkan]
+  arm64-osx:
+    context:
+      excludeLibs: [graphics]
+      excludeSymbols: [GraphicsAdapterOpenGL]
+      symbols: [GraphicsAdapterVulkan]
+      libs: [graphics_vulkan, MoltenVK]
       frameworks: [Metal, IOSurface, QuartzCore]
-      linkFlags: []
+  x86_64-osx:
+    context:
+      excludeLibs: [graphics]
+      excludeSymbols: [GraphicsAdapterOpenGL]
+      symbols: [GraphicsAdapterVulkan]
+      libs: [graphics_vulkan, MoltenVK]
+      frameworks: [Metal, IOSurface, QuartzCore]
   x86_64-linux:
     context:
-      excludeLibs: []
-      excludeSymbols: []
+      excludeLibs: [graphics]
+      excludeSymbols: [GraphicsAdapterOpenGL]
       symbols: [GraphicsAdapterVulkan]
       libs: [graphics_vulkan, X11-xcb]
       linkFlags: []
-  win32:
+  x86-win32:
     context:
-      excludeLibs: []
-      excludeSymbols: []
+      excludeLibs: [libgraphics]
+      excludeSymbols: [GraphicsAdapterOpenGL]
       symbols: [GraphicsAdapterVulkan]
-      libs: [libgraphics_vulkan_experimental.lib, vulkan-1.lib]
-      linkFlags: []
+      libs: [libgraphics_vulkan.lib, vulkan-1.lib]
+  x86_64-win32:
+    context:
+      excludeLibs: [libgraphics]
+      excludeSymbols: [GraphicsAdapterOpenGL]
+      symbols: [GraphicsAdapterVulkan]
+      libs: [libgraphics_vulkan.lib, vulkan-1.lib]
   js-web:
     context:
       excludeLibs: []
@@ -61,4 +75,20 @@ platforms:
       excludeSymbols: []
       symbols: []
       libs: []
+      linkFlags: []
+  android:
+    context:
+      excludeLibs: []
+      excludeJars: []
+      excludeSymbols: []
+      symbols: [GraphicsAdapterVulkan]
+      libs: [graphics_vulkan]
+      linkFlags: []
+      jetifier: true
+  win32:
+    context:
+      excludeLibs: []
+      excludeSymbols: []
+      symbols: [GraphicsAdapterVulkan]
+      libs: [libgraphics_vulkan.lib, vulkan-1.lib]
       linkFlags: []
