@@ -25,7 +25,7 @@ message RiveModelDesc
 
     required string scene                   = 1 [(resource)=true];
     required string default_animation       = 2;
-    optional string material                = 3 [(resource)=true, default="/builtins/materials/rive.material"];
+    optional string material                = 3 [(resource)=true, default="/defold-rive/assets/rivemodel.material"];
     optional BlendMode blend_mode           = 4 [default = BLEND_MODE_ALPHA];
     optional string default_state_machine   = 5;
     optional bool create_go_bones           = 6 [default=false];
