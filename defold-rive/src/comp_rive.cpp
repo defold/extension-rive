@@ -42,6 +42,7 @@
 #include "renderer.h"
 
 // DMSDK
+#include <dmsdk/script.h>
 #include <dmsdk/dlib/log.h>
 #include <dmsdk/dlib/math.h>
 #include <dmsdk/dlib/object_pool.h>
@@ -59,6 +60,13 @@
 #include <dmsdk/gamesys/resources/res_meshset.h>
 #include <dmsdk/gamesys/resources/res_animationset.h>
 #include <dmsdk/gamesys/resources/res_textureset.h>
+
+// Not in dmSDK yet
+namespace dmScript
+{
+    bool GetURL(lua_State* L, dmMessage::URL* out_url);
+    void PushURL(lua_State* L, const dmMessage::URL& m);
+}
 
 DM_PROPERTY_GROUP(rmtp_Rive, "Rive");
 DM_PROPERTY_U32(rmtp_RiveBones, 0, FrameReset, "# rive bones", &rmtp_Rive);
@@ -86,9 +94,6 @@ namespace dmRive
     static void ResourceReloadedCallback(const dmResource::ResourceReloadedParams& params);
     static void DestroyComponent(struct RiveWorld* world, uint32_t index);
     static void CompRiveAnimationReset(RiveComponent* component);
-    static bool PlayAnimation(RiveComponent* component, dmRive::RiveSceneData* data, dmhash_t anim_id,
-                    dmGameObject::Playback playback_mode, float offset, float playback_rate);
-    static bool PlayStateMachine(RiveComponent* component, dmRive::RiveSceneData* data, dmhash_t anim_id, float playback_rate);
     static bool CreateBones(struct RiveWorld* world, RiveComponent* component);
     static void DeleteBones(RiveComponent* component);
     static void UpdateBones(RiveComponent* component);
@@ -240,14 +245,26 @@ namespace dmRive
 
         if (empty_id != state_machine_id)
         {
-            if (!PlayStateMachine(component, data, state_machine_id, 1.0f))
+            dmRiveDDF::RivePlayAnimation ddf;
+            ddf.m_AnimationId       = state_machine_id;
+            ddf.m_Playback          = 0;
+            ddf.m_Offset            = 0.0;
+            ddf.m_PlaybackRate      = 1.0;
+            ddf.m_IsStateMachine    = true;
+            if (!CompRivePlayStateMachine(component, &ddf, 0))
             {
                 dmLogError("Couldn't play state machine named '%s'", dmHashReverseSafe64(state_machine_id));
             }
         }
         else if (empty_id != anim_id)
         {
-            if (!PlayAnimation(component, data, anim_id, dmGameObject::PLAYBACK_LOOP_FORWARD, 0.0f, 1.0f))
+            dmRiveDDF::RivePlayAnimation ddf;
+            ddf.m_AnimationId       = anim_id;
+            ddf.m_Playback          = dmGameObject::PLAYBACK_LOOP_FORWARD;
+            ddf.m_Offset            = 0.0;
+            ddf.m_PlaybackRate      = 1.0;
+            ddf.m_IsStateMachine    = false;
+            if (!CompRivePlayAnimation(component, &ddf, 0))
             {
                 dmLogError("Couldn't play animation named '%s'", dmHashReverseSafe64(anim_id));
             }
@@ -480,7 +497,6 @@ namespace dmRive
     static void CompRiveAnimationReset(RiveComponent* component)
     {
         component->m_AnimationIndex        = 0xff;
-        component->m_AnimationCallbackRef  = 0;
         component->m_AnimationPlaybackRate = 1.0f;
         component->m_AnimationPlayback     = dmGameObject::PLAYBACK_NONE;
 
@@ -490,65 +506,122 @@ namespace dmRive
         component->m_StateMachineInputs.SetSize(0);
     }
 
-    static void CompRiveAnimationDoneCallback(RiveComponent& component)
+    static void CompRiveRunCallback(RiveComponent* component, const dmDDF::Descriptor* desc, const char* data, const dmMessage::URL* sender)
     {
-        assert(component.m_AnimationInstance);
-        dmMessage::URL sender;
-        dmMessage::URL receiver  = component.m_Listener;
+        dmScript::LuaCallbackInfo* cbk = component->m_Callback;
+        if (!dmScript::IsCallbackValid(cbk))
+        {
+            dmLogError("Rive callback is invalid.");
+            return;
+        }
 
-        if (!GetSender(&component, &sender))
+        lua_State* L = dmScript::GetCallbackLuaContext(cbk);
+        DM_LUA_STACK_CHECK(L, 0);
+
+        if (!dmScript::SetupCallback(cbk))
+        {
+            dmLogError("Failed to setup Rive callback");
+            return;
+        }
+
+        dmScript::PushHash(L, desc->m_NameHash);
+        dmScript::PushDDF(L, desc, data, false);
+        dmScript::PushURL(L, *sender);
+        int ret = dmScript::PCall(L, 4, 0);
+        (void)ret;
+        dmScript::TeardownCallback(cbk);
+    }
+
+    static void CompRiveClearCallback(RiveComponent* component)
+    {
+        if (component->m_Callback)
+        {
+            dmScript::DestroyCallback(component->m_Callback);
+            component->m_Callback = 0x0;
+        }
+    }
+
+    static void CompRiveAnimationDoneCallback(RiveComponent* component)
+    {
+        assert(component->m_AnimationInstance);
+
+        dmMessage::URL sender;
+        dmMessage::URL receiver  = component->m_Listener;
+        if (!GetSender(component, &sender))
         {
             dmLogError("Could not send animation_done to listener because of incomplete component.");
             return;
         }
 
-        dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component.m_Resource->m_Scene->m_Scene;
+        dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
         dmhash_t message_id         = dmRiveDDF::RiveAnimationDone::m_DDFDescriptor->m_NameHash;
 
         dmRiveDDF::RiveAnimationDone message;
-        message.m_AnimationId = data->m_LinearAnimations[component.m_AnimationIndex];
-        message.m_Playback    = component.m_AnimationPlayback;
+        message.m_AnimationId = data->m_LinearAnimations[component->m_AnimationIndex];
+        message.m_Playback    = component->m_AnimationPlayback;
 
-        uintptr_t descriptor = (uintptr_t)dmRiveDDF::RiveAnimationDone::m_DDFDescriptor;
-        uint32_t data_size   = sizeof(dmRiveDDF::RiveAnimationDone);
-
-        dmMessage::Result result = dmMessage::Post(&sender, &receiver, message_id, 0, component.m_AnimationCallbackRef, descriptor, &message, data_size, 0);
-        dmMessage::ResetURL(&component.m_Listener);
-        if (result != dmMessage::RESULT_OK)
+        if (component->m_Callback)
         {
-            dmLogError("Could not send animation_done to listener.");
+            uint32_t id = component->m_CallbackId;
+            dmScript::LuaCallbackInfo* callback = component->m_Callback;
+            CompRiveRunCallback(component, dmRiveDDF::RiveAnimationDone::m_DDFDescriptor, (const char*)&message, &sender);
+
+            // Make sure we're clearing the same callback as we ran above and not a new
+            // callback that was started from the original callback
+            if (id == component->m_CallbackId)
+            {
+                CompRiveClearCallback(component);
+            }
+        }
+        else
+        {
+            dmGameObject::Result result = dmGameObject::PostDDF(&message, &sender, &receiver, 0, true);
+            if (result != dmGameObject::RESULT_OK)
+            {
+                dmLogError("Could not send animation_done to listener: %d", result);
+            }
         }
     }
 
-    static void CompRiveEventTriggerCallback(RiveComponent& component, const char* name)
+    static void CompRiveEventTriggerCallback(RiveComponent* component, const char* name)
     {
         dmMessage::URL sender;
-        dmMessage::URL receiver  = component.m_Listener;
-
-        if (!GetSender(&component, &sender))
+        dmMessage::URL receiver = component->m_Listener;
+        if (!GetSender(component, &sender))
         {
             dmLogError("Could not send event_trigger to listener because of incomplete component.");
             return;
         }
 
-        dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component.m_Resource->m_Scene->m_Scene;
+        dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
         dmhash_t message_id         = dmRiveDDF::RiveEventTrigger::m_DDFDescriptor->m_NameHash;
 
         dmRiveDDF::RiveEventTrigger message;
         message.m_Name = name;
-        // message.m_Name = "foobar\0";
-        // message.m_Trigger = 1;
-        // message.m_Number = 1234;
-        // message.m_Text = "Hello";
+        message.m_Trigger = 1;
+        message.m_Number = 1234;
+        message.m_Text = "Hello\0";
 
-        uintptr_t descriptor = (uintptr_t)dmRiveDDF::RiveEventTrigger::m_DDFDescriptor;
-        uint32_t data_size   = sizeof(dmRiveDDF::RiveEventTrigger);
-
-        dmMessage::Result result = dmMessage::Post(&sender, &receiver, message_id, 0, component.m_AnimationCallbackRef, descriptor, &message, data_size, 0);
-        dmMessage::ResetURL(&component.m_Listener);
-        if (result != dmMessage::RESULT_OK)
+        if (component->m_Callback)
         {
-            dmLogError("Could not send event_trigger to listener. %d", result);
+            uint32_t id = component->m_CallbackId;
+            dmScript::LuaCallbackInfo* callback = component->m_Callback;
+            CompRiveRunCallback(component, dmRiveDDF::RiveEventTrigger::m_DDFDescriptor, (const char*)&message, &sender);
+
+            // Make sure we're clearing the same callback as we ran above and not a new
+            // callback that was started from the original callback
+            if (id == component->m_CallbackId)
+            {
+                CompRiveClearCallback(component);
+            }
+        }
+        else
+        {
+            dmGameObject::Result result = dmGameObject::PostDDF(&message, &sender, &receiver, 0, true);
+            if (result != dmGameObject::RESULT_OK)
+            {
+                dmLogError("Could not send event_trigger to listener: %d", result);
+            }
         }
     }
 
@@ -593,9 +666,8 @@ namespace dmRive
                 for (size_t i = 0; i < event_count; i++)
                 {
                     rive::EventReport reported_event = component.m_StateMachineInstance->reportedEventAt(i);
-                    dmLogInfo("reported event count %zu, %s", event_count, reported_event.event()->name().c_str()); 
                     const char* name = reported_event.event()->name().c_str();
-                    CompRiveEventTriggerCallback(component, name);
+                    CompRiveEventTriggerCallback(&component, name);
                 }
             }
             else if (component.m_AnimationInstance)
@@ -621,7 +693,7 @@ namespace dmRive
 
                     if (did_finish)
                     {
-                        CompRiveAnimationDoneCallback(component);
+                        CompRiveAnimationDoneCallback(&component);
                         CompRiveAnimationReset(&component);
                     }
                 }
@@ -767,9 +839,14 @@ namespace dmRive
         return artboard->stateMachine(index);
     }
 
-    static bool PlayAnimation(RiveComponent* component, dmRive::RiveSceneData* data, dmhash_t anim_id,
-                                dmGameObject::Playback playback_mode, float offset, float playback_rate)
+    bool CompRivePlayAnimation(RiveComponent* component, dmRiveDDF::RivePlayAnimation* ddf, dmScript::LuaCallbackInfo* callback_info)
     {
+        dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
+        dmhash_t anim_id = ddf->m_AnimationId;
+        dmGameObject::Playback playback_mode = (dmGameObject::Playback)ddf->m_Playback;
+        float offset = ddf->m_Offset;
+        float playback_rate = ddf->m_PlaybackRate;
+
         int animation_index;
         rive::LinearAnimation* animation = FindAnimation(component->m_ArtboardInstance.get(), data, &animation_index, anim_id);
 
@@ -778,6 +855,7 @@ namespace dmRive
         }
 
         CompRiveAnimationReset(component);
+        CompRiveClearCallback(component);
 
         rive::Loop loop_value = rive::Loop::oneShot;
         int play_direction    = 1;
@@ -813,6 +891,8 @@ namespace dmRive
             default:break;
         }
 
+        component->m_Callback              = callback_info;
+        component->m_CallbackId++;
         component->m_AnimationIndex        = animation_index;
         component->m_AnimationPlaybackRate = playback_rate;
         component->m_AnimationPlayback     = playback_mode;
@@ -825,8 +905,12 @@ namespace dmRive
         return true;
     }
 
-    static bool PlayStateMachine(RiveComponent* component, dmRive::RiveSceneData* data, dmhash_t anim_id, float playback_rate)
+    bool CompRivePlayStateMachine(RiveComponent* component, dmRiveDDF::RivePlayAnimation* ddf, dmScript::LuaCallbackInfo* callback_info)
     {
+        dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
+        dmhash_t anim_id = ddf->m_AnimationId;
+        float playback_rate = ddf->m_PlaybackRate;
+
         int state_machine_index;
         rive::StateMachine* state_machine = FindStateMachine(component->m_ArtboardInstance.get(), data, &state_machine_index, anim_id);
 
@@ -835,7 +919,10 @@ namespace dmRive
         }
 
         CompRiveAnimationReset(component);
+        CompRiveClearCallback(component);
 
+        component->m_Callback              = callback_info;
+        component->m_CallbackId++;
         component->m_AnimationInstance     = nullptr;
         component->m_StateMachineInstance  = component->m_ArtboardInstance->stateMachineAt(state_machine_index);
         component->m_AnimationPlaybackRate = playback_rate;
@@ -873,27 +960,20 @@ namespace dmRive
             if (params.m_Message->m_Id == dmRiveDDF::RivePlayAnimation::m_DDFDescriptor->m_NameHash)
             {
                 dmRiveDDF::RivePlayAnimation* ddf = (dmRiveDDF::RivePlayAnimation*)params.m_Message->m_Data;
-                dmRive::RiveSceneData* data       = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
-
-                dmhash_t anim_id = ddf->m_AnimationId;
-
                 if (ddf->m_IsStateMachine)
                 {
-                    bool result = PlayStateMachine(component, data, anim_id, ddf->m_PlaybackRate);
-                    if (result) {
-                        component->m_AnimationCallbackRef  = params.m_Message->m_UserData2;
-                        component->m_Listener              = params.m_Message->m_Sender;
-                    } else {
-                        dmLogError("Couldn't play state machine named '%s'", dmHashReverseSafe64(anim_id));
+                    bool result = CompRivePlayStateMachine(component, ddf, 0);
+                    if (!result)
+                    {
+                        dmLogError("Couldn't play state machine named '%s'", dmHashReverseSafe64(ddf->m_AnimationId));
                     }
-
-                } else {
-                    bool result = PlayAnimation(component, data, anim_id, (dmGameObject::Playback)ddf->m_Playback, ddf->m_Offset, ddf->m_PlaybackRate);
-                    if (result) {
-                        component->m_AnimationCallbackRef  = params.m_Message->m_UserData2;
-                        component->m_Listener              = params.m_Message->m_Sender;
-                    } else {
-                        dmLogError("Couldn't play animation named '%s'", dmHashReverseSafe64(anim_id));
+                }
+                else
+                {
+                    bool result = CompRivePlayAnimation(component, ddf, 0);
+                    if (!result)
+                    {
+                        dmLogError("Couldn't play animation named '%s'", dmHashReverseSafe64(ddf->m_AnimationId));
                     }
                 }
             }
