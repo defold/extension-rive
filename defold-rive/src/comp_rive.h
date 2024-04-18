@@ -14,11 +14,14 @@
 #define DM_GAMESYS_COMP_RIVE_H
 
 #include <stdint.h>
+#include <dmsdk/script.h>
 #include <dmsdk/dlib/hash.h>
 #include <dmsdk/dlib/vmath.h>
 #include <dmsdk/dlib/transform.h>
 #include <dmsdk/gameobject/gameobject.h>
 #include <dmsdk/gamesys/render_constants.h>
+
+#include "rive_ddf.h"
 
 namespace rive
 {
@@ -44,7 +47,8 @@ namespace dmRive
         dmMessage::URL                          m_Listener;
         dmGameSystem::HComponentRenderConstants m_RenderConstants;
         dmRender::HMaterial                     m_Material;
-
+        dmScript::LuaCallbackInfo*              m_Callback;
+        uint32_t                                m_CallbackId;
 
         std::unique_ptr<rive::ArtboardInstance>         m_ArtboardInstance;
         std::unique_ptr<rive::LinearAnimationInstance>  m_AnimationInstance;
@@ -52,7 +56,6 @@ namespace dmRive
 
         dmGameObject::Playback                  m_AnimationPlayback;
         float                                   m_AnimationPlaybackRate;
-        int                                     m_AnimationCallbackRef;
 
         dmArray<rive::Bone*>                    m_Bones;
         dmArray<dmGameObject::HInstance>        m_BoneGOs;
@@ -77,6 +80,9 @@ namespace dmRive
     void CompRivePointerMove(RiveComponent* component, float x, float y);
     void CompRivePointerUp(RiveComponent* component, float x, float y);
     void CompRivePointerDown(RiveComponent* component, float x, float y);
+
+    bool CompRivePlayStateMachine(RiveComponent* component, dmRiveDDF::RivePlayAnimation* ddf, dmScript::LuaCallbackInfo* callback_info);
+    bool CompRivePlayAnimation(RiveComponent* component, dmRiveDDF::RivePlayAnimation* ddf, dmScript::LuaCallbackInfo* callback_info);
 
     // bool CompRiveSetIKTargetInstance(RiveComponent* component, dmhash_t constraint_id, float mix, dmhash_t instance_id);
     // bool CompRiveSetIKTargetPosition(RiveComponent* component, dmhash_t constraint_id, float mix, Vectormath::Aos::Point3 position);

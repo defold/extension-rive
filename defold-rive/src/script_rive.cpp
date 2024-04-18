@@ -50,17 +50,15 @@ namespace dmRive
         DM_LUA_STACK_CHECK(L, 0);
         int top = lua_gettop(L);
 
-        dmGameObject::HInstance instance = dmScript::CheckGOInstance(L);
+        RiveComponent* component = 0;
+        dmGameObject::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
 
-        dmhash_t anim_id          = dmScript::CheckHashOrString(L, 2);
-        lua_Integer playback      = luaL_checkinteger(L, 3);
-        lua_Number offset         = 0.0;
-        lua_Number playback_rate  = 1.0;
-        int functionref           = 0;
-
-        dmMessage::URL receiver;
-        dmMessage::URL sender;
-        dmScript::ResolveURL(L, 1, &receiver, &sender);
+        dmRiveDDF::RivePlayAnimation ddf;
+        ddf.m_AnimationId       = dmScript::CheckHashOrString(L, 2);;
+        ddf.m_Playback          = luaL_checkinteger(L, 3);
+        ddf.m_Offset            = 0.0;
+        ddf.m_PlaybackRate      = 1.0;
+        ddf.m_IsStateMachine    = false;
 
         if (top > 3) // table with args
         {
@@ -70,35 +68,34 @@ namespace dmRive
                 lua_pushvalue(L, 4);
 
                 lua_getfield(L, -1, "offset");
-                offset = lua_isnil(L, -1) ? 0.0 : luaL_checknumber(L, -1);
+                ddf.m_Offset = lua_isnil(L, -1) ? 0.0 : luaL_checknumber(L, -1);
                 lua_pop(L, 1);
 
                 lua_getfield(L, -1, "playback_rate");
-                playback_rate = lua_isnil(L, -1) ? 1.0 : luaL_checknumber(L, -1);
+                ddf.m_PlaybackRate = lua_isnil(L, -1) ? 1.0 : luaL_checknumber(L, -1);
                 lua_pop(L, 1);
 
                 lua_pop(L, 1);
             }
         }
 
+        dmScript::LuaCallbackInfo* cbk = 0x0;
         if (top > 4) // completed cb
         {
             if (lua_isfunction(L, 5))
             {
-                lua_pushvalue(L, 5);
-                // NOTE: By convention m_FunctionRef is offset by LUA_NOREF, see message.h in dlib
-                functionref = dmScript::RefInInstance(L) - LUA_NOREF;
+                cbk = dmScript::CreateCallback(L, 5);
             }
         }
 
-        dmRiveDDF::RivePlayAnimation msg;
-        msg.m_AnimationId       = anim_id;
-        msg.m_Playback          = playback;
-        msg.m_Offset            = offset;
-        msg.m_PlaybackRate      = playback_rate;
-        msg.m_IsStateMachine    = false;
+        if (!CompRivePlayAnimation(component, &ddf, cbk))
+        {
+            if (cbk)
+            {
+                dmScript::DestroyCallback(cbk);
+            }
+        }
 
-        dmMessage::Post(&sender, &receiver, dmRiveDDF::RivePlayAnimation::m_DDFDescriptor->m_NameHash, (uintptr_t)instance, (uintptr_t)functionref, (uintptr_t)dmRiveDDF::RivePlayAnimation::m_DDFDescriptor, &msg, sizeof(msg), 0);
         return 0;
     }
 
@@ -111,16 +108,15 @@ namespace dmRive
         DM_LUA_STACK_CHECK(L, 0);
         int top = lua_gettop(L);
 
-        dmGameObject::HInstance instance = dmScript::CheckGOInstance(L);
+        RiveComponent* component = 0;
+        dmGameObject::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
 
-        dmhash_t anim_id          = dmScript::CheckHashOrString(L, 2);
-        lua_Number offset         = 0.0;
-        lua_Number playback_rate  = 1.0;
-        int functionref           = 0;
-
-        dmMessage::URL receiver;
-        dmMessage::URL sender;
-        dmScript::ResolveURL(L, 1, &receiver, &sender);
+        dmRiveDDF::RivePlayAnimation ddf;
+        ddf.m_AnimationId       = dmScript::CheckHashOrString(L, 2);
+        ddf.m_Playback          = 0;
+        ddf.m_Offset            = 0.0;
+        ddf.m_PlaybackRate      = 1.0;
+        ddf.m_IsStateMachine    = true;
 
         if (top > 2) // table with args
         {
@@ -130,35 +126,34 @@ namespace dmRive
                 lua_pushvalue(L, 3);
 
                 lua_getfield(L, -1, "offset");
-                offset = lua_isnil(L, -1) ? 0.0 : luaL_checknumber(L, -1);
+                ddf.m_Offset = lua_isnil(L, -1) ? 0.0 : luaL_checknumber(L, -1);
                 lua_pop(L, 1);
 
                 lua_getfield(L, -1, "playback_rate");
-                playback_rate = lua_isnil(L, -1) ? 1.0 : luaL_checknumber(L, -1);
+                ddf.m_PlaybackRate = lua_isnil(L, -1) ? 1.0 : luaL_checknumber(L, -1);
                 lua_pop(L, 1);
 
                 lua_pop(L, 1);
             }
         }
 
+        dmScript::LuaCallbackInfo* cbk = 0x0;
         if (top > 3) // completed cb
         {
             if (lua_isfunction(L, 4))
             {
-                lua_pushvalue(L, 4);
-                // NOTE: By convention m_FunctionRef is offset by LUA_NOREF, see message.h in dlib
-                functionref = dmScript::RefInInstance(L) - LUA_NOREF;
+                cbk = dmScript::CreateCallback(L, 4);
             }
         }
 
-        dmRiveDDF::RivePlayAnimation msg;
-        msg.m_AnimationId       = anim_id;
-        msg.m_Playback          = 0;
-        msg.m_Offset            = 0;
-        msg.m_PlaybackRate      = playback_rate;
-        msg.m_IsStateMachine    = true;
+        if (!CompRivePlayStateMachine(component, &ddf, cbk))
+        {
+            if (cbk)
+            {
+                dmScript::DestroyCallback(cbk);
+            }
+        }
 
-        dmMessage::Post(&sender, &receiver, dmRiveDDF::RivePlayAnimation::m_DDFDescriptor->m_NameHash, (uintptr_t)instance, (uintptr_t)functionref, (uintptr_t)dmRiveDDF::RivePlayAnimation::m_DDFDescriptor, &msg, sizeof(msg), 0);
         return 0;
     }
 
