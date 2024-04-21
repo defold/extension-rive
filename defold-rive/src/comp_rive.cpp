@@ -588,13 +588,45 @@ namespace dmRive
         }
     }
 
-    static void CompRiveEventTriggerCallback(RiveComponent* component, rive::Event* event)
+    static bool CompRiveHandleEventTrigger(RiveComponent* component, dmRiveDDF::RiveEventTrigger message)
     {
         dmMessage::URL sender;
         dmMessage::URL receiver = component->m_Listener;
         if (!GetSender(component, &sender))
         {
             dmLogError("Could not send event_trigger to listener because of incomplete component.");
+            return false;
+        }
+
+        if (component->m_Callback)
+        {
+            dmScript::LuaCallbackInfo* callback = component->m_Callback;
+            CompRiveRunCallback(component, dmRiveDDF::RiveEventTrigger::m_DDFDescriptor, (const char*)&message, &sender);
+
+            // note that we are not clearing the callback here since multiple events can fire at
+            // different times during the playback
+        }
+        else
+        {
+            dmGameObject::Result result = dmGameObject::PostDDF(&message, &sender, &receiver, 0, true);
+            if (result != dmGameObject::RESULT_OK)
+            {
+                dmLogError("Could not send event_trigger to listener: %d", result);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    static void CompRiveEventTriggerCallback(RiveComponent* component, rive::Event* event)
+    {
+        dmRiveDDF::RiveEventTrigger event_message;
+        event_message.m_Name = event->name().c_str();
+        event_message.m_Trigger = 0;
+        event_message.m_Text = "";
+        event_message.m_Number = 0.0f;
+        if (!CompRiveHandleEventTrigger(component, event_message))
+        {
             return;
         }
 
@@ -605,48 +637,35 @@ namespace dmRive
             {
                 if (!child->name().empty())
                 {
-                    dmRiveDDF::RiveEventTrigger message;
-                    message.m_Name = child->name().c_str();
-                    message.m_Trigger = 0;
-                    message.m_Text = "";
-                    message.m_Number = 0.0f;
+                    dmRiveDDF::RiveEventTrigger property_message;
+                    property_message.m_Name = child->name().c_str();
+                    property_message.m_Trigger = 0;
+                    property_message.m_Text = "";
+                    property_message.m_Number = 0.0f;
                     switch (child->coreType())
                     {
                         case rive::CustomPropertyBoolean::typeKey:
                         {
                             bool b = child->as<rive::CustomPropertyBoolean>()->propertyValue();
-                            message.m_Trigger = b;
+                            property_message.m_Trigger = b;
                             break;
                         }
                         case rive::CustomPropertyString::typeKey:
                         {
                             const char* s = child->as<rive::CustomPropertyString>()->propertyValue().c_str();
-                            message.m_Text = s;
+                            property_message.m_Text = s;
                             break;
                         }
                         case rive::CustomPropertyNumber::typeKey:
                         {
                             float f = child->as<rive::CustomPropertyNumber>()->propertyValue();
-                            message.m_Number = f;
+                            property_message.m_Number = f;
                             break;
                         }
                     }
-
-                    if (component->m_Callback)
+                    if (!CompRiveHandleEventTrigger(component, property_message))
                     {
-                        dmScript::LuaCallbackInfo* callback = component->m_Callback;
-                        CompRiveRunCallback(component, dmRiveDDF::RiveEventTrigger::m_DDFDescriptor, (const char*)&message, &sender);
-
-                        // note that we are not clearing the callback here since multiple events can fire at
-                        // different times during the playback
-                    }
-                    else
-                    {
-                        dmGameObject::Result result = dmGameObject::PostDDF(&message, &sender, &receiver, 0, true);
-                        if (result != dmGameObject::RESULT_OK)
-                        {
-                            dmLogError("Could not send event_trigger to listener: %d", result);
-                        }
+                        return;
                     }
                 }
             }
