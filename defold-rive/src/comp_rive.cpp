@@ -894,6 +894,11 @@ namespace dmRive
         float offset = ddf->m_Offset;
         float playback_rate = ddf->m_PlaybackRate;
 
+        if (playback_mode == dmGameObject::PLAYBACK_NONE)
+        {
+            return true;
+        }
+
         int animation_index;
         rive::LinearAnimation* animation = FindAnimation(component->m_ArtboardInstance.get(), data, &animation_index, anim_id);
 
