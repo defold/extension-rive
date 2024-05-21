@@ -12,7 +12,7 @@ jobs:
   build_with_bob:
     strategy:
       matrix:
-        platform: [armv7-android, x86_64-linux, js-web]
+        platform: [armv7-android, x86_64-linux]
     runs-on: ubuntu-latest
 
     name: Build
@@ -57,7 +57,7 @@ jobs:
   build_with_bob_windows:
     strategy:
       matrix:
-        platform: [x86_64-win32, x86-win32]
+        platform: [x86_64-win32]
     runs-on: windows-latest
 
     name: Build
