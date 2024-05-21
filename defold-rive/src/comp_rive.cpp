@@ -186,7 +186,7 @@ namespace dmRive
     void* CompRiveGetComponent(const dmGameObject::ComponentGetParams& params)
     {
         RiveWorld* world = (RiveWorld*)params.m_World;
-        uint32_t index = (uint32_t)*params.m_UserData;
+        uint32_t index = (uint32_t) params.m_UserData;
         return GetComponentFromIndex(world, index);
     }
 

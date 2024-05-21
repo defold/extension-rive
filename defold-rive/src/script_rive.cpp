@@ -51,7 +51,7 @@ namespace dmRive
         int top = lua_gettop(L);
 
         RiveComponent* component = 0;
-        dmGameObject::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
+        dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
 
         dmRiveDDF::RivePlayAnimation ddf;
         ddf.m_AnimationId       = dmScript::CheckHashOrString(L, 2);;
@@ -109,7 +109,7 @@ namespace dmRive
         int top = lua_gettop(L);
 
         RiveComponent* component = 0;
-        dmGameObject::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
+        dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
 
         dmRiveDDF::RivePlayAnimation ddf;
         ddf.m_AnimationId       = dmScript::CheckHashOrString(L, 2);
@@ -201,7 +201,7 @@ namespace dmRive
         DM_LUA_STACK_CHECK(L, 1);
 
         RiveComponent* component = 0;
-        dmGameObject::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
+        dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
 
         dmhash_t bone_name = dmScript::CheckHashOrString(L, 2);
 
@@ -219,7 +219,7 @@ namespace dmRive
         DM_LUA_STACK_CHECK(L, 0);
 
         RiveComponent* component = 0;
-        dmGameObject::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
+        dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
         lua_Number x = luaL_checknumber(L, 2);
         lua_Number y = luaL_checknumber(L, 3);
 
@@ -233,7 +233,7 @@ namespace dmRive
         DM_LUA_STACK_CHECK(L, 0);
 
         RiveComponent* component = 0;
-        dmGameObject::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
+        dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
         lua_Number x = luaL_checknumber(L, 2);
         lua_Number y = luaL_checknumber(L, 3);
 
@@ -247,7 +247,7 @@ namespace dmRive
         DM_LUA_STACK_CHECK(L, 0);
 
         RiveComponent* component = 0;
-        dmGameObject::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
+        dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
         lua_Number x = luaL_checknumber(L, 2);
         lua_Number y = luaL_checknumber(L, 3);
 
