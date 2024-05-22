@@ -47,3 +47,10 @@ platforms:
     web:
         context:
             flags: ["-std=c++17", "-fno-rtti"]
+  
+    android:
+        context:
+          excludeLibs: [graphics]
+          excludeSymbols: [GraphicsAdapterOpenGL]
+          symbols: [GraphicsAdapterVulkan]
+          libs: [graphics_vulkan]
