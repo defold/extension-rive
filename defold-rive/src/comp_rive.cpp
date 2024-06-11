@@ -95,7 +95,7 @@ namespace dmRive
 
     static float g_DisplayFactor = 1.0f;
 
-    static void ResourceReloadedCallback(const dmResource::ResourceReloadedParams& params);
+    static void ResourceReloadedCallback(const dmResource::ResourceReloadedParams* params);
     static void DestroyComponent(struct RiveWorld* world, uint32_t index);
     static void CompRiveAnimationReset(RiveComponent* component);
     static bool CreateBones(struct RiveWorld* world, RiveComponent* component);
@@ -1222,9 +1222,9 @@ namespace dmRive
         return dmGameSystem::SetMaterialConstant(GetMaterial(component, component->m_Resource), params.m_PropertyId, params.m_Value, params.m_Options.m_Index, CompRiveSetConstantCallback, component);
     }
 
-    static void ResourceReloadedCallback(const dmResource::ResourceReloadedParams& params)
+    static void ResourceReloadedCallback(const dmResource::ResourceReloadedParams* params)
     {
-        RiveWorld* world = (RiveWorld*) params.m_UserData;
+        RiveWorld* world = (RiveWorld*) params->m_UserData;
         dmArray<RiveComponent*>& components = world->m_Components.GetRawObjects();
         uint32_t n = components.Size();
         for (uint32_t i = 0; i < n; ++i)
@@ -1234,9 +1234,10 @@ namespace dmRive
             if (!component->m_Enabled || !resource)
                 continue;
 
-            if (resource == params.m_Resource->m_Resource ||
-                resource->m_Scene == params.m_Resource->m_Resource ||
-                resource->m_Scene->m_Scene == params.m_Resource->m_Resource)
+            void* current_resource = dmResource::GetResource(params->m_Resource);
+            if (resource == current_resource ||
+                resource->m_Scene == current_resource ||
+                resource->m_Scene->m_Scene == current_resource)
             {
                 OnResourceReloaded(world, component, i);
             }

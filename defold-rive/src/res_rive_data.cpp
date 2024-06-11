@@ -68,13 +68,13 @@ namespace dmRive
         }
     }
 
-    static dmResource::Result ResourceType_RiveData_Create(const dmResource::ResourceCreateParams& params)
+    static dmResource::Result ResourceType_RiveData_Create(const dmResource::ResourceCreateParams* params)
     {
-        HRenderContext render_context_res = (HRenderContext) params.m_Context;
+        HRenderContext render_context_res = (HRenderContext) params->m_Context;
 
         rive::Factory* rive_factory = GetRiveFactory(render_context_res);
 
-        rive::Span<const uint8_t> data((const uint8_t*)params.m_Buffer, params.m_BufferSize);
+        rive::Span<const uint8_t> data((const uint8_t*)params->m_Buffer, params->m_BufferSize);
 
         // Creates DefoldRenderImage with a hashed name for each image resource
         AtlasNameResolver atlas_resolver = AtlasNameResolver(render_context_res);
@@ -87,16 +87,16 @@ namespace dmRive
 
         if (result != rive::ImportResult::success)
         {
-            params.m_Resource->m_Resource = 0;
-            return  dmResource::RESULT_INVALID_DATA;
+            dmResource::SetResource(params->m_Resource, 0);
+            return dmResource::RESULT_INVALID_DATA;
         }
 
         RiveSceneData* scene_data = new RiveSceneData();
 
-        SetupData(scene_data, file.release(), params.m_Filename, render_context_res);
+        SetupData(scene_data, file.release(), params->m_Filename, render_context_res);
 
-        params.m_Resource->m_Resource     = (void*) scene_data;
-        params.m_Resource->m_ResourceSize = 0;
+        dmResource::SetResource(params->m_Resource, scene_data);
+        dmResource::SetResourceSize(params->m_Resource, 0);
 
         return dmResource::RESULT_OK;
     }
@@ -107,17 +107,17 @@ namespace dmRive
         delete scene_data;
     }
 
-    static dmResource::Result ResourceType_RiveData_Destroy(const dmResource::ResourceDestroyParams& params)
+    static dmResource::Result ResourceType_RiveData_Destroy(const dmResource::ResourceDestroyParams* params)
     {
-        RiveSceneData* scene_data = (RiveSceneData*)params.m_Resource->m_Resource;
+        RiveSceneData* scene_data = (RiveSceneData*)dmResource::GetResource(params->m_Resource);
         DeleteData(scene_data);
         return dmResource::RESULT_OK;
     }
 
-    static dmResource::Result ResourceType_RiveData_Recreate(const dmResource::ResourceRecreateParams& params)
+    static dmResource::Result ResourceType_RiveData_Recreate(const dmResource::ResourceRecreateParams* params)
     {
-        HRenderContext render_context_res = (HRenderContext) params.m_Context;
-        rive::Span<uint8_t> data((uint8_t*)params.m_Buffer, params.m_BufferSize);
+        HRenderContext render_context_res = (HRenderContext) params->m_Context;
+        rive::Span<uint8_t> data((uint8_t*)params->m_Buffer, params->m_BufferSize);
 
         rive::Factory* rive_factory = GetRiveFactory(render_context_res);
 
@@ -135,46 +135,43 @@ namespace dmRive
             return dmResource::RESULT_INVALID_DATA;
         }
 
-        if (params.m_Resource->m_Resource != 0)
+        RiveSceneData* old_data = (RiveSceneData*)dmResource::GetResource(params->m_Resource);
+        if (old_data != 0)
         {
-            RiveSceneData* data = (RiveSceneData*) params.m_Resource->m_Resource;
-            params.m_Resource->m_Resource = 0;
-            DeleteData(data);
+            dmResource::SetResource(params->m_Resource, 0);
+            DeleteData(old_data);
         }
 
         RiveSceneData* scene_data = new RiveSceneData();
 
-        SetupData(scene_data, file.release(), params.m_Filename, render_context_res);
+        SetupData(scene_data, file.release(), params->m_Filename, render_context_res);
 
-        params.m_Resource->m_Resource     = (void*) scene_data;
-        params.m_Resource->m_ResourceSize = 0;
+        dmResource::SetResource(params->m_Resource, scene_data);
+        dmResource::SetResourceSize(params->m_Resource, 0);
 
         return dmResource::RESULT_OK;
     }
 
-    static dmResource::Result RegisterResourceType_RiveData(dmResource::ResourceTypeRegisterContext& ctx)
+    static ResourceResult RegisterResourceType_RiveData(HResourceTypeContext ctx, HResourceType type)
     {
         HRenderContext rive_render_context = NewRenderContext();
 
-        ctx.m_Contexts->Put(ctx.m_NameHash, rive_render_context);
-        return dmResource::RegisterType(ctx.m_Factory,
-                                           ctx.m_Name,
-                                           rive_render_context,
-                                           0, // preload
-                                           ResourceType_RiveData_Create,
-                                           0, // post create
-                                           ResourceType_RiveData_Destroy,
-                                           ResourceType_RiveData_Recreate);
+        return (ResourceResult)dmResource::SetupType(ctx,
+                                                     type,
+                                                     rive_render_context,
+                                                     0, // preload
+                                                     ResourceType_RiveData_Create,
+                                                     0, // post create
+                                                     ResourceType_RiveData_Destroy,
+                                                     ResourceType_RiveData_Recreate);
 
     }
 
-    static dmResource::Result DeregisterResourceType_RiveData(dmResource::ResourceTypeRegisterContext& ctx)
+    static ResourceResult DeregisterResourceType_RiveData(HResourceTypeContext ctx, HResourceType type)
     {
-        HRenderContext* context = (HRenderContext*) ctx.m_Contexts->Get(ctx.m_NameHash);
+        HRenderContext context = (HRenderContext)ResourceTypeGetContext(type);
         DeleteRenderContext(context);
-
-        // delete *context;
-        return dmResource::RESULT_OK;
+        return RESOURCE_RESULT_OK;
     }
 }
 

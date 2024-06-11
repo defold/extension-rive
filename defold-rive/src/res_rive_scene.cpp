@@ -57,76 +57,76 @@ namespace dmRive
         ReleaseShaders(factory, &resource->m_Shaders);
     }
 
-    static dmResource::Result ResourceTypePreload(const dmResource::ResourcePreloadParams& params)
+    static dmResource::Result ResourceTypePreload(const dmResource::ResourcePreloadParams* params)
     {
         dmRiveDDF::RiveSceneDesc* ddf;
-        dmDDF::Result e = dmDDF::LoadMessage(params.m_Buffer, params.m_BufferSize, &dmRiveDDF_RiveSceneDesc_DESCRIPTOR, (void**) &ddf);
+        dmDDF::Result e = dmDDF::LoadMessage(params->m_Buffer, params->m_BufferSize, &dmRiveDDF_RiveSceneDesc_DESCRIPTOR, (void**) &ddf);
         if (e != dmDDF::RESULT_OK)
         {
             return dmResource::RESULT_DDF_ERROR;
         }
 
-        dmResource::PreloadHint(params.m_HintInfo, ddf->m_Scene); // the .riv file
+        dmResource::PreloadHint(params->m_HintInfo, ddf->m_Scene); // the .riv file
 
         // Will throw error if we don't check this here
         if (ddf->m_Atlas[0] != 0)
         {
-            dmResource::PreloadHint(params.m_HintInfo, ddf->m_Atlas);
+            dmResource::PreloadHint(params->m_HintInfo, ddf->m_Atlas);
         }
 
-        *params.m_PreloadData = ddf;
+        *params->m_PreloadData = ddf;
         return dmResource::RESULT_OK;
     }
 
-    static dmResource::Result ResourceTypeCreate(const dmResource::ResourceCreateParams& params)
+    static dmResource::Result ResourceTypeCreate(const dmResource::ResourceCreateParams* params)
     {
         RiveSceneResource* resource = new RiveSceneResource();
-        resource->m_DDF = (dmRiveDDF::RiveSceneDesc*) params.m_PreloadData;
-        dmResource::Result r = AcquireResources(params.m_Factory, resource, params.m_Filename);
+        resource->m_DDF = (dmRiveDDF::RiveSceneDesc*) params->m_PreloadData;
+        dmResource::Result r = AcquireResources(params->m_Factory, resource, params->m_Filename);
         if (r == dmResource::RESULT_OK)
         {
-            params.m_Resource->m_Resource = (void*) resource;
+            dmResource::SetResource(params->m_Resource, resource);
         }
         else
         {
-            ReleaseResources(params.m_Factory, resource);
+            ReleaseResources(params->m_Factory, resource);
             delete resource;
         }
         return r;
     }
 
-    static dmResource::Result ResourceTypeDestroy(const dmResource::ResourceDestroyParams& params)
+    static dmResource::Result ResourceTypeDestroy(const dmResource::ResourceDestroyParams* params)
     {
-        RiveSceneResource* resource = (RiveSceneResource*)params.m_Resource->m_Resource;
-        ReleaseResources(params.m_Factory, resource);
+        RiveSceneResource* resource = (RiveSceneResource*)dmResource::GetResource(params->m_Resource);
+        ReleaseResources(params->m_Factory, resource);
         delete resource;
         return dmResource::RESULT_OK;
     }
 
-    static dmResource::Result ResourceTypeRecreate(const dmResource::ResourceRecreateParams& params)
+    static dmResource::Result ResourceTypeRecreate(const dmResource::ResourceRecreateParams* params)
     {
         dmRiveDDF::RiveSceneDesc* ddf;
-        dmDDF::Result e = dmDDF::LoadMessage(params.m_Buffer, params.m_BufferSize, &dmRiveDDF_RiveSceneDesc_DESCRIPTOR, (void**) &ddf);
+        dmDDF::Result e = dmDDF::LoadMessage(params->m_Buffer, params->m_BufferSize, &dmRiveDDF_RiveSceneDesc_DESCRIPTOR, (void**) &ddf);
         if (e != dmDDF::RESULT_OK)
         {
             return dmResource::RESULT_DDF_ERROR;
         }
-        RiveSceneResource* resource = (RiveSceneResource*)params.m_Resource->m_Resource;
-        ReleaseResources(params.m_Factory, resource);
+        RiveSceneResource* resource = (RiveSceneResource*)dmResource::GetResource(params->m_Resource);
+        ReleaseResources(params->m_Factory, resource);
         resource->m_DDF = ddf;
-        return AcquireResources(params.m_Factory, resource, params.m_Filename);
+        return AcquireResources(params->m_Factory, resource, params->m_Filename);
     }
 
-    static dmResource::Result RegisterResourceType(dmResource::ResourceTypeRegisterContext& ctx)
+    static ResourceResult RegisterResourceType(HResourceTypeContext ctx, HResourceType type)
     {
-        return dmResource::RegisterType(ctx.m_Factory,
-                                           ctx.m_Name,
-                                           0, // context
-                                           ResourceTypePreload,
-                                           ResourceTypeCreate,
-                                           0, // post create
-                                           ResourceTypeDestroy,
-                                           ResourceTypeRecreate);
+        return (ResourceResult)dmResource::SetupType(ctx,
+                                                     type,
+                                                     0, // context
+                                                     ResourceTypePreload,
+                                                     ResourceTypeCreate,
+                                                     0, // post create
+                                                     ResourceTypeDestroy,
+                                                     ResourceTypeRecreate);
 
     }
 }
