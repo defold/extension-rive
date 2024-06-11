@@ -8,7 +8,7 @@ platforms:
 
     x86_64-linux:
         context:
-            flags:      ["-std=c++17"]
+            flags:      ["-std=c++17", "-fno-rtti"]
 
     win32:
         context:
