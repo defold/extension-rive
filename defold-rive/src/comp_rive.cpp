@@ -186,7 +186,7 @@ namespace dmRive
     void* CompRiveGetComponent(const dmGameObject::ComponentGetParams& params)
     {
         RiveWorld* world = (RiveWorld*)params.m_World;
-        uint32_t index = (uint32_t) params.m_UserData;
+        uint32_t index = (uint32_t)(uintptr_t)params.m_UserData;
         return GetComponentFromIndex(world, index);
     }
 
@@ -347,52 +347,44 @@ namespace dmRive
         return dmGameObject::CREATE_RESULT_OK;
     }
 
-    static void AddToRender(dmRender::HRenderContext render_context, dmRender::RenderObject* render_objects, uint32_t count)
-    {
-        for (uint32_t i = 0; i < count; ++i)
-        {
-            dmRender::AddToRender(render_context, &render_objects[i]);
-        }
-    }
+    // static void GetBlendFactorsFromBlendMode(rive::BlendMode blend_mode, dmGraphics::BlendFactor* src, dmGraphics::BlendFactor* dst)
+    // {
+    //     switch(blend_mode)
+    //     {
+    //         case rive::BlendMode::srcOver:
+    //             // JG: Some textures look strange without one here for src, but the sokol viewer sets these blend modes so not sure what to do here
+    //             //*src = dmGraphics::BLEND_FACTOR_ONE;
+    //             *src = dmGraphics::BLEND_FACTOR_SRC_ALPHA;
+    //             *dst = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    //         break;
 
-    static void GetBlendFactorsFromBlendMode(rive::BlendMode blend_mode, dmGraphics::BlendFactor* src, dmGraphics::BlendFactor* dst)
-    {
-        switch(blend_mode)
-        {
-            case rive::BlendMode::srcOver:
-                // JG: Some textures look strange without one here for src, but the sokol viewer sets these blend modes so not sure what to do here
-                //*src = dmGraphics::BLEND_FACTOR_ONE;
-                *src = dmGraphics::BLEND_FACTOR_SRC_ALPHA;
-                *dst = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-            break;
+    //         case rive::BlendMode::colorDodge:
+    //             *src = dmGraphics::BLEND_FACTOR_DST_COLOR; // SG_BLENDFACTOR_SRC_ALPHA
+    //             *dst = dmGraphics::BLEND_FACTOR_ONE;       // SG_BLENDFACTOR_ONE;
+    //         break;
 
-            case rive::BlendMode::colorDodge:
-                *src = dmGraphics::BLEND_FACTOR_DST_COLOR; // SG_BLENDFACTOR_SRC_ALPHA
-                *dst = dmGraphics::BLEND_FACTOR_ONE;       // SG_BLENDFACTOR_ONE;
-            break;
+    //         case rive::BlendMode::multiply:
+    //             *src = dmGraphics::BLEND_FACTOR_DST_COLOR;           // SG_BLENDFACTOR_DST_COLOR
+    //             *dst = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA; // SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA
+    //         break;
 
-            case rive::BlendMode::multiply:
-                *src = dmGraphics::BLEND_FACTOR_DST_COLOR;           // SG_BLENDFACTOR_DST_COLOR
-                *dst = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA; // SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA
-            break;
+    //         case rive::BlendMode::screen:
+    //             *src = dmGraphics::BLEND_FACTOR_ONE_MINUS_DST_COLOR;
+    //             *dst = dmGraphics::BLEND_FACTOR_ONE;
+    //         break;
 
-            case rive::BlendMode::screen:
-                *src = dmGraphics::BLEND_FACTOR_ONE_MINUS_DST_COLOR;
-                *dst = dmGraphics::BLEND_FACTOR_ONE;
-            break;
-
-            default:
-                /*
-                if ((int) blend_mode != 0)
-                {
-                    dmLogOnceWarning("Blend mode '%s' (%d) is not supported, defaulting to '%s'", dmRive::BlendModeToStr(blend_mode), (int) blend_mode, BlendModeToStr(rive::BlendMode::srcOver));
-                }
-                */
-                *src = dmGraphics::BLEND_FACTOR_SRC_ALPHA;
-                *dst = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-            break;
-        }
-    }
+    //         default:
+    //             /*
+    //             if ((int) blend_mode != 0)
+    //             {
+    //                 dmLogOnceWarning("Blend mode '%s' (%d) is not supported, defaulting to '%s'", dmRive::BlendModeToStr(blend_mode), (int) blend_mode, BlendModeToStr(rive::BlendMode::srcOver));
+    //             }
+    //             */
+    //             *src = dmGraphics::BLEND_FACTOR_SRC_ALPHA;
+    //             *dst = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    //         break;
+    //     }
+    // }
 
     static void GetBlendFactorsFromBlendMode(dmRiveDDF::RiveModelDesc::BlendMode blend_mode, dmGraphics::BlendFactor* src, dmGraphics::BlendFactor* dst)
     {
