@@ -9,6 +9,11 @@ platforms:
     x86_64-linux:
         context:
             flags:      ["-std=c++17", "-fno-rtti"]
+            excludeLibs: [graphics]
+            excludeSymbols: [GraphicsAdapterOpenGL]
+            symbols: [GraphicsAdapterVulkan]
+            libs: [graphics_vulkan, X11-xcb]
+            dynamicLibs: [vulkan]
 
     win32:
         context:
@@ -16,15 +21,36 @@ platforms:
             flags:          ["-std=c++17", "-fno-rtti"]
             cxxShFlags:     ["-std=c++17", "-fno-rtti"]
             cxxLinkShFlags: ["-std=c++17"]
+            excludeLibs: [libgraphics]
+            excludeSymbols: [GraphicsAdapterOpenGL]
+            symbols: [GraphicsAdapterVulkan]
+            libs: [libgraphics_vulkan.lib, vulkan-1.lib]
 
     osx:
         context:
             flags:      ["-std=c++17", "-fno-rtti"]
+            excludeLibs: [platform, graphics]
+            excludeSymbols: [GraphicsAdapterOpenGL]
+            symbols: [GraphicsAdapterVulkan]
+            libs: [platform_vulkan, graphics_vulkan, MoltenVK]
+            frameworks: [Metal, IOSurface, QuartzCore]
 
     ios:
         context:
             flags: ["-std=c++17", "-fno-aligned-allocation"]
+            excludeLibs: [graphics]
+            excludeSymbols: [GraphicsAdapterOpenGL]
+            symbols: [GraphicsAdapterVulkan]
+            libs: [graphics_vulkan, MoltenVK]
+            frameworks: [Metal, IOSurface, QuartzCore]
 
     web:
         context:
             flags: ["-std=c++17", "-fno-rtti"]
+  
+    android:
+        context:
+          excludeLibs: [graphics]
+          excludeSymbols: [GraphicsAdapterOpenGL]
+          symbols: [GraphicsAdapterVulkan]
+          libs: [graphics_vulkan]
