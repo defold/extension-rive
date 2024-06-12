@@ -89,10 +89,10 @@ jobs:
         run: java -jar bob.jar --platform=${{ matrix.platform }} bundle
 
   # macOS is not technically needed for building, but we want to test bundling as well, since we're also testing the manifest merging
-  build_with_bob_macos:
+  build_with_bob_darwin:
     strategy:
       matrix:
-        platform: [arm64-macos, x86_64-macos]
+        platform: [arm64-macos, x86_64-macos, arm64-ios]
     runs-on: macOS-latest
 
     name: Build
@@ -118,6 +118,6 @@ jobs:
       - name: Resolve libraries
         run: java -jar bob.jar resolve --email a@b.com --auth 123456
       - name: Build
-        run: java -jar bob.jar --platform=x86_64-macos --architectures=${{ matrix.platform }} build --archive --build-server=${{env.BUILD_SERVER}}
+        run: java -jar bob.jar --platform=${{ matrix.platform }} --architectures=${{ matrix.platform }} build --archive --build-server=${{env.BUILD_SERVER}}
       - name: Bundle
-        run: java -jar bob.jar --platform=x86_64-macos --architectures=${{ matrix.platform }} bundle
+        run: java -jar bob.jar --platform=${{ matrix.platform }} --architectures=${{ matrix.platform }} bundle
