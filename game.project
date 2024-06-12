@@ -15,6 +15,7 @@ input_method = HiddenInputField
 
 [project]
 title = extension-rive
+bundle_exclude_resources = utils
 dependencies#0 = https://github.com/andsve/dirtylarry/archive/master.zip
 
 [library]

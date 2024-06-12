@@ -76,6 +76,7 @@ namespace dmRive
         m2[2] = m4[1][0];
         m2[3] = m4[1][1];
 
+        // This should be the translation
         m2[4] = m4[3][0];
         m2[5] = m4[3][1];
     }
