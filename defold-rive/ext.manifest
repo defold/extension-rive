@@ -37,7 +37,7 @@ platforms:
 
     ios:
         context:
-            flags: ["-std=c++17", "-fno-aligned-allocation"]
+            flags: ["-std=c++17", "-fno-aligned-allocation", "-fno-rtti"]
             excludeLibs: [graphics]
             excludeSymbols: [GraphicsAdapterOpenGL]
             symbols: [GraphicsAdapterVulkan]
