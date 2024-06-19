@@ -351,6 +351,15 @@ namespace dmRive
         return static_cast<const DefoldPLSStorageBuffer*>(bufferRing)->buffer();
     }
 
+    static void UploadEmptyTexture(dmGraphics::HTexture texture, dmGraphics::TextureFormat format, uint32_t width, uint32_t height)
+    {
+        dmGraphics::TextureParams tp = {};
+        tp.m_Width    = width;
+        tp.m_Height   = height;
+        tp.m_Format   = format;
+        dmGraphics::SetTexture(texture, tp);
+    }
+
     class DefoldPLSRenderContext : public rive::pls::PLSRenderContextHelperImpl
     {
     public:
@@ -533,16 +542,17 @@ namespace dmRive
                 p.m_UsageHintBits  = dmGraphics::TEXTURE_USAGE_HINT_SAMPLE | dmGraphics::TEXTURE_USAGE_HINT_COLOR;
 
                 m_ComplexGradientPass.m_Texture = dmGraphics::NewTexture(m_GraphicsContext, p);
+
+                // If the size is zero, we need to set a dummy texture the first time it's created
+                if (width * height == 0)
+                {
+                    UploadEmptyTexture(m_ComplexGradientPass.m_Texture, dmGraphics::TEXTURE_FORMAT_RGBA, 2, 2);
+                }
             }
 
             if (width * height > 0)
             {
-                dmGraphics::TextureParams p = {};
-                p.m_Width    = width;
-                p.m_Height   = height;
-                p.m_Format   = dmGraphics::TEXTURE_FORMAT_RGBA;
-
-                dmGraphics::SetTexture(m_ComplexGradientPass.m_Texture, p);
+                UploadEmptyTexture(m_ComplexGradientPass.m_Texture, dmGraphics::TEXTURE_FORMAT_RGBA, width, height);
             }
         }
         void resizeTessellationTexture(uint32_t width, uint32_t height) override
@@ -558,16 +568,17 @@ namespace dmRive
                 p.m_UsageHintBits  = dmGraphics::TEXTURE_USAGE_HINT_SAMPLE | dmGraphics::TEXTURE_USAGE_HINT_COLOR;
 
                 m_TessellationPass.m_VertexTexture = dmGraphics::NewTexture(m_GraphicsContext, p);
+
+                // If the size is zero, we need to set a dummy texture the first time it's created
+                if (width * height == 0)
+                {
+                    UploadEmptyTexture(m_TessellationPass.m_VertexTexture, dmGraphics::TEXTURE_FORMAT_RGBA32UI, 2, 2);
+                }
             }
 
             if (width * height > 0)
             {
-                dmGraphics::TextureParams p = {};
-                p.m_Width    = width;
-                p.m_Height   = height;
-                p.m_Format   = dmGraphics::TEXTURE_FORMAT_RGBA32UI;
-
-                dmGraphics::SetTexture(m_TessellationPass.m_VertexTexture, p);
+                UploadEmptyTexture(m_TessellationPass.m_VertexTexture, dmGraphics::TEXTURE_FORMAT_RGBA32UI, width, height);
             }
         }
 
