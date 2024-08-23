@@ -15,7 +15,11 @@ package com.dynamo.bob.pipeline;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
-import com.dynamo.bob.*;
+import com.dynamo.bob.ProtoBuilder;
+import com.dynamo.bob.BuilderParams;
+import com.dynamo.bob.CompileExceptionError;
+import com.dynamo.bob.ProtoParams;
+import com.dynamo.bob.Task;
 import com.dynamo.bob.pipeline.BuilderUtil;
 import com.dynamo.bob.fs.IResource;
 import com.dynamo.rive.proto.Rive.RiveSceneDesc;
