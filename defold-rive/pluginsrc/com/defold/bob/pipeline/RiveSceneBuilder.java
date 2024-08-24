@@ -14,47 +14,26 @@ package com.dynamo.bob.pipeline;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import com.dynamo.bob.pipeline.BuilderUtil;
-import com.dynamo.bob.Builder;
+
+import com.dynamo.bob.ProtoBuilder;
 import com.dynamo.bob.BuilderParams;
 import com.dynamo.bob.CompileExceptionError;
 import com.dynamo.bob.ProtoParams;
 import com.dynamo.bob.Task;
+import com.dynamo.bob.pipeline.BuilderUtil;
 import com.dynamo.bob.fs.IResource;
 import com.dynamo.rive.proto.Rive.RiveSceneDesc;
 import com.google.protobuf.Message;
 
 @ProtoParams(srcClass = RiveSceneDesc.class, messageClass = RiveSceneDesc.class)
 @BuilderParams(name="RiveScene", inExts=".rivescene", outExt=".rivescenec")
-public class RiveSceneBuilder extends Builder<Void> {
+public class RiveSceneBuilder extends ProtoBuilder<RiveSceneDesc.Builder> {
 
     @Override
-    public Task<Void> create(IResource input) throws IOException, CompileExceptionError {
-        Task.TaskBuilder<Void> taskBuilder = Task.<Void>newBuilder(this)
-                .setName(params.name())
-                .addInput(input)
-                .addOutput(input.changeExt(params.outExt()));
+    public void build(Task task) throws CompileExceptionError, IOException {
 
-        RiveSceneDesc.Builder builder = RiveSceneDesc.newBuilder();
-        ProtoUtil.merge(input, builder);
+        RiveSceneDesc.Builder builder = getSrcBuilder(task.firstInput());
 
-        if (!builder.getScene().equals("")) {
-            BuilderUtil.checkResource(this.project, input, "scene", builder.getScene());
-
-            taskBuilder.addInput(input.getResource(builder.getScene()));
-        }
-
-        BuilderUtil.checkResource(this.project, input, "atlas", builder.getAtlas());
-
-        taskBuilder.addInput(this.project.getResource(builder.getAtlas()).changeExt(".a.texturesetc"));
-        return taskBuilder.build();
-    }
-
-    @Override
-    public void build(Task<Void> task) throws CompileExceptionError, IOException {
-
-        RiveSceneDesc.Builder builder = RiveSceneDesc.newBuilder();
-        ProtoUtil.merge(task.input(0), builder);
         builder.setScene(BuilderUtil.replaceExt(builder.getScene(), ".riv", ".rivc"));
         builder.setAtlas(BuilderUtil.replaceExt(builder.getAtlas(), ".atlas", ".a.texturesetc"));
 

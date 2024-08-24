@@ -26,7 +26,7 @@ import com.dynamo.rive.proto.Rive.RiveModelDesc;
 public class RiveModelBuilder extends ProtoBuilder<RiveModelDesc.Builder> {
 
     @Override
-    protected RiveModelDesc.Builder transform(Task<Void> task, IResource resource, RiveModelDesc.Builder builder) throws CompileExceptionError {
+    protected RiveModelDesc.Builder transform(Task task, IResource resource, RiveModelDesc.Builder builder) throws CompileExceptionError {
 
         if (!builder.getScene().equals("")) {
             BuilderUtil.checkResource(this.project, resource, "scene", builder.getScene());
