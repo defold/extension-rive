@@ -1,23 +1,27 @@
 #include <dmsdk/dlib/log.h>
 #include <dmsdk/dlib/image.h>
-#include <dmsdk/graphics/graphics_vulkan.h>
+#include <dmsdk/graphics/graphics_vulkan.h> // REMOVE
 
-#include <rive/pls/pls_image.hpp>
-#include <rive/pls/pls_renderer.hpp>
+#include "renderer_context.h"
+
+#include <rive/shapes/image.hpp>
+#include <rive/renderer.hpp>
+
+#include <private/defold_graphics.h>
 
 // PLS Renderer
-#include <private/renderer_private.h>
+// #include <private/renderer_private.h>
 
-#include <private/shaders/color_ramp.vpc.gen.h>
-#include <private/shaders/color_ramp.fpc.gen.h>
-#include <private/shaders/draw_interior_triangles.vpc.gen.h>
-#include <private/shaders/draw_interior_triangles.fpc.gen.h>
-#include <private/shaders/draw_path.vpc.gen.h>
-#include <private/shaders/draw_path.fpc.gen.h>
-#include <private/shaders/tessellate.vpc.gen.h>
-#include <private/shaders/tessellate.fpc.gen.h>
-#include <private/shaders/draw_image_mesh.vpc.gen.h>
-#include <private/shaders/draw_image_mesh.fpc.gen.h>
+// #include <private/shaders/color_ramp.vpc.gen.h>
+// #include <private/shaders/color_ramp.fpc.gen.h>
+// #include <private/shaders/draw_interior_triangles.vpc.gen.h>
+// #include <private/shaders/draw_interior_triangles.fpc.gen.h>
+// #include <private/shaders/draw_path.vpc.gen.h>
+// #include <private/shaders/draw_path.fpc.gen.h>
+// #include <private/shaders/tessellate.vpc.gen.h>
+// #include <private/shaders/tessellate.fpc.gen.h>
+// #include <private/shaders/draw_image_mesh.vpc.gen.h>
+// #include <private/shaders/draw_image_mesh.fpc.gen.h>
 
 #include <common/vertices.h>
 #include <renderer.h>
@@ -44,6 +48,9 @@ namespace dmRive
 {
     struct DefoldRiveRenderer
     {
+        IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererMetal();
+
+        /*
     #if defined(DM_PLATFORM_MACOS) || defined(DM_PLATFORM_IOS)
         std::unique_ptr<rive::pls::PLSRenderContext> m_PLSRenderContext = DefoldPLSRenderContext::MakeContext(CONFIG_SUB_PASS_LOAD);
     #elif defined(DM_PLATFORM_WINDOWS) || defined(DM_PLATFORM_LINUX) || defined(DM_PLATFORM_ANDROID) || defined(DM_PLATFORM_SWITCH)
@@ -52,7 +59,9 @@ namespace dmRive
         #error "Platform not supported"
         assert(0 && "Platform not supported");
     #endif
-        ShaderResources                              m_Shaders;
+        */
+
+        // ShaderResources                              m_Shaders;
         dmResource::HFactory                         m_Factory;
         rive::Renderer*                              m_RiveRenderer;
         dmGraphics::HContext                         m_GraphicsContext;
@@ -80,34 +89,35 @@ namespace dmRive
 
     static void AddShaderResources(dmResource::HFactory factory)
     {
-        dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/color_ramp.vpc",              COLOR_RAMP_VPC_SIZE, COLOR_RAMP_VPC);
-        dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/color_ramp.fpc",              COLOR_RAMP_FPC_SIZE, COLOR_RAMP_FPC);
-        dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/tessellate.vpc",              TESSELLATE_VPC_SIZE, TESSELLATE_VPC);
-        dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/tessellate.fpc",              TESSELLATE_FPC_SIZE, TESSELLATE_FPC);
-        dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/draw_path.vpc",               DRAW_PATH_VPC_SIZE, DRAW_PATH_VPC);
-        dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/draw_path.fpc",               DRAW_PATH_FPC_SIZE, DRAW_PATH_FPC);
-        dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/draw_interior_triangles.vpc", DRAW_INTERIOR_TRIANGLES_VPC_SIZE, DRAW_INTERIOR_TRIANGLES_VPC);
-        dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/draw_interior_triangles.fpc", DRAW_INTERIOR_TRIANGLES_FPC_SIZE, DRAW_INTERIOR_TRIANGLES_FPC);
-        dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/draw_image_mesh.vpc",         DRAW_IMAGE_MESH_VPC_SIZE, DRAW_IMAGE_MESH_VPC);
-        dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/draw_image_mesh.fpc",         DRAW_IMAGE_MESH_FPC_SIZE, DRAW_IMAGE_MESH_FPC);
+        // dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/color_ramp.vpc",              COLOR_RAMP_VPC_SIZE, COLOR_RAMP_VPC);
+        // dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/color_ramp.fpc",              COLOR_RAMP_FPC_SIZE, COLOR_RAMP_FPC);
+        // dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/tessellate.vpc",              TESSELLATE_VPC_SIZE, TESSELLATE_VPC);
+        // dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/tessellate.fpc",              TESSELLATE_FPC_SIZE, TESSELLATE_FPC);
+        // dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/draw_path.vpc",               DRAW_PATH_VPC_SIZE, DRAW_PATH_VPC);
+        // dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/draw_path.fpc",               DRAW_PATH_FPC_SIZE, DRAW_PATH_FPC);
+        // dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/draw_interior_triangles.vpc", DRAW_INTERIOR_TRIANGLES_VPC_SIZE, DRAW_INTERIOR_TRIANGLES_VPC);
+        // dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/draw_interior_triangles.fpc", DRAW_INTERIOR_TRIANGLES_FPC_SIZE, DRAW_INTERIOR_TRIANGLES_FPC);
+        // dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/draw_image_mesh.vpc",         DRAW_IMAGE_MESH_VPC_SIZE, DRAW_IMAGE_MESH_VPC);
+        // dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/draw_image_mesh.fpc",         DRAW_IMAGE_MESH_FPC_SIZE, DRAW_IMAGE_MESH_FPC);
     }
 
     static void RemoveShaderResources(dmResource::HFactory factory)
     {
-        dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/color_ramp.vpc");
-        dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/color_ramp.fpc");
-        dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/tessellate.vpc");
-        dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/tessellate.fpc");
-        dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/draw_path.vpc");
-        dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/draw_path.fpc");
-        dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/draw_interior_triangles.vpc");
-        dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/draw_interior_triangles.fpc");
-        dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/draw_image_mesh.vpc");
-        dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/draw_image_mesh.fpc");
+        // dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/color_ramp.vpc");
+        // dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/color_ramp.fpc");
+        // dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/tessellate.vpc");
+        // dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/tessellate.fpc");
+        // dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/draw_path.vpc");
+        // dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/draw_path.fpc");
+        // dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/draw_interior_triangles.vpc");
+        // dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/draw_interior_triangles.fpc");
+        // dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/draw_image_mesh.vpc");
+        // dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/draw_image_mesh.fpc");
     }
 
     dmResource::Result LoadShaders(dmResource::HFactory factory, ShaderResources** resources)
     {
+        /*
         ShaderResources* shaders = new ShaderResources;
 
         dmResource::Result result = dmResource::RESULT_OK;
@@ -139,12 +149,14 @@ namespace dmRive
 
         assert(*resources == 0x0);
         *resources = shaders;
+        */
 
         return dmResource::RESULT_OK;
     }
 
     static void ReleaseShadersInternal(dmResource::HFactory factory, ShaderResources* shaders)
     {
+        /*
         #define RELEASE_SHADER(res) \
             if (res) dmResource::Release(factory, (void*) res);
 
@@ -160,21 +172,26 @@ namespace dmRive
         RELEASE_SHADER(shaders->m_DrawImageMeshFs);
 
         #undef RELEASE_SHADER
+        */
     }
 
     void ReleaseShaders(dmResource::HFactory factory, ShaderResources** resources)
     {
+        /*
         ShaderResources* shaders = *resources;
         ReleaseShadersInternal(factory, shaders);
         delete shaders;
         *resources = 0;
+        */
+
+
     }
 
     void DeleteRenderContext(HRenderContext context)
     {
         if (g_RiveRenderer)
         {
-            ReleaseShadersInternal(g_RiveRenderer->m_Factory, &g_RiveRenderer->m_Shaders);
+            //ReleaseShadersInternal(g_RiveRenderer->m_Factory, &g_RiveRenderer->m_Shaders);
             delete g_RiveRenderer;
             g_RiveRenderer = 0;
         }
@@ -183,7 +200,7 @@ namespace dmRive
     rive::Factory* GetRiveFactory(HRenderContext context)
     {
         DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
-        return renderer->m_PLSRenderContext.get();
+        return renderer->m_RenderContext->Factory(); // renderer->m_PLSRenderContext.get();
     }
 
     rive::Renderer* GetRiveRenderer(HRenderContext context)
@@ -194,6 +211,17 @@ namespace dmRive
 
     void RenderBegin(HRenderContext context, ShaderResources* shaders, dmResource::HFactory factory)
     {
+        DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
+
+        if (!renderer->m_RiveRenderer)
+        {
+            // TODO: It should just be "getcontext"
+            renderer->m_GraphicsContext = dmGraphics::VulkanGetContext();
+            renderer->m_RenderContext->SetGraphicsContext(renderer->m_GraphicsContext);
+            renderer->m_RiveRenderer = renderer->m_RenderContext->MakeRenderer();
+        }
+
+        /*
         DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
 
         if (!renderer->m_GraphicsContext)
@@ -260,6 +288,37 @@ namespace dmRive
             renderer->m_PLSRenderContext->beginFrame(std::move(frameDescriptor));
             renderer->m_FrameBegin = 1;
         }
+        */
+
+        if (!renderer->m_FrameBegin)
+        {
+            uint32_t width  = dmGraphics::GetWindowWidth(renderer->m_GraphicsContext);
+            uint32_t height = dmGraphics::GetWindowHeight(renderer->m_GraphicsContext);
+
+            if (width != renderer->m_LastWidth || height != renderer->m_LastHeight)
+            {
+                renderer->m_RenderContext->OnSizeChanged(width, height);
+                renderer->m_LastWidth  = width;
+                renderer->m_LastHeight = height;
+            }
+
+            dmGraphics::HTexture swap_chain_texture = dmGraphics::VulkanGetActiveSwapChainTexture(renderer->m_GraphicsContext);
+
+            renderer->m_RenderContext->SetRenderTargetTexture(swap_chain_texture);
+
+            renderer->m_RenderContext->BeginFrame({
+                .renderTargetWidth      = width,
+                .renderTargetHeight     = height,
+                .clearColor             = 0xff404040
+                // .msaaSampleCount        = s_msaa,
+                // .disableRasterOrdering  = s_forceAtomicMode,
+                // .wireframe              = s_wireframe,
+                // .fillsDisabled          = s_disableFill,
+                // .strokesDisabled        = s_disableStroke,
+            });
+
+            renderer->m_FrameBegin = 1;
+        }
     }
 
     void GetDimensions(HRenderContext context, uint32_t* width, uint32_t* height)
@@ -272,6 +331,15 @@ namespace dmRive
     void RenderEnd(HRenderContext context)
     {
         DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
+
+        if (renderer->m_FrameBegin)
+        {
+            renderer->m_RenderContext->Flush();
+            renderer->m_FrameBegin = 0;
+        }
+
+        /*
+        DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
         if (renderer->m_FrameBegin)
         {
             auto pls_render_context = renderer->m_PLSRenderContext->static_impl_cast<DefoldPLSRenderContext>();
@@ -282,6 +350,7 @@ namespace dmRive
             renderer->m_PLSRenderContext->flush(flushResources);
             renderer->m_FrameBegin = 0;
         }
+        */
     }
 
     static void RepackLuminanceToRGBA(uint32_t num_pixels, uint8_t* luminance, uint8_t* rgba)
@@ -312,6 +381,7 @@ namespace dmRive
 
     rive::rcp<rive::RenderImage> CreateRiveRenderImage(HRenderContext context, void* bytes, uint32_t byte_count)
     {
+        /*
         dmImage::HImage img          = dmImage::NewImage(bytes, byte_count, false);
         DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
         auto pls_render_context      = renderer->m_PLSRenderContext->static_impl_cast<DefoldPLSRenderContext>();
@@ -379,6 +449,8 @@ namespace dmRive
         }
 
         return pls_texture != nullptr ? rive::make_rcp<rive::pls::PLSImage>(std::move(pls_texture)) : nullptr;
+        */
+        return nullptr;
     }
 
     rive::Mat2D GetViewTransform(HRenderContext context, dmRender::HRenderContext render_context)
@@ -387,22 +459,5 @@ namespace dmRive
         rive::Mat2D viewTransform;
         Mat4ToMat2D(view_matrix, viewTransform);
         return viewTransform;
-    }
-
-    rive::Mat2D GetViewProjTransform(HRenderContext context, dmRender::HRenderContext render_context)
-    {
-        const dmVMath::Matrix4& view_proj_matrix = dmRender::GetViewProjectionMatrix(render_context);
-
-        dmVMath::Matrix4 ndc_matrix = dmVMath::Matrix4::identity();
-        ndc_matrix.setElem(2, 2, 0.5f );
-        ndc_matrix.setElem(3, 2, 0.5f );
-        dmVMath::Matrix4 vulkan_view_projection = ndc_matrix * view_proj_matrix;
-
-        vulkan_view_projection[3][0] = view_proj_matrix[3][0];
-        vulkan_view_projection[3][1] = view_proj_matrix[3][1];
-
-        rive::Mat2D rive_transform;
-        Mat4ToMat2D(vulkan_view_projection, rive_transform);
-        return rive_transform;
     }
 }

@@ -73,6 +73,7 @@ namespace dmRive
         HRenderContext render_context_res = (HRenderContext) params->m_Context;
 
         rive::Factory* rive_factory = GetRiveFactory(render_context_res);
+        assert(rive_factory);
 
         rive::Span<const uint8_t> data((const uint8_t*)params->m_Buffer, params->m_BufferSize);
 
