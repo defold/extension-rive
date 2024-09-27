@@ -2,6 +2,7 @@
 #include "renderer_context.h"
 
 #include <rive/renderer/rive_renderer.hpp>
+#include <rive/renderer/texture.hpp>
 #include <rive/renderer/metal/render_context_metal_impl.h>
 
 #include <dmsdk/graphics/graphics_vulkan.h>
@@ -97,6 +98,15 @@ namespace dmRive
         dmGraphics::HTexture GetBackingTexture() override
         {
             return m_BackingTexture;
+        }
+
+        rive::rcp<rive::gpu::Texture> MakeImageTexture(uint32_t width,
+                                                      uint32_t height,
+                                                      uint32_t mipLevelCount,
+                                                      const uint8_t imageDataRGBA[]) override
+        {
+            auto renderContextImpl = m_RenderContext->static_impl_cast<rive::gpu::RenderContextMetalImpl>();
+            return renderContextImpl->makeImageTexture(width, height, mipLevelCount, imageDataRGBA);
         }
 
     private:

@@ -6,6 +6,9 @@
 
 #include <rive/shapes/image.hpp>
 #include <rive/renderer.hpp>
+#include <rive/renderer/texture.hpp>
+
+#include <rive/renderer/rive_render_image.hpp>
 
 #include <private/defold_graphics.h>
 
@@ -228,16 +231,6 @@ namespace dmRive
         }
 
         /*
-        DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
-
-        if (!renderer->m_GraphicsContext)
-        {
-            renderer->m_GraphicsContext = dmGraphics::VulkanGetContext();
-            assert(renderer->m_GraphicsContext);
-        }
-
-        auto pls_render_context = renderer->m_PLSRenderContext->static_impl_cast<DefoldPLSRenderContext>();
-
         if (!renderer->m_RiveRenderer)
         {
             renderer->m_RiveRenderer = new rive::pls::PLSRenderer(renderer->m_PLSRenderContext.get());
@@ -343,20 +336,6 @@ namespace dmRive
             renderer->m_RenderContext->Flush();
             renderer->m_FrameBegin = 0;
         }
-
-        /*
-        DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
-        if (renderer->m_FrameBegin)
-        {
-            auto pls_render_context = renderer->m_PLSRenderContext->static_impl_cast<DefoldPLSRenderContext>();
-
-            rive::pls::PLSRenderContext::FlushResources flushResources = {};
-            flushResources.renderTarget = pls_render_context->renderTarget().get();
-
-            renderer->m_PLSRenderContext->flush(flushResources);
-            renderer->m_FrameBegin = 0;
-        }
-        */
     }
 
     static void RepackLuminanceToRGBA(uint32_t num_pixels, uint8_t* luminance, uint8_t* rgba)
@@ -387,12 +366,10 @@ namespace dmRive
 
     rive::rcp<rive::RenderImage> CreateRiveRenderImage(HRenderContext context, void* bytes, uint32_t byte_count)
     {
-        /*
         dmImage::HImage img          = dmImage::NewImage(bytes, byte_count, false);
         DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
-        auto pls_render_context      = renderer->m_PLSRenderContext->static_impl_cast<DefoldPLSRenderContext>();
 
-        rive::rcp<rive::pls::PLSTexture> pls_texture;
+        rive::rcp<rive::gpu::Texture> texture;
         if (img)
         {
             dmImage::Type img_type = dmImage::GetType(img);
@@ -427,7 +404,7 @@ namespace dmRive
                 bitmap_data_rgba = bitmap_data_tmp;
             }
 
-            pls_texture = pls_render_context->makeImageTexture(img_width, img_height, 1, (const uint8_t*) bitmap_data_rgba);
+            texture = renderer->m_RenderContext->MakeImageTexture(img_width, img_height, 0, (const uint8_t*) bitmap_data_rgba);
 
             dmImage::DeleteImage(img);
 
@@ -451,12 +428,10 @@ namespace dmRive
                 }
             }
             uint8_t pink[] = {227, 61, 148, 255};
-            pls_texture = pls_render_context->makeImageTexture(1, 1, 1, (const uint8_t*) pink);
+            texture = renderer->m_RenderContext->MakeImageTexture(1, 1, 0, (const uint8_t*) pink);
         }
 
-        return pls_texture != nullptr ? rive::make_rcp<rive::pls::PLSImage>(std::move(pls_texture)) : nullptr;
-        */
-        return nullptr;
+        return texture != nullptr ? rive::make_rcp<rive::RiveRenderImage>(std::move(texture)) : nullptr;
     }
 
     rive::Mat2D GetViewTransform(HRenderContext context, dmRender::HRenderContext render_context)
