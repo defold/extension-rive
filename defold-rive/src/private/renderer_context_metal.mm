@@ -6,6 +6,8 @@
 
 #include <dmsdk/graphics/graphics_vulkan.h>
 
+#include <private/defold_graphics.h>
+
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
 
@@ -47,12 +49,33 @@ namespace dmRive
             });
 
             [flushCommandBuffer commit];
+            // [flushCommandBuffer waitUntilCompleted];
+
+            /*
+            id<MTLCommandBuffer> presentCommandBuffer = [m_Queue commandBuffer];
+            [presentCommandBuffer presentDrawable:m_currentFrameSurface];
+            [presentCommandBuffer commit];
+            */
+
+            // dmGraphics::VulkanBlitTexture(m_GraphicsContext, m_BackingTexture, m_TargetTexture);
         }
 
         void OnSizeChanged(uint32_t width, uint32_t height) override
         {
             auto renderContextImpl = m_RenderContext->static_impl_cast<rive::gpu::RenderContextMetalImpl>();
             m_RenderTarget         = renderContextImpl->makeRenderTarget(MTLPixelFormatBGRA8Unorm, width, height);
+
+            dmGraphics::TextureParams tp = {};
+            tp.m_Width                   = width;
+            tp.m_Height                  = height;
+            tp.m_Format                  = dmGraphics::TEXTURE_FORMAT_BGRA8U;
+
+            dmGraphics::SetTexture(m_BackingTexture, tp);
+
+            void* opaque_backing_texture = dmGraphics::VulkanTextureToMetal(m_GraphicsContext, m_BackingTexture);
+            assert(opaque_backing_texture);
+            id<MTLTexture> mtl_texture = (__bridge id<MTLTexture>) opaque_backing_texture;
+            m_RenderTarget->setTargetTexture(mtl_texture);
         }
 
         void SetGraphicsContext(dmGraphics::HContext graphics_context) override
@@ -63,15 +86,17 @@ namespace dmRive
             void* cmd_queue = dmGraphics::VulkanGraphicsCommandQueueToMetal(graphics_context);
             assert(cmd_queue);
             m_Queue = (__bridge id<MTLCommandQueue>) cmd_queue;
+            m_BackingTexture = dmGraphics::NewTexture(m_GraphicsContext, {});
         }
 
         void SetRenderTargetTexture(dmGraphics::HTexture texture) override
         {
-            void* opaque = dmGraphics::VulkanTextureToMetal(m_GraphicsContext, texture);
-            assert(opaque);
+            m_TargetTexture = texture;
+        }
 
-            id<MTLTexture> mtl_texture = (__bridge id<MTLTexture>) opaque;
-            m_RenderTarget->setTargetTexture(mtl_texture);
+        dmGraphics::HTexture GetBackingTexture() override
+        {
+            return m_BackingTexture;
         }
 
     private:
@@ -80,6 +105,9 @@ namespace dmRive
         std::unique_ptr<rive::gpu::RenderContext> m_RenderContext;
         rive::rcp<rive::gpu::RenderTargetMetal>   m_RenderTarget;
         dmGraphics::HContext                      m_GraphicsContext;
+
+        dmGraphics::HTexture m_BackingTexture;
+        dmGraphics::HTexture m_TargetTexture;
     };
 
     IDefoldRiveRenderer* MakeDefoldRiveRendererMetal()

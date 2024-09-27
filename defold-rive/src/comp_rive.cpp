@@ -81,6 +81,11 @@ namespace dmGraphics
     float GetDisplayScaleFactor(HContext context);
 }
 
+namespace dmRender
+{
+    dmGraphics::HVertexDeclaration GetVertexDeclaration(HMaterial material);
+}
+
 namespace dmRive
 {
     using namespace dmVMath;
@@ -124,6 +129,9 @@ namespace dmRive
         dmObjectPool<RiveComponent*>            m_Components;
         dmArray<dmRender::RenderObject>         m_RenderObjects;
         dmArray<dmRender::HNamedConstantBuffer> m_RenderConstants; // 1:1 mapping with the render objects
+
+        dmRender::HMaterial m_RiveMaterial;
+        dmGraphics::HVertexBuffer m_VertexBufferFullScreen;
     };
 
     dmGameObject::CreateResult CompRiveNewWorld(const dmGameObject::ComponentNewWorldParams& params)
@@ -136,6 +144,20 @@ namespace dmRive
         world->m_RenderObjects.SetCapacity(context->m_MaxInstanceCount);
         world->m_RenderConstants.SetCapacity(context->m_MaxInstanceCount);
         world->m_RenderConstants.SetSize(context->m_MaxInstanceCount);
+
+        const float vertex_data[] = {
+            -1.0f, -1.0f, 0.0f, 0.0f,  // Bottom-left corner
+             1.0f, -1.0f, 1.0f, 0.0f,  // Bottom-right corner
+            -1.0f,  1.0f, 0.0f, 1.0f,  // Top-left corner
+             1.0f, -1.0f, 1.0f, 0.0f,  // Bottom-right corner
+             1.0f,  1.0f, 1.0f, 1.0f,  // Top-right corner
+            -1.0f,  1.0f, 0.0f, 1.0f   // Top-left corner
+        };
+
+        world->m_VertexBufferFullScreen = dmGraphics::NewVertexBuffer(context->m_GraphicsContext,
+            sizeof(vertex_data),
+            (void*) vertex_data,
+            dmGraphics::BUFFER_USAGE_STATIC_DRAW);
 
         memset(world->m_RenderConstants.Begin(), 0, sizeof(dmGameSystem::HComponentRenderConstants)*world->m_RenderConstants.Capacity());
 
@@ -417,6 +439,27 @@ namespace dmRive
         }
     }
 
+    static void RenderBatchEnd(RiveWorld* world, dmRender::HRenderContext render_context)
+    {
+        if (world->m_RiveRenderContext)
+        {
+            RenderEnd(world->m_RiveRenderContext);
+
+            dmRender::RenderObject& ro = *world->m_RenderObjects.End();
+            world->m_RenderObjects.SetSize(world->m_RenderObjects.Size()+1);
+
+            ro.Init();
+            ro.m_Material          = world->m_RiveMaterial;
+            ro.m_VertexDeclaration = dmRender::GetVertexDeclaration(ro.m_Material);
+            ro.m_VertexBuffer      = world->m_VertexBufferFullScreen;
+            ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
+            ro.m_VertexStart       = 0;
+            ro.m_VertexCount       = 6;
+            ro.m_Textures[0]       = GetBackingTexture(world->m_RiveRenderContext);
+            dmRender::AddToRender(render_context, &ro);
+        }
+    }
+
     static void RenderBatch(RiveWorld* world, dmRender::HRenderContext render_context, dmRender::RenderListEntry *buf, uint32_t* begin, uint32_t* end)
     {
         RiveComponent*              first    = (RiveComponent*) buf[*begin].m_UserData;
@@ -438,6 +481,8 @@ namespace dmRive
 
             if (!c->m_Enabled || !c->m_AddedToUpdate)
                 continue;
+
+            world->m_RiveMaterial = GetMaterial(c, c->m_Resource);
 
             rive::Mat2D transform;
             Mat4ToMat2D(c->m_World, transform);
@@ -766,6 +811,7 @@ namespace dmRive
         {
             case dmRender::RENDER_LIST_OPERATION_BEGIN:
             {
+                world->m_RenderObjects.SetSize(0);
                 break;
             }
             case dmRender::RENDER_LIST_OPERATION_BATCH:
@@ -775,10 +821,7 @@ namespace dmRive
             }
             case dmRender::RENDER_LIST_OPERATION_END:
             {
-                if (world->m_RiveRenderContext)
-                {
-                    RenderEnd(world->m_RiveRenderContext);
-                }
+                RenderBatchEnd(world, params.m_Context);
                 break;
             }
             default:

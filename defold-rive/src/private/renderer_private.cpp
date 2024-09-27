@@ -209,6 +209,12 @@ namespace dmRive
         return renderer->m_RiveRenderer;
     }
 
+    dmGraphics::HTexture GetBackingTexture(HRenderContext context)
+    {
+        DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
+        return renderer->m_RenderContext->GetBackingTexture();
+    }
+
     void RenderBegin(HRenderContext context, ShaderResources* shaders, dmResource::HFactory factory)
     {
         DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;

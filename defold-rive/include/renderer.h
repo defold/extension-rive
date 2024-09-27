@@ -47,6 +47,8 @@ namespace dmRive
     void                         RenderEnd(HRenderContext context);
     dmResource::Result           LoadShaders(dmResource::HFactory factory, ShaderResources** resources);
     void                         ReleaseShaders(dmResource::HFactory factory, ShaderResources** resources);
+
+    dmGraphics::HTexture         GetBackingTexture(HRenderContext context);
 }
 
 #endif /* DM_RIVE_RENDERER_H */

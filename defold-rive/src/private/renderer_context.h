@@ -19,6 +19,8 @@ namespace dmRive
 		virtual void Flush() = 0;
 		virtual void SetRenderTargetTexture(dmGraphics::HTexture texture) = 0;
 		virtual void SetGraphicsContext(dmGraphics::HContext graphics_context) = 0;
+
+		virtual dmGraphics::HTexture GetBackingTexture() = 0;
 	};
 
 	IDefoldRiveRenderer* MakeDefoldRiveRendererMetal();
