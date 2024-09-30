@@ -50,8 +50,6 @@ platforms:
   
     android:
         context:
-            excludeLibs: [graphics]
-            excludeSymbols: [GraphicsAdapterOpenGL]
-            symbols: [GraphicsAdapterVulkan]
-            libs: [graphics_vulkan]
+            excludeDynamicLibs: [GLESv2]
+            dynamicLibs: [GLESv3]
             flags: ["-std=c++17", "-fno-rtti"]

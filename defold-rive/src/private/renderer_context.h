@@ -1,5 +1,5 @@
 
-#include <rive/Factory.hpp>
+#include <rive/factory.hpp>
 #include <rive/renderer.hpp>
 #include <rive/renderer/rive_renderer.hpp>
 #include <rive/renderer/render_context.hpp>
@@ -25,4 +25,5 @@ namespace dmRive
 	};
 
 	IDefoldRiveRenderer* MakeDefoldRiveRendererMetal();
+	IDefoldRiveRenderer* MakeDefoldRiveRendererOpenGL();
 }

@@ -12,9 +12,6 @@
 
 #include <private/defold_graphics.h>
 
-// PLS Renderer
-// #include <private/renderer_private.h>
-
 // #include <private/shaders/color_ramp.vpc.gen.h>
 // #include <private/shaders/color_ramp.fpc.gen.h>
 // #include <private/shaders/draw_interior_triangles.vpc.gen.h>
@@ -38,7 +35,8 @@ namespace dmResource
 
 namespace dmGraphics
 {
-    void RepackRGBToRGBA(uint32_t num_pixels, uint8_t* rgb, uint8_t* rgba);
+    void     RepackRGBToRGBA(uint32_t num_pixels, uint8_t* rgb, uint8_t* rgba);
+    HContext GetInstalledContext();
 }
 
 namespace dmRender
@@ -51,7 +49,14 @@ namespace dmRive
 {
     struct DefoldRiveRenderer
     {
+    #if defined(DM_PLATFORM_MACOS) || defined(DM_PLATFORM_IOS)
         IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererMetal();
+    #elif defined(DM_PLATFORM_ANDROID)
+        IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererOpenGL();
+    #else
+        #error "Platform not supported"
+        assert(0 && "Platform not supported");
+    #endif
 
         /*
     #if defined(DM_PLATFORM_MACOS) || defined(DM_PLATFORM_IOS)
@@ -186,8 +191,6 @@ namespace dmRive
         delete shaders;
         *resources = 0;
         */
-
-
     }
 
     void DeleteRenderContext(HRenderContext context)
@@ -203,7 +206,7 @@ namespace dmRive
     rive::Factory* GetRiveFactory(HRenderContext context)
     {
         DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
-        return renderer->m_RenderContext->Factory(); // renderer->m_PLSRenderContext.get();
+        return renderer->m_RenderContext->Factory();
     }
 
     rive::Renderer* GetRiveRenderer(HRenderContext context)
@@ -224,70 +227,10 @@ namespace dmRive
 
         if (!renderer->m_RiveRenderer)
         {
-            // TODO: It should just be "getcontext"
-            renderer->m_GraphicsContext = dmGraphics::VulkanGetContext();
+            renderer->m_GraphicsContext = dmGraphics::GetInstalledContext();
             renderer->m_RenderContext->SetGraphicsContext(renderer->m_GraphicsContext);
             renderer->m_RiveRenderer = renderer->m_RenderContext->MakeRenderer();
         }
-
-        /*
-        if (!renderer->m_RiveRenderer)
-        {
-            renderer->m_RiveRenderer = new rive::pls::PLSRenderer(renderer->m_PLSRenderContext.get());
-            pls_render_context->setDefoldContext(renderer->m_GraphicsContext);
-
-            dmResource::IncRef(factory, (void*) shaders->m_RampVs);
-            dmResource::IncRef(factory, (void*) shaders->m_RampFs);
-            dmResource::IncRef(factory, (void*) shaders->m_TessVs);
-            dmResource::IncRef(factory, (void*) shaders->m_TessFs);
-            dmResource::IncRef(factory, (void*) shaders->m_DrawPathVs);
-            dmResource::IncRef(factory, (void*) shaders->m_DrawPathFs);
-            dmResource::IncRef(factory, (void*) shaders->m_DrawInteriorTrianglesVs);
-            dmResource::IncRef(factory, (void*) shaders->m_DrawInteriorTrianglesFs);
-            dmResource::IncRef(factory, (void*) shaders->m_DrawImageMeshVs);
-            dmResource::IncRef(factory, (void*) shaders->m_DrawImageMeshFs);
-
-            renderer->m_Factory = factory;
-            renderer->m_Shaders = *shaders;
-
-            dmRive::DefoldShaderList programs = {};
-            programs.m_Ramp                   = dmGraphics::NewProgram(renderer->m_GraphicsContext, shaders->m_RampVs, shaders->m_RampFs);
-            programs.m_Tess                   = dmGraphics::NewProgram(renderer->m_GraphicsContext, shaders->m_TessVs, shaders->m_TessFs);
-            programs.m_DrawPath               = dmGraphics::NewProgram(renderer->m_GraphicsContext, shaders->m_DrawPathVs, shaders->m_DrawPathFs);
-            programs.m_DrawInteriorTriangles  = dmGraphics::NewProgram(renderer->m_GraphicsContext, shaders->m_DrawInteriorTrianglesVs, shaders->m_DrawInteriorTrianglesFs);
-            programs.m_DrawImageMesh          = dmGraphics::NewProgram(renderer->m_GraphicsContext, shaders->m_DrawImageMeshVs, shaders->m_DrawImageMeshFs);
-
-            pls_render_context->setDefoldShaders(programs);
-        }
-
-        if (!renderer->m_FrameBegin)
-        {
-            // TODO: Figure out why we are getting de-synced frames on osx..
-            dmGraphics::VulkanSetFrameInFlightCount(renderer->m_GraphicsContext, 1);
-
-            uint32_t width  = dmGraphics::GetWindowWidth(renderer->m_GraphicsContext);
-            uint32_t height = dmGraphics::GetWindowHeight(renderer->m_GraphicsContext);
-            if (width != renderer->m_LastWidth || height != renderer->m_LastHeight)
-            {
-                pls_render_context->onSizeChanged(width, height);
-                renderer->m_LastWidth  = width;
-                renderer->m_LastHeight = height;
-            }
-
-            dmRive::DefoldPLSRenderTarget* rt = static_cast<dmRive::DefoldPLSRenderTarget*>(pls_render_context->renderTarget().get());
-
-            rt->setTargetTexture(dmGraphics::VulkanGetActiveSwapChainTexture(renderer->m_GraphicsContext));
-
-            rive::pls::PLSRenderContext::FrameDescriptor frameDescriptor = {};
-            //frameDescriptor.renderTarget                                 = pls_render_context->renderTarget();
-            frameDescriptor.clearColor         = 0;
-            frameDescriptor.renderTargetWidth  = width;
-            frameDescriptor.renderTargetHeight = height;
-
-            renderer->m_PLSRenderContext->beginFrame(std::move(frameDescriptor));
-            renderer->m_FrameBegin = 1;
-        }
-        */
 
         if (!renderer->m_FrameBegin)
         {
@@ -301,9 +244,10 @@ namespace dmRive
                 renderer->m_LastHeight = height;
             }
 
+        #if defined(DM_PLATFORM_MACOS) || defined(DM_PLATFORM_IOS)
             dmGraphics::HTexture swap_chain_texture = dmGraphics::VulkanGetActiveSwapChainTexture(renderer->m_GraphicsContext);
-
             renderer->m_RenderContext->SetRenderTargetTexture(swap_chain_texture);
+        #endif
 
             renderer->m_RenderContext->BeginFrame({
                 .renderTargetWidth      = width,

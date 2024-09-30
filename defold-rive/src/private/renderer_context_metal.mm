@@ -50,15 +50,6 @@ namespace dmRive
             });
 
             [flushCommandBuffer commit];
-            // [flushCommandBuffer waitUntilCompleted];
-
-            /*
-            id<MTLCommandBuffer> presentCommandBuffer = [m_Queue commandBuffer];
-            [presentCommandBuffer presentDrawable:m_currentFrameSurface];
-            [presentCommandBuffer commit];
-            */
-
-            // dmGraphics::VulkanBlitTexture(m_GraphicsContext, m_BackingTexture, m_TargetTexture);
         }
 
         void OnSizeChanged(uint32_t width, uint32_t height) override
@@ -115,9 +106,8 @@ namespace dmRive
         std::unique_ptr<rive::gpu::RenderContext> m_RenderContext;
         rive::rcp<rive::gpu::RenderTargetMetal>   m_RenderTarget;
         dmGraphics::HContext                      m_GraphicsContext;
-
-        dmGraphics::HTexture m_BackingTexture;
-        dmGraphics::HTexture m_TargetTexture;
+        dmGraphics::HTexture                      m_BackingTexture;
+        dmGraphics::HTexture                      m_TargetTexture;
     };
 
     IDefoldRiveRenderer* MakeDefoldRiveRendererMetal()
