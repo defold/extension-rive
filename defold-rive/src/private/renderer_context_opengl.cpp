@@ -1,4 +1,6 @@
 
+#ifdef DM_RIVE_USE_OPENGL
+
 // FIXME
 #include <GLES3/gl3.h>
 
@@ -6,7 +8,6 @@
 #include <dmsdk/dlib/log.h>
 
 #include "renderer_context.h"
-
 
 #define RIVE_ANDROID
 #include <rive/renderer/rive_renderer.hpp>
@@ -110,3 +111,5 @@ namespace dmRive
         return new DefoldRiveRendererOpenGL();
     }
 }
+
+#endif

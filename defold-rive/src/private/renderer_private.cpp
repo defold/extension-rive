@@ -12,17 +12,6 @@
 
 #include <private/defold_graphics.h>
 
-// #include <private/shaders/color_ramp.vpc.gen.h>
-// #include <private/shaders/color_ramp.fpc.gen.h>
-// #include <private/shaders/draw_interior_triangles.vpc.gen.h>
-// #include <private/shaders/draw_interior_triangles.fpc.gen.h>
-// #include <private/shaders/draw_path.vpc.gen.h>
-// #include <private/shaders/draw_path.fpc.gen.h>
-// #include <private/shaders/tessellate.vpc.gen.h>
-// #include <private/shaders/tessellate.fpc.gen.h>
-// #include <private/shaders/draw_image_mesh.vpc.gen.h>
-// #include <private/shaders/draw_image_mesh.fpc.gen.h>
-
 #include <common/vertices.h>
 #include <renderer.h>
 
@@ -44,6 +33,8 @@ namespace dmRender
     const dmVMath::Matrix4& GetViewMatrix(HRenderContext render_context);
     const dmVMath::Matrix4& GetViewProjectionMatrix(HRenderContext render_context);
 }
+
+// DM_RIVE_USE_OPENGL
 
 namespace dmRive
 {

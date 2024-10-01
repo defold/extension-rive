@@ -97,6 +97,11 @@ namespace dmRive
                                                       const uint8_t imageDataRGBA[]) override
         {
             auto renderContextImpl = m_RenderContext->static_impl_cast<rive::gpu::RenderContextMetalImpl>();
+            // OpenGL vs Metal difference..
+            if (mipLevelCount < 1)
+            {
+                mipLevelCount = 1;
+            }
             return renderContextImpl->makeImageTexture(width, height, mipLevelCount, imageDataRGBA);
         }
 

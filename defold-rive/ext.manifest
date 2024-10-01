@@ -50,6 +50,7 @@ platforms:
   
     android:
         context:
+            defines:            ["DM_RIVE_USE_OPENGL"]
             excludeDynamicLibs: [GLESv2]
-            dynamicLibs: [GLESv3]
-            flags: ["-std=c++17", "-fno-rtti"]
+            dynamicLibs:        [GLESv3]
+            flags:              ["-std=c++17", "-fno-rtti"]
