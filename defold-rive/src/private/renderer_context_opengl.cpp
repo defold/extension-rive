@@ -1,15 +1,18 @@
 
 #ifdef DM_RIVE_USE_OPENGL
 
-// FIXME
-#include <GLES3/gl3.h>
+#if defined(RIVE_ANDROID) || defined(RIVE_WEBGL)
+    #undef GL_ES_VERSION_2_0
+    #undef GL_ES_VERSION_3_0
+
+    #include <GLES3/gl3.h>
+#endif
 
 #include <dmsdk/graphics/graphics_native.h>
 #include <dmsdk/dlib/log.h>
 
 #include "renderer_context.h"
 
-#define RIVE_ANDROID
 #include <rive/renderer/rive_renderer.hpp>
 #include <rive/renderer/texture.hpp>
 #include <rive/renderer/gl/render_context_gl_impl.hpp>
@@ -93,6 +96,10 @@ namespace dmRive
                                                       uint32_t mipLevelCount,
                                                       const uint8_t imageDataRGBA[]) override
         {
+        #ifdef RIVE_WEBGL
+            mipLevelCount = 1; // ??
+        #endif
+
             auto renderContextImpl = m_RenderContext->static_impl_cast<rive::gpu::RenderContextGLImpl>();
             auto texture = renderContextImpl->makeImageTexture(width, height, mipLevelCount, imageDataRGBA);
             dmLogInfo("MakeImageTexture %d, %d, %d", width, height, mipLevelCount);

@@ -42,7 +42,7 @@ namespace dmRive
     {
     #if defined(DM_PLATFORM_MACOS) || defined(DM_PLATFORM_IOS)
         IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererMetal();
-    #elif defined(DM_PLATFORM_ANDROID)
+    #elif defined(DM_PLATFORM_ANDROID) || defined(DM_PLATFORM_HTML5)
         IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererOpenGL();
     #else
         #error "Platform not supported"

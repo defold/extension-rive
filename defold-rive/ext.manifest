@@ -46,11 +46,12 @@ platforms:
 
     web:
         context:
+            defines: ["DM_RIVE_USE_OPENGL", "RIVE_WEBGL"]
             flags: ["-std=c++17", "-fno-rtti"]
   
     android:
         context:
-            defines:            ["DM_RIVE_USE_OPENGL"]
+            defines:            ["DM_RIVE_USE_OPENGL", "RIVE_ANDROID"]
             excludeDynamicLibs: [GLESv2]
             dynamicLibs:        [GLESv3]
             flags:              ["-std=c++17", "-fno-rtti"]
