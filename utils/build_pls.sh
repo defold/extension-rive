@@ -375,61 +375,105 @@ for platform in $PLATFORMS; do
     RIVE_RENDERER_INCLUDES=
 
     case ${platform} in
-       x86_64-macos|arm64-macos)
-           RIVE_RENDERER_DEFINES="RIVE_DESKTOP_GL RIVE_MACOSX"
-           RIVE_RENDERER_CXXFLAGS="-fobjc-arc"
-           RIVE_RENDERER_INCLUDES="upload/src/glad"
+        x86_64-macos|arm64-macos)
+            RIVE_RENDERER_DEFINES="RIVE_DESKTOP_GL RIVE_MACOSX"
+            RIVE_RENDERER_CXXFLAGS="-fobjc-arc"
+            RIVE_RENDERER_INCLUDES="upload/src/glad"
 
-           (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make rive_pls_macosx_metallib)
+            # remove any previously generated shaders
+            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && rm -rf ./out)
+            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make rive_pls_macosx_metallib)
 
-           mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl
-           mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src/metal
-           mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/glad
-           mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders
-           mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src/metal
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/glad
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders
 
-           cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/out/generated/*.* ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/
+            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/out/generated/*.* ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/
 
-           cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/*.glsl ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders/
+            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/*.glsl ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders/
 
-           # Due to a self include bug in rive_render_path.hpp, it references itself
-           # We workaround it by adding a copy in the relative path it asks for "../renderer/src/rive_render_path.hpp"
-           mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/renderer/src/
-           echo "// intentionally left empty due to the self include issue" > ${RIVECPP_RENDERER_SOURCE_DIR}/renderer/src/rive_render_path.hpp
+            # Due to a self include bug in rive_render_path.hpp, it references itself
+            # We workaround it by adding a copy in the relative path it asks for "../renderer/src/rive_render_path.hpp"
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/renderer/src/
+            echo "// intentionally left empty due to the self include issue" > ${RIVECPP_RENDERER_SOURCE_DIR}/renderer/src/rive_render_path.hpp
 
-           cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/metal/*.*                     ${RIVECPP_RENDERER_SOURCE_DIR}/src/metal/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/metal/*.*                     ${RIVECPP_RENDERER_SOURCE_DIR}/src/metal/
 
-           cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/gl_state.cpp               ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
-           cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/gl_utils.cpp               ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
-           cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/load_store_actions_ext.cpp ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
-           cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_buffer_gl_impl.cpp  ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
-           cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_context_gl_impl.cpp ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
-           cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_target_gl.cpp       ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/gl_state.cpp               ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/gl_utils.cpp               ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/load_store_actions_ext.cpp ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_buffer_gl_impl.cpp  ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_context_gl_impl.cpp ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_target_gl.cpp       ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
 
-           cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_webgl.cpp         ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
-           cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_rw_texture.cpp    ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
-           cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.*                          ${RIVECPP_RENDERER_SOURCE_DIR}/glad
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_webgl.cpp         ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_rw_texture.cpp    ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.*                          ${RIVECPP_RENDERER_SOURCE_DIR}/glad
 
-           cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.h                          ${RIVECPP_RENDERER_SOURCE_DIR}/include/rive/renderer/gl/
-           ;;
-       wasm-web)
-           RIVE_RENDERER_DEFINES="RIVE_WEBGL"
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.h                          ${RIVECPP_RENDERER_SOURCE_DIR}/include/rive/renderer/gl/
+            ;;
+      x86_64-ios|arm64-ios)
 
-           cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/gl_state.cpp               ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
-           cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/gl_utils.cpp               ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
-           cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/load_store_actions_ext.cpp ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
-           cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_buffer_gl_impl.cpp  ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
-           cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_context_gl_impl.cpp ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
-           cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_target_gl.cpp       ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            RIVE_RENDERER_DEFINES="RIVE_IOS"
+            if [ "${platform}" == "x86_64-ios" ]; then
+                RIVE_RENDERER_DEFINES="RIVE_IOS_SIMULATOR"
+            fi
+            RIVE_RENDERER_CXXFLAGS="-fobjc-arc"
+            RIVE_RENDERER_INCLUDES="upload/src/glad"
 
-           cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_webgl.cpp         ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
-           ;;
+            # remove any previously generated shaders
+            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && rm -rf ./out)
+            if [ "${platform}" == "x86_64-ios" ]; then
+                (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make rive_pls_ios_simulator_metallib)
+            else
+                (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make rive_pls_ios_metallib)
+            fi
+
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src/metal
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/glad
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders
+
+            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/out/generated/*.* ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/
+
+            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/*.glsl ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders/
+
+            # Due to a self include bug in rive_render_path.hpp, it references itself
+            # We workaround it by adding a copy in the relative path it asks for "../renderer/src/rive_render_path.hpp"
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/renderer/src/
+            echo "// intentionally left empty due to the self include issue" > ${RIVECPP_RENDERER_SOURCE_DIR}/renderer/src/rive_render_path.hpp
+
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/metal/*.*                     ${RIVECPP_RENDERER_SOURCE_DIR}/src/metal/
+
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.*                          ${RIVECPP_RENDERER_SOURCE_DIR}/glad
+
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.h                          ${RIVECPP_RENDERER_SOURCE_DIR}/include/rive/renderer/gl/
+            ;;
+
+        wasm-web)
+            RIVE_RENDERER_DEFINES="RIVE_WEBGL"
+
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/gl_state.cpp               ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/gl_utils.cpp               ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/load_store_actions_ext.cpp ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_buffer_gl_impl.cpp  ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_context_gl_impl.cpp ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_target_gl.cpp       ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_webgl.cpp         ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            ;;
     esac
 
     export CXXFLAGS="-std=c++17 -fno-rtti -fno-exceptions ${RIVE_RENDERER_CXXFLAGS}"
-    unset INCLUDES
-    export DEFINES="${RIVE_RENDERER_DEFINES}"
     export INCLUDES="upload/src/include/rive upload/src/include upload/src/src ${RIVE_RENDERER_INCLUDES}"
+    if [ "${RIVE_RENDERER_INCLUDES}" != "" ]; then
+        export INCLUDES="${INCLUDES} ${RIVE_RENDERER_INCLUDES}"
+    fi
+    if [ "${RIVE_RENDERER_DEFINES}" != "" ]; then
+        export DEFINES="${RIVE_RENDERER_DEFINES}"
+    fi
 
     build_library rive_renderer $platform $platform_ne ${RIVECPP_RENDERER_SOURCE_DIR} ${BUILD}
 
