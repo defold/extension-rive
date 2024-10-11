@@ -53,10 +53,25 @@ function copyfile() {
 }
 
 function stripfile() {
-    local path=$1
-    local STRIP=$(which strip)
-    echo "${STRIP} ${path}"
-    ${STRIP} ${path}
+    local platform=$1
+    local path=$2
+
+    local STRIP=
+    case ${platform} in
+        x86_64-macos|arm64-macos|arm64-ios|x86_64-ios)
+            STRIP=$(which strip)
+            ;;
+        arm64-android|armv7-android)
+            STRIP=$(find ~/Library/android/sdk -iname "*llvm-strip" | sort -r | head -n 1)
+            ;;
+    esac
+
+    if [ "" != "${STRIP}" ]; then
+        echo "${STRIP} ${path}"
+        ${STRIP} ${path}
+    else
+        echo "No strip exe found, Skipping"
+    fi
 }
 
 function copy_results() {
@@ -65,7 +80,7 @@ function copy_results() {
     local target_dir=$3
 
     for path in ./build/$platform_ne/*.a; do
-        stripfile $path
+        stripfile ${platform} ${path}
         copyfile $path $target_dir
     done
     for path in ./build/$platform_ne/*.lib; do
@@ -374,7 +389,19 @@ for platform in $PLATFORMS; do
     RIVE_RENDERER_CXXFLAGS=
     RIVE_RENDERER_INCLUDES=
 
+    # Due to a self include bug in rive_render_path.hpp, it references itself
+    # We workaround it by adding a copy in the relative path it asks for "../renderer/src/rive_render_path.hpp"
+    mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/renderer/src/
+    echo "// intentionally left empty due to the self include issue" > ${RIVECPP_RENDERER_SOURCE_DIR}/renderer/src/rive_render_path.hpp
+
     case ${platform} in
+        armv7-android|arm64-android)
+            RIVE_RENDERER_DEFINES="RIVE_ANDROID"
+            ;;
+        x86_64-win32|x86-win32)
+            RIVE_RENDERER_DEFINES="RIVE_WINDOWS"
+            ;;
+
         x86_64-macos|arm64-macos)
             RIVE_RENDERER_DEFINES="RIVE_DESKTOP_GL RIVE_MACOSX"
             RIVE_RENDERER_CXXFLAGS="-fobjc-arc"
@@ -393,11 +420,6 @@ for platform in $PLATFORMS; do
             cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/out/generated/*.* ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/
 
             cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/*.glsl ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders/
-
-            # Due to a self include bug in rive_render_path.hpp, it references itself
-            # We workaround it by adding a copy in the relative path it asks for "../renderer/src/rive_render_path.hpp"
-            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/renderer/src/
-            echo "// intentionally left empty due to the self include issue" > ${RIVECPP_RENDERER_SOURCE_DIR}/renderer/src/rive_render_path.hpp
 
             cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/metal/*.*                     ${RIVECPP_RENDERER_SOURCE_DIR}/src/metal/
 
@@ -439,11 +461,6 @@ for platform in $PLATFORMS; do
             cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/out/generated/*.* ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/
 
             cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/*.glsl ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders/
-
-            # Due to a self include bug in rive_render_path.hpp, it references itself
-            # We workaround it by adding a copy in the relative path it asks for "../renderer/src/rive_render_path.hpp"
-            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/renderer/src/
-            echo "// intentionally left empty due to the self include issue" > ${RIVECPP_RENDERER_SOURCE_DIR}/renderer/src/rive_render_path.hpp
 
             cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/metal/*.*                     ${RIVECPP_RENDERER_SOURCE_DIR}/src/metal/
 
