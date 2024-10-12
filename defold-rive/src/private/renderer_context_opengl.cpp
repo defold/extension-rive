@@ -20,6 +20,11 @@
 
 #include <private/defold_graphics.h>
 
+#ifdef RIVE_DESKTOP_GL
+    #define GLFW_INCLUDE_NONE
+    #include "GLFW/glfw3.h"
+#endif
+
 static void OpenGLClearGLError(const char* context)
 {
     GLint err = glGetError();
@@ -37,7 +42,16 @@ namespace dmRive
     public:
         DefoldRiveRendererOpenGL()
         {
-            dmLogInfo("==== GL GPU: %s ====\n", glGetString(GL_RENDERER));
+        #ifdef RIVE_DESKTOP_GL
+            // Load the OpenGL API using glad.
+            if (!gladLoadCustomLoader((GLADloadproc)glfwGetProcAddress))
+            {
+                fprintf(stderr, "Failed to initialize glad.\n");
+                abort();
+            }
+        #endif
+
+            dmLogInfo("==== GL GPU: %s ====\n", glGetString(GL_RENDERER)); 
 
             m_RenderContext = rive::gpu::RenderContextGLImpl::MakeContext({
                 .disableFragmentShaderInterlock = false // options.disableRasterOrdering,
@@ -56,6 +70,8 @@ namespace dmRive
 
         void BeginFrame(const rive::gpu::RenderContext::FrameDescriptor& frameDescriptor) override
         {
+            m_DefoldPipelineState = dmGraphics::GetPipelineState(m_GraphicsContext);
+
             m_RenderContext->static_impl_cast<rive::gpu::RenderContextGLImpl>()->invalidateGLState();
             m_RenderContext->beginFrame(frameDescriptor);
             OpenGLClearGLError("BeginFrame After");
@@ -67,6 +83,13 @@ namespace dmRive
             m_RenderContext->static_impl_cast<rive::gpu::RenderContextGLImpl>()->unbindGLInternalResources();
             OpenGLClearGLError("Flush After");
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+            // Rive messes up the state after flush it seems.
+            SetDefoldGraphicsState(dmGraphics::STATE_CULL_FACE, m_DefoldPipelineState.m_CullFaceEnabled);
+            SetDefoldGraphicsState(dmGraphics::STATE_BLEND, m_DefoldPipelineState.m_BlendEnabled);
+
+            dmGraphics::SetCullFace(m_GraphicsContext, (dmGraphics::FaceType) m_DefoldPipelineState.m_CullFaceType);
+            dmGraphics::SetBlendFunc(m_GraphicsContext, (dmGraphics::BlendFactor) m_DefoldPipelineState.m_BlendSrcFactor, (dmGraphics::BlendFactor) m_DefoldPipelineState.m_BlendDstFactor);
         }
 
         void OnSizeChanged(uint32_t width, uint32_t height) override
@@ -96,9 +119,8 @@ namespace dmRive
                                                       uint32_t mipLevelCount,
                                                       const uint8_t imageDataRGBA[]) override
         {
-        #ifdef RIVE_WEBGL
-            mipLevelCount = 1; // ??
-        #endif
+            if (mipLevelCount < 1)
+                mipLevelCount = 1;
 
             auto renderContextImpl = m_RenderContext->static_impl_cast<rive::gpu::RenderContextGLImpl>();
             auto texture = renderContextImpl->makeImageTexture(width, height, mipLevelCount, imageDataRGBA);
@@ -108,9 +130,19 @@ namespace dmRive
         }
 
     private:
+
+        void SetDefoldGraphicsState(dmGraphics::State state, bool flag)
+        {
+            if (flag)
+                dmGraphics::EnableState(m_GraphicsContext, state);
+            else
+                dmGraphics::DisableState(m_GraphicsContext, state);
+        }
+
         std::unique_ptr<rive::gpu::RenderContext> m_RenderContext;
         dmGraphics::HContext                      m_GraphicsContext;
         rive::rcp<rive::gpu::RenderTargetGL>      m_RenderTarget;
+        dmGraphics::PipelineState                 m_DefoldPipelineState;
     };
 
     IDefoldRiveRenderer* MakeDefoldRiveRendererOpenGL()

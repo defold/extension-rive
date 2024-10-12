@@ -518,6 +518,12 @@ namespace dmRive
                 rive::Vec2D yflip(g_DisplayFactor, -g_DisplayFactor);
                 transform = transform.scale(yflip);
             }
+            else
+            {
+                // Apply display scale
+                rive::Vec2D yflip(g_DisplayFactor, g_DisplayFactor);
+                transform = transform.scale(yflip);
+            }
 
             renderer->transform(viewTransform * transform);
 
