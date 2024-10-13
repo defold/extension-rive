@@ -217,6 +217,8 @@ namespace dmGraphics
 	void EnableState(HContext context, State state);
     void DisableState(HContext context, State state);
 
+    void SetBlendFunc(HContext context, BlendFactor source_factor, BlendFactor destinaton_factor);
+
     void SetViewport(HContext context, int32_t x, int32_t y, int32_t width, int32_t height);
 
     void     EnableVertexBuffer(HContext context, HVertexBuffer vertex_buffer, uint32_t binding_index);

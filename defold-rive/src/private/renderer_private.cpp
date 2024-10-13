@@ -42,6 +42,10 @@ namespace dmRive
     {
     #if defined(DM_PLATFORM_MACOS) || defined(DM_PLATFORM_IOS)
         IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererMetal();
+    #elif defined(DM_PLATFORM_WINDOWS)
+        IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererOpenGL();
+    #elif defined(DM_PLATFORM_LINUX)
+        IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererOpenGL();
     #elif defined(DM_PLATFORM_ANDROID) || defined(DM_PLATFORM_HTML5)
         IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererOpenGL();
     #else
@@ -49,24 +53,12 @@ namespace dmRive
         assert(0 && "Platform not supported");
     #endif
 
-        /*
-    #if defined(DM_PLATFORM_MACOS) || defined(DM_PLATFORM_IOS)
-        std::unique_ptr<rive::pls::PLSRenderContext> m_PLSRenderContext = DefoldPLSRenderContext::MakeContext(CONFIG_SUB_PASS_LOAD);
-    #elif defined(DM_PLATFORM_WINDOWS) || defined(DM_PLATFORM_LINUX) || defined(DM_PLATFORM_ANDROID) || defined(DM_PLATFORM_SWITCH)
-        std::unique_ptr<rive::pls::PLSRenderContext> m_PLSRenderContext = DefoldPLSRenderContext::MakeContext(CONFIG_RW_TEXTURE);
-    #else
-        #error "Platform not supported"
-        assert(0 && "Platform not supported");
-    #endif
-        */
-
-        // ShaderResources                              m_Shaders;
-        dmResource::HFactory                         m_Factory;
-        rive::Renderer*                              m_RiveRenderer;
-        dmGraphics::HContext                         m_GraphicsContext;
-        uint32_t                                     m_LastWidth;
-        uint32_t                                     m_LastHeight;
-        uint8_t                                      m_FrameBegin : 1;
+        dmResource::HFactory m_Factory;
+        rive::Renderer*      m_RiveRenderer;
+        dmGraphics::HContext m_GraphicsContext;
+        uint32_t             m_LastWidth;
+        uint32_t             m_LastHeight;
+        uint8_t              m_FrameBegin : 1;
     };
 
     static DefoldRiveRenderer* g_RiveRenderer = 0;
