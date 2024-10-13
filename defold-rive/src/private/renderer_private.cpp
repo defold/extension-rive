@@ -240,11 +240,17 @@ namespace dmRive
             renderer->m_RenderContext->SetRenderTargetTexture(swap_chain_texture);
         #endif
 
+            int32_t msaa_samples = 0;
+
+        // #if defined(DM_PLATFORM_HTML5)
+        //     msaa_samples = 4;
+        // #endif
+
             renderer->m_RenderContext->BeginFrame({
                 .renderTargetWidth      = width,
                 .renderTargetHeight     = height,
-                .clearColor             = 0xff404040
-                // .msaaSampleCount        = s_msaa,
+                .clearColor             = 0xff404040,
+                .msaaSampleCount        = msaa_samples,
                 // .disableRasterOrdering  = s_forceAtomicMode,
                 // .wireframe              = s_wireframe,
                 // .fillsDisabled          = s_disableFill,
