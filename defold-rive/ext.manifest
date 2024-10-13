@@ -17,15 +17,10 @@ platforms:
 
     win32:
         context:
-            defines:        ["_CRT_SECURE_NO_WARNINGS"]
+            defines:        ["_CRT_SECURE_NO_WARNINGS", "DM_RIVE_USE_OPENGL", "RIVE_WINDOWS", "RIVE_DESKTOP_GL"]
             flags:          ["-std=c++17", "-fno-rtti"]
             cxxShFlags:     ["-std=c++17", "-fno-rtti"]
             cxxLinkShFlags: ["-std=c++17"]
-            excludeLibs: [libgraphics]
-            excludeSymbols: [GraphicsAdapterOpenGL]
-            symbols: [GraphicsAdapterVulkan]
-            libs: [libgraphics_vulkan.lib, libplatform_vulkan.lib, vulkan-1.lib]
-
     osx:
         context:
             flags:      ["-std=c++17", "-fno-rtti"]
