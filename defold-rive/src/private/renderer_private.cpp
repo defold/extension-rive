@@ -220,9 +220,15 @@ namespace dmRive
             uint32_t width  = dmGraphics::GetWindowWidth(renderer->m_GraphicsContext);
             uint32_t height = dmGraphics::GetWindowHeight(renderer->m_GraphicsContext);
 
+            int32_t msaa_samples = 4;
+
+        //#if defined(DM_PLATFORM_HTML5)
+        //    msaa_samples = 0;
+        //#endif
+
             if (width != renderer->m_LastWidth || height != renderer->m_LastHeight)
             {
-                renderer->m_RenderContext->OnSizeChanged(width, height);
+                renderer->m_RenderContext->OnSizeChanged(width, height, msaa_samples);
                 renderer->m_LastWidth  = width;
                 renderer->m_LastHeight = height;
             }
@@ -231,12 +237,6 @@ namespace dmRive
             dmGraphics::HTexture swap_chain_texture = dmGraphics::VulkanGetActiveSwapChainTexture(renderer->m_GraphicsContext);
             renderer->m_RenderContext->SetRenderTargetTexture(swap_chain_texture);
         #endif
-
-            int32_t msaa_samples = 0;
-
-        // #if defined(DM_PLATFORM_HTML5)
-        //     msaa_samples = 4;
-        // #endif
 
             renderer->m_RenderContext->BeginFrame({
                 .renderTargetWidth      = width,

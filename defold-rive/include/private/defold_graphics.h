@@ -209,6 +209,12 @@ namespace dmGraphics
     uint32_t         GetUniformCount(HProgram prog);
     HProgram         NewProgram(HContext context, HVertexProgram vertex_program, HFragmentProgram fragment_program);
 
+    void SetStencilMask(HContext context, uint32_t mask);
+    void SetStencilFunc(HContext context, CompareFunc func, uint32_t ref, uint32_t mask);
+    void SetStencilFuncSeparate(HContext context, FaceType face_type, CompareFunc func, uint32_t ref, uint32_t mask);
+    void SetStencilOp(HContext context, StencilOp sfail, StencilOp dpfail, StencilOp dppass);
+    void SetStencilOpSeparate(HContext context, FaceType face_type, StencilOp sfail, StencilOp dpfail, StencilOp dppass);
+
     uint32_t GetWindowWidth(HContext context);
 	uint32_t GetWindowHeight(HContext context);
 

@@ -52,7 +52,7 @@ namespace dmRive
             [flushCommandBuffer commit];
         }
 
-        void OnSizeChanged(uint32_t width, uint32_t height) override
+        void OnSizeChanged(uint32_t width, uint32_t height, uint32_t sample_count) override
         {
             auto renderContextImpl = m_RenderContext->static_impl_cast<rive::gpu::RenderContextMetalImpl>();
             m_RenderTarget         = renderContextImpl->makeRenderTarget(MTLPixelFormatBGRA8Unorm, width, height);

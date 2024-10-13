@@ -51,7 +51,7 @@ namespace dmRive
             }
         #endif
 
-            dmLogInfo("==== GL GPU: %s ====\n", glGetString(GL_RENDERER)); 
+            dmLogInfo("==== GL GPU: %s ====\n", glGetString(GL_RENDERER));
 
             m_RenderContext = rive::gpu::RenderContextGLImpl::MakeContext({
                 .disableFragmentShaderInterlock = false // options.disableRasterOrdering,
@@ -90,11 +90,26 @@ namespace dmRive
 
             dmGraphics::SetCullFace(m_GraphicsContext, (dmGraphics::FaceType) m_DefoldPipelineState.m_CullFaceType);
             dmGraphics::SetBlendFunc(m_GraphicsContext, (dmGraphics::BlendFactor) m_DefoldPipelineState.m_BlendSrcFactor, (dmGraphics::BlendFactor) m_DefoldPipelineState.m_BlendDstFactor);
+
+            dmGraphics::SetStencilMask(m_GraphicsContext, m_DefoldPipelineState.m_StencilWriteMask);
+
+            dmGraphics::SetStencilFuncSeparate(m_GraphicsContext, dmGraphics::FACE_TYPE_FRONT, (dmGraphics::CompareFunc) m_DefoldPipelineState.m_StencilFrontTestFunc, m_DefoldPipelineState.m_StencilReference, m_DefoldPipelineState.m_StencilCompareMask);
+            dmGraphics::SetStencilFuncSeparate(m_GraphicsContext, dmGraphics::FACE_TYPE_BACK, (dmGraphics::CompareFunc) m_DefoldPipelineState.m_StencilBackTestFunc, m_DefoldPipelineState.m_StencilReference, m_DefoldPipelineState.m_StencilCompareMask);
+
+            dmGraphics::SetStencilOpSeparate(m_GraphicsContext, dmGraphics::FACE_TYPE_FRONT,
+                (dmGraphics::StencilOp) m_DefoldPipelineState.m_StencilFrontOpFail,
+                (dmGraphics::StencilOp) m_DefoldPipelineState.m_StencilFrontOpDepthFail,
+                (dmGraphics::StencilOp) m_DefoldPipelineState.m_StencilFrontOpPass);
+
+            dmGraphics::SetStencilOpSeparate(m_GraphicsContext, dmGraphics::FACE_TYPE_BACK,
+                (dmGraphics::StencilOp) m_DefoldPipelineState.m_StencilBackOpFail,
+                (dmGraphics::StencilOp) m_DefoldPipelineState.m_StencilBackOpDepthFail,
+                (dmGraphics::StencilOp) m_DefoldPipelineState.m_StencilBackOpPass);
         }
 
-        void OnSizeChanged(uint32_t width, uint32_t height) override
+        void OnSizeChanged(uint32_t width, uint32_t height, uint32_t sample_count) override
         {
-            m_RenderTarget = rive::make_rcp<rive::gpu::FramebufferRenderTargetGL>(width, height, 0, 4);
+            m_RenderTarget = rive::make_rcp<rive::gpu::FramebufferRenderTargetGL>(width, height, 0, sample_count);
             OpenGLClearGLError("OnSizeChanged After");
             glViewport(0, 0, width, height);
         }
