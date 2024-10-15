@@ -105,6 +105,12 @@ namespace dmRive
                 (dmGraphics::StencilOp) m_DefoldPipelineState.m_StencilBackOpFail,
                 (dmGraphics::StencilOp) m_DefoldPipelineState.m_StencilBackOpDepthFail,
                 (dmGraphics::StencilOp) m_DefoldPipelineState.m_StencilBackOpPass);
+
+            dmGraphics::SetColorMask(m_GraphicsContext,
+                m_DefoldPipelineState.m_WriteColorMask & (1<<3),
+                m_DefoldPipelineState.m_WriteColorMask & (1<<2),
+                m_DefoldPipelineState.m_WriteColorMask & (1<<1),
+                m_DefoldPipelineState.m_WriteColorMask & (1<<0));
         }
 
         void OnSizeChanged(uint32_t width, uint32_t height, uint32_t sample_count) override

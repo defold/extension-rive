@@ -218,6 +218,9 @@ namespace dmGraphics
     uint32_t GetWindowWidth(HContext context);
 	uint32_t GetWindowHeight(HContext context);
 
+    uint32_t GetWidth(HContext context);
+    uint32_t GetHeight(HContext context);
+
 	void SetCullFace(HContext context, FaceType face_type);
 
 	void EnableState(HContext context, State state);
@@ -242,6 +245,8 @@ namespace dmGraphics
 
     void                 EnableProgram(HContext context, HProgram program);
     void                 DisableProgram(HContext context);
+
+    void SetColorMask(HContext context, bool red, bool green, bool blue, bool alpha);
 
     PipelineState GetPipelineState(HContext context);
 

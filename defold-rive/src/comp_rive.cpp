@@ -172,7 +172,7 @@ namespace dmRive
             };
 
             world->m_BlitToBackbuffer = 1;
-            world->m_FlipY            = 1;
+            world->m_FlipY            = 1; // ???
             world->m_BlitToBackbufferVertexBuffer = dmGraphics::NewVertexBuffer(context->m_GraphicsContext, sizeof(vertex_data), (void*) vertex_data, dmGraphics::BUFFER_USAGE_STATIC_DRAW);
         }
 
@@ -530,12 +530,8 @@ namespace dmRive
             renderer->align(rive::Fit::none,
                 rive::Alignment::center,
                 rive::AABB(-bounds.width(), -bounds.height(), bounds.width(), bounds.height()),
+                //rive::AABB(0, 0, bounds.width(), bounds.height()),
                 bounds);
-
-            // Store the inverse view so we can later go from screen to world.
-            //m_InverseViewTransform = viewTransform.invertOrIdentity();
-
-            // renderer->SetAtlas(c->m_Resource->m_Scene->m_Atlas);
 
             if (c->m_StateMachineInstance) {
                 c->m_StateMachineInstance->draw(renderer);
@@ -584,7 +580,7 @@ namespace dmRive
         return dmGameObject::CREATE_RESULT_OK;
     }
 
-    static bool GetSender(RiveComponent* component, dmMessage::URL* out_sender)
+    static bool GetSender(RiveComponent* component, dmMessage::URL* out_sender)  
     {
         dmMessage::URL sender;
         sender.m_Socket = dmGameObject::GetMessageSocket(dmGameObject::GetCollection(component->m_Instance));
@@ -1328,7 +1324,9 @@ namespace dmRive
         rivectx->m_RenderContext    = *(dmRender::HRenderContext*)ctx->m_Contexts.Get(dmHashString64("render"));
         rivectx->m_MaxInstanceCount = dmConfigFile::GetInt(ctx->m_Config, "rive.max_instance_count", 128);
 
-        g_DisplayFactor = dmGraphics::GetDisplayScaleFactor(rivectx->m_GraphicsContext);
+        g_DisplayFactor = 1.5; // dmGraphics::GetDisplayScaleFactor(rivectx->m_GraphicsContext);
+
+        dmLogInfo("Display scale factor: %f", dmGraphics::GetDisplayScaleFactor(rivectx->m_GraphicsContext));
 
         // after script/anim/gui, before collisionobject
         // the idea is to let the scripts/animations update the game object instance,

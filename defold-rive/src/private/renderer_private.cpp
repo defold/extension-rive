@@ -80,107 +80,29 @@ namespace dmRive
 
     static void AddShaderResources(dmResource::HFactory factory)
     {
-        // dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/color_ramp.vpc",              COLOR_RAMP_VPC_SIZE, COLOR_RAMP_VPC);
-        // dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/color_ramp.fpc",              COLOR_RAMP_FPC_SIZE, COLOR_RAMP_FPC);
-        // dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/tessellate.vpc",              TESSELLATE_VPC_SIZE, TESSELLATE_VPC);
-        // dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/tessellate.fpc",              TESSELLATE_FPC_SIZE, TESSELLATE_FPC);
-        // dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/draw_path.vpc",               DRAW_PATH_VPC_SIZE, DRAW_PATH_VPC);
-        // dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/draw_path.fpc",               DRAW_PATH_FPC_SIZE, DRAW_PATH_FPC);
-        // dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/draw_interior_triangles.vpc", DRAW_INTERIOR_TRIANGLES_VPC_SIZE, DRAW_INTERIOR_TRIANGLES_VPC);
-        // dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/draw_interior_triangles.fpc", DRAW_INTERIOR_TRIANGLES_FPC_SIZE, DRAW_INTERIOR_TRIANGLES_FPC);
-        // dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/draw_image_mesh.vpc",         DRAW_IMAGE_MESH_VPC_SIZE, DRAW_IMAGE_MESH_VPC);
-        // dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/draw_image_mesh.fpc",         DRAW_IMAGE_MESH_FPC_SIZE, DRAW_IMAGE_MESH_FPC);
     }
 
     static void RemoveShaderResources(dmResource::HFactory factory)
     {
-        // dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/color_ramp.vpc");
-        // dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/color_ramp.fpc");
-        // dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/tessellate.vpc");
-        // dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/tessellate.fpc");
-        // dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/draw_path.vpc");
-        // dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/draw_path.fpc");
-        // dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/draw_interior_triangles.vpc");
-        // dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/draw_interior_triangles.fpc");
-        // dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/draw_image_mesh.vpc");
-        // dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/draw_image_mesh.fpc");
     }
 
     dmResource::Result LoadShaders(dmResource::HFactory factory, ShaderResources** resources)
     {
-        /*
-        ShaderResources* shaders = new ShaderResources;
-
-        dmResource::Result result = dmResource::RESULT_OK;
-
-        AddShaderResources(factory);
-
-        #define GET_SHADER(path, storage) \
-            result = dmResource::Get(factory, path, (void**) &storage); \
-            if (result != dmResource::RESULT_OK) \
-            { \
-                dmLogError("Failed to load resource '%s'", path); \
-                return result; \
-            }
-
-        GET_SHADER("/defold-rive/assets/pls-shaders/color_ramp.vpc",              shaders->m_RampVs);
-        GET_SHADER("/defold-rive/assets/pls-shaders/color_ramp.fpc",              shaders->m_RampFs);
-        GET_SHADER("/defold-rive/assets/pls-shaders/tessellate.vpc",              shaders->m_TessVs);
-        GET_SHADER("/defold-rive/assets/pls-shaders/tessellate.fpc",              shaders->m_TessFs);
-        GET_SHADER("/defold-rive/assets/pls-shaders/draw_path.vpc",               shaders->m_DrawPathVs);
-        GET_SHADER("/defold-rive/assets/pls-shaders/draw_path.fpc",               shaders->m_DrawPathFs);
-        GET_SHADER("/defold-rive/assets/pls-shaders/draw_interior_triangles.vpc", shaders->m_DrawInteriorTrianglesVs);
-        GET_SHADER("/defold-rive/assets/pls-shaders/draw_interior_triangles.fpc", shaders->m_DrawInteriorTrianglesFs);
-        GET_SHADER("/defold-rive/assets/pls-shaders/draw_image_mesh.vpc",         shaders->m_DrawImageMeshVs);
-        GET_SHADER("/defold-rive/assets/pls-shaders/draw_image_mesh.fpc",         shaders->m_DrawImageMeshFs);
-
-        #undef GET_SHADER
-
-        RemoveShaderResources(factory);
-
-        assert(*resources == 0x0);
-        *resources = shaders;
-        */
-
         return dmResource::RESULT_OK;
     }
 
     static void ReleaseShadersInternal(dmResource::HFactory factory, ShaderResources* shaders)
     {
-        /*
-        #define RELEASE_SHADER(res) \
-            if (res) dmResource::Release(factory, (void*) res);
-
-        RELEASE_SHADER(shaders->m_RampVs);
-        RELEASE_SHADER(shaders->m_RampFs);
-        RELEASE_SHADER(shaders->m_TessVs);
-        RELEASE_SHADER(shaders->m_TessFs);
-        RELEASE_SHADER(shaders->m_DrawPathVs);
-        RELEASE_SHADER(shaders->m_DrawPathFs);
-        RELEASE_SHADER(shaders->m_DrawInteriorTrianglesVs);
-        RELEASE_SHADER(shaders->m_DrawInteriorTrianglesFs);
-        RELEASE_SHADER(shaders->m_DrawImageMeshVs);
-        RELEASE_SHADER(shaders->m_DrawImageMeshFs);
-
-        #undef RELEASE_SHADER
-        */
     }
 
     void ReleaseShaders(dmResource::HFactory factory, ShaderResources** resources)
     {
-        /*
-        ShaderResources* shaders = *resources;
-        ReleaseShadersInternal(factory, shaders);
-        delete shaders;
-        *resources = 0;
-        */
     }
 
     void DeleteRenderContext(HRenderContext context)
     {
         if (g_RiveRenderer)
         {
-            //ReleaseShadersInternal(g_RiveRenderer->m_Factory, &g_RiveRenderer->m_Shaders);
             delete g_RiveRenderer;
             g_RiveRenderer = 0;
         }
@@ -220,14 +142,22 @@ namespace dmRive
             uint32_t width  = dmGraphics::GetWindowWidth(renderer->m_GraphicsContext);
             uint32_t height = dmGraphics::GetWindowHeight(renderer->m_GraphicsContext);
 
-            int32_t msaa_samples = 4;
+            // uint32_t fb_width  = dmGraphics::GetWindowWidth(renderer->m_GraphicsContext);
+            // uint32_t fb_height = dmGraphics::GetWindowHeight(renderer->m_GraphicsContext);
 
-        //#if defined(DM_PLATFORM_HTML5)
-        //    msaa_samples = 0;
-        //#endif
+            // dmLogInfo("Window=(%d,%d), FB=(%d,%d)", fb_width, fb_height, width, height);
+            // width = window_width;
+            // height = window_height;
+
+            int32_t msaa_samples = 0;
+
+        #if defined(DM_PLATFORM_HTML5)
+            msaa_samples = 4;
+        #endif
 
             if (width != renderer->m_LastWidth || height != renderer->m_LastHeight)
             {
+                dmLogInfo("Change size to %d, %d", width, height);
                 renderer->m_RenderContext->OnSizeChanged(width, height, msaa_samples);
                 renderer->m_LastWidth  = width;
                 renderer->m_LastHeight = height;
