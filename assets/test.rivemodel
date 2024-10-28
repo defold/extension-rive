@@ -1,3 +1,3 @@
 scene: "/assets/test.rivescene"
 default_animation: ""
-material: "/defold-rive/assets/rivemodel_blit.material"
+material: "/defold-rive/assets/rivemodel.material"

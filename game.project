@@ -8,7 +8,6 @@ shared_state = 1
 [display]
 width = 960
 height = 540
-display_device_info = 1
 high_dpi = 1
 samples = 4
 
@@ -27,6 +26,7 @@ include_dirs = defold-rive
 [graphics]
 max_draw_calls = 1024
 max_debug_vertices = 50000
+opengl_version_hint = opengl_highest_available
 
 [collection_proxy]
 max_count = 16
