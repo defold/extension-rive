@@ -148,6 +148,7 @@ namespace dmRive
     {
         if (g_RiveRenderer)
         {
+            ReleaseShadersInternal(g_RiveRenderer->m_Factory);
             delete g_RiveRenderer;
             g_RiveRenderer = 0;
         }
@@ -180,6 +181,10 @@ namespace dmRive
             renderer->m_GraphicsContext = dmGraphics::GetInstalledContext();
             renderer->m_RenderContext->SetGraphicsContext(renderer->m_GraphicsContext);
             renderer->m_RiveRenderer = renderer->m_RenderContext->MakeRenderer();
+            renderer->m_Factory = factory;
+
+            dmResource::IncRef(factory, (void*) renderer->m_BlitVs);
+            dmResource::IncRef(factory, (void*) renderer->m_BlitFs);
         }
 
         if (!renderer->m_FrameBegin)
