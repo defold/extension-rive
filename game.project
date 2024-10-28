@@ -8,10 +8,13 @@ shared_state = 1
 [display]
 width = 960
 height = 540
-high_dpi = 0
+display_device_info = 1
+high_dpi = 1
+samples = 4
 
 [android]
 input_method = HiddenInputField
+package = com.defold.extensionrive
 
 [project]
 title = extension-rive

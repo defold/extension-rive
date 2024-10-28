@@ -45,6 +45,8 @@
 // Defold Rive Renderer
 #include "renderer.h"
 
+#include <private/defold_graphics.h>
+
 // DMSDK
 #include <dmsdk/script.h>
 #include <dmsdk/dlib/log.h>
@@ -107,8 +109,6 @@ namespace dmRive
     static const dmhash_t PROP_PLAYBACK_RATE      = dmHashString64("playback_rate");
     static const dmhash_t PROP_MATERIAL           = dmHashString64("material");
     static const dmhash_t MATERIAL_EXT_HASH       = dmHashString64("materialc");
-    // static const dmhash_t UNIFORM_TRANSFORM_LOCAL = dmHashString64("transform_local");
-    // static const dmhash_t UNIFORM_COVER           = dmHashString64("cover");
 
     static float g_DisplayFactor = 1.0f;
 
@@ -160,7 +160,12 @@ namespace dmRive
         world->m_RenderConstants.SetCapacity(context->m_MaxInstanceCount);
         world->m_RenderConstants.SetSize(context->m_MaxInstanceCount);
 
+        // JG: This might need an investigation at some point. We shouldn't have to do this afaik?
         if (dmGraphics::GetInstalledAdapterFamily() == dmGraphics::ADAPTER_FAMILY_VULKAN)
+        {
+            world->m_FlipY = 1;
+        }
+
         {
             const float vertex_data[] = {
                 -1.0f, -1.0f, 0.0f, 0.0f,  // Bottom-left corner
@@ -172,7 +177,6 @@ namespace dmRive
             };
 
             world->m_BlitToBackbuffer = 1;
-            world->m_FlipY            = 1; // ???
             world->m_BlitToBackbufferVertexBuffer = dmGraphics::NewVertexBuffer(context->m_GraphicsContext, sizeof(vertex_data), (void*) vertex_data, dmGraphics::BUFFER_USAGE_STATIC_DRAW);
         }
 
@@ -385,45 +389,6 @@ namespace dmRive
         DestroyComponent(world, index);
         return dmGameObject::CREATE_RESULT_OK;
     }
-
-    // static void GetBlendFactorsFromBlendMode(rive::BlendMode blend_mode, dmGraphics::BlendFactor* src, dmGraphics::BlendFactor* dst)
-    // {
-    //     switch(blend_mode)
-    //     {
-    //         case rive::BlendMode::srcOver:
-    //             // JG: Some textures look strange without one here for src, but the sokol viewer sets these blend modes so not sure what to do here
-    //             //*src = dmGraphics::BLEND_FACTOR_ONE;
-    //             *src = dmGraphics::BLEND_FACTOR_SRC_ALPHA;
-    //             *dst = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    //         break;
-
-    //         case rive::BlendMode::colorDodge:
-    //             *src = dmGraphics::BLEND_FACTOR_DST_COLOR; // SG_BLENDFACTOR_SRC_ALPHA
-    //             *dst = dmGraphics::BLEND_FACTOR_ONE;       // SG_BLENDFACTOR_ONE;
-    //         break;
-
-    //         case rive::BlendMode::multiply:
-    //             *src = dmGraphics::BLEND_FACTOR_DST_COLOR;           // SG_BLENDFACTOR_DST_COLOR
-    //             *dst = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA; // SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA
-    //         break;
-
-    //         case rive::BlendMode::screen:
-    //             *src = dmGraphics::BLEND_FACTOR_ONE_MINUS_DST_COLOR;
-    //             *dst = dmGraphics::BLEND_FACTOR_ONE;
-    //         break;
-
-    //         default:
-    //             /*
-    //             if ((int) blend_mode != 0)
-    //             {
-    //                 dmLogOnceWarning("Blend mode '%s' (%d) is not supported, defaulting to '%s'", dmRive::BlendModeToStr(blend_mode), (int) blend_mode, BlendModeToStr(rive::BlendMode::srcOver));
-    //             }
-    //             */
-    //             *src = dmGraphics::BLEND_FACTOR_SRC_ALPHA;
-    //             *dst = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    //         break;
-    //     }
-    // }
 
     static void GetBlendFactorsFromBlendMode(dmRiveDDF::RiveModelDesc::BlendMode blend_mode, dmGraphics::BlendFactor* src, dmGraphics::BlendFactor* dst)
     {
@@ -1324,9 +1289,9 @@ namespace dmRive
         rivectx->m_RenderContext    = *(dmRender::HRenderContext*)ctx->m_Contexts.Get(dmHashString64("render"));
         rivectx->m_MaxInstanceCount = dmConfigFile::GetInt(ctx->m_Config, "rive.max_instance_count", 128);
 
-        g_DisplayFactor = 1.5; // dmGraphics::GetDisplayScaleFactor(rivectx->m_GraphicsContext);
+        g_DisplayFactor = dmGraphics::GetWindowWidth(rivectx->m_GraphicsContext) / dmGraphics::GetWidth(rivectx->m_GraphicsContext);
 
-        dmLogInfo("Display scale factor: %f", dmGraphics::GetDisplayScaleFactor(rivectx->m_GraphicsContext));
+        dmLogInfo("Display Factor: %g", g_DisplayFactor);
 
         // after script/anim/gui, before collisionobject
         // the idea is to let the scripts/animations update the game object instance,

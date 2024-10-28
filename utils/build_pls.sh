@@ -110,9 +110,7 @@ function build_library() {
     echo "[native_extension]" > ${target_dir}/ext.settings
     echo "app_manifest =" >> ${target_dir}/ext.settings
 
-    echo "java -jar $BOB --platform=$platform --architectures=$platform --settings=${target_dir}/ext.settings resolve build --build-artifacts=library --variant $VARIANT --build-server=$SERVER --defoldsdk=e4aaff11f49c941fde1dd93883cf69c6b8abebe4 --debug-ne-upload true --ne-output-name=${name} --ne-build-dir ${source_dir}"
-
-    java -jar $BOB --platform=$platform --architectures=$platform --settings=${target_dir}/ext.settings resolve build --build-artifacts=library --variant $VARIANT --build-server=$SERVER --defoldsdk=e4aaff11f49c941fde1dd93883cf69c6b8abebe4 --debug-ne-upload true --ne-output-name=${name} --ne-build-dir ${source_dir}
+    java -jar $BOB --platform=$platform --architectures=$platform --settings=${target_dir}/ext.settings resolve build --build-artifacts=library --variant $VARIANT --build-server=$SERVER --debug-ne-upload true --ne-output-name=${name} --ne-build-dir ${source_dir} --defoldsdk=${DEFOLDSDK} # remove --defoldsdk for building WebGL
 
     copy_results $platform $platform_ne $target_dir
 
@@ -300,13 +298,11 @@ echo "COPY RIVE-RENDERER"
 cp -r -v ${RIVECPP_ORIGINAL_DIR}/include/rive ${RIVECPP_RENDERER_SOURCE_DIR}/include/rive
 cp -r -v ${RIVECPP_ORIGINAL_DIR}/include/utils ${RIVECPP_RENDERER_SOURCE_DIR}/include
 cp -r -v ${RIVECPP_ORIGINAL_DIR}/renderer/include ${RIVECPP_RENDERER_SOURCE_DIR}
-
 cp -r -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/*.cpp ${RIVECPP_RENDERER_SOURCE_DIR}/src
 cp -r -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/*.hpp ${RIVECPP_RENDERER_SOURCE_DIR}/src
-
 cp -r -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/shaders ${RIVECPP_RENDERER_SHADER_DIR}
 
-#echo "*************************************************"
+echo "*************************************************"
 
 for platform in $PLATFORMS; do
 
@@ -314,7 +310,6 @@ for platform in $PLATFORMS; do
 
     platform_ne=$platform
     build_dir=./build/pls/libs/${PLATFORM}
-
 
     case ${platform} in
         x86_64-macos)
@@ -397,9 +392,33 @@ for platform in $PLATFORMS; do
     case ${platform} in
         armv7-android|arm64-android)
             RIVE_RENDERER_DEFINES="RIVE_ANDROID"
+
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders
+
+            # remove any previously generated shaders
+            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && rm -rf ./out)
+            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make)
+
+            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/out/generated/*.*           ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/
+            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/*.glsl                      ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders/
+
+            # Common
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/gl_state.cpp                   ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/gl_utils.cpp                   ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/load_store_actions_ext.cpp     ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_buffer_gl_impl.cpp      ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_context_gl_impl.cpp     ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_target_gl.cpp           ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+
+            # Android specific
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/load_gles_extensions.cpp       ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_ext_native.cpp        ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_framebuffer_fetch.cpp ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
             ;;
         x86_64-win32|x86-win32)
-            RIVE_RENDERER_DEFINES="RIVE_WINDOWS"
+            RIVE_RENDERER_DEFINES="RIVE_DESKTOP_GL RIVE_WINDOWS"
             ;;
 
         x86_64-macos|arm64-macos)
@@ -417,9 +436,8 @@ for platform in $PLATFORMS; do
             mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders
             mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders
 
-            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/out/generated/*.* ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/
-
-            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/*.glsl ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders/
+            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/out/generated/*.*       ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/
+            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/*.glsl                  ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders/
 
             cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/metal/*.*                     ${RIVECPP_RENDERER_SOURCE_DIR}/src/metal/
 
@@ -458,19 +476,33 @@ for platform in $PLATFORMS; do
             mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders
             mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders
 
-            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/out/generated/*.* ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/
-
-            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/*.glsl ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders/
-
+            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/out/generated/*.*       ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/
+            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/*.glsl                  ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders/
             cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/metal/*.*                     ${RIVECPP_RENDERER_SOURCE_DIR}/src/metal/
-
             cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.*                          ${RIVECPP_RENDERER_SOURCE_DIR}/glad
-
             cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.h                          ${RIVECPP_RENDERER_SOURCE_DIR}/include/rive/renderer/gl/
             ;;
 
-        wasm-web)
-            RIVE_RENDERER_DEFINES="RIVE_WEBGL"
+        wasm-web|js-web)
+            RIVE_RENDERER_DEFINES="RIVE_WEBGL RIVE_WEBGPU"
+
+            # NOTE: To build WebGL, you have to do the following manual steps:
+            #   * Don't pass a DEFOLDSDK to bob when building, you need to use a local dynamo home SDK
+            #   * In build_input.yml on the local SDK, remove the GL_ES_VERSION_2_0 define completely
+
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src/webgpu
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/spirv
+
+            # remove any previously generated shaders
+            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && rm -rf ./out)
+            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make spirv) # Remove spirv if not building for webgpu
+
+            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/out/generated/**.*       ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/
+            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/out/generated/spirv/**.* ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/spirv
+            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/*.glsl                   ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders/
 
             cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/gl_state.cpp               ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
             cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/gl_utils.cpp               ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
@@ -480,7 +512,9 @@ for platform in $PLATFORMS; do
             cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_target_gl.cpp       ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
 
             cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_webgl.cpp         ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
-            ;;
+
+            # WebGPU
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/webgpu/**.*                   ${RIVECPP_RENDERER_SOURCE_DIR}/src/webgpu/
     esac
 
     export CXXFLAGS="-std=c++17 -fno-rtti -fno-exceptions ${RIVE_RENDERER_CXXFLAGS}"

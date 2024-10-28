@@ -26,4 +26,5 @@ namespace dmRive
 
 	IDefoldRiveRenderer* MakeDefoldRiveRendererMetal();
 	IDefoldRiveRenderer* MakeDefoldRiveRendererOpenGL();
+	IDefoldRiveRenderer* MakeDefoldRiveRendererWebGPU();
 }

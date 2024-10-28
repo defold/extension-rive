@@ -9,6 +9,7 @@
 #endif
 
 #include <dmsdk/graphics/graphics_native.h>
+#include <dmsdk/graphics/graphics_opengl.h>
 #include <dmsdk/dlib/log.h>
 
 #include "renderer_context.h"
@@ -25,15 +26,33 @@
     #include "GLFW/glfw3.h"
 #endif
 
-static void OpenGLClearGLError(const char* context)
+static void OpenGLCheckError(const char* context)
 {
     GLint err = glGetError();
+    bool status_ok = err == 0;
     while (err != 0)
     {
         dmLogInfo("%s - OpenGL Error %d", context, err);
         err = glGetError();
     }
+    assert(status_ok);
 }
+
+namespace dmGraphics
+{
+    // TODO: DMSDK?
+    enum BufferType
+    {
+        BUFFER_TYPE_COLOR0_BIT  = 0x01,
+        BUFFER_TYPE_COLOR1_BIT  = 0x02,
+        BUFFER_TYPE_COLOR2_BIT  = 0x04,
+        BUFFER_TYPE_COLOR3_BIT  = 0x08,
+        BUFFER_TYPE_DEPTH_BIT   = 0x10,
+        BUFFER_TYPE_STENCIL_BIT = 0x20,
+    };
+
+    HTexture GetRenderTargetTexture(HRenderTarget render_target, BufferType buffer_type);
+};
 
 namespace dmRive
 {
@@ -53,6 +72,8 @@ namespace dmRive
 
             dmLogInfo("==== GL GPU: %s ====\n", glGetString(GL_RENDERER));
 
+            m_DefoldRenderTarget = 0;
+
             m_RenderContext = rive::gpu::RenderContextGLImpl::MakeContext({
                 .disableFragmentShaderInterlock = false // options.disableRasterOrdering,
             });
@@ -71,17 +92,18 @@ namespace dmRive
         void BeginFrame(const rive::gpu::RenderContext::FrameDescriptor& frameDescriptor) override
         {
             m_DefoldPipelineState = dmGraphics::GetPipelineState(m_GraphicsContext);
-
             m_RenderContext->static_impl_cast<rive::gpu::RenderContextGLImpl>()->invalidateGLState();
             m_RenderContext->beginFrame(frameDescriptor);
-            OpenGLClearGLError("BeginFrame After");
+            OpenGLCheckError("BeginFrame After");
         }
 
         void Flush() override
         {
             m_RenderContext->flush({.renderTarget = m_RenderTarget.get()});
             m_RenderContext->static_impl_cast<rive::gpu::RenderContextGLImpl>()->unbindGLInternalResources();
-            OpenGLClearGLError("Flush After");
+            OpenGLCheckError("Flush After");
+
+            // TODO: We should bind the currently bound target
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
             // Rive messes up the state after flush it seems.
@@ -115,8 +137,66 @@ namespace dmRive
 
         void OnSizeChanged(uint32_t width, uint32_t height, uint32_t sample_count) override
         {
-            m_RenderTarget = rive::make_rcp<rive::gpu::FramebufferRenderTargetGL>(width, height, 0, sample_count);
-            OpenGLClearGLError("OnSizeChanged After");
+            if (!m_DefoldRenderTarget)
+            {
+                dmGraphics::RenderTargetCreationParams params = {};
+
+                params.m_ColorBufferCreationParams[0].m_Type           = dmGraphics::TEXTURE_TYPE_2D;
+                params.m_ColorBufferCreationParams[0].m_Width          = width;
+                params.m_ColorBufferCreationParams[0].m_Height         = height;
+                params.m_ColorBufferCreationParams[0].m_OriginalWidth  = width;
+                params.m_ColorBufferCreationParams[0].m_OriginalHeight = height;
+                params.m_ColorBufferCreationParams[0].m_MipMapCount    = 1;
+
+                params.m_ColorBufferParams[0].m_Data     = 0;
+                params.m_ColorBufferParams[0].m_DataSize = 0;
+                params.m_ColorBufferParams[0].m_Format   = dmGraphics::TEXTURE_FORMAT_RGBA;
+                params.m_ColorBufferParams[0].m_Width    = width;
+                params.m_ColorBufferParams[0].m_Height   = height;
+                params.m_ColorBufferParams[0].m_Depth    = 1;
+
+                params.m_DepthBufferCreationParams.m_Type           = dmGraphics::TEXTURE_TYPE_2D;
+                params.m_DepthBufferCreationParams.m_Width          = width;
+                params.m_DepthBufferCreationParams.m_Height         = height;
+                params.m_DepthBufferCreationParams.m_OriginalWidth  = width;
+                params.m_DepthBufferCreationParams.m_OriginalHeight = height;
+                params.m_DepthBufferCreationParams.m_MipMapCount    = 1;
+
+                params.m_DepthBufferParams.m_Data     = 0;
+                params.m_DepthBufferParams.m_DataSize = 0;
+                params.m_DepthBufferParams.m_Format   = dmGraphics::TEXTURE_FORMAT_DEPTH;
+                params.m_DepthBufferParams.m_Width    = width;
+                params.m_DepthBufferParams.m_Height   = height;
+                params.m_DepthBufferParams.m_Depth    = 1;
+
+                params.m_StencilBufferCreationParams.m_Type           = dmGraphics::TEXTURE_TYPE_2D;
+                params.m_StencilBufferCreationParams.m_Width          = width;
+                params.m_StencilBufferCreationParams.m_Height         = height;
+                params.m_StencilBufferCreationParams.m_OriginalWidth  = width;
+                params.m_StencilBufferCreationParams.m_OriginalHeight = height;
+                params.m_StencilBufferCreationParams.m_MipMapCount    = 1;
+
+                params.m_StencilBufferParams.m_Data     = 0;
+                params.m_StencilBufferParams.m_DataSize = 0;
+                params.m_StencilBufferParams.m_Format   = dmGraphics::TEXTURE_FORMAT_STENCIL;
+                params.m_StencilBufferParams.m_Width    = width;
+                params.m_StencilBufferParams.m_Height   = height;
+                params.m_StencilBufferParams.m_Depth    = 1;
+
+                uint32_t buffer_flags = dmGraphics::BUFFER_TYPE_COLOR0_BIT | dmGraphics::BUFFER_TYPE_DEPTH_BIT | dmGraphics::BUFFER_TYPE_STENCIL_BIT;
+                m_DefoldRenderTarget  = dmGraphics::NewRenderTarget(m_GraphicsContext, buffer_flags, params);
+            }
+            else
+            {
+                dmGraphics::SetRenderTargetSize(m_DefoldRenderTarget, width, height);
+            }
+
+            assert(m_DefoldRenderTarget);
+            uint32_t id = dmGraphics::OpenGLGetRenderTargetId(m_GraphicsContext, m_DefoldRenderTarget);
+
+            m_RenderTarget = rive::make_rcp<rive::gpu::FramebufferRenderTargetGL>(width, height, id, sample_count);
+            OpenGLCheckError("OnSizeChanged After");
+
             glViewport(0, 0, width, height);
         }
 
@@ -132,7 +212,7 @@ namespace dmRive
 
         dmGraphics::HTexture GetBackingTexture() override
         {
-            return 0;
+            return dmGraphics::GetRenderTargetTexture(m_DefoldRenderTarget, dmGraphics::BUFFER_TYPE_COLOR0_BIT);
         }
 
         rive::rcp<rive::gpu::Texture> MakeImageTexture(uint32_t width,
@@ -145,8 +225,7 @@ namespace dmRive
 
             auto renderContextImpl = m_RenderContext->static_impl_cast<rive::gpu::RenderContextGLImpl>();
             auto texture = renderContextImpl->makeImageTexture(width, height, mipLevelCount, imageDataRGBA);
-            dmLogInfo("MakeImageTexture %d, %d, %d", width, height, mipLevelCount);
-            OpenGLClearGLError("MakeImageTexture After");
+            OpenGLCheckError("MakeImageTexture After");
             return texture;
         }
 
@@ -164,6 +243,7 @@ namespace dmRive
         dmGraphics::HContext                      m_GraphicsContext;
         rive::rcp<rive::gpu::RenderTargetGL>      m_RenderTarget;
         dmGraphics::PipelineState                 m_DefoldPipelineState;
+        dmGraphics::HRenderTarget                 m_DefoldRenderTarget;
     };
 
     IDefoldRiveRenderer* MakeDefoldRiveRendererOpenGL()

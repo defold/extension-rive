@@ -8,6 +8,7 @@ Thumbs.db
 .project
 .cproject
 builtins
+/utils/build
 /utils/rive-cpp/build
 /utils/rive-cpp/rive-cpp*
 /utils/rive-cpp/earcut*
@@ -16,3 +17,4 @@ builtins
 /bundle*
 bob.jar
 /defold-rive/lib/**/ext.settings
+/.editor_settings

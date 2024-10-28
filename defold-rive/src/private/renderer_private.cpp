@@ -46,8 +46,14 @@ namespace dmRive
         IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererOpenGL();
     #elif defined(DM_PLATFORM_LINUX)
         IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererOpenGL();
-    #elif defined(DM_PLATFORM_ANDROID) || defined(DM_PLATFORM_HTML5)
+    #elif defined(DM_PLATFORM_ANDROID)
         IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererOpenGL();
+    #elif defined(DM_PLATFORM_HTML5)
+        #ifdef RIVE_WEBGPU
+            IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererWebGPU();
+        #else
+            IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererOpenGL();
+        #endif
     #else
         #error "Platform not supported"
         assert(0 && "Platform not supported");
@@ -142,6 +148,9 @@ namespace dmRive
             uint32_t width  = dmGraphics::GetWindowWidth(renderer->m_GraphicsContext);
             uint32_t height = dmGraphics::GetWindowHeight(renderer->m_GraphicsContext);
 
+            uint32_t window_width = width;
+            uint32_t window_height = height;
+
             // uint32_t fb_width  = dmGraphics::GetWindowWidth(renderer->m_GraphicsContext);
             // uint32_t fb_height = dmGraphics::GetWindowHeight(renderer->m_GraphicsContext);
 
@@ -151,14 +160,10 @@ namespace dmRive
 
             int32_t msaa_samples = 0;
 
-        #if defined(DM_PLATFORM_HTML5)
-            msaa_samples = 4;
-        #endif
-
             if (width != renderer->m_LastWidth || height != renderer->m_LastHeight)
             {
                 dmLogInfo("Change size to %d, %d", width, height);
-                renderer->m_RenderContext->OnSizeChanged(width, height, msaa_samples);
+                renderer->m_RenderContext->OnSizeChanged(window_width, window_height, msaa_samples);
                 renderer->m_LastWidth  = width;
                 renderer->m_LastHeight = height;
             }
@@ -169,9 +174,9 @@ namespace dmRive
         #endif
 
             renderer->m_RenderContext->BeginFrame({
-                .renderTargetWidth      = width,
-                .renderTargetHeight     = height,
-                .clearColor             = 0xff404040,
+                .renderTargetWidth      = window_width,
+                .renderTargetHeight     = window_height,
+                .clearColor             = 0x00000000,
                 .msaaSampleCount        = msaa_samples,
                 // .disableRasterOrdering  = s_forceAtomicMode,
                 // .wireframe              = s_wireframe,
