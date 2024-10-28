@@ -1,12 +1,10 @@
 name: "rive-test"
 tags: "rive"
-vertex_program: "/defold-rive/assets/rivemodel_blit.vp"
-fragment_program: "/defold-rive/assets/rivemodel_blit.fp"
+vertex_program: "/defold-rive/assets/shader-library/rivemodel_blit.vp"
+fragment_program: "/defold-rive/assets/shader-library/rivemodel_blit.fp"
 vertex_constants {
   name: "world_view_proj"
   type: CONSTANT_TYPE_WORLDVIEWPROJ
-  value {
-  }
 }
 fragment_constants {
   name: "colors"

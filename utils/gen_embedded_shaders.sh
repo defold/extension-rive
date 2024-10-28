@@ -53,7 +53,7 @@ function build_shader() {
     echo "Compiling shader ${src} for platform ${platform} with ${shader_type}"
     echo "    ${output}"
 
-    java -cp ${BOB} ${class_name} ${src} ${dst} --platform=${platform} --variant=${variant} ${OUTPUT_SPIRV}
+    java -cp ${BOB} ${class_name} ${src} ${dst} ${platform} --platform=${platform} --variant=${variant} ${OUTPUT_SPIRV}
 }
 
 function generate_cpp_source() {
@@ -85,15 +85,8 @@ function generate_cpp_sources() {
     local input_dir=$2
     local target_dir=$3
 
-    local pls_impl_dir=${input_dir}/pls_subpass_load
-
     # Allow for file patterns not returning any files
     shopt -s nullglob
-
-    case ${platform} in
-        x86_64-win32)
-            pls_impl_dir=${input_dir}/pls_rw_texture;;
-    esac
 
     for name in ${input_dir}/*.vp; do
         local short_name=$(basename $name)
@@ -102,18 +95,6 @@ function generate_cpp_sources() {
     done
 
     for name in ${input_dir}/*.fp; do
-        local short_name=$(basename $name)
-        local shader=${target_dir}/${short_name}c
-        build_shader FragmentProgramBuilder ${platform} ${name} ${shader}
-    done
-
-    for name in ${pls_impl_dir}/*.vp; do
-        local short_name=$(basename $name)
-        local shader=${target_dir}/${short_name}c
-        build_shader VertexProgramBuilder ${platform} ${name} ${shader}
-    done
-
-    for name in ${pls_impl_dir}/*.fp; do
         local short_name=$(basename $name)
         local shader=${target_dir}/${short_name}c
         build_shader FragmentProgramBuilder ${platform} ${name} ${shader}

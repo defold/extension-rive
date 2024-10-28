@@ -303,6 +303,18 @@ cp -r -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/*.hpp ${RIVECPP_RENDERER_SOURCE_DI
 cp -r -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/shaders ${RIVECPP_RENDERER_SHADER_DIR}
 
 echo "*************************************************"
+echo "Setup shader source variables"
+
+source ${SCRIPT_DIR}/gen_embedded_shaders.sh
+
+DEFOLDSHADERS_INPUT_DIR=${SCRIPT_DIR}/../defold-rive/assets/shader-library
+DEFOLDSHADERS_INCLUDE_DIR=${SCRIPT_DIR}/../defold-rive/include/private/shaders
+DEFOLDSHADERS_SOURCE_DIR=${SOURCE_DIR}/defoldshaders/src
+
+mkdir -p ${DEFOLDSHADERS_INCLUDE_DIR}
+mkdir -p ${DEFOLDSHADERS_SOURCE_DIR}
+
+echo "*************************************************"
 
 for platform in $PLATFORMS; do
 
@@ -526,8 +538,20 @@ for platform in $PLATFORMS; do
         export DEFINES="${RIVE_RENDERER_DEFINES}"
     fi
 
-    build_library rive_renderer $platform $platform_ne ${RIVECPP_RENDERER_SOURCE_DIR} ${BUILD}
+    #build_library rive_renderer $platform $platform_ne ${RIVECPP_RENDERER_SOURCE_DIR} ${BUILD}
 
+    echo "************************************************************"
+    echo "RIVE SHADERS ${platform}"
+    echo "************************************************************"
+    unset DEFINES
+    unset INCLUDES
+    export CXXFLAGS="-x c"
+    generate_cpp_sources ${platform} ${DEFOLDSHADERS_INPUT_DIR} ${DEFOLDSHADERS_SOURCE_DIR}
+    build_library riveshaders $platform $platform_ne ${DEFOLDSHADERS_SOURCE_DIR} ${BUILD}
+
+    mkdir -p ${DEFOLDSHADERS_INCLUDE_DIR}
+    rm -v ${DEFOLDSHADERS_INCLUDE_DIR}/*.gen.h
+    cp -v ${DEFOLDSHADERS_SOURCE_DIR}/*.gen.h ${DEFOLDSHADERS_INCLUDE_DIR}
 done
 
 

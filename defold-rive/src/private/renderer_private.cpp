@@ -11,6 +11,8 @@
 #include <rive/renderer/rive_render_image.hpp>
 
 #include <private/defold_graphics.h>
+#include <private/shaders/rivemodel_blit.vpc.gen.h>
+#include <private/shaders/rivemodel_blit.fpc.gen.h>
 
 #include <common/vertices.h>
 #include <renderer.h>
@@ -32,6 +34,8 @@ namespace dmRender
 {
     const dmVMath::Matrix4& GetViewMatrix(HRenderContext render_context);
     const dmVMath::Matrix4& GetViewProjectionMatrix(HRenderContext render_context);
+    HMaterial               NewMaterial(HRenderContext render_context, dmGraphics::HVertexProgram vertex_program, dmGraphics::HFragmentProgram fragment_program);
+    void                    SetMaterialTags(HMaterial material, uint32_t tag_count, const dmhash_t* tags);
 }
 
 // DM_RIVE_USE_OPENGL
@@ -62,6 +66,11 @@ namespace dmRive
         dmResource::HFactory m_Factory;
         rive::Renderer*      m_RiveRenderer;
         dmGraphics::HContext m_GraphicsContext;
+
+        dmGraphics::HVertexProgram   m_BlitVs;
+        dmGraphics::HFragmentProgram m_BlitFs;
+        dmRender::HMaterial          m_BlitMaterial;
+
         uint32_t             m_LastWidth;
         uint32_t             m_LastHeight;
         uint8_t              m_FrameBegin : 1;
@@ -86,23 +95,53 @@ namespace dmRive
 
     static void AddShaderResources(dmResource::HFactory factory)
     {
+        dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/rivemodel_blit.vpc", RIVEMODEL_BLIT_VPC_SIZE, RIVEMODEL_BLIT_VPC);
+        dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/rivemodel_blit.fpc", RIVEMODEL_BLIT_FPC_SIZE, RIVEMODEL_BLIT_FPC);
     }
 
     static void RemoveShaderResources(dmResource::HFactory factory)
     {
+        dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/rivemodel_blit.vpc");
+        dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/rivemodel_blit.fpc");
     }
 
     dmResource::Result LoadShaders(dmResource::HFactory factory, ShaderResources** resources)
     {
-        return dmResource::RESULT_OK;
+        dmResource::Result result = dmResource::RESULT_OK;
+
+        AddShaderResources(factory);
+
+        #define GET_SHADER(path, storage) \
+            result = dmResource::Get(factory, path, (void**) &storage); \
+            if (result != dmResource::RESULT_OK) \
+            { \
+                dmLogError("Failed to load resource '%s'", path); \
+                return result; \
+            }
+
+        GET_SHADER("/defold-rive/assets/pls-shaders/rivemodel_blit.vpc", g_RiveRenderer->m_BlitVs);
+        GET_SHADER("/defold-rive/assets/pls-shaders/rivemodel_blit.fpc", g_RiveRenderer->m_BlitFs);
+
+        #undef GET_SHADER
+
+        RemoveShaderResources(factory);
+
+        return result;
     }
 
-    static void ReleaseShadersInternal(dmResource::HFactory factory, ShaderResources* shaders)
+    static void ReleaseShadersInternal(dmResource::HFactory factory)
     {
+        #define RELEASE_SHADER(res) \
+            if (res) dmResource::Release(factory, (void*) res);
+        RELEASE_SHADER(g_RiveRenderer->m_BlitVs);
+        RELEASE_SHADER(g_RiveRenderer->m_BlitFs);
+        #undef RELEASE_SHADER
     }
 
     void ReleaseShaders(dmResource::HFactory factory, ShaderResources** resources)
     {
+        ReleaseShadersInternal(factory);
+        *resources = 0;
     }
 
     void DeleteRenderContext(HRenderContext context)
@@ -132,7 +171,7 @@ namespace dmRive
         return renderer->m_RenderContext->GetBackingTexture();
     }
 
-    void RenderBegin(HRenderContext context, ShaderResources* shaders, dmResource::HFactory factory)
+    void RenderBegin(HRenderContext context, dmResource::HFactory factory)
     {
         DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
 
@@ -148,22 +187,10 @@ namespace dmRive
             uint32_t width  = dmGraphics::GetWindowWidth(renderer->m_GraphicsContext);
             uint32_t height = dmGraphics::GetWindowHeight(renderer->m_GraphicsContext);
 
-            uint32_t window_width = width;
-            uint32_t window_height = height;
-
-            // uint32_t fb_width  = dmGraphics::GetWindowWidth(renderer->m_GraphicsContext);
-            // uint32_t fb_height = dmGraphics::GetWindowHeight(renderer->m_GraphicsContext);
-
-            // dmLogInfo("Window=(%d,%d), FB=(%d,%d)", fb_width, fb_height, width, height);
-            // width = window_width;
-            // height = window_height;
-
-            int32_t msaa_samples = 0;
-
             if (width != renderer->m_LastWidth || height != renderer->m_LastHeight)
             {
                 dmLogInfo("Change size to %d, %d", width, height);
-                renderer->m_RenderContext->OnSizeChanged(window_width, window_height, msaa_samples);
+                renderer->m_RenderContext->OnSizeChanged(width, height, 0);
                 renderer->m_LastWidth  = width;
                 renderer->m_LastHeight = height;
             }
@@ -174,10 +201,10 @@ namespace dmRive
         #endif
 
             renderer->m_RenderContext->BeginFrame({
-                .renderTargetWidth      = window_width,
-                .renderTargetHeight     = window_height,
+                .renderTargetWidth      = width,
+                .renderTargetHeight     = height,
                 .clearColor             = 0x00000000,
-                .msaaSampleCount        = msaa_samples,
+                .msaaSampleCount        = 0,
                 // .disableRasterOrdering  = s_forceAtomicMode,
                 // .wireframe              = s_wireframe,
                 // .fillsDisabled          = s_disableFill,
@@ -300,6 +327,20 @@ namespace dmRive
         }
 
         return texture != nullptr ? rive::make_rcp<rive::RiveRenderImage>(std::move(texture)) : nullptr;
+    }
+
+    dmRender::HMaterial GetBlitToBackBufferMaterial(HRenderContext context, dmRender::HRenderContext render_context)
+    {
+        DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
+        if (!renderer->m_BlitMaterial)
+        {
+            renderer->m_BlitMaterial = dmRender::NewMaterial(render_context, renderer->m_BlitVs, renderer->m_BlitFs);
+
+            dmhash_t dummy_tag = dmHashString64("rive");
+            dmRender::SetMaterialTags(renderer->m_BlitMaterial, 1, &dummy_tag);
+        }
+        assert(renderer->m_BlitMaterial);
+        return renderer->m_BlitMaterial;
     }
 
     rive::Mat2D GetViewTransform(HRenderContext context, dmRender::HRenderContext render_context)

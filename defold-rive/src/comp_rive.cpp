@@ -141,12 +141,9 @@ namespace dmRive
         dmObjectPool<RiveComponent*>            m_Components;
         dmArray<dmRender::RenderObject>         m_RenderObjects;
         dmArray<dmRender::HNamedConstantBuffer> m_RenderConstants; // 1:1 mapping with the render objects
-
-        dmRender::HMaterial       m_BlitToBackbufferMaterial;
-        dmGraphics::HVertexBuffer m_BlitToBackbufferVertexBuffer;
-
-        uint8_t m_BlitToBackbuffer : 1;
-        uint8_t m_FlipY            : 1;
+        dmGraphics::HVertexBuffer               m_BlitToBackbufferVertexBuffer;
+        uint8_t                                 m_BlitToBackbuffer : 1;
+        uint8_t                                 m_FlipY            : 1;
     };
 
     dmGameObject::CreateResult CompRiveNewWorld(const dmGameObject::ComponentNewWorldParams& params)
@@ -192,6 +189,8 @@ namespace dmRive
     dmGameObject::CreateResult CompRiveDeleteWorld(const dmGameObject::ComponentDeleteWorldParams& params)
     {
         RiveWorld* world = (RiveWorld*)params.m_World;
+
+        dmGraphics::DeleteVertexBuffer(world->m_BlitToBackbufferVertexBuffer);
 
         dmResource::UnregisterResourceReloadedCallback(((CompRiveContext*)params.m_Context)->m_Factory, ResourceReloadedCallback, world);
 
@@ -432,7 +431,7 @@ namespace dmRive
                 dmRender::RenderObject& ro = *world->m_RenderObjects.End();
                 world->m_RenderObjects.SetSize(world->m_RenderObjects.Size()+1);
                 ro.Init();
-                ro.m_Material          = world->m_BlitToBackbufferMaterial;
+                ro.m_Material          = GetBlitToBackBufferMaterial(world->m_RiveRenderContext, render_context);
                 ro.m_VertexDeclaration = dmRender::GetVertexDeclaration(ro.m_Material);
                 ro.m_VertexBuffer      = world->m_BlitToBackbufferVertexBuffer;
                 ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
@@ -451,7 +450,7 @@ namespace dmRive
         dmRive::RiveSceneData* data          = (dmRive::RiveSceneData*) scene_res->m_Scene;
         world->m_RiveRenderContext           = data->m_RiveRenderContext;
 
-        RenderBegin(world->m_RiveRenderContext, scene_res->m_Shaders, world->m_Ctx->m_Factory);
+        RenderBegin(world->m_RiveRenderContext, world->m_Ctx->m_Factory);
 
         uint32_t width, height;
         GetDimensions(world->m_RiveRenderContext, &width, &height);
@@ -465,8 +464,6 @@ namespace dmRive
 
             if (!c->m_Enabled || !c->m_AddedToUpdate)
                 continue;
-
-            world->m_BlitToBackbufferMaterial = GetMaterial(c, c->m_Resource);
 
             rive::Mat2D transform;
             Mat4ToMat2D(c->m_World, transform);
@@ -1289,7 +1286,10 @@ namespace dmRive
         rivectx->m_RenderContext    = *(dmRender::HRenderContext*)ctx->m_Contexts.Get(dmHashString64("render"));
         rivectx->m_MaxInstanceCount = dmConfigFile::GetInt(ctx->m_Config, "rive.max_instance_count", 128);
 
-        g_DisplayFactor = dmGraphics::GetWindowWidth(rivectx->m_GraphicsContext) / dmGraphics::GetWidth(rivectx->m_GraphicsContext);
+        float scale_factor_width = (float) dmGraphics::GetWindowWidth(rivectx->m_GraphicsContext) / (float) dmGraphics::GetWidth(rivectx->m_GraphicsContext);
+        float scale_factor_height = (float) dmGraphics::GetWindowHeight(rivectx->m_GraphicsContext) / (float) dmGraphics::GetHeight(rivectx->m_GraphicsContext);
+        float scale_factor_engine = dmGraphics::GetDisplayScaleFactor(rivectx->m_GraphicsContext);
+        g_DisplayFactor = dmMath::Max(scale_factor_engine, dmMath::Max(scale_factor_width, scale_factor_height));
 
         dmLogInfo("Display Factor: %g", g_DisplayFactor);
 
