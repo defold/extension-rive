@@ -142,8 +142,6 @@ namespace dmRive
         dmArray<dmRender::RenderObject>         m_RenderObjects;
         dmArray<dmRender::HNamedConstantBuffer> m_RenderConstants; // 1:1 mapping with the render objects
         dmGraphics::HVertexBuffer               m_BlitToBackbufferVertexBuffer;
-        uint8_t                                 m_BlitToBackbuffer : 1;
-        uint8_t                                 m_FlipY            : 1;
     };
 
     dmGameObject::CreateResult CompRiveNewWorld(const dmGameObject::ComponentNewWorldParams& params)
@@ -157,25 +155,26 @@ namespace dmRive
         world->m_RenderConstants.SetCapacity(context->m_MaxInstanceCount);
         world->m_RenderConstants.SetSize(context->m_MaxInstanceCount);
 
-        // JG: This might need an investigation at some point. We shouldn't have to do this afaik?
-        if (dmGraphics::GetInstalledAdapterFamily() == dmGraphics::ADAPTER_FAMILY_VULKAN)
+        float bottom = 0.0f;
+        float top    = 1.0f;
+
+        // Flip texture coordinates on y axis for OpenGL
+        if (dmGraphics::GetInstalledAdapterFamily() == dmGraphics::ADAPTER_FAMILY_OPENGL)
         {
-            world->m_FlipY = 1;
+            top    = 0.0f;
+            bottom = 1.0f;
         }
 
-        {
-            const float vertex_data[] = {
-                -1.0f, -1.0f, 0.0f, 0.0f,  // Bottom-left corner
-                 1.0f, -1.0f, 1.0f, 0.0f,  // Bottom-right corner
-                -1.0f,  1.0f, 0.0f, 1.0f,  // Top-left corner
-                 1.0f, -1.0f, 1.0f, 0.0f,  // Bottom-right corner
-                 1.0f,  1.0f, 1.0f, 1.0f,  // Top-right corner
-                -1.0f,  1.0f, 0.0f, 1.0f   // Top-left corner
-            };
+        const float vertex_data[] = {
+            -1.0f, -1.0f, 0.0f, bottom,  // Bottom-left corner
+             1.0f, -1.0f, 1.0f, bottom,  // Bottom-right corner
+            -1.0f,  1.0f, 0.0f, top,     // Top-left corner
+             1.0f, -1.0f, 1.0f, bottom,  // Bottom-right corner
+             1.0f,  1.0f, 1.0f, top,     // Top-right corner
+            -1.0f,  1.0f, 0.0f, top      // Top-left corner
+        };
 
-            world->m_BlitToBackbuffer = 1;
-            world->m_BlitToBackbufferVertexBuffer = dmGraphics::NewVertexBuffer(context->m_GraphicsContext, sizeof(vertex_data), (void*) vertex_data, dmGraphics::BUFFER_USAGE_STATIC_DRAW);
-        }
+        world->m_BlitToBackbufferVertexBuffer = dmGraphics::NewVertexBuffer(context->m_GraphicsContext, sizeof(vertex_data), (void*) vertex_data, dmGraphics::BUFFER_USAGE_STATIC_DRAW);
 
         memset(world->m_RenderConstants.Begin(), 0, sizeof(dmGameSystem::HComponentRenderConstants)*world->m_RenderConstants.Capacity());
 
@@ -426,20 +425,18 @@ namespace dmRive
         {
             RenderEnd(world->m_RiveRenderContext);
 
-            if (world->m_BlitToBackbuffer)
-            {
-                dmRender::RenderObject& ro = *world->m_RenderObjects.End();
-                world->m_RenderObjects.SetSize(world->m_RenderObjects.Size()+1);
-                ro.Init();
-                ro.m_Material          = GetBlitToBackBufferMaterial(world->m_RiveRenderContext, render_context);
-                ro.m_VertexDeclaration = dmRender::GetVertexDeclaration(ro.m_Material);
-                ro.m_VertexBuffer      = world->m_BlitToBackbufferVertexBuffer;
-                ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
-                ro.m_VertexStart       = 0;
-                ro.m_VertexCount       = 6;
-                ro.m_Textures[0]       = GetBackingTexture(world->m_RiveRenderContext);
-                dmRender::AddToRender(render_context, &ro);
-            }
+            // Do our own resolve here
+            dmRender::RenderObject& ro = *world->m_RenderObjects.End();
+            world->m_RenderObjects.SetSize(world->m_RenderObjects.Size()+1);
+            ro.Init();
+            ro.m_Material          = GetBlitToBackBufferMaterial(world->m_RiveRenderContext, render_context);
+            ro.m_VertexDeclaration = dmRender::GetVertexDeclaration(ro.m_Material);
+            ro.m_VertexBuffer      = world->m_BlitToBackbufferVertexBuffer;
+            ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
+            ro.m_VertexStart       = 0;
+            ro.m_VertexCount       = 6;
+            ro.m_Textures[0]       = GetBackingTexture(world->m_RiveRenderContext);
+            dmRender::AddToRender(render_context, &ro);
         }
     }
 
@@ -458,6 +455,8 @@ namespace dmRive
         rive::Mat2D viewTransform = GetViewTransform(world->m_RiveRenderContext, render_context);
         rive::Renderer* renderer = GetRiveRenderer(world->m_RiveRenderContext);
 
+        uint32_t window_height = dmGraphics::GetWindowHeight(world->m_Ctx->m_GraphicsContext);
+
         for (uint32_t *i=begin;i!=end;i++)
         {
             RiveComponent* c = (RiveComponent*) buf[*i].m_UserData;
@@ -475,24 +474,14 @@ namespace dmRive
             // Rive is using a different coordinate system than defold,
             // we have to adhere to how our projection matrixes are
             // constructed so we flip the renderer on the y axis here
-            if (world->m_FlipY)
-            {
-                rive::Vec2D yflip(g_DisplayFactor, -g_DisplayFactor);
-                transform = transform.scale(yflip);
-            }
-            else
-            {
-                // Apply display scale
-                rive::Vec2D yflip(g_DisplayFactor, g_DisplayFactor);
-                transform = transform.scale(yflip);
-            }
+            rive::Vec2D yflip(g_DisplayFactor, -g_DisplayFactor);
+            transform = transform.scale(yflip);
 
             renderer->transform(viewTransform * transform);
 
             renderer->align(rive::Fit::none,
                 rive::Alignment::center,
-                rive::AABB(-bounds.width(), -bounds.height(), bounds.width(), bounds.height()),
-                //rive::AABB(0, 0, bounds.width(), bounds.height()),
+                rive::AABB(-bounds.width(), bounds.height(), bounds.width(), -bounds.height()),
                 bounds);
 
             if (c->m_StateMachineInstance) {
