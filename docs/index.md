@@ -10,8 +10,7 @@ brief: This manual describes how to show Rive animations using the Rive extensio
 
 
 ## Requirements
-In order to use Rive animations you need to run Defold 1.2.188 or higher.
-
+In order to use Rive content, you will need to run Defold 1.9.5 or higher.
 
 ## Installation
 Rive animation support in Defold is provided through an official Rive extension. To use Rive animations in a Defold project, add the following URL to the list of `game.project` dependencies:
@@ -20,18 +19,38 @@ Rive animation support in Defold is provided through an official Rive extension.
 
 We recommend using a link to a zip file of a [specific release](https://github.com/defold/extension-rive/releases).
 
+## Windows
+To use Rive on Windows, you need to make sure OpenGL 4.2 or later is used in the engine. To do this, set the `OpenGL version hint` to either 4.2 or `Use highest available`:
 
-## Render script setup
-Rive components are rendered using a method called "Stencil, then cover" (StC). This requires Rive components to render with the stencil buffer enabled in the render script:
+![Window setup](rive-windows-setup.png)
+
+## Rendering
+
+The Rive extension is using a native renderer from the [Rive runtime]()https://github.com/rive-app/rive-runtime itself by issuing raw graphics API calls behind the scenes.
+The low-level renderer doesn't rasterize rive paths using regular triangles - instead a complex series of draw commands are issued that will produce smooth vector graphics.
+With this in mind, there are a few caveats for how the renderer works together with the regular Defold rendering.
+
+### Projection matrix
+The Rive API does not have an exposed projection matrix that can be set, which means that in order to match the Rive coordinate space, a fullscreen projection is used in the render script:
 
 ```
-render.enable_state(render.STATE_STENCIL_TEST)
+render.set_projection(vmath.matrix4_orthographic(0, render.get_window_width(), 0, render.get_window_height(), -1, 1))
+render.set_viewport(0, 0, render.get_window_width(), render.get_window_height())
 render.draw(self.rive_pred)
-render.disable_state(render.STATE_STENCIL_TEST)
 ```
 
-For convenience, there is a modified render script included with this extension. Open your *game.project* file and modify the `Render` field in the `Bootstrap` section to use the `defold-rive/lua/rive.render` file from this extension.
+This means that you can put Defold and Rive content in the same coordinate space if you want to mix and match regular Defold content with Rive.
 
+For convenience, there is a modified render script included with the projection matrix extension. Open your *game.project* file and modify the `Render` field in the `Bootstrap` section to use the `defold-rive/lua/rive.render` file from this extension.
+
+### View matrix
+
+View matrices are supported, but only in 2D space since Rive content is essentially orthographic by design.
+For example, using the view matrix from a camera component can be used to implement camera effects, such as screen shakes or as a regular game camera in 2D.
+
+### Blending
+
+Blending is currently only supported from within the .riv files themselves. Changing the blend mode on the component or the render script will have no effect.
 
 ## Concepts
 *Rive data file*
@@ -73,9 +92,6 @@ Apart from the properties *Id*, *Position* and *Rotation* the following componen
 *Rive Scene*
 : Set this to the Rive scene file to use for this model.
 
-*Blend Mode*
-: If you want a blend mode other than the default `Alpha`, change this property.
-
 *Material*
 : If you need to render the model with a custom material, change this property.
 
@@ -84,10 +100,6 @@ Apart from the properties *Id*, *Position* and *Rotation* the following componen
 
 *Default Animation*
 : Set this to the animation you want the model to start with.
-
-
-### Blend modes
-:[blend-modes](../shared/blend-modes.md)
 
 
 ## Runtime manipulation
