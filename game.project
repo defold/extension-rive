@@ -8,10 +8,12 @@ shared_state = 1
 [display]
 width = 960
 height = 540
-high_dpi = 0
+high_dpi = 1
+samples = 4
 
 [android]
 input_method = HiddenInputField
+package = com.defold.extensionrive
 
 [project]
 title = extension-rive
@@ -24,6 +26,7 @@ include_dirs = defold-rive
 [graphics]
 max_draw_calls = 1024
 max_debug_vertices = 50000
+opengl_version_hint = 0
 
 [collection_proxy]
 max_count = 16

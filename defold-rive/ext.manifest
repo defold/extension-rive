@@ -9,23 +9,16 @@ platforms:
     x86_64-linux:
         context:
             flags:      ["-std=c++17", "-fno-rtti"]
-            excludeLibs: [graphics]
-            excludeSymbols: [GraphicsAdapterOpenGL]
-            symbols: [GraphicsAdapterVulkan]
-            libs: [graphics_vulkan, X11-xcb]
-            dynamicLibs: [vulkan]
+            defines:    ["DM_RIVE_USE_OPENGL", "RIVE_LINUX", "RIVE_DESKTOP_GL"]
+            cxxShFlags:     ["-std=c++17", "-fno-rtti"]
+            cxxLinkShFlags: ["-std=c++17"]
 
     win32:
         context:
-            defines:        ["_CRT_SECURE_NO_WARNINGS"]
+            defines:        ["_CRT_SECURE_NO_WARNINGS", "DM_RIVE_USE_OPENGL", "RIVE_WINDOWS", "RIVE_DESKTOP_GL"]
             flags:          ["-std=c++17", "-fno-rtti"]
             cxxShFlags:     ["-std=c++17", "-fno-rtti"]
             cxxLinkShFlags: ["-std=c++17"]
-            excludeLibs: [libgraphics]
-            excludeSymbols: [GraphicsAdapterOpenGL]
-            symbols: [GraphicsAdapterVulkan]
-            libs: [libgraphics_vulkan.lib, libplatform_vulkan.lib, vulkan-1.lib]
-
     osx:
         context:
             flags:      ["-std=c++17", "-fno-rtti"]
@@ -46,12 +39,12 @@ platforms:
 
     web:
         context:
+            defines: ["DM_RIVE_USE_OPENGL", "RIVE_WEBGL"]
             flags: ["-std=c++17", "-fno-rtti"]
   
     android:
         context:
-            excludeLibs: [graphics]
-            excludeSymbols: [GraphicsAdapterOpenGL]
-            symbols: [GraphicsAdapterVulkan]
-            libs: [graphics_vulkan]
-            flags: ["-std=c++17", "-fno-rtti"]
+            defines:            ["DM_RIVE_USE_OPENGL", "RIVE_ANDROID"]
+            excludeDynamicLibs: [GLESv2]
+            dynamicLibs:        [GLESv3]
+            flags:              ["-std=c++17", "-fno-rtti"]

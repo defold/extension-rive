@@ -7,7 +7,7 @@ OUTPUT_LIB_DIR=${SCRIPT_DIR}/../defold-rive/lib
 PLATFORMS=$1
 # web isn't yet supported: js-web wasm-web
 if [ "" == "${PLATFORMS}" ]; then
-    PLATFORMS="x86_64-macos arm64-macos x86_64-linux x86_64-win32 x86-win32 arm64-ios x86_64-ios arm64-android armv7-android"
+    PLATFORMS="x86_64-macos arm64-macos x86_64-linux x86_64-win32 x86-win32 arm64-ios x86_64-ios arm64-android"
 fi
 
 DEFAULT_SERVER_NAME=build-stage.defold.com
@@ -52,12 +52,35 @@ function copyfile() {
     fi
 }
 
+function stripfile() {
+    local platform=$1
+    local path=$2
+
+    local STRIP=
+    case ${platform} in
+        x86_64-macos|arm64-macos|arm64-ios|x86_64-ios)
+            STRIP=$(which strip)
+            ;;
+        arm64-android)
+            STRIP=$(find ~/Library/android/sdk -iname "*llvm-strip" | sort -r | head -n 1)
+            ;;
+    esac
+
+    if [ "" != "${STRIP}" ]; then
+        echo "${STRIP} ${path}"
+        ${STRIP} ${path}
+    else
+        echo "No strip exe found, Skipping"
+    fi
+}
+
 function copy_results() {
     local platform=$1
     local platform_ne=$2
     local target_dir=$3
 
     for path in ./build/$platform_ne/*.a; do
+        stripfile ${platform} ${path}
         copyfile $path $target_dir
     done
     for path in ./build/$platform_ne/*.lib; do
@@ -86,7 +109,8 @@ function build_library() {
     # make sure it doesn't pick up the project's app manifest
     echo "[native_extension]" > ${target_dir}/ext.settings
     echo "app_manifest =" >> ${target_dir}/ext.settings
-    java -jar $BOB --platform=$platform --architectures=$platform --settings=${target_dir}/ext.settings build --build-artifacts=library --variant $VARIANT --build-server=$SERVER --defoldsdk=$DEFOLDSDK --debug-ne-upload true --ne-output-name=${name} --ne-build-dir ${source_dir}
+
+    java -jar $BOB --platform=$platform --architectures=$platform --settings=${target_dir}/ext.settings resolve build --build-artifacts=library --variant $VARIANT --build-server=$SERVER --debug-ne-upload true --ne-output-name=${name} --ne-build-dir ${source_dir} --defoldsdk=${DEFOLDSDK} # remove --defoldsdk for building WebGL
 
     copy_results $platform $platform_ne $target_dir
 
@@ -139,28 +163,47 @@ echo "Copying harfbuzz files"
 ${SCRIPT_DIR}/copy_harfbuzz.sh ${HARFBUZZ_ORIGINAL_DIR} ${HARFBUZZ_SOURCE_DIR}
 
 echo "*************************************************"
+echo "Downloading yoga files"
+
+RIVE_YOGA_VERSION=2.0.1
+RIVE_YOGA_ZIP=${DOWNLOAD_DIR}/yoga-${RIVE_YOGA_VERSION}.zip
+RIVE_YOGA_URL=https://github.com/rive-app/yoga/archive/refs/heads/rive_changes_v2_0_1.zip
+RIVE_YOGA_ORIGINAL_DIR=${DOWNLOAD_DIR}/yoga/yoga-rive_changes_v2_0_1
+RIVE_YOGA_SOURCE_DIR=${SOURCE_DIR}/yoga/src
+
+download_zip ${RIVE_YOGA_ZIP} ${DOWNLOAD_DIR}/yoga ${RIVE_YOGA_URL}
+
+mkdir -p ${RIVE_YOGA_SOURCE_DIR}/yoga
+mkdir -p ${RIVE_YOGA_SOURCE_DIR}/yoga/event
+
+cp -r -v ${RIVE_YOGA_ORIGINAL_DIR}/yoga/*.h ${RIVE_YOGA_SOURCE_DIR}/yoga
+cp -r -v ${RIVE_YOGA_ORIGINAL_DIR}/yoga/event/*.h ${RIVE_YOGA_SOURCE_DIR}/yoga/event
+
+cp -r -v ${RIVE_YOGA_ORIGINAL_DIR}/yoga/Utils.cpp ${RIVE_YOGA_SOURCE_DIR}/yoga
+cp -r -v ${RIVE_YOGA_ORIGINAL_DIR}/yoga/YGConfig.cpp ${RIVE_YOGA_SOURCE_DIR}/yoga
+cp -r -v ${RIVE_YOGA_ORIGINAL_DIR}/yoga/YGLayout.cpp ${RIVE_YOGA_SOURCE_DIR}/yoga
+cp -r -v ${RIVE_YOGA_ORIGINAL_DIR}/yoga/YGEnums.cpp ${RIVE_YOGA_SOURCE_DIR}/yoga
+cp -r -v ${RIVE_YOGA_ORIGINAL_DIR}/yoga/YGNodePrint.cpp ${RIVE_YOGA_SOURCE_DIR}/yoga
+cp -r -v ${RIVE_YOGA_ORIGINAL_DIR}/yoga/YGNode.cpp ${RIVE_YOGA_SOURCE_DIR}/yoga
+cp -r -v ${RIVE_YOGA_ORIGINAL_DIR}/yoga/YGValue.cpp ${RIVE_YOGA_SOURCE_DIR}/yoga
+cp -r -v ${RIVE_YOGA_ORIGINAL_DIR}/yoga/YGStyle.cpp ${RIVE_YOGA_SOURCE_DIR}/yoga
+cp -r -v ${RIVE_YOGA_ORIGINAL_DIR}/yoga/Yoga.cpp ${RIVE_YOGA_SOURCE_DIR}/yoga
+cp -r -v ${RIVE_YOGA_ORIGINAL_DIR}/yoga/event/event.cpp ${RIVE_YOGA_SOURCE_DIR}/yoga/event
+cp -r -v ${RIVE_YOGA_ORIGINAL_DIR}/yoga/log.cpp ${RIVE_YOGA_SOURCE_DIR}/yoga
 
 echo "*************************************************"
 echo "Downloading sheenbidi files"
 
 
 SHEENBIDI_VERSION=2.6
-SHEENBIDI_VERSION=2.6
-SHEENBIDI_ZIP=${DOWNLOAD_DIR}/sheenbidi-${SHEENBIDI_VERSION}.zip
 SHEENBIDI_ZIP=${DOWNLOAD_DIR}/sheenbidi-${SHEENBIDI_VERSION}.zip
 SHEENBIDI_URL=https://github.com/Tehreer/SheenBidi/archive/refs/tags/v${SHEENBIDI_VERSION}.zip
-SHEENBIDI_URL=https://github.com/Tehreer/SheenBidi/archive/refs/tags/v${SHEENBIDI_VERSION}.zip
-SHEENBIDI_ORIGINAL_DIR=${DOWNLOAD_DIR}/sheenbidi/SheenBidi-${SHEENBIDI_VERSION}
 SHEENBIDI_ORIGINAL_DIR=${DOWNLOAD_DIR}/sheenbidi/SheenBidi-${SHEENBIDI_VERSION}
 SHEENBIDI_SOURCE_DIR=${SOURCE_DIR}/sheenbidi/src
 
-
 download_zip ${SHEENBIDI_ZIP} ${DOWNLOAD_DIR}/sheenbidi ${SHEENBIDI_URL}
 
-
 mkdir -p ${SHEENBIDI_SOURCE_DIR}
-mkdir -p ${SHEENBIDI_SOURCE_DIR}
-cp -r -v ${SHEENBIDI_ORIGINAL_DIR}/Headers ${SHEENBIDI_SOURCE_DIR}
 cp -r -v ${SHEENBIDI_ORIGINAL_DIR}/Headers ${SHEENBIDI_SOURCE_DIR}
 cp -r -v ${SHEENBIDI_ORIGINAL_DIR}/Source ${SHEENBIDI_SOURCE_DIR}
 
@@ -193,18 +236,24 @@ download_zip ${EARCUT_ZIP} ${DOWNLOAD_DIR}/earcut ${EARCUT_URL}
 echo "*************************************************"
 echo "Downloading rive-cpp files"
 
-RIVECPP_VERSION=master
+RIVECPP_VERSION=main
 RIVECPP_ZIP=${DOWNLOAD_DIR}/rivecpp-${RIVECPP_VERSION}.zip
-RIVECPP_URL="https://github.com/rive-app/rive-cpp/archive/refs/heads/${RIVECPP_VERSION}.zip"
+RIVECPP_URL="https://github.com/rive-app/rive-runtime/archive/refs/heads/${RIVECPP_VERSION}.zip"
 
-RIVECPP_ORIGINAL_DIR=${DOWNLOAD_DIR}/rivecpp/rive-cpp-${RIVECPP_VERSION}
+RIVECPP_ORIGINAL_DIR=${DOWNLOAD_DIR}/rivecpp/rive-runtime-${RIVECPP_VERSION}
 RIVECPP_SOURCE_DIR=${SOURCE_DIR}/rivecpp/src
 RIVECPP_TESS_SOURCE_DIR=${SOURCE_DIR}/rivecpp-tess/src
+RIVECPP_RENDERER_SOURCE_DIR=${SOURCE_DIR}/rivecpp-renderer/src
 RIVECPP_HARFBUZZ_INCLUDE_DIR=${RIVECPP_SOURCE_DIR}/src/text
+RIVECPP_RENDERER_SHADER_DIR=${RIVECPP_RENDERER_SOURCE_DIR}/src/
 
 download_zip ${RIVECPP_ZIP} ${DOWNLOAD_DIR}/rivecpp ${RIVECPP_URL}
 
 mkdir -p ${RIVECPP_SOURCE_DIR}
+mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}
+mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include
+mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src
+mkdir -p ${RIVECPP_RENDERER_SHADER_DIR}
 mkdir -p ${RIVECPP_TESS_SOURCE_DIR}
 mkdir -p ${RIVECPP_TESS_SOURCE_DIR}/math
 mkdir -p ${RIVECPP_HARFBUZZ_INCLUDE_DIR}
@@ -229,6 +278,15 @@ cp -r -v ${RIVECPP_ORIGINAL_DIR}/src ${RIVECPP_SOURCE_DIR}
 cp -r -v ${RIVECPP_ORIGINAL_DIR}/include/rive ${RIVECPP_SOURCE_DIR}
 cp -r -v ${RIVECPP_ORIGINAL_DIR}/include/utils ${RIVECPP_SOURCE_DIR}
 
+echo "COPY YOGA TO RIVECPP"
+
+mkdir -p ${RIVECPP_SOURCE_DIR}/yoga
+mkdir -p ${RIVECPP_SOURCE_DIR}/yoga/event
+
+# TODO: We have to modify the yoga headers manually because we can't set empty defines..
+cp -r -v ${RIVE_YOGA_ORIGINAL_DIR}/yoga/*.h       ${RIVECPP_SOURCE_DIR}/yoga
+cp -r -v ${RIVE_YOGA_ORIGINAL_DIR}/yoga/event/*.h ${RIVECPP_SOURCE_DIR}/yoga/event
+
 # HACK for C++ vs Objective-C
 mv -v ${RIVECPP_SOURCE_DIR}/src/audio/audio_engine.m ${RIVECPP_SOURCE_DIR}/src/audio/audio_engine.mm
 
@@ -236,43 +294,20 @@ mv -v ${RIVECPP_SOURCE_DIR}/src/audio/audio_engine.m ${RIVECPP_SOURCE_DIR}/src/a
 (cd ${HARFBUZZ_ORIGINAL_DIR} && cp -v *.h ${RIVECPP_HARFBUZZ_INCLUDE_DIR})
 (cd ${SHEENBIDI_ORIGINAL_DIR}/Headers && cp -v *.h ${RIVECPP_HARFBUZZ_INCLUDE_DIR})
 
-echo "*************************************************"
-echo "Downloading rive-pls files"
-
-RIVEPLS_VERSION=main
-RIVEPLS_ZIP=${DOWNLOAD_DIR}/rivepls-${RIVEPLS_VERSION}.zip
-RIVEPLS_URL="https://github.com/rive-app/rive-pls/archive/refs/heads/${RIVEPLS_VERSION}.zip"
-
-RIVEPLS_ORIGINAL_DIR=${DOWNLOAD_DIR}/rivepls/rive-renderer-${RIVEPLS_VERSION}
-RIVEPLS_TOP_DIR=${SOURCE_DIR}/rivepls/
-RIVEPLS_SOURCE_DIR=${RIVEPLS_TOP_DIR}/src
-RIVEPLS_GENERATED_DIR=${RIVEPLS_TOP_DIR}/shaders/out/generated
-
-download_zip ${RIVEPLS_ZIP} ${DOWNLOAD_DIR}/rivepls ${RIVEPLS_URL}
-
-RIVEPLS_MINIFY=${RIVEPLS_ORIGINAL_DIR}/renderer/shaders/minify.py
-
-echo "COPY RIVE PLS"
-
-mkdir -p ${RIVEPLS_GENERATED_DIR}
-mkdir -p ${RIVEPLS_SOURCE_DIR}
-
-cp -v ${RIVEPLS_ORIGINAL_DIR}/renderer/*.{cpp,hpp} ${RIVEPLS_SOURCE_DIR}
-cp -r -v ${RIVEPLS_ORIGINAL_DIR}/include/rive ${RIVEPLS_SOURCE_DIR}
-mkdir -p ${RIVEPLS_SOURCE_DIR}/shaders
-cp -v ${RIVEPLS_ORIGINAL_DIR}/renderer/shaders/constants.glsl ${RIVEPLS_SOURCE_DIR}/shaders
-# copy some extra includes from rive-cpp
-cp -r -v ${RIVECPP_ORIGINAL_DIR}/include/rive ${RIVEPLS_SOURCE_DIR}
-cp -r -v ${RIVECPP_ORIGINAL_DIR}/include/utils ${RIVEPLS_SOURCE_DIR}
-
-python ${RIVEPLS_MINIFY} -o ${RIVEPLS_GENERATED_DIR} ${RIVEPLS_ORIGINAL_DIR}/renderer/shaders/draw_path.glsl
+echo "COPY RIVE-RENDERER"
+cp -r -v ${RIVECPP_ORIGINAL_DIR}/include/rive ${RIVECPP_RENDERER_SOURCE_DIR}/include/rive
+cp -r -v ${RIVECPP_ORIGINAL_DIR}/include/utils ${RIVECPP_RENDERER_SOURCE_DIR}/include
+cp -r -v ${RIVECPP_ORIGINAL_DIR}/renderer/include ${RIVECPP_RENDERER_SOURCE_DIR}
+cp -r -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/*.cpp ${RIVECPP_RENDERER_SOURCE_DIR}/src
+cp -r -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/*.hpp ${RIVECPP_RENDERER_SOURCE_DIR}/src
+cp -r -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/shaders ${RIVECPP_RENDERER_SHADER_DIR}
 
 echo "*************************************************"
 echo "Setup shader source variables"
 
 source ${SCRIPT_DIR}/gen_embedded_shaders.sh
 
-DEFOLDSHADERS_INPUT_DIR=${SCRIPT_DIR}/../defold-rive/assets/pls-shaders
+DEFOLDSHADERS_INPUT_DIR=${SCRIPT_DIR}/../defold-rive/assets/shader-library
 DEFOLDSHADERS_INCLUDE_DIR=${SCRIPT_DIR}/../defold-rive/include/private/shaders
 DEFOLDSHADERS_SOURCE_DIR=${SOURCE_DIR}/defoldshaders/src
 
@@ -280,19 +315,6 @@ mkdir -p ${DEFOLDSHADERS_INCLUDE_DIR}
 mkdir -p ${DEFOLDSHADERS_SOURCE_DIR}
 
 echo "*************************************************"
-echo "Setup private renderer source variables"
-
-DEFOLDRENDERER_ORIGINAL_DIR=${SCRIPT_DIR}/../defold-rive/src/private
-DEFOLDRENDERER_INCLUDE_DIR=${SCRIPT_DIR}/../defold-rive/include
-DEFOLDRENDERER_SOURCE_DIR=${SOURCE_DIR}/rivedefold/src
-
-mkdir -p ${DEFOLDRENDERER_SOURCE_DIR}
-
-cp -v -r ${DEFOLDRENDERER_ORIGINAL_DIR} ${DEFOLDRENDERER_SOURCE_DIR}
-cp -v -r ${DEFOLDRENDERER_INCLUDE_DIR} ${DEFOLDRENDERER_SOURCE_DIR}
-
-echo "*************************************************"
-
 
 for platform in $PLATFORMS; do
 
@@ -300,7 +322,6 @@ for platform in $PLATFORMS; do
 
     platform_ne=$platform
     build_dir=./build/pls/libs/${PLATFORM}
-
 
     case ${platform} in
         x86_64-macos)
@@ -314,8 +335,18 @@ for platform in $PLATFORMS; do
     BUILD=$(realpath ${BUILD})
 
     echo "************************************************************"
+    echo "YOGA ${platform}"
+    echo "************************************************************"
+
+    export DEFINES="YOGA_EXPORT="
+    export INCLUDES="upload/src"
+    export CXXFLAGS="-std=c++17 -fno-rtti -fno-exceptions"
+    build_library yoga $platform $platform_ne ${RIVE_YOGA_SOURCE_DIR} ${BUILD}
+
+    echo "************************************************************"
     echo "HARFBUZZ ${platform}"
     echo "************************************************************"
+
     # This is copied from the rive-cpp/dependencies/premake5_harfbuzz.lua
     export CXXFLAGS="-std=c++17 -fno-rtti -fno-exceptions"
     export DEFINES="HAVE_CONFIG_H"
@@ -325,6 +356,7 @@ for platform in $PLATFORMS; do
     echo "************************************************************"
     echo "SHEENBIDI ${platform}"
     echo "************************************************************"
+
     export INCLUDES="upload/Headers" # TODO: Make includes work with relative paths
     export CXXFLAGS="-x c"
     unset DEFINES
@@ -333,14 +365,14 @@ for platform in $PLATFORMS; do
     echo "************************************************************"
     echo "TESS2 ${platform}"
     echo "************************************************************"
+
     export INCLUDES="upload/Include" # TODO: Make includes work with relative paths
     export CXXFLAGS="-x c"
     unset DEFINES
     build_library tess2 $platform $platform_ne ${LIBTESS2_SOURCE_DIR} ${BUILD}
 
-    # Rive CPP
     echo "************************************************************"
-    echo "RIVETESS ${platform}"
+    echo "RIVECPP TESS ${platform}"
     echo "************************************************************"
     unset DEFINES
     unset INCLUDES
@@ -350,33 +382,206 @@ for platform in $PLATFORMS; do
     echo "************************************************************"
     echo "RIVE CPP ${platform}"
     echo "************************************************************"
+
     export CXXFLAGS="-std=c++17 -fno-rtti -fno-exceptions"
-    export DEFINES="WITH_RIVE_TEXT"
+    export DEFINES="WITH_RIVE_TEXT WITH_RIVE_LAYOUT YOGA_EXPORT="
     unset INCLUDES
     build_library rive $platform $platform_ne ${RIVECPP_SOURCE_DIR} ${BUILD}
 
     echo "************************************************************"
-    echo "RIVE PLS ${platform}"
+    echo "RIVE Renderer ${platform}"
     echo "************************************************************"
-    # Rive PLS
-    export CXXFLAGS="-std=c++17 -fno-rtti -fno-exceptions"
-    export DEFINES="_CRT_USE_BUILTIN_OFFSETOF"
-    export INCLUDES="upload/src"
-    build_library rive_pls_renderer $platform $platform_ne ${RIVEPLS_TOP_DIR} ${BUILD}
+
+    RIVE_RENDERER_DEFINES=
+    RIVE_RENDERER_CXXFLAGS=
+    RIVE_RENDERER_INCLUDES=
+
+    # Due to a self include bug in rive_render_path.hpp, it references itself
+    # We workaround it by adding a copy in the relative path it asks for "../renderer/src/rive_render_path.hpp"
+    mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/renderer/src/
+    echo "// intentionally left empty due to the self include issue" > ${RIVECPP_RENDERER_SOURCE_DIR}/renderer/src/rive_render_path.hpp
+
+    case ${platform} in
+        arm64-android)
+            RIVE_RENDERER_DEFINES="RIVE_ANDROID"
+
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders
+
+            # remove any previously generated shaders
+            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && rm -rf ./out)
+            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make)
+
+            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/out/generated/*.*           ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/
+            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/*.glsl                      ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders/
+
+            # Common
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/gl_state.cpp                   ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/gl_utils.cpp                   ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/load_store_actions_ext.cpp     ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_buffer_gl_impl.cpp      ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_context_gl_impl.cpp     ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_target_gl.cpp           ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+
+            # Android specific
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/load_gles_extensions.cpp       ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_ext_native.cpp        ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_framebuffer_fetch.cpp ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            ;;
+        x86_64-win32|x86-win32)
+            RIVE_RENDERER_DEFINES="RIVE_DESKTOP_GL RIVE_WINDOWS"
+            ;;
+        x86_64-linux)
+            RIVE_RENDERER_DEFINES="RIVE_DESKTOP_GL RIVE_LINUX"
+            RIVE_RENDERER_INCLUDES="upload/src/glad"
+
+            # remove any previously generated shaders
+            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && rm -rf ./out)
+            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make rive_pls_macosx_metallib)
+
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/glad
+
+            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/out/generated/*.*           ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/
+            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/*.glsl                      ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders/
+
+            # Common
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/gl_state.cpp                   ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/gl_utils.cpp                   ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/load_store_actions_ext.cpp     ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_buffer_gl_impl.cpp      ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_context_gl_impl.cpp     ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_target_gl.cpp           ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_webgl.cpp             ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_rw_texture.cpp        ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.*                              ${RIVECPP_RENDERER_SOURCE_DIR}/glad
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.h                              ${RIVECPP_RENDERER_SOURCE_DIR}/include/rive/renderer/gl/
+            ;;
+
+        x86_64-macos|arm64-macos)
+            RIVE_RENDERER_DEFINES="RIVE_DESKTOP_GL RIVE_MACOSX"
+            RIVE_RENDERER_CXXFLAGS="-fobjc-arc"
+            RIVE_RENDERER_INCLUDES="upload/src/glad"
+
+            # remove any previously generated shaders
+            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && rm -rf ./out)
+            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make rive_pls_macosx_metallib)
+
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src/metal
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/glad
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders
+
+            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/out/generated/*.*       ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/
+            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/*.glsl                  ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders/
+
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/metal/*.*                     ${RIVECPP_RENDERER_SOURCE_DIR}/src/metal/
+
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/gl_state.cpp               ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/gl_utils.cpp               ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/load_store_actions_ext.cpp ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_buffer_gl_impl.cpp  ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_context_gl_impl.cpp ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_target_gl.cpp       ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_webgl.cpp         ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_rw_texture.cpp    ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.*                          ${RIVECPP_RENDERER_SOURCE_DIR}/glad
+
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.h                          ${RIVECPP_RENDERER_SOURCE_DIR}/include/rive/renderer/gl/
+            ;;
+      x86_64-ios|arm64-ios)
+
+            RIVE_RENDERER_DEFINES="RIVE_IOS"
+            if [ "${platform}" == "x86_64-ios" ]; then
+                RIVE_RENDERER_DEFINES="RIVE_IOS_SIMULATOR"
+            fi
+            RIVE_RENDERER_CXXFLAGS="-fobjc-arc"
+            RIVE_RENDERER_INCLUDES="upload/src/glad"
+
+            # remove any previously generated shaders
+            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && rm -rf ./out)
+            if [ "${platform}" == "x86_64-ios" ]; then
+                (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make rive_pls_ios_simulator_metallib)
+            else
+                (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make rive_pls_ios_metallib)
+            fi
+
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src/metal
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/glad
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders
+
+            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/out/generated/*.*       ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/
+            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/*.glsl                  ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/metal/*.*                     ${RIVECPP_RENDERER_SOURCE_DIR}/src/metal/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.*                          ${RIVECPP_RENDERER_SOURCE_DIR}/glad
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.h                          ${RIVECPP_RENDERER_SOURCE_DIR}/include/rive/renderer/gl/
+            ;;
+
+        wasm-web|js-web)
+            RIVE_RENDERER_DEFINES="RIVE_WEBGL RIVE_WEBGPU"
+
+            # NOTE: To build WebGL, you have to do the following manual steps:
+            #   * Don't pass a DEFOLDSDK to bob when building, you need to use a local dynamo home SDK
+            #   * In build_input.yml on the local SDK, remove the GL_ES_VERSION_2_0 define completely
+
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src/webgpu
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/spirv
+
+            # remove any previously generated shaders
+            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && rm -rf ./out)
+            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make spirv) # Remove spirv if not building for webgpu
+
+            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/out/generated/**.*       ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/
+            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/out/generated/spirv/**.* ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/spirv
+            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/*.glsl                   ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders/
+
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/gl_state.cpp               ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/gl_utils.cpp               ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/load_store_actions_ext.cpp ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_buffer_gl_impl.cpp  ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_context_gl_impl.cpp ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_target_gl.cpp       ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_webgl.cpp         ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+
+            # WebGPU
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/webgpu/**.*                   ${RIVECPP_RENDERER_SOURCE_DIR}/src/webgpu/
+    esac
+
+    export CXXFLAGS="-std=c++17 -fno-rtti -fno-exceptions ${RIVE_RENDERER_CXXFLAGS}"
+    export INCLUDES="upload/src/include/rive upload/src/include upload/src/src ${RIVE_RENDERER_INCLUDES}"
+    if [ "${RIVE_RENDERER_INCLUDES}" != "" ]; then
+        export INCLUDES="${INCLUDES} ${RIVE_RENDERER_INCLUDES}"
+    fi
+    if [ "${RIVE_RENDERER_DEFINES}" != "" ]; then
+        export DEFINES="${RIVE_RENDERER_DEFINES}"
+    fi
+
+    build_library rive_renderer $platform $platform_ne ${RIVECPP_RENDERER_SOURCE_DIR} ${BUILD}
 
     echo "************************************************************"
     echo "RIVE SHADERS ${platform}"
     echo "************************************************************"
-    # shaders
     unset DEFINES
     unset INCLUDES
     export CXXFLAGS="-x c"
     generate_cpp_sources ${platform} ${DEFOLDSHADERS_INPUT_DIR} ${DEFOLDSHADERS_SOURCE_DIR}
     build_library riveshaders $platform $platform_ne ${DEFOLDSHADERS_SOURCE_DIR} ${BUILD}
 
-    mkdir -p ${DEFOLDSHADERS_INCLUDE_DIR}
-    rm -v ${DEFOLDSHADERS_INCLUDE_DIR}/*.gen.h
-    cp -v ${DEFOLDSHADERS_SOURCE_DIR}/*.gen.h ${DEFOLDSHADERS_INCLUDE_DIR}
+    # TODO: Fix this (paths are wrong)
+    # mkdir -p ${DEFOLDSHADERS_INCLUDE_DIR}
+    # rm -v ${DEFOLDSHADERS_INCLUDE_DIR}/*.gen.h
+    # cp -v ${DEFOLDSHADERS_SOURCE_DIR}/*.gen.h ${DEFOLDSHADERS_INCLUDE_DIR}
 done
 
 

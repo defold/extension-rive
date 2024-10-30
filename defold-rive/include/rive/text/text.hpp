@@ -1,6 +1,7 @@
 #ifndef _RIVE_TEXT_CORE_HPP_
 #define _RIVE_TEXT_CORE_HPP_
 #include "rive/generated/text/text_base.hpp"
+#include "rive/math/aabb.hpp"
 #include "rive/text/text_value_run.hpp"
 #include "rive/text_engine.hpp"
 #include "rive/simple_array.hpp"
@@ -21,7 +22,8 @@ enum class TextOverflow : uint8_t
     visible,
     hidden,
     clipped,
-    ellipsis
+    ellipsis,
+    fit,
 };
 
 enum class TextOrigin : uint8_t
@@ -170,14 +172,18 @@ public:
     Core* hitTest(HitInfo*, const Mat2D&) override;
     void addRun(TextValueRun* run);
     void addModifierGroup(TextModifierGroup* group);
-    void markShapeDirty();
+    void markShapeDirty(bool sendToLayout = true);
     void modifierShapeDirty();
     void markPaintDirty();
     void update(ComponentDirt value) override;
+    Mat2D m_transform;
 
     TextSizing sizing() const { return (TextSizing)sizingValue(); }
+    TextSizing effectiveSizing() const;
     TextOverflow overflow() const { return (TextOverflow)overflowValue(); }
     TextOrigin textOrigin() const { return (TextOrigin)originValue(); }
+    TextWrap wrap() const { return (TextWrap)wrapValue(); }
+    VerticalTextAlign verticalAlign() const { return (VerticalTextAlign)verticalAlignValue(); }
     void overflow(TextOverflow value) { return overflowValue((uint32_t)value); }
     void buildRenderStyles();
     const TextStyle* styleFromShaperId(uint16_t id) const;
@@ -185,8 +191,24 @@ public:
     AABB localBounds() const override;
     void originXChanged() override;
     void originYChanged() override;
+
+    Vec2D measureLayout(float width,
+                        LayoutMeasureMode widthMode,
+                        float height,
+                        LayoutMeasureMode heightMode) override;
+    void controlSize(Vec2D size) override;
+    float effectiveWidth() { return std::isnan(m_layoutWidth) ? width() : m_layoutWidth; }
+    float effectiveHeight() { return std::isnan(m_layoutHeight) ? height() : m_layoutHeight; }
 #ifdef WITH_RIVE_TEXT
     const std::vector<TextValueRun*>& runs() const { return m_runs; }
+    static SimpleArray<SimpleArray<GlyphLine>> BreakLines(const SimpleArray<Paragraph>& paragraphs,
+                                                          float width,
+                                                          TextAlign align,
+                                                          TextWrap wrap);
+#endif
+
+#ifdef WITH_RIVE_LAYOUT
+    void markLayoutNodeDirty();
 #endif
 
     bool haveModifiers() const
@@ -235,6 +257,12 @@ private:
 
     GlyphLookup m_glyphLookup;
 #endif
+    float m_layoutWidth = NAN;
+    float m_layoutHeight = NAN;
+    // If set to true, it means the parent LayoutComponent is set to hug
+    // and has called measureLayout() on this text component
+    bool m_layoutMeasured = false;
+    Vec2D measure(Vec2D maxSize);
 };
 } // namespace rive
 

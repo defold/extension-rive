@@ -45,6 +45,8 @@
 // Defold Rive Renderer
 #include "renderer.h"
 
+#include <private/defold_graphics.h>
+
 // DMSDK
 #include <dmsdk/script.h>
 #include <dmsdk/dlib/log.h>
@@ -79,6 +81,23 @@ DM_PROPERTY_U32(rmtp_RiveComponents, 0, FrameReset, "# rive components", &rmtp_R
 namespace dmGraphics
 {
     float GetDisplayScaleFactor(HContext context);
+
+    enum AdapterFamily
+    {
+        ADAPTER_FAMILY_NONE   = -1,
+        ADAPTER_FAMILY_NULL   = 1,
+        ADAPTER_FAMILY_OPENGL = 2,
+        ADAPTER_FAMILY_VULKAN = 3,
+        ADAPTER_FAMILY_VENDOR = 4,
+        ADAPTER_FAMILY_WEBGPU = 5,
+    };
+
+    AdapterFamily GetInstalledAdapterFamily();
+}
+
+namespace dmRender
+{
+    dmGraphics::HVertexDeclaration GetVertexDeclaration(HMaterial material);
 }
 
 namespace dmRive
@@ -90,8 +109,6 @@ namespace dmRive
     static const dmhash_t PROP_PLAYBACK_RATE      = dmHashString64("playback_rate");
     static const dmhash_t PROP_MATERIAL           = dmHashString64("material");
     static const dmhash_t MATERIAL_EXT_HASH       = dmHashString64("materialc");
-    // static const dmhash_t UNIFORM_TRANSFORM_LOCAL = dmHashString64("transform_local");
-    // static const dmhash_t UNIFORM_COVER           = dmHashString64("cover");
 
     static float g_DisplayFactor = 1.0f;
 
@@ -124,6 +141,7 @@ namespace dmRive
         dmObjectPool<RiveComponent*>            m_Components;
         dmArray<dmRender::RenderObject>         m_RenderObjects;
         dmArray<dmRender::HNamedConstantBuffer> m_RenderConstants; // 1:1 mapping with the render objects
+        dmGraphics::HVertexBuffer               m_BlitToBackbufferVertexBuffer;
     };
 
     dmGameObject::CreateResult CompRiveNewWorld(const dmGameObject::ComponentNewWorldParams& params)
@@ -137,6 +155,27 @@ namespace dmRive
         world->m_RenderConstants.SetCapacity(context->m_MaxInstanceCount);
         world->m_RenderConstants.SetSize(context->m_MaxInstanceCount);
 
+        float bottom = 0.0f;
+        float top    = 1.0f;
+
+        // Flip texture coordinates on y axis for OpenGL
+        if (dmGraphics::GetInstalledAdapterFamily() == dmGraphics::ADAPTER_FAMILY_OPENGL)
+        {
+            top    = 0.0f;
+            bottom = 1.0f;
+        }
+
+        const float vertex_data[] = {
+            -1.0f, -1.0f, 0.0f, bottom,  // Bottom-left corner
+             1.0f, -1.0f, 1.0f, bottom,  // Bottom-right corner
+            -1.0f,  1.0f, 0.0f, top,     // Top-left corner
+             1.0f, -1.0f, 1.0f, bottom,  // Bottom-right corner
+             1.0f,  1.0f, 1.0f, top,     // Top-right corner
+            -1.0f,  1.0f, 0.0f, top      // Top-left corner
+        };
+
+        world->m_BlitToBackbufferVertexBuffer = dmGraphics::NewVertexBuffer(context->m_GraphicsContext, sizeof(vertex_data), (void*) vertex_data, dmGraphics::BUFFER_USAGE_STATIC_DRAW);
+
         memset(world->m_RenderConstants.Begin(), 0, sizeof(dmGameSystem::HComponentRenderConstants)*world->m_RenderConstants.Capacity());
 
         *params.m_World = world;
@@ -149,6 +188,8 @@ namespace dmRive
     dmGameObject::CreateResult CompRiveDeleteWorld(const dmGameObject::ComponentDeleteWorldParams& params)
     {
         RiveWorld* world = (RiveWorld*)params.m_World;
+
+        dmGraphics::DeleteVertexBuffer(world->m_BlitToBackbufferVertexBuffer);
 
         dmResource::UnregisterResourceReloadedCallback(((CompRiveContext*)params.m_Context)->m_Factory, ResourceReloadedCallback, world);
 
@@ -347,45 +388,6 @@ namespace dmRive
         return dmGameObject::CREATE_RESULT_OK;
     }
 
-    // static void GetBlendFactorsFromBlendMode(rive::BlendMode blend_mode, dmGraphics::BlendFactor* src, dmGraphics::BlendFactor* dst)
-    // {
-    //     switch(blend_mode)
-    //     {
-    //         case rive::BlendMode::srcOver:
-    //             // JG: Some textures look strange without one here for src, but the sokol viewer sets these blend modes so not sure what to do here
-    //             //*src = dmGraphics::BLEND_FACTOR_ONE;
-    //             *src = dmGraphics::BLEND_FACTOR_SRC_ALPHA;
-    //             *dst = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    //         break;
-
-    //         case rive::BlendMode::colorDodge:
-    //             *src = dmGraphics::BLEND_FACTOR_DST_COLOR; // SG_BLENDFACTOR_SRC_ALPHA
-    //             *dst = dmGraphics::BLEND_FACTOR_ONE;       // SG_BLENDFACTOR_ONE;
-    //         break;
-
-    //         case rive::BlendMode::multiply:
-    //             *src = dmGraphics::BLEND_FACTOR_DST_COLOR;           // SG_BLENDFACTOR_DST_COLOR
-    //             *dst = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA; // SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA
-    //         break;
-
-    //         case rive::BlendMode::screen:
-    //             *src = dmGraphics::BLEND_FACTOR_ONE_MINUS_DST_COLOR;
-    //             *dst = dmGraphics::BLEND_FACTOR_ONE;
-    //         break;
-
-    //         default:
-    //             /*
-    //             if ((int) blend_mode != 0)
-    //             {
-    //                 dmLogOnceWarning("Blend mode '%s' (%d) is not supported, defaulting to '%s'", dmRive::BlendModeToStr(blend_mode), (int) blend_mode, BlendModeToStr(rive::BlendMode::srcOver));
-    //             }
-    //             */
-    //             *src = dmGraphics::BLEND_FACTOR_SRC_ALPHA;
-    //             *dst = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    //         break;
-    //     }
-    // }
-
     static void GetBlendFactorsFromBlendMode(dmRiveDDF::RiveModelDesc::BlendMode blend_mode, dmGraphics::BlendFactor* src, dmGraphics::BlendFactor* dst)
     {
         switch (blend_mode)
@@ -417,6 +419,27 @@ namespace dmRive
         }
     }
 
+    static void RenderBatchEnd(RiveWorld* world, dmRender::HRenderContext render_context)
+    {
+        if (world->m_RiveRenderContext)
+        {
+            RenderEnd(world->m_RiveRenderContext);
+
+            // Do our own resolve here
+            dmRender::RenderObject& ro = *world->m_RenderObjects.End();
+            world->m_RenderObjects.SetSize(world->m_RenderObjects.Size()+1);
+            ro.Init();
+            ro.m_Material          = GetBlitToBackBufferMaterial(world->m_RiveRenderContext, render_context);
+            ro.m_VertexDeclaration = dmRender::GetVertexDeclaration(ro.m_Material);
+            ro.m_VertexBuffer      = world->m_BlitToBackbufferVertexBuffer;
+            ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
+            ro.m_VertexStart       = 0;
+            ro.m_VertexCount       = 6;
+            ro.m_Textures[0]       = GetBackingTexture(world->m_RiveRenderContext);
+            dmRender::AddToRender(render_context, &ro);
+        }
+    }
+
     static void RenderBatch(RiveWorld* world, dmRender::HRenderContext render_context, dmRender::RenderListEntry *buf, uint32_t* begin, uint32_t* end)
     {
         RiveComponent*              first    = (RiveComponent*) buf[*begin].m_UserData;
@@ -424,13 +447,15 @@ namespace dmRive
         dmRive::RiveSceneData* data          = (dmRive::RiveSceneData*) scene_res->m_Scene;
         world->m_RiveRenderContext           = data->m_RiveRenderContext;
 
-        RenderBegin(world->m_RiveRenderContext, scene_res->m_Shaders, world->m_Ctx->m_Factory);
+        RenderBegin(world->m_RiveRenderContext, world->m_Ctx->m_Factory);
 
         uint32_t width, height;
         GetDimensions(world->m_RiveRenderContext, &width, &height);
 
         rive::Mat2D viewTransform = GetViewTransform(world->m_RiveRenderContext, render_context);
         rive::Renderer* renderer = GetRiveRenderer(world->m_RiveRenderContext);
+
+        uint32_t window_height = dmGraphics::GetWindowHeight(world->m_Ctx->m_GraphicsContext);
 
         for (uint32_t *i=begin;i!=end;i++)
         {
@@ -456,13 +481,8 @@ namespace dmRive
 
             renderer->align(rive::Fit::none,
                 rive::Alignment::center,
-                rive::AABB(-bounds.width(), -bounds.height(), bounds.width(), bounds.height()),
+                rive::AABB(-bounds.width(), bounds.height(), bounds.width(), -bounds.height()),
                 bounds);
-
-            // Store the inverse view so we can later go from screen to world.
-            //m_InverseViewTransform = viewTransform.invertOrIdentity();
-
-            // renderer->SetAtlas(c->m_Resource->m_Scene->m_Atlas);
 
             if (c->m_StateMachineInstance) {
                 c->m_StateMachineInstance->draw(renderer);
@@ -511,7 +531,7 @@ namespace dmRive
         return dmGameObject::CREATE_RESULT_OK;
     }
 
-    static bool GetSender(RiveComponent* component, dmMessage::URL* out_sender)
+    static bool GetSender(RiveComponent* component, dmMessage::URL* out_sender)  
     {
         dmMessage::URL sender;
         sender.m_Socket = dmGameObject::GetMessageSocket(dmGameObject::GetCollection(component->m_Instance));
@@ -766,6 +786,7 @@ namespace dmRive
         {
             case dmRender::RENDER_LIST_OPERATION_BEGIN:
             {
+                world->m_RenderObjects.SetSize(0);
                 break;
             }
             case dmRender::RENDER_LIST_OPERATION_BATCH:
@@ -775,10 +796,7 @@ namespace dmRive
             }
             case dmRender::RENDER_LIST_OPERATION_END:
             {
-                if (world->m_RiveRenderContext)
-                {
-                    RenderEnd(world->m_RiveRenderContext);
-                }
+                RenderBatchEnd(world, params.m_Context);
                 break;
             }
             default:
@@ -1257,7 +1275,12 @@ namespace dmRive
         rivectx->m_RenderContext    = *(dmRender::HRenderContext*)ctx->m_Contexts.Get(dmHashString64("render"));
         rivectx->m_MaxInstanceCount = dmConfigFile::GetInt(ctx->m_Config, "rive.max_instance_count", 128);
 
-        g_DisplayFactor = dmGraphics::GetDisplayScaleFactor(rivectx->m_GraphicsContext);
+        float scale_factor_width = (float) dmGraphics::GetWindowWidth(rivectx->m_GraphicsContext) / (float) dmGraphics::GetWidth(rivectx->m_GraphicsContext);
+        float scale_factor_height = (float) dmGraphics::GetWindowHeight(rivectx->m_GraphicsContext) / (float) dmGraphics::GetHeight(rivectx->m_GraphicsContext);
+        float scale_factor_engine = dmGraphics::GetDisplayScaleFactor(rivectx->m_GraphicsContext);
+        g_DisplayFactor = dmMath::Max(scale_factor_engine, dmMath::Max(scale_factor_width, scale_factor_height));
+
+        dmLogInfo("Display Factor: %g", g_DisplayFactor);
 
         // after script/anim/gui, before collisionobject
         // the idea is to let the scripts/animations update the game object instance,

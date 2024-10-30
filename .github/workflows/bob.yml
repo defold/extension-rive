@@ -12,7 +12,7 @@ jobs:
   build_with_bob:
     strategy:
       matrix:
-        platform: [armv7-android, x86_64-linux]
+        platform: [arm64-android, x86_64-linux]
     runs-on: ubuntu-latest
 
     name: Build
@@ -50,9 +50,9 @@ jobs:
       - name: Resolve libraries
         run: java -jar bob.jar resolve --email a@b.com --auth 123456
       - name: Build
-        run: java -jar bob.jar --platform=${{ matrix.platform }} build --archive --build-server=${{env.BUILD_SERVER}}
+        run: java -jar bob.jar --platform=${{ matrix.platform }} --architectures=${{ matrix.platform }} build --archive --build-server=${{env.BUILD_SERVER}}
       - name: Bundle
-        run: java -jar bob.jar --platform=${{ matrix.platform }} bundle
+        run: java -jar bob.jar --platform=${{ matrix.platform }} --architectures=${{ matrix.platform }} bundle
 
   build_with_bob_windows:
     strategy:

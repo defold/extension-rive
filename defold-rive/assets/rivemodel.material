@@ -2,16 +2,9 @@ name: "rive-test"
 tags: "rive"
 vertex_program: "/defold-rive/assets/rive.vp"
 fragment_program: "/defold-rive/assets/rive.fp"
-vertex_space: VERTEX_SPACE_WORLD
 vertex_constants {
   name: "world_view_proj"
   type: CONSTANT_TYPE_WORLDVIEWPROJ
-  value {
-    x: 0.0
-    y: 0.0
-    z: 0.0
-    w: 0.0
-  }
 }
 fragment_constants {
   name: "colors"
@@ -27,30 +20,18 @@ fragment_constants {
   name: "stops"
   type: CONSTANT_TYPE_USER
   value {
-    x: 0.0
-    y: 0.0
-    z: 0.0
-    w: 0.0
   }
 }
 fragment_constants {
   name: "properties"
   type: CONSTANT_TYPE_USER
   value {
-    x: 0.0
-    y: 0.0
-    z: 0.0
-    w: 0.0
   }
 }
 fragment_constants {
   name: "gradientLimits"
   type: CONSTANT_TYPE_USER
   value {
-    x: 0.0
-    y: 0.0
-    z: 0.0
-    w: 0.0
   }
 }
 samplers {
@@ -61,4 +42,3 @@ samplers {
   filter_mag: FILTER_MODE_MAG_LINEAR
   max_anisotropy: 0.0
 }
-max_page_count: 0

@@ -202,42 +202,35 @@ namespace dmGraphics
 
     HRenderTarget NewRenderTarget(HContext context, uint32_t buffer_type_flags, const RenderTargetCreationParams params);
     void          DeleteRenderTarget(HRenderTarget render_target);
-    void          SetRenderTarget(HContext context, HRenderTarget render_target, uint32_t transient_buffer_types);
+    void          SetRenderTargetSize(HRenderTarget render_target, uint32_t width, uint32_t height);
 
     HUniformLocation GetUniformLocation(HProgram prog, const char* name);
     uint32_t         GetUniformName(HProgram prog, uint32_t index, char* buffer, uint32_t buffer_size, Type* type, int32_t* size);
     uint32_t         GetUniformCount(HProgram prog);
     HProgram         NewProgram(HContext context, HVertexProgram vertex_program, HFragmentProgram fragment_program);
 
+    void SetStencilMask(HContext context, uint32_t mask);
+    void SetStencilFunc(HContext context, CompareFunc func, uint32_t ref, uint32_t mask);
+    void SetStencilFuncSeparate(HContext context, FaceType face_type, CompareFunc func, uint32_t ref, uint32_t mask);
+    void SetStencilOp(HContext context, StencilOp sfail, StencilOp dpfail, StencilOp dppass);
+    void SetStencilOpSeparate(HContext context, FaceType face_type, StencilOp sfail, StencilOp dpfail, StencilOp dppass);
+
     uint32_t GetWindowWidth(HContext context);
 	uint32_t GetWindowHeight(HContext context);
 
-	void SetCullFace(HContext context, FaceType face_type);
+    uint32_t GetWidth(HContext context);
+    uint32_t GetHeight(HContext context);
 
+	void SetCullFace(HContext context, FaceType face_type);
 	void EnableState(HContext context, State state);
     void DisableState(HContext context, State state);
-
-    void SetViewport(HContext context, int32_t x, int32_t y, int32_t width, int32_t height);
-
-    void     EnableVertexBuffer(HContext context, HVertexBuffer vertex_buffer, uint32_t binding_index);
-    void     DisableVertexBuffer(HContext context, HVertexBuffer vertex_buffer);
-
-    void     EnableVertexDeclaration(HContext context, HVertexDeclaration vertex_declaration, uint32_t binding_index, HProgram program);
-    void     DisableVertexDeclaration(HContext context, HVertexDeclaration vertex_declaration);
-
-    void        EnableTexture(HContext context, uint32_t unit, uint8_t id_index, HTexture texture);
-    void SetSampler(HContext context, HUniformLocation location, int32_t unit);
-    void        DisableTexture(HContext context, uint32_t unit, HTexture texture);
-
-    void DrawElements(HContext context, PrimitiveType prim_type, uint32_t first, uint32_t count, Type type, HIndexBuffer index_buffer);
-    void Draw(HContext context, PrimitiveType prim_type, uint32_t first, uint32_t count);
-
-    void                 EnableProgram(HContext context, HProgram program);
-    void                 DisableProgram(HContext context);
+    void SetBlendFunc(HContext context, BlendFactor source_factor, BlendFactor destinaton_factor);
+    void SetColorMask(HContext context, bool red, bool green, bool blue, bool alpha);
 
     PipelineState GetPipelineState(HContext context);
 
-    void        SetTextureParams(HTexture texture, TextureFilter minfilter, TextureFilter magfilter, TextureWrap uwrap, TextureWrap vwrap, float max_anisotropy);
+    void     RepackRGBToRGBA(uint32_t num_pixels, uint8_t* rgb, uint8_t* rgba);
+    HContext GetInstalledContext();
 }
 
 #endif
