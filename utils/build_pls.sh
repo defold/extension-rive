@@ -7,7 +7,7 @@ OUTPUT_LIB_DIR=${SCRIPT_DIR}/../defold-rive/lib
 PLATFORMS=$1
 # web isn't yet supported: js-web wasm-web
 if [ "" == "${PLATFORMS}" ]; then
-    PLATFORMS="x86_64-macos arm64-macos x86_64-linux x86_64-win32 x86-win32 arm64-ios x86_64-ios arm64-android armv7-android"
+    PLATFORMS="x86_64-macos arm64-macos x86_64-linux x86_64-win32 x86-win32 arm64-ios x86_64-ios arm64-android"
 fi
 
 DEFAULT_SERVER_NAME=build-stage.defold.com
@@ -61,7 +61,7 @@ function stripfile() {
         x86_64-macos|arm64-macos|arm64-ios|x86_64-ios)
             STRIP=$(which strip)
             ;;
-        arm64-android|armv7-android)
+        arm64-android)
             STRIP=$(find ~/Library/android/sdk -iname "*llvm-strip" | sort -r | head -n 1)
             ;;
     esac
@@ -402,7 +402,7 @@ for platform in $PLATFORMS; do
     echo "// intentionally left empty due to the self include issue" > ${RIVECPP_RENDERER_SOURCE_DIR}/renderer/src/rive_render_path.hpp
 
     case ${platform} in
-        armv7-android|arm64-android)
+        arm64-android)
             RIVE_RENDERER_DEFINES="RIVE_ANDROID"
 
             mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl

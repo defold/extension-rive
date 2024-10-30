@@ -12,7 +12,7 @@ jobs:
   build_with_bob:
     strategy:
       matrix:
-        platform: [armv7-android, x86_64-linux]
+        platform: [arm64-android, x86_64-linux]
     runs-on: ubuntu-latest
 
     name: Build
