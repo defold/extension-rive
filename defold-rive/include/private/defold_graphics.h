@@ -228,6 +228,9 @@ namespace dmGraphics
     void SetColorMask(HContext context, bool red, bool green, bool blue, bool alpha);
 
     PipelineState GetPipelineState(HContext context);
+
+    void     RepackRGBToRGBA(uint32_t num_pixels, uint8_t* rgb, uint8_t* rgba);
+    HContext GetInstalledContext();
 }
 
 #endif

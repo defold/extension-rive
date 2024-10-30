@@ -432,6 +432,35 @@ for platform in $PLATFORMS; do
         x86_64-win32|x86-win32)
             RIVE_RENDERER_DEFINES="RIVE_DESKTOP_GL RIVE_WINDOWS"
             ;;
+        x86_64-linux)
+            RIVE_RENDERER_DEFINES="RIVE_DESKTOP_GL RIVE_LINUX"
+            RIVE_RENDERER_INCLUDES="upload/src/glad"
+
+            # remove any previously generated shaders
+            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && rm -rf ./out)
+            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make rive_pls_macosx_metallib)
+
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/glad
+
+            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/out/generated/*.*           ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/
+            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/*.glsl                      ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders/
+
+            # Common
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/gl_state.cpp                   ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/gl_utils.cpp                   ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/load_store_actions_ext.cpp     ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_buffer_gl_impl.cpp      ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_context_gl_impl.cpp     ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_target_gl.cpp           ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_webgl.cpp             ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_rw_texture.cpp        ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.*                              ${RIVECPP_RENDERER_SOURCE_DIR}/glad
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.h                              ${RIVECPP_RENDERER_SOURCE_DIR}/include/rive/renderer/gl/
+            ;;
 
         x86_64-macos|arm64-macos)
             RIVE_RENDERER_DEFINES="RIVE_DESKTOP_GL RIVE_MACOSX"
@@ -538,7 +567,7 @@ for platform in $PLATFORMS; do
         export DEFINES="${RIVE_RENDERER_DEFINES}"
     fi
 
-    #build_library rive_renderer $platform $platform_ne ${RIVECPP_RENDERER_SOURCE_DIR} ${BUILD}
+    build_library rive_renderer $platform $platform_ne ${RIVECPP_RENDERER_SOURCE_DIR} ${BUILD}
 
     echo "************************************************************"
     echo "RIVE SHADERS ${platform}"
@@ -549,9 +578,10 @@ for platform in $PLATFORMS; do
     generate_cpp_sources ${platform} ${DEFOLDSHADERS_INPUT_DIR} ${DEFOLDSHADERS_SOURCE_DIR}
     build_library riveshaders $platform $platform_ne ${DEFOLDSHADERS_SOURCE_DIR} ${BUILD}
 
-    mkdir -p ${DEFOLDSHADERS_INCLUDE_DIR}
-    rm -v ${DEFOLDSHADERS_INCLUDE_DIR}/*.gen.h
-    cp -v ${DEFOLDSHADERS_SOURCE_DIR}/*.gen.h ${DEFOLDSHADERS_INCLUDE_DIR}
+    # TODO: Fix this (paths are wrong)
+    # mkdir -p ${DEFOLDSHADERS_INCLUDE_DIR}
+    # rm -v ${DEFOLDSHADERS_INCLUDE_DIR}/*.gen.h
+    # cp -v ${DEFOLDSHADERS_SOURCE_DIR}/*.gen.h ${DEFOLDSHADERS_INCLUDE_DIR}
 done
 
 

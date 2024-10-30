@@ -9,11 +9,9 @@ platforms:
     x86_64-linux:
         context:
             flags:      ["-std=c++17", "-fno-rtti"]
-            excludeLibs: [graphics]
-            excludeSymbols: [GraphicsAdapterOpenGL]
-            symbols: [GraphicsAdapterVulkan]
-            libs: [graphics_vulkan, X11-xcb]
-            dynamicLibs: [vulkan]
+            defines:    ["DM_RIVE_USE_OPENGL", "RIVE_LINUX", "RIVE_DESKTOP_GL"]
+            cxxShFlags:     ["-std=c++17", "-fno-rtti"]
+            cxxLinkShFlags: ["-std=c++17"]
 
     win32:
         context:

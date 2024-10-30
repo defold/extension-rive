@@ -1,6 +1,11 @@
 
 #ifdef DM_RIVE_USE_OPENGL
 
+// NOTE FOR LINUX:
+// If there are issues linking linux (opengl/glad related symbols already defined),
+// the current solution is to define GLAPI with extern linkage in glad_custom.h
+// At some point it would be nice to have a proper solution, but for now it's good enough..
+
 #if defined(RIVE_ANDROID) || defined(RIVE_WEBGL)
     #undef GL_ES_VERSION_2_0
     #undef GL_ES_VERSION_3_0

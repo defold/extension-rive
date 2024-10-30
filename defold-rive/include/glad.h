@@ -88,6 +88,9 @@ typedef void* (* GLADloadproc)(const char *name);
 # else
 #  define GLAPI extern
 # endif
+#else
+// Defold modification for linux!
+#define GLAPI extern
 #endif
 
 GLAPI struct gladGLversionStruct GLVersion;

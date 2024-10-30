@@ -1,6 +1,6 @@
 #include <dmsdk/dlib/log.h>
 #include <dmsdk/dlib/image.h>
-#include <dmsdk/graphics/graphics_vulkan.h> // REMOVE
+#include <dmsdk/graphics/graphics_vulkan.h>
 
 #include "renderer_context.h"
 
@@ -11,6 +11,7 @@
 #include <rive/renderer/rive_render_image.hpp>
 
 #include <private/defold_graphics.h>
+#include <private/defold_render.h>
 #include <private/shaders/rivemodel_blit.vpc.gen.h>
 #include <private/shaders/rivemodel_blit.fpc.gen.h>
 
@@ -23,22 +24,6 @@ namespace dmResource
 {
     void IncRef(HFactory factory, void* resource);
 }
-
-namespace dmGraphics
-{
-    void     RepackRGBToRGBA(uint32_t num_pixels, uint8_t* rgb, uint8_t* rgba);
-    HContext GetInstalledContext();
-}
-
-namespace dmRender
-{
-    const dmVMath::Matrix4& GetViewMatrix(HRenderContext render_context);
-    const dmVMath::Matrix4& GetViewProjectionMatrix(HRenderContext render_context);
-    HMaterial               NewMaterial(HRenderContext render_context, dmGraphics::HVertexProgram vertex_program, dmGraphics::HFragmentProgram fragment_program);
-    void                    SetMaterialTags(HMaterial material, uint32_t tag_count, const dmhash_t* tags);
-}
-
-// DM_RIVE_USE_OPENGL
 
 namespace dmRive
 {
