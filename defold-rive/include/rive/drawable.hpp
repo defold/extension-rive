@@ -33,30 +33,36 @@ public:
     virtual void draw(Renderer* renderer) = 0;
     virtual Core* hitTest(HitInfo*, const Mat2D&) = 0;
     void addClippingShape(ClippingShape* shape);
-    inline const std::vector<ClippingShape*>& clippingShapes() const { return m_ClippingShapes; }
-
-    inline bool isHidden() const
+    inline const std::vector<ClippingShape*>& clippingShapes() const
     {
-        return (static_cast<DrawableFlag>(drawableFlags()) & DrawableFlag::Hidden) ==
-                   DrawableFlag::Hidden ||
+        return m_ClippingShapes;
+    }
+
+    virtual bool isHidden() const
+    {
+        return (static_cast<DrawableFlag>(drawableFlags()) &
+                DrawableFlag::Hidden) == DrawableFlag::Hidden ||
                hasDirt(ComponentDirt::Collapsed);
     }
 
     inline bool isTargetOpaque() const
     {
-        return (static_cast<DrawableFlag>(drawableFlags()) & DrawableFlag::Opaque) ==
-               DrawableFlag::Opaque;
+        return (static_cast<DrawableFlag>(drawableFlags()) &
+                DrawableFlag::Opaque) == DrawableFlag::Opaque;
     }
 
     bool isChildOfLayout(LayoutComponent* layout);
 
     StatusCode onAddedDirty(CoreContext* context) override;
+
+    virtual Drawable* hittableComponent() { return this; }
 };
 
 class ProxyDrawing
 {
 public:
     virtual void drawProxy(Renderer* renderer) = 0;
+    virtual bool isProxyHidden() = 0;
 };
 
 class DrawableProxy : public Drawable
@@ -67,9 +73,18 @@ private:
 public:
     DrawableProxy(ProxyDrawing* proxy) : m_proxyDrawing(proxy) {}
 
-    void draw(Renderer* renderer) override { m_proxyDrawing->drawProxy(renderer); }
+    void draw(Renderer* renderer) override
+    {
+        m_proxyDrawing->drawProxy(renderer);
+    }
+
+    bool isHidden() const override { return m_proxyDrawing->isProxyHidden(); }
+
+    Drawable* hittableComponent() override;
 
     Core* hitTest(HitInfo*, const Mat2D&) override { return nullptr; }
+
+    ProxyDrawing* proxyDrawing() const { return m_proxyDrawing; }
 };
 } // namespace rive
 

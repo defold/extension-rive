@@ -13,6 +13,8 @@ namespace rive
 class Path;
 class PathComposer;
 class HitTester;
+class RenderPathDeformer;
+
 class Shape : public ShapeBase, public ShapePaintContainer
 {
 private:
@@ -21,6 +23,7 @@ private:
     AABB m_WorldBounds;
 
     bool m_WantDifferencePath = false;
+    RenderPathDeformer* m_deformer = nullptr;
 
     Artboard* getArtboard() override { return artboard(); }
 
@@ -43,28 +46,32 @@ public:
     const PathComposer* pathComposer() const { return &m_PathComposer; }
     PathComposer* pathComposer() { return &m_PathComposer; }
 
+    RenderPathDeformer* deformer() const { return m_deformer; }
+
     void pathChanged();
     void addFlags(PathFlags flags);
     bool isFlagged(PathFlags flags) const;
     StatusCode onAddedDirty(CoreContext* context) override;
+    StatusCode onAddedClean(CoreContext* context) override;
     bool isEmpty();
     void pathCollapseChanged();
 
     AABB worldBounds()
     {
-        if ((static_cast<DrawableFlag>(drawableFlags()) & DrawableFlag::WorldBoundsClean) !=
-            DrawableFlag::WorldBoundsClean)
+        if ((static_cast<DrawableFlag>(drawableFlags()) &
+             DrawableFlag::WorldBoundsClean) != DrawableFlag::WorldBoundsClean)
         {
-            drawableFlags(drawableFlags() |
-                          static_cast<unsigned short>(DrawableFlag::WorldBoundsClean));
+            drawableFlags(
+                drawableFlags() |
+                static_cast<unsigned short>(DrawableFlag::WorldBoundsClean));
             m_WorldBounds = computeWorldBounds();
         }
         return m_WorldBounds;
     }
     void markBoundsDirty()
     {
-        drawableFlags(drawableFlags() &
-                      ~static_cast<unsigned short>(DrawableFlag::WorldBoundsClean));
+        drawableFlags(drawableFlags() & ~static_cast<unsigned short>(
+                                            DrawableFlag::WorldBoundsClean));
     }
 
     AABB computeWorldBounds(const Mat2D* xform = nullptr) const;

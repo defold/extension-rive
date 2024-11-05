@@ -34,7 +34,10 @@ public:
     ~ResourceFactory();
 
     VulkanContext* vulkanContext() const { return m_vk.get(); }
-    rcp<CommandBuffer> make() { return make_rcp<CommandBuffer>(m_vk, m_vkCommandPool); }
+    rcp<CommandBuffer> make()
+    {
+        return make_rcp<CommandBuffer>(m_vk, m_vkCommandPool);
+    }
     operator VkCommandPool() const { return m_vkCommandPool; }
 
 private:
@@ -56,18 +59,21 @@ public:
 
     ~ResourcePool()
     {
-        m_releasedResources.clear(); // Delete resources before freeing the factory.
+        m_releasedResources
+            .clear(); // Delete resources before freeing the factory.
     }
 
     rcp<T> make()
     {
         rcp<T> resource;
-        if (!m_releasedResources.empty() && m_factory.vulkanContext()->currentFrameIdx() >=
-                                                m_releasedResources.front().expirationFrameIdx)
+        if (!m_releasedResources.empty() &&
+            m_factory.vulkanContext()->currentFrameIdx() >=
+                m_releasedResources.front().expirationFrameIdx)
         {
             resource = ref_rcp(m_releasedResources.front().resource.release());
             m_releasedResources.pop_front();
             resource->reset();
+            cleanExcessExpiredResources();
         }
         else
         {
@@ -84,17 +90,24 @@ public:
         assert(mutableResource->debugging_refcnt() == 0);
         assert(mutableResource->m_pool.get() == this);
 
-        if (m_releasedResources.size() < MaxResourcesInPool)
-        {
-            // Recycle the resource!
-            m_releasedResources.emplace_back(mutableResource,
-                                             m_factory.vulkanContext()->currentFrameIdx());
-            // Do this last in case it deletes our "this".
-            mutableResource->m_pool = nullptr;
-            return;
-        }
+        // Recycle the resource!
+        m_releasedResources.emplace_back(
+            mutableResource,
+            m_factory.vulkanContext()->currentFrameIdx());
+        // Do this last in case it deletes our "this".
+        mutableResource->m_pool = nullptr;
 
-        delete resource;
+        cleanExcessExpiredResources();
+    }
+
+    void cleanExcessExpiredResources()
+    {
+        while (m_releasedResources.size() > MaxResourcesInPool &&
+               m_factory.vulkanContext()->currentFrameIdx() >=
+                   m_releasedResources.front().expirationFrameIdx)
+        {
+            m_releasedResources.pop_front();
+        }
     }
 
 protected:
@@ -114,13 +127,19 @@ public:
 
     void reset();
     operator VkCommandBuffer() const { return m_vkCommandBuffer; }
-    const VkCommandBuffer* vkCommandBufferAddressOf() const { return &m_vkCommandBuffer; }
+    const VkCommandBuffer* vkCommandBufferAddressOf() const
+    {
+        return &m_vkCommandBuffer;
+    }
 
 private:
     friend class RefCnt<CommandBuffer>;
     friend class ResourcePool<CommandBuffer>;
 
-    void onRefCntReachedZero() const { m_pool->onResourceRefCntReachedZero(this); }
+    void onRefCntReachedZero() const
+    {
+        m_pool->onResourceRefCntReachedZero(this);
+    }
 
     const rcp<VulkanContext> m_vk;
     const VkCommandPool m_vkCommandPool;
@@ -144,7 +163,10 @@ private:
     friend class RefCnt<Semaphore>;
     friend class ResourcePool<Semaphore>;
 
-    void onRefCntReachedZero() const { m_pool->onResourceRefCntReachedZero(this); }
+    void onRefCntReachedZero() const
+    {
+        m_pool->onResourceRefCntReachedZero(this);
+    }
 
     const rcp<VulkanContext> m_vk;
     rcp<ResourcePool<Semaphore>> m_pool;
@@ -166,7 +188,10 @@ public:
 private:
     friend class ResourcePool<Fence>;
 
-    void onRefCntReachedZero() const override { m_pool->onResourceRefCntReachedZero(this); }
+    void onRefCntReachedZero() const override
+    {
+        m_pool->onResourceRefCntReachedZero(this);
+    }
 
     const rcp<VulkanContext> m_vk;
     rcp<ResourcePool<Fence>> m_pool;

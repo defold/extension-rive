@@ -8,7 +8,7 @@
 
 namespace rive
 {
-class RiveRenderImage : public lite_rtti_override<RenderImage, RiveRenderImage>
+class RiveRenderImage : public LITE_RTTI_OVERRIDE(RenderImage, RiveRenderImage)
 {
 public:
     RiveRenderImage(rcp<gpu::Texture> texture) :
@@ -34,7 +34,8 @@ protected:
         m_texture = std::move(texture);
     }
 
-    // Used by the android runtime to send m_texture off to the worker thread to be deleted.
+    // Used by the android runtime to send m_texture off to the worker thread to
+    // be deleted.
     gpu::Texture* releaseTexture() { return m_texture.release(); }
 
 private:

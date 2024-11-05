@@ -5,6 +5,12 @@
 #include "rive/core/binary_reader.hpp"
 #include "rive/status_code.hpp"
 
+#ifdef DEBUG
+#define DEBUG_PRINT(msg) fprintf(stderr, msg "\n");
+#else
+#define DEBUG_PRINT(msg)
+#endif
+
 namespace rive
 {
 class CoreContext;
@@ -21,7 +27,10 @@ public:
     virtual bool isTypeOf(uint16_t typeKey) const = 0;
     virtual bool deserialize(uint16_t propertyKey, BinaryReader& reader) = 0;
 
-    template <typename T> inline bool is() const { return isTypeOf(T::typeKey); }
+    template <typename T> inline bool is() const
+    {
+        return isTypeOf(T::typeKey);
+    }
     template <typename T> inline T* as()
     {
         assert(is<T>());
@@ -37,20 +46,32 @@ public:
         return static_cast<const T*>(this);
     }
 
+    /// Called to validate the object can be used at runtime.
+    virtual bool validate(CoreContext* context) { return true; }
+
     /// Called when the object is first added to the context, other objects
     /// may not have resolved their dependencies yet. This is an opportunity
     /// to look up objects referenced by id, but not assume that they in
     /// turn have resolved their references yet. Called during
     /// load/instance.
-    virtual StatusCode onAddedDirty(CoreContext* context) { return StatusCode::Ok; }
+    virtual StatusCode onAddedDirty(CoreContext* context)
+    {
+        return StatusCode::Ok;
+    }
 
     /// Called when all the objects in the context have had onAddedDirty
     /// called. This is an opportunity to reference things referenced by
     /// dependencies. (A path should be able to find a Shape somewhere in
     /// its hierarchy, which may be multiple levels up).
-    virtual StatusCode onAddedClean(CoreContext* context) { return StatusCode::Ok; }
+    virtual StatusCode onAddedClean(CoreContext* context)
+    {
+        return StatusCode::Ok;
+    }
 
-    virtual StatusCode import(ImportStack& importStack) { return StatusCode::Ok; }
+    virtual StatusCode import(ImportStack& importStack)
+    {
+        return StatusCode::Ok;
+    }
 };
 } // namespace rive
 #endif

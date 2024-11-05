@@ -12,8 +12,8 @@ protected:
 public:
     static const uint16_t typeKey = 498;
 
-    /// Helper to quickly determine if a core object extends another without RTTI
-    /// at runtime.
+    /// Helper to quickly determine if a core object extends another without
+    /// RTTI at runtime.
     bool isTypeOf(uint16_t typeKey) const override
     {
         switch (typeKey)
@@ -29,7 +29,7 @@ public:
 
     static const uint16_t converterIdPropertyKey = 679;
 
-private:
+protected:
     uint32_t m_ConverterId = -1;
 
 public:
@@ -45,7 +45,10 @@ public:
     }
 
     Core* clone() const override;
-    void copy(const DataConverterGroupItemBase& object) { m_ConverterId = object.m_ConverterId; }
+    void copy(const DataConverterGroupItemBase& object)
+    {
+        m_ConverterId = object.m_ConverterId;
+    }
 
     bool deserialize(uint16_t propertyKey, BinaryReader& reader) override
     {

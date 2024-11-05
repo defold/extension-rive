@@ -4,7 +4,8 @@
 #include "rive/core/field_types/core_uint_type.hpp"
 namespace rive
 {
-class TransitionPropertyArtboardComparatorBase : public TransitionPropertyComparator
+class TransitionPropertyArtboardComparatorBase
+    : public TransitionPropertyComparator
 {
 protected:
     typedef TransitionPropertyComparator Super;
@@ -12,8 +13,8 @@ protected:
 public:
     static const uint16_t typeKey = 496;
 
-    /// Helper to quickly determine if a core object extends another without RTTI
-    /// at runtime.
+    /// Helper to quickly determine if a core object extends another without
+    /// RTTI at runtime.
     bool isTypeOf(uint16_t typeKey) const override
     {
         switch (typeKey)
@@ -31,7 +32,7 @@ public:
 
     static const uint16_t propertyTypePropertyKey = 677;
 
-private:
+protected:
     uint32_t m_PropertyType = 0;
 
 public:
