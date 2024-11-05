@@ -1,0 +1,11 @@
+function init(self)
+	msg.post(".", "acquire_input_focus")
+	self.toggle = true
+end
+
+function on_input(self, action_id, action)
+	if action_id == hash("space") and action.released then
+		self.toggle = not self.toggle
+		go.set("#layout", "Boolean 1", self.toggle)
+	end
+end
