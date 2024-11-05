@@ -12,7 +12,7 @@ namespace rive
 {
 
 class ContourStroke;
-class TessRenderPath : public lite_rtti_override<RenderPath, TessRenderPath>
+class TessRenderPath : public LITE_RTTI_OVERRIDE(RenderPath, TessRenderPath)
 {
 private:
     // TessRenderPath stores a RawPath so that it can use utility classes
@@ -34,7 +34,8 @@ private:
 
 protected:
     std::vector<SubPath> m_subPaths;
-    virtual void addTriangles(Span<const Vec2D> vertices, Span<const uint16_t> indices) = 0;
+    virtual void addTriangles(Span<const Vec2D> vertices,
+                              Span<const uint16_t> indices) = 0;
     virtual void setTriangulatedBounds(const AABB& value) = 0;
     void contour(const Mat2D& transform);
     void triangulate(TessRenderPath* containerPath);
@@ -53,7 +54,8 @@ public:
 
     void moveTo(float x, float y) override;
     void lineTo(float x, float y) override;
-    void cubicTo(float ox, float oy, float ix, float iy, float x, float y) override;
+    void cubicTo(float ox, float oy, float ix, float iy, float x, float y)
+        override;
     void close() override;
     void addRenderPath(RenderPath* path, const Mat2D& transform) override;
 
