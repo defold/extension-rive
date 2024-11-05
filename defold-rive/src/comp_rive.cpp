@@ -28,6 +28,7 @@
 #include <rive/custom_property_boolean.hpp>
 #include <rive/custom_property_number.hpp>
 #include <rive/custom_property_string.hpp>
+#include <rive/text/text.hpp>
 #include <rive/file.hpp>
 #include <rive/renderer.hpp>
 
@@ -1490,6 +1491,27 @@ namespace dmRive
             rive::Vec2D p = WorldToLocal(component, x, y);
             component->m_StateMachineInstance->pointerDown(p);
         }
+    }
+
+    bool CompRiveSetTextRun(RiveComponent* component, const char* path, const char* text_run)
+    {
+        auto runValue = component->m_ArtboardInstance->find<rive::TextValueRun>(path);
+        if (!runValue)
+        {
+            return false;
+        }
+        runValue->text(text_run);
+        return true;
+    }
+
+    const char* CompRiveGetTextRun(RiveComponent* component, const char* path)
+    {
+        auto runValue = component->m_ArtboardInstance->find<rive::TextValueRun>(path);
+        if (!runValue)
+        {
+            return 0;
+        }
+        return runValue->text().c_str();
     }
 }
 

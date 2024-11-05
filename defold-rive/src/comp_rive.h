@@ -84,6 +84,9 @@ namespace dmRive
     bool CompRivePlayStateMachine(RiveComponent* component, dmRiveDDF::RivePlayAnimation* ddf, dmScript::LuaCallbackInfo* callback_info);
     bool CompRivePlayAnimation(RiveComponent* component, dmRiveDDF::RivePlayAnimation* ddf, dmScript::LuaCallbackInfo* callback_info);
 
+    const char* CompRiveGetTextRun(RiveComponent* component, const char* path);
+    bool        CompRiveSetTextRun(RiveComponent* component, const char* path, const char* text_run);
+
     // bool CompRiveSetIKTargetInstance(RiveComponent* component, dmhash_t constraint_id, float mix, dmhash_t instance_id);
     // bool CompRiveSetIKTargetPosition(RiveComponent* component, dmhash_t constraint_id, float mix, Vectormath::Aos::Point3 position);
     // bool CompRiveResetIKTarget(RiveComponent* component, dmhash_t constraint_id);
