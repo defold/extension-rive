@@ -249,6 +249,9 @@ RIVECPP_RENDERER_SHADER_DIR=${RIVECPP_RENDERER_SOURCE_DIR}/src/
 
 download_zip ${RIVECPP_ZIP} ${DOWNLOAD_DIR}/rivecpp ${RIVECPP_URL}
 
+# Platforms can include different files in the renderer, so to make sure we don't build the wrong thing we remove all before building
+rm -rf ${RIVECPP_RENDERER_SOURCE_DIR}
+
 mkdir -p ${RIVECPP_SOURCE_DIR}
 mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}
 mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include
@@ -301,6 +304,18 @@ cp -r -v ${RIVECPP_ORIGINAL_DIR}/renderer/include ${RIVECPP_RENDERER_SOURCE_DIR}
 cp -r -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/*.cpp ${RIVECPP_RENDERER_SOURCE_DIR}/src
 cp -r -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/*.hpp ${RIVECPP_RENDERER_SOURCE_DIR}/src
 cp -r -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/shaders ${RIVECPP_RENDERER_SHADER_DIR}
+
+echo "*************************************************"
+echo "Downloading python PLY files"
+
+LIBPLY_VERSION=5c4dc94d4c6d059ec127ee1493c735963a5d2645
+LIBPLY_ZIP=${DOWNLOAD_DIR}/libply-${LIBPLY_VERSION}.zip
+LIBPLY_URL=https://github.com/dabeaz/ply/archive/${LIBPLY_VERSION}.zip
+LIBPLY_ORIGINAL_DIR=${DOWNLOAD_DIR}/libply/libply-${LIBPLY_VERSION}
+LIBPLY_SOURCE_DIR=${SOURCE_DIR}/libply/src
+LIBPLY_PATH=${DOWNLOAD_DIR}/libply/ply-${LIBPLY_VERSION}/src
+
+download_zip ${LIBPLY_ZIP} ${DOWNLOAD_DIR}/libply ${LIBPLY_URL}
 
 echo "*************************************************"
 echo "Setup shader source variables"
@@ -411,7 +426,7 @@ for platform in $PLATFORMS; do
 
             # remove any previously generated shaders
             (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && rm -rf ./out)
-            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make)
+            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make FLAGS="-p ${LIBPLY_PATH}")
 
             cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/out/generated/*.*           ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/
             cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/*.glsl                      ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders/
@@ -431,6 +446,32 @@ for platform in $PLATFORMS; do
             ;;
         x86_64-win32|x86-win32)
             RIVE_RENDERER_DEFINES="RIVE_DESKTOP_GL RIVE_WINDOWS"
+            RIVE_RENDERER_INCLUDES="upload/src/glad"
+
+            # remove any previously generated shaders
+            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && rm -rf ./out)
+            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make FLAGS="-p ${LIBPLY_PATH}")
+
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/glad
+
+            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/out/generated/*.*           ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/
+            cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/*.glsl                      ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders/
+
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/gl_state.cpp                   ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/gl_utils.cpp                   ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/load_store_actions_ext.cpp     ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_buffer_gl_impl.cpp      ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_context_gl_impl.cpp     ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/render_target_gl.cpp           ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_webgl.cpp             ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_rw_texture.cpp        ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.*                              ${RIVECPP_RENDERER_SOURCE_DIR}/glad
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.h                              ${RIVECPP_RENDERER_SOURCE_DIR}/include/rive/renderer/gl/
+
             ;;
         x86_64-linux)
             RIVE_RENDERER_DEFINES="RIVE_DESKTOP_GL RIVE_LINUX"
@@ -438,7 +479,7 @@ for platform in $PLATFORMS; do
 
             # remove any previously generated shaders
             (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && rm -rf ./out)
-            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make rive_pls_macosx_metallib)
+            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make FLAGS="-p ${LIBPLY_PATH}")
 
             mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders
             mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders
@@ -469,7 +510,7 @@ for platform in $PLATFORMS; do
 
             # remove any previously generated shaders
             (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && rm -rf ./out)
-            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make rive_pls_macosx_metallib)
+            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make rive_pls_macosx_metallib FLAGS="-p ${LIBPLY_PATH}")
 
             mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl
             mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src/metal
@@ -507,9 +548,9 @@ for platform in $PLATFORMS; do
             # remove any previously generated shaders
             (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && rm -rf ./out)
             if [ "${platform}" == "x86_64-ios" ]; then
-                (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make rive_pls_ios_simulator_metallib)
+                (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make rive_pls_ios_simulator_metallib FLAGS="-p ${LIBPLY_PATH}")
             else
-                (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make rive_pls_ios_metallib)
+                (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make rive_pls_ios_metallib FLAGS="-p ${LIBPLY_PATH}")
             fi
 
             mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src/metal
@@ -539,7 +580,7 @@ for platform in $PLATFORMS; do
 
             # remove any previously generated shaders
             (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && rm -rf ./out)
-            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make spirv) # Remove spirv if not building for webgpu
+            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make spirv FLAGS="-p ${LIBPLY_PATH}") # Remove spirv if not building for webgpu
 
             cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/out/generated/**.*       ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/
             cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/out/generated/spirv/**.* ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/spirv
