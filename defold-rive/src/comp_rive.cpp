@@ -1493,25 +1493,44 @@ namespace dmRive
         }
     }
 
-    bool CompRiveSetTextRun(RiveComponent* component, const char* path, const char* text_run)
+    static inline rive::TextValueRun* GetTextRun(rive::ArtboardInstance* artboard, const char* name, const char* nested_artboard_path)
     {
-        auto runValue = component->m_ArtboardInstance->find<rive::TextValueRun>(path);
-        if (!runValue)
+        if (nested_artboard_path)
+        {
+            auto nested = artboard->nestedArtboardAtPath(nested_artboard_path);
+            auto nested_instance = nested ? nested->artboardInstance() : 0;
+
+            if (nested_instance)
+            {
+                return nested_instance->find<rive::TextValueRun>(name);
+            }
+        }
+        else
+        {
+            return artboard->find<rive::TextValueRun>(name);
+        }
+        return 0;
+    }
+
+    bool CompRiveSetTextRun(RiveComponent* component, const char* name, const char* text_run, const char* nested_artboard_path)
+    {
+        rive::TextValueRun* text_run_value = GetTextRun(component->m_ArtboardInstance.get(), name, nested_artboard_path);
+        if (!text_run_value)
         {
             return false;
         }
-        runValue->text(text_run);
+        text_run_value->text(text_run);
         return true;
     }
 
-    const char* CompRiveGetTextRun(RiveComponent* component, const char* path)
+    const char* CompRiveGetTextRun(RiveComponent* component, const char* name, const char* nested_artboard_path)
     {
-        auto runValue = component->m_ArtboardInstance->find<rive::TextValueRun>(path);
-        if (!runValue)
+        rive::TextValueRun* text_run_value = GetTextRun(component->m_ArtboardInstance.get(), name, nested_artboard_path);
+        if (!text_run_value)
         {
             return 0;
         }
-        return runValue->text().c_str();
+        return text_run_value->text().c_str();
     }
 }
 

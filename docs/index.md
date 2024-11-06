@@ -184,6 +184,29 @@ local forearm = rive.get_go("#rivemodel", "Left forearm")
 msg.post("pistol", "set_parent", { parent_id = forearm })
 ```
 
+### Getting and setting text runs
+To set and get text runs, you can use the following functions:
+
+```lua
+local text = rive.get_text_run("#rivemodel", "my_text_run")
+
+-- change the text to something else
+rive.set_text_run("#rivemodel", "my_text_run", "Hello, World!")
+
+-- you can also access text runs in nested artboards by passing in the artboard name:
+rive.get_text_run("#rivemodel", "my_text_run", "my_nested_artboard")
+
+-- accessing nested artboards within nested artboards is also possible
+rive.get_text_run("#rivemodel", "my_text_run", "my_nested_artboard/my_other_nested_artboard")
+
+-- the same works with set_text_run:
+rive.set_text_run("#rivemodel", "my_text_run", "Hello, World!", "my_nested_artboard")
+```
+
+Note! You need to export all the names from within Rive to use these functions:
+
+![Rive export names](rive-export-names.png)
+
 ## Source code
 The source code is available on [GitHub](https://github.com/defold/extension-rive)
 

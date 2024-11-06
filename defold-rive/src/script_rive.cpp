@@ -265,7 +265,14 @@ namespace dmRive
         dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
 
         const char* name = luaL_checkstring(L, 2);
-        const char* text_run = CompRiveGetTextRun(component, name);
+        const char* nested_artboard_path = 0;
+
+        if (lua_isstring(L, 3))
+        {
+            nested_artboard_path = lua_tostring(L, 3);
+        }
+
+        const char* text_run = CompRiveGetTextRun(component, name, nested_artboard_path);
 
         if (!text_run)
         {
@@ -284,9 +291,16 @@ namespace dmRive
         dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
 
         const char* name = luaL_checkstring(L, 2);
+        const char* nested_artboard_path = 0;
+
+        if (lua_isstring(L, 4))
+        {
+            nested_artboard_path = lua_tostring(L, 4);
+        }
+
         const char* text_run = luaL_checkstring(L, 3);
 
-        if (!CompRiveSetTextRun(component, name, text_run))
+        if (!CompRiveSetTextRun(component, name, text_run, nested_artboard_path))
         {
             return DM_LUA_ERROR("The text-run '%s' could not be found, or the text is empty.", name);
         }

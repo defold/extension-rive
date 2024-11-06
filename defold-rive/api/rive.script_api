@@ -187,3 +187,51 @@
       - name: y
         type: number
         desc: Vertical position
+
+#*****************************************************************************************************
+
+  - name: get_text_run
+    type: function
+    desc: Gets the text run of a specified text component from within the Rive artboard assigned to the component.
+
+    parameters:
+      - name: url
+        type: url
+        desc: The Rive model for which to get the text run from
+
+      - name: name
+        type: string
+        desc: The name of the text run from the Rive artboard.
+
+      - name: nested_artboard
+        type: string
+        desc: [OPTIONAL] If specified, the text run will be retrieved from the specified nested artboard
+
+    return:
+      - name: text_run
+        type: string
+        desc: The text run text
+
+#*****************************************************************************************************
+
+  - name: set_text_run
+    type: function
+    desc: Set the text run of a specified text component from within the Rive artboard assigned to the component.
+
+    parameters:
+      - name: url
+        type: url
+        desc: The Rive model for which to set the text run for
+
+      - name: name
+        type: string
+        desc: The name of the text run from the Rive artboard.
+
+      - name: text_run
+        type: string
+        desc: The text run contents to update with.
+
+      - name: nested_artboard
+        type: string
+        desc: [OPTIONAL] If specified, the text run will be set in the specified nested artboard
+
