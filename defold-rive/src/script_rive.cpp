@@ -257,6 +257,57 @@ namespace dmRive
     }
 
 
+    static int RiveComp_GetTextRun(lua_State* L)
+    {
+        DM_LUA_STACK_CHECK(L, 1);
+
+        RiveComponent* component = 0;
+        dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
+
+        const char* name = luaL_checkstring(L, 2);
+        const char* nested_artboard_path = 0;
+
+        if (lua_isstring(L, 3))
+        {
+            nested_artboard_path = lua_tostring(L, 3);
+        }
+
+        const char* text_run = CompRiveGetTextRun(component, name, nested_artboard_path);
+
+        if (!text_run)
+        {
+            return DM_LUA_ERROR("The text-run '%s' could not be found.", name);
+        }
+
+        lua_pushstring(L, text_run);
+        return 1;
+    }
+
+    static int RiveComp_SetTextRun(lua_State* L)
+    {
+        DM_LUA_STACK_CHECK(L, 0);
+
+        RiveComponent* component = 0;
+        dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
+
+        const char* name = luaL_checkstring(L, 2);
+        const char* nested_artboard_path = 0;
+
+        if (lua_isstring(L, 4))
+        {
+            nested_artboard_path = lua_tostring(L, 4);
+        }
+
+        const char* text_run = luaL_checkstring(L, 3);
+
+        if (!CompRiveSetTextRun(component, name, text_run, nested_artboard_path))
+        {
+            return DM_LUA_ERROR("The text-run '%s' could not be found.", name);
+        }
+
+        return 0;
+    }
+
     static const luaL_reg RIVE_FUNCTIONS[] =
     {
         {"play_anim",           RiveComp_PlayAnim},
@@ -266,6 +317,8 @@ namespace dmRive
         {"pointer_move",        RiveComp_PointerMove},
         {"pointer_up",          RiveComp_PointerUp},
         {"pointer_down",        RiveComp_PointerDown},
+        {"set_text_run",        RiveComp_SetTextRun},
+        {"get_text_run",        RiveComp_GetTextRun},
         {0, 0}
     };
 

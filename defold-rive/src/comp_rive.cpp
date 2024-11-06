@@ -28,6 +28,7 @@
 #include <rive/custom_property_boolean.hpp>
 #include <rive/custom_property_number.hpp>
 #include <rive/custom_property_string.hpp>
+#include <rive/text/text.hpp>
 #include <rive/file.hpp>
 #include <rive/renderer.hpp>
 
@@ -1490,6 +1491,46 @@ namespace dmRive
             rive::Vec2D p = WorldToLocal(component, x, y);
             component->m_StateMachineInstance->pointerDown(p);
         }
+    }
+
+    static inline rive::TextValueRun* GetTextRun(rive::ArtboardInstance* artboard, const char* name, const char* nested_artboard_path)
+    {
+        if (nested_artboard_path)
+        {
+            auto nested = artboard->nestedArtboardAtPath(nested_artboard_path);
+            auto nested_instance = nested ? nested->artboardInstance() : 0;
+
+            if (nested_instance)
+            {
+                return nested_instance->find<rive::TextValueRun>(name);
+            }
+        }
+        else
+        {
+            return artboard->find<rive::TextValueRun>(name);
+        }
+        return 0;
+    }
+
+    bool CompRiveSetTextRun(RiveComponent* component, const char* name, const char* text_run, const char* nested_artboard_path)
+    {
+        rive::TextValueRun* text_run_value = GetTextRun(component->m_ArtboardInstance.get(), name, nested_artboard_path);
+        if (!text_run_value)
+        {
+            return false;
+        }
+        text_run_value->text(text_run);
+        return true;
+    }
+
+    const char* CompRiveGetTextRun(RiveComponent* component, const char* name, const char* nested_artboard_path)
+    {
+        rive::TextValueRun* text_run_value = GetTextRun(component->m_ArtboardInstance.get(), name, nested_artboard_path);
+        if (!text_run_value)
+        {
+            return 0;
+        }
+        return text_run_value->text().c_str();
     }
 }
 
