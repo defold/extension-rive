@@ -276,7 +276,7 @@ namespace dmRive
 
         if (!text_run)
         {
-            return DM_LUA_ERROR("The text-run '%s' could not be found, or the text is empty.", name);
+            return DM_LUA_ERROR("The text-run '%s' could not be found.", name);
         }
 
         lua_pushstring(L, text_run);
@@ -302,7 +302,7 @@ namespace dmRive
 
         if (!CompRiveSetTextRun(component, name, text_run, nested_artboard_path))
         {
-            return DM_LUA_ERROR("The text-run '%s' could not be found, or the text is empty.", name);
+            return DM_LUA_ERROR("The text-run '%s' could not be found.", name);
         }
 
         return 0;
