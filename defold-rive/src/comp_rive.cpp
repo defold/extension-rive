@@ -160,7 +160,7 @@ namespace dmRive
         float top    = 1.0f;
 
         // Flip texture coordinates on y axis for OpenGL
-        if (dmGraphics::GetInstalledAdapterFamily() == dmGraphics::ADAPTER_FAMILY_OPENGL)
+        if (dmGraphics::GetInstalledAdapterFamily() != dmGraphics::ADAPTER_FAMILY_OPENGL)
         {
             top    = 0.0f;
             bottom = 1.0f;
@@ -458,6 +458,10 @@ namespace dmRive
 
         uint32_t window_height = dmGraphics::GetWindowHeight(world->m_Ctx->m_GraphicsContext);
 
+        renderer->save();
+
+        int mode = 1;
+
         for (uint32_t *i=begin;i!=end;i++)
         {
             RiveComponent* c = (RiveComponent*) buf[*i].m_UserData;
@@ -465,25 +469,45 @@ namespace dmRive
             if (!c->m_Enabled || !c->m_AddedToUpdate)
                 continue;
 
-            rive::Mat2D transform;
-            Mat4ToMat2D(c->m_World, transform);
+            renderer->save();
 
             rive::AABB bounds = c->m_ArtboardInstance->bounds();
 
-            renderer->save();
+            // c->m_ArtboardInstance->propagateSize();
 
-            // Rive is using a different coordinate system than defold,
-            // we have to adhere to how our projection matrixes are
-            // constructed so we flip the renderer on the y axis here
-            rive::Vec2D yflip(g_DisplayFactor, -g_DisplayFactor);
-            transform = transform.scale(yflip);
+            c->m_ArtboardInstance->width(width);
+            c->m_ArtboardInstance->height(height);
 
-            renderer->transform(viewTransform * transform);
+            if (mode == 0)
+            {
+                rive::Mat2D transform;
+                Mat4ToMat2D(c->m_World, transform);
 
-            renderer->align(rive::Fit::none,
-                rive::Alignment::center,
-                rive::AABB(-bounds.width(), bounds.height(), bounds.width(), -bounds.height()),
-                bounds);
+                rive::Vec2D yflip(g_DisplayFactor, g_DisplayFactor);
+                transform = transform.scale(yflip);
+
+                renderer->translate(0, window_height);
+                renderer->transform(viewTransform * transform);
+
+                renderer->align(rive::Fit::none,
+                    rive::Alignment::center,
+                    rive::AABB(-bounds.width(), bounds.height(), bounds.width(), -bounds.height()),
+                    bounds);
+            }
+            else
+            {
+                /*
+                renderer->align(rive::Fit::contain,
+                    rive::Alignment::center,
+                    rive::AABB(0, 0, width, height),
+                    bounds);
+                */
+
+                renderer->align(rive::Fit::layout,
+                    rive::Alignment::center,
+                    rive::AABB(0, 0, width, height),
+                    bounds);
+            }
 
             if (c->m_StateMachineInstance) {
                 c->m_StateMachineInstance->draw(renderer);
@@ -495,6 +519,8 @@ namespace dmRive
 
             renderer->restore();
         }
+
+        renderer->restore();
     }
 
     void UpdateTransforms(RiveWorld* world)
