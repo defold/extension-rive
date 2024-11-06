@@ -1,0 +1,5 @@
+scene: "/main/text_run_test/text_run_test.rivescene"
+default_animation: ""
+material: "/defold-rive/assets/rivemodel.material"
+default_state_machine: "State Machine 1"
+artboard: "Artboard"

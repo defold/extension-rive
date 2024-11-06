@@ -1,0 +1,36 @@
+function init(self)
+	msg.post(".", "acquire_input_focus")
+
+	-- print the current text to console
+	print(rive.get_text_run("#rivemodel", "my_text_run"))
+	print(rive.get_text_run("#rivemodel", "nested_artboard", "nested_artboard"))
+	print(rive.get_text_run("#rivemodel", "nested_artboard", "nested_artboard/nested_inner"))
+
+	-- Update nested text
+	rive.set_text_run("#rivemodel", "nested_artboard", "here's some text for ya", "nested_artboard")
+	rive.set_text_run("#rivemodel", "nested_artboard", "change inner-inner!", "nested_artboard/nested_inner")
+
+	-- Press space to step to the next token
+	self.my_text_runs = {
+		"Hello",
+		"This",
+		"Is",
+		"A",
+		"Dynamic",
+		"Text!",
+		":)"
+	}
+
+	self.text = ""
+	self.next = 1
+end
+
+function on_input(self, action_id, action)
+
+	if action_id == hash("space") and action.released then
+		self.text = self.text .. " " .. self.my_text_runs[self.next]
+		self.next = self.next + 1
+
+		rive.set_text_run("#rivemodel", "my_text_run", self.text)
+	end
+end

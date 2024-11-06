@@ -1,0 +1,26 @@
+name: "main"
+scale_along_z: 0
+embedded_instances {
+  id: "go"
+  data: "components {\n"
+  "  id: \"rivemodel\"\n"
+  "  component: \"/main/text_run_test/text_run_test.rivemodel\"\n"
+  "}\n"
+  "components {\n"
+  "  id: \"layout_logic\"\n"
+  "  component: \"/main/text_run_test/text_run_test.script\"\n"
+  "}\n"
+  ""
+  position {
+    x: 951.86554
+    y: 547.7967
+  }
+}
+embedded_instances {
+  id: "go1"
+  data: "components {\n"
+  "  id: \"back\"\n"
+  "  component: \"/main/menu/back.gui\"\n"
+  "}\n"
+  ""
+}
