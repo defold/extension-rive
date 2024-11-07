@@ -42,6 +42,9 @@
 (def rive-scene-pb-class (workspace/load-class! "com.dynamo.rive.proto.Rive$RiveSceneDesc"))
 (def rive-model-pb-class (workspace/load-class! "com.dynamo.rive.proto.Rive$RiveModelDesc"))
 (def blend-mode-pb-class (workspace/load-class! "com.dynamo.rive.proto.Rive$RiveModelDesc$BlendMode"))
+(def coordinate-system-pb-class (workspace/load-class! "com.dynamo.rive.proto.Rive$RiveModelDesc$CoordinateSystem"))
+(def artboard-fit-pb-class (workspace/load-class! "com.dynamo.rive.proto.Rive$RiveModelDesc$Fit"))
+(def artboard-alignment-pb-class (workspace/load-class! "com.dynamo.rive.proto.Rive$RiveModelDesc$Alignment"))
 
 (def rive-file-icon "/defold-rive/editor/resources/icons/32/Icons_17-Rive-file.png")
 (def rive-scene-icon "/defold-rive/editor/resources/icons/32/Icons_16-Rive-scene.png")
@@ -95,7 +98,10 @@
         default-animation :default-animation
         default-state-machine :default-state-machine
         blend-mode :blend-mode
-        create-go-bones :create-go-bones))))
+        create-go-bones :create-go-bones
+        coordinate-system :coordinate-system
+        artboard-fit :artboard-fit
+        artboard-alignment :artboard-alignment))))
 
 (g/defnk produce-transform [position rotation scale]
   (math/->mat4-non-uniform (Vector3d. (double-array position))
@@ -605,7 +611,7 @@
             (dynamic error (g/fnk [_node-id atlas]
                                   (validate-scene-atlas _node-id atlas))))
 
-; This property isn't visible, but here to allow us to preview the .spinescene
+; This property isn't visible, but here to allow us to preview the .rivescene
   (property material resource/Resource ; Default assigned in load-fn.
             (value (gu/passthrough material-resource))
             (set (fn [evaluation-context self old-value new-value]
@@ -667,7 +673,7 @@
 ; .rivemodel (The "instance" file)
 ;
 
-(g/defnk produce-rivemodel-save-value [rive-scene-resource artboard default-animation default-state-machine material-resource blend-mode create-go-bones]
+(g/defnk produce-rivemodel-save-value [rive-scene-resource artboard default-animation default-state-machine material-resource blend-mode create-go-bones coordinate-system artboard-fit artboard-alignment]
   (protobuf/make-map-without-defaults rive-model-pb-class
     :scene (resource/resource->proj-path rive-scene-resource)
     :material (resource/resource->proj-path material-resource)
@@ -675,7 +681,10 @@
     :default-animation default-animation
     :default-state-machine default-state-machine
     :blend-mode blend-mode
-    :create-go-bones create-go-bones))
+    :create-go-bones create-go-bones
+    :coordinate-system coordinate-system
+    :artboard-fit artboard-fit
+    :artboard-alignment artboard-alignment))
 
 (defn- validate-model-artboard [node-id rive-scene rive-artboards artboard]
   (when (and rive-scene (not-empty artboard))
@@ -787,6 +796,15 @@
                                   (validate-model-default-animation _node-id rive-scene rive-anim-ids default-animation)))
             (dynamic edit-type (g/fnk [rive-anim-ids] (properties/->choicebox (cons "" rive-anim-ids)))))
   (property create-go-bones g/Bool (default (protobuf/default rive-model-pb-class :create-go-bones)))
+
+  (property coordinate-system g/Any (default (protobuf/default rive-model-pb-class :coordinate-system))
+            (dynamic edit-type (g/constantly (properties/->pb-choicebox coordinate-system-pb-class))))
+
+  (property artboard-fit g/Any (default (protobuf/default rive-model-pb-class :artboard-fit))
+            (dynamic edit-type (g/constantly (properties/->pb-choicebox artboard-fit-pb-class))))
+
+  (property artboard-alignment g/Any (default (protobuf/default rive-model-pb-class :artboard-alignment))
+            (dynamic edit-type (g/constantly (properties/->pb-choicebox artboard-alignment-pb-class))))
 
   (input dep-build-targets g/Any :array)
   (input rive-file-handle g/Any)

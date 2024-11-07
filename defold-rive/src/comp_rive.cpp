@@ -159,8 +159,8 @@ namespace dmRive
         float bottom = 0.0f;
         float top    = 1.0f;
 
-        // Flip texture coordinates on y axis for OpenGL
-        if (dmGraphics::GetInstalledAdapterFamily() != dmGraphics::ADAPTER_FAMILY_OPENGL)
+        // Flip texture coordinates on y axis for OpenGL for the final blit:
+        if (dmGraphics::GetInstalledAdapterFamily() == dmGraphics::ADAPTER_FAMILY_OPENGL)
         {
             top    = 0.0f;
             bottom = 1.0f;
@@ -441,6 +441,39 @@ namespace dmRive
         }
     }
 
+    static inline rive::Fit DDFToRiveFit(dmRiveDDF::RiveModelDesc::Fit fit)
+    {
+        switch(fit)
+        {
+            case dmRiveDDF::RiveModelDesc::FIT_FILL:         return rive::Fit::fill;
+            case dmRiveDDF::RiveModelDesc::FIT_CONTAIN:      return rive::Fit::contain;
+            case dmRiveDDF::RiveModelDesc::FIT_COVER:        return rive::Fit::cover;
+            case dmRiveDDF::RiveModelDesc::FIT_FIT_WIDTH:    return rive::Fit::fitWidth;
+            case dmRiveDDF::RiveModelDesc::FIT_FIT_HEIGHT:   return rive::Fit::fitHeight;
+            case dmRiveDDF::RiveModelDesc::FIT_NONE:         return rive::Fit::none;
+            case dmRiveDDF::RiveModelDesc::FIT_SCALE_DOWN:   return rive::Fit::scaleDown;
+            case dmRiveDDF::RiveModelDesc::FIT_LAYOUT:       return rive::Fit::layout;
+        }
+        return rive::Fit::none;
+    }
+
+    static inline rive::Alignment DDFToRiveAlignment(dmRiveDDF::RiveModelDesc::Alignment alignment)
+    {
+        switch(alignment)
+        {
+            case dmRiveDDF::RiveModelDesc::ALIGNMENT_TOP_LEFT:      return rive::Alignment::topLeft;
+            case dmRiveDDF::RiveModelDesc::ALIGNMENT_TOP_CENTER:    return rive::Alignment::topCenter;
+            case dmRiveDDF::RiveModelDesc::ALIGNMENT_TOP_RIGHT:     return rive::Alignment::topRight;
+            case dmRiveDDF::RiveModelDesc::ALIGNMENT_CENTER_LEFT:   return rive::Alignment::centerLeft;
+            case dmRiveDDF::RiveModelDesc::ALIGNMENT_CENTER:        return rive::Alignment::center;
+            case dmRiveDDF::RiveModelDesc::ALIGNMENT_CENTER_RIGHT:  return rive::Alignment::centerRight;
+            case dmRiveDDF::RiveModelDesc::ALIGNMENT_BOTTOM_LEFT:   return rive::Alignment::bottomLeft;
+            case dmRiveDDF::RiveModelDesc::ALIGNMENT_BOTTOM_CENTER: return rive::Alignment::bottomCenter;
+            case dmRiveDDF::RiveModelDesc::ALIGNMENT_BOTTOM_RIGHT:  return rive::Alignment::bottomRight;
+        }
+        return rive::Alignment::center;
+    }
+
     static void RenderBatch(RiveWorld* world, dmRender::HRenderContext render_context, dmRender::RenderListEntry *buf, uint32_t* begin, uint32_t* end)
     {
         RiveComponent*              first    = (RiveComponent*) buf[*begin].m_UserData;
@@ -460,8 +493,6 @@ namespace dmRive
 
         renderer->save();
 
-        int mode = 1;
-
         for (uint32_t *i=begin;i!=end;i++)
         {
             RiveComponent* c = (RiveComponent*) buf[*i].m_UserData;
@@ -469,42 +500,44 @@ namespace dmRive
             if (!c->m_Enabled || !c->m_AddedToUpdate)
                 continue;
 
+            RiveModelResource* resource = c->m_Resource;
+            dmRiveDDF::RiveModelDesc* ddf = resource->m_DDF;
+
             renderer->save();
 
             rive::AABB bounds = c->m_ArtboardInstance->bounds();
 
-            // c->m_ArtboardInstance->propagateSize();
-
-            c->m_ArtboardInstance->width(width);
-            c->m_ArtboardInstance->height(height);
-
-            if (mode == 0)
+            if (ddf->m_CoordinateSystem == dmRiveDDF::RiveModelDesc::COORDINATE_SYSTEM_FULLSCREEN)
             {
+                // Apply the world matrix from the component to the artboard transform
                 rive::Mat2D transform;
                 Mat4ToMat2D(c->m_World, transform);
 
-                rive::Vec2D yflip(g_DisplayFactor, g_DisplayFactor);
+                // Invert the artboard on the Y axis so that the coordinate system is aligned with Y-up
+                rive::Vec2D yflip(g_DisplayFactor, -g_DisplayFactor);
                 transform = transform.scale(yflip);
 
-                renderer->translate(0, window_height);
+                // Apply the view transform to the artboard transform to place it in the "camera view"
                 renderer->transform(viewTransform * transform);
 
+                // Position the artboard so that its origo is at its center
                 renderer->align(rive::Fit::none,
                     rive::Alignment::center,
                     rive::AABB(-bounds.width(), bounds.height(), bounds.width(), -bounds.height()),
                     bounds);
             }
-            else
+            else if (ddf->m_CoordinateSystem == dmRiveDDF::RiveModelDesc::COORDINATE_SYSTEM_RIVE)
             {
-                /*
-                renderer->align(rive::Fit::contain,
-                    rive::Alignment::center,
-                    rive::AABB(0, 0, width, height),
-                    bounds);
-                */
+                rive::Fit rive_fit = DDFToRiveFit(ddf->m_ArtboardFit);
+                rive::Alignment rive_align = DDFToRiveAlignment(ddf->m_ArtboardAlignment);
 
-                renderer->align(rive::Fit::layout,
-                    rive::Alignment::center,
+                if (rive_fit == rive::Fit::layout)
+                {
+                    c->m_ArtboardInstance->width(width);
+                    c->m_ArtboardInstance->height(height);
+                }
+
+                renderer->align(rive_fit, rive_align,
                     rive::AABB(0, 0, width, height),
                     bounds);
             }

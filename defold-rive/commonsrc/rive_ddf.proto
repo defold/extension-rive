@@ -9,8 +9,8 @@ option java_outer_classname = "Rive";
 
 message RiveSceneDesc
 {
-    required string scene         = 1 [(resource)=true];
-    optional string atlas         = 2 [(resource)=true];
+    required string scene = 1 [(resource)=true];
+    optional string atlas = 2 [(resource)=true];
 }
 
 message RiveModelDesc
@@ -23,6 +23,39 @@ message RiveModelDesc
         BLEND_MODE_SCREEN    = 4 [(displayName) = "Screen"];
     }
 
+    // Matches rive::Fit (see layout.hpp)
+    enum Fit
+    {
+        FIT_FILL        = 0 [(displayName) = "Fill"];
+        FIT_CONTAIN     = 1 [(displayName) = "Contain"];
+        FIT_COVER       = 2 [(displayName) = "Cover"];
+        FIT_FIT_WIDTH   = 3 [(displayName) = "Fit Width"];
+        FIT_FIT_HEIGHT  = 4 [(displayName) = "Fit Height"];
+        FIT_NONE        = 5 [(displayName) = "None"];
+        FIT_SCALE_DOWN  = 6 [(displayName) = "ScaleDown"];
+        FIT_LAYOUT      = 7 [(displayName) = "Layout"];
+    }
+
+    // Matches rive::Alignment (see layout.hpp)
+    enum Alignment
+    {
+        ALIGNMENT_TOP_LEFT      = 0 [(displayName) = "Top Left"];
+        ALIGNMENT_TOP_CENTER    = 1 [(displayName) = "Top Center"];
+        ALIGNMENT_TOP_RIGHT     = 2 [(displayName) = "Top Right"];
+        ALIGNMENT_CENTER_LEFT   = 3 [(displayName) = "Center Left"];
+        ALIGNMENT_CENTER        = 4 [(displayName) = "Center"];
+        ALIGNMENT_CENTER_RIGHT  = 5 [(displayName) = "Center Right"];
+        ALIGNMENT_BOTTOM_LEFT   = 6 [(displayName) = "Bottom Left"];
+        ALIGNMENT_BOTTOM_CENTER = 7 [(displayName) = "Bottom Center"];
+        ALIGNMENT_BOTTOM_RIGHT  = 8 [(displayName) = "Bottom Right"];
+    }
+
+    enum CoordinateSystem
+    {
+        COORDINATE_SYSTEM_FULLSCREEN = 0 [(displayName) = "Fullscreen"];
+        COORDINATE_SYSTEM_RIVE       = 1 [(displayName) = "Rive"];
+    }
+
     required string scene                   = 1 [(resource)=true];
     required string default_animation       = 2;
     optional string material                = 3 [(resource)=true, default="/defold-rive/assets/rivemodel.material"];
@@ -30,6 +63,10 @@ message RiveModelDesc
     optional string default_state_machine   = 5;
     optional bool create_go_bones           = 6 [default=false];
     optional string artboard                = 7;
+
+    optional CoordinateSystem coordinate_system = 8 [default = COORDINATE_SYSTEM_FULLSCREEN];
+    optional Fit artboard_fit                   = 9 [default = FIT_NONE];
+    optional Alignment artboard_alignment       = 10 [default = ALIGNMENT_CENTER];
 
     // E.g. various per-instance tesselation options
     //optional float tesselation_option1    = 4 [default = 0.0];
