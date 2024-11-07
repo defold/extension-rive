@@ -15,6 +15,7 @@ local BUTTONS = {
 	{ id = "grimley", text = "Grimley" },
 	{ id = "fighting-game", text = "Fight!" },
 	{ id = "ghost", text = "Ghost UI" },
+	{ id = "layout", text = "Layouts" },
  }
 local COLUMNS = 3
 local WIDTH = 220
