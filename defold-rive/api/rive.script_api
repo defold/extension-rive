@@ -245,4 +245,3 @@
     - name: matrix
       type: vmath.matrix4
       desc: The projection matrix
-

@@ -233,6 +233,36 @@ go.set("#rivemodel", "Trigger 1", true)
 go.set("#rivemodel", "Number 1", 0.8)
 ```
 
+#### Events
+Events that trigger while a state machine is playing are sent to the callback function provided when calling `rive.play_state_machine(url, state_machine_id, options, callback`):
+
+```lua
+local function rive_event_handler(self, message_id, message)
+	print("received event", message.name)
+	pprint(message)
+end
+
+function init(self)
+	rive.play_state_machine("#rivemodel", "State Machine 1", nil, rive_event_handler)
+end
+```
+
+If no callback is provided the events will be sent to the calling script as `rive_event_trigger` messages:
+
+
+```lua
+function init(self)
+	rive.play_state_machine("#rivemodel", "State Machine 1")
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("rive_event_triggered") then
+		print("received event", message.name)
+		pprint(message)
+	end
+end
+```
+
 
 ### Bone hierarchy
 The individual bones in the *Rive Scene* skeleton are represented internally as game objects. In the *Outline* view of the *Rive Scene* the full hierarchy is visible.
