@@ -17,6 +17,8 @@ embedded_instances {
   "default_animation: \\\"00\\\"\\n"
   "material: \\\"/defold-rive/assets/rivemodel.material\\\"\\n"
   "default_state_machine: \\\"State Machine 1\\\"\\n"
+  "coordinate_system: COORDINATE_SYSTEM_RIVE\\n"
+  "artboard_fit: FIT_CONTAIN\\n"
   "\"\n"
   "}\n"
   ""

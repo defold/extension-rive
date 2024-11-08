@@ -18,6 +18,8 @@ embedded_instances {
   "material: \\\"/defold-rive/assets/rivemodel.material\\\"\\n"
   "default_state_machine: \\\"State Machine 1\\\"\\n"
   "artboard: \\\"Dwarf Panel\\\"\\n"
+  "coordinate_system: COORDINATE_SYSTEM_RIVE\\n"
+  "artboard_fit: FIT_CONTAIN\\n"
   "\"\n"
   "}\n"
   ""

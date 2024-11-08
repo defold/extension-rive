@@ -1,0 +1,85 @@
+name: "ghost"
+instances {
+  id: "back"
+  prototype: "/main/menu/back.go"
+}
+scale_along_z: 0
+embedded_instances {
+  id: "joel"
+  data: "embedded_components {\n"
+  "  id: \"rivemodel\"\n"
+  "  type: \"rivemodel\"\n"
+  "  data: \"scene: \\\"/main/camera/camera.rivescene\\\"\\n"
+  "default_animation: \\\"\\\"\\n"
+  "material: \\\"/defold-rive/assets/rivemodel.material\\\"\\n"
+  "default_state_machine: \\\"State Machine 1\\\"\\n"
+  "artboard: \\\"Character\\\"\\n"
+  "\"\n"
+  "}\n"
+  ""
+  scale3 {
+    x: 0.5
+    y: 0.5
+  }
+}
+embedded_instances {
+  id: "scene"
+  data: "embedded_components {\n"
+  "  id: \"rivemodel\"\n"
+  "  type: \"rivemodel\"\n"
+  "  data: \"scene: \\\"/main/camera/camera.rivescene\\\"\\n"
+  "default_animation: \\\"Timeline 1\\\"\\n"
+  "material: \\\"/defold-rive/assets/rivemodel.material\\\"\\n"
+  "default_state_machine: \\\"State Machine 1\\\"\\n"
+  "artboard: \\\"Death\\\"\\n"
+  "\"\n"
+  "}\n"
+  ""
+  position {
+    x: 217.17
+    y: 103.98394
+  }
+  scale3 {
+    x: 0.48
+    y: 0.48
+    z: 0.48
+  }
+}
+embedded_instances {
+  id: "go"
+  data: "embedded_components {\n"
+  "  id: \"camera\"\n"
+  "  type: \"camera\"\n"
+  "  data: \"aspect_ratio: 1.0\\n"
+  "fov: 0.7854\\n"
+  "near_z: 0.1\\n"
+  "far_z: 1000.0\\n"
+  "auto_aspect_ratio: 1\\n"
+  "orthographic_projection: 1\\n"
+  "\"\n"
+  "}\n"
+  ""
+  position {
+    z: 204.12892
+  }
+}
+embedded_instances {
+  id: "go1"
+  data: "embedded_components {\n"
+  "  id: \"sprite\"\n"
+  "  type: \"sprite\"\n"
+  "  data: \"default_animation: \\\"logo_blue_256\\\"\\n"
+  "material: \\\"/builtins/materials/sprite.material\\\"\\n"
+  "textures {\\n"
+  "  sampler: \\\"texture_sampler\\\"\\n"
+  "  texture: \\\"/assets/main.atlas\\\"\\n"
+  "}\\n"
+  "\"\n"
+  "}\n"
+  ""
+  scale3 {
+    x: 0.2
+    y: 0.2
+    z: 0.2
+  }
+}
