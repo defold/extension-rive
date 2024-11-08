@@ -235,3 +235,14 @@
         type: string
         desc: (OPTIONAL) If specified, the text run will be set in the specified nested artboard
 
+#*****************************************************************************************************
+
+  - name: get_projection_matrix
+    type: function
+    desc: Get an orthographic projection matrix that can be used to project regular Defold components into the same coordinate space as the rive model when using the 'fullscreen' coordinate space.
+
+    return:
+    - name: matrix
+      type: vmath.matrix4
+      desc: The projection matrix
+
