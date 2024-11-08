@@ -317,7 +317,7 @@ namespace dmRive
 
         dmGraphics::HContext graphics_context = dmGraphics::GetInstalledContext();
 
-        float scale_factor = GetDisplayScaleFactor(graphics_context);
+        float scale_factor = CompRiveGetDisplayScaleFactor();
         float right = (float) dmGraphics::GetWindowWidth(graphics_context) / scale_factor;
         float top = (float) dmGraphics::GetWindowHeight(graphics_context) / scale_factor;
 

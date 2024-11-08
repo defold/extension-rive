@@ -112,6 +112,8 @@ namespace dmRive
     static const dmhash_t MATERIAL_EXT_HASH       = dmHashString64("materialc");
 
     static float g_DisplayFactor = 0.0f;
+    static float g_OriginalWindowWidth = 0.0f;
+    static float g_OriginalWindowHeight = 0.0f;
 
     static void ResourceReloadedCallback(const dmResource::ResourceReloadedParams* params);
     static void DestroyComponent(struct RiveWorld* world, uint32_t index);
@@ -491,8 +493,6 @@ namespace dmRive
 
         uint32_t window_height = dmGraphics::GetWindowHeight(world->m_Ctx->m_GraphicsContext);
 
-        renderer->save();
-
         for (uint32_t *i=begin;i!=end;i++)
         {
             RiveComponent* c = (RiveComponent*) buf[*i].m_UserData;
@@ -547,8 +547,6 @@ namespace dmRive
 
             renderer->restore();
         }
-
-        renderer->restore();
     }
 
     void UpdateTransforms(RiveWorld* world)
@@ -566,14 +564,7 @@ namespace dmRive
 
             const Matrix4& go_world = dmGameObject::GetWorldMatrix(c->m_Instance);
             const Matrix4 local = dmTransform::ToMatrix4(c->m_Transform);
-            // if (dmGameObject::ScaleAlongZ(c->m_Instance))
-            // {
-            //     c->m_World = go_world * local;
-            // }
-            // else
-            {
-                c->m_World = dmTransform::MulNoScaleZ(go_world, local);
-            }
+            c->m_World = dmTransform::MulNoScaleZ(go_world, local);
         }
     }
 
@@ -1330,7 +1321,13 @@ namespace dmRive
         rivectx->m_RenderContext    = *(dmRender::HRenderContext*)ctx->m_Contexts.Get(dmHashString64("render"));
         rivectx->m_MaxInstanceCount = dmConfigFile::GetInt(ctx->m_Config, "rive.max_instance_count", 128);
 
-        g_DisplayFactor = GetDisplayScaleFactor(rivectx->m_GraphicsContext);
+        g_OriginalWindowWidth = dmGraphics::GetWidth(rivectx->m_GraphicsContext);
+        g_OriginalWindowHeight = dmGraphics::GetHeight(rivectx->m_GraphicsContext);
+
+        float scale_factor_width = (float) dmGraphics::GetWindowWidth(rivectx->m_GraphicsContext) / g_OriginalWindowWidth;
+        float scale_factor_height = (float) dmGraphics::GetWindowHeight(rivectx->m_GraphicsContext) / g_OriginalWindowHeight;
+        float scale_factor_engine = dmGraphics::GetDisplayScaleFactor(rivectx->m_GraphicsContext);
+        g_DisplayFactor = dmMath::Max(scale_factor_engine, dmMath::Max(scale_factor_width, scale_factor_height));
 
         dmLogInfo("Display Factor: %g", g_DisplayFactor);
 
@@ -1504,23 +1501,23 @@ namespace dmRive
         return false;
     }
 
-    float GetDisplayScaleFactor(dmGraphics::HContext graphics_context)
+    float CompRiveGetDisplayScaleFactor()
     {
-        if (g_DisplayFactor < 1.0f)
-        {
-            float scale_factor_width = (float) dmGraphics::GetWindowWidth(graphics_context) / (float) dmGraphics::GetWidth(graphics_context);
-            float scale_factor_height = (float) dmGraphics::GetWindowHeight(graphics_context) / (float) dmGraphics::GetHeight(graphics_context);
-            float scale_factor_engine = dmGraphics::GetDisplayScaleFactor(graphics_context);
-            g_DisplayFactor = dmMath::Max(scale_factor_engine, dmMath::Max(scale_factor_width, scale_factor_height));
-        }
         return g_DisplayFactor;
     }
 
     static rive::Vec2D WorldToLocal(RiveComponent* component, float x, float y)
     {
         dmGraphics::HContext graphics_context = dmGraphics::GetInstalledContext();
-        uint32_t window_height = dmGraphics::GetWindowHeight(graphics_context);
-        rive::Vec2D p_local = component->m_InverseRendererTransform * rive::Vec2D(x, window_height - y);
+
+        float window_width = (float) dmGraphics::GetWindowWidth(graphics_context);
+        float window_height = (float) dmGraphics::GetWindowHeight(graphics_context);
+
+        // Width/height are in screen coordinates and not window coordinates (i.e backbuffer size)
+        float normalized_x = x / g_OriginalWindowWidth;
+        float normalized_y = 1 - (y / g_OriginalWindowHeight);
+
+        rive::Vec2D p_local = component->m_InverseRendererTransform * rive::Vec2D(normalized_x * window_width, normalized_y * window_height);
         return p_local;
     }
 

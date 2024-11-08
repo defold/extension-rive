@@ -88,7 +88,7 @@ namespace dmRive
     const char* CompRiveGetTextRun(RiveComponent* component, const char* name, const char* nested_artboard_path);
     bool        CompRiveSetTextRun(RiveComponent* component, const char* name, const char* text_run, const char* nested_artboard_path);
 
-    float GetDisplayScaleFactor(dmGraphics::HContext graphics_context);
+    float CompRiveGetDisplayScaleFactor();
 
     // bool CompRiveSetIKTargetInstance(RiveComponent* component, dmhash_t constraint_id, float mix, dmhash_t instance_id);
     // bool CompRiveSetIKTargetPosition(RiveComponent* component, dmhash_t constraint_id, float mix, Vectormath::Aos::Point3 position);
