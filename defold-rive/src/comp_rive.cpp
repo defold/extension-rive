@@ -516,7 +516,7 @@ namespace dmRive
                 rive::Mat2D centerAdjustment  = rive::Mat2D::fromTranslate(-bounds.width() / 2.0f, -bounds.height() / 2.0f);
                 rive::Mat2D scaleDpi          = rive::Mat2D::fromScale(1,-1);
                 rive::Mat2D invertAdjustment  = rive::Mat2D::fromScaleAndTranslation(g_DisplayFactor, -g_DisplayFactor, 0, window_height);
-                rive::Mat2D rendererTransform = invertAdjustment * transform * scaleDpi * centerAdjustment;
+                rive::Mat2D rendererTransform = invertAdjustment * viewTransform * transform * scaleDpi * centerAdjustment;
 
                 renderer->transform(rendererTransform);
                 c->m_InverseRendererTransform = rendererTransform.invertOrIdentity();
