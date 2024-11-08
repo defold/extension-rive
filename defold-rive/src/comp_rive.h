@@ -49,6 +49,7 @@ namespace dmRive
         dmRender::HMaterial                     m_Material;
         dmScript::LuaCallbackInfo*              m_Callback;
         uint32_t                                m_CallbackId;
+        rive::Mat2D                             m_InverseRendererTransform;
 
         std::unique_ptr<rive::ArtboardInstance>         m_ArtboardInstance;
         std::unique_ptr<rive::LinearAnimationInstance>  m_AnimationInstance;

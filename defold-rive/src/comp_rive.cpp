@@ -513,11 +513,13 @@ namespace dmRive
                 rive::Mat2D transform;
                 Mat4ToMat2D(c->m_World, transform);
 
-                rive::Mat2D centerAdjustment = rive::Mat2D::fromTranslate(-bounds.width() / 2.0f, -bounds.height() / 2.0f);
-                rive::Mat2D scaleDpi         = rive::Mat2D::fromScale(1,-1);
-                rive::Mat2D invertAdjustment = rive::Mat2D::fromScaleAndTranslation(g_DisplayFactor, -g_DisplayFactor, 0, window_height);
+                rive::Mat2D centerAdjustment  = rive::Mat2D::fromTranslate(-bounds.width() / 2.0f, -bounds.height() / 2.0f);
+                rive::Mat2D scaleDpi          = rive::Mat2D::fromScale(1,-1);
+                rive::Mat2D invertAdjustment  = rive::Mat2D::fromScaleAndTranslation(g_DisplayFactor, -g_DisplayFactor, 0, window_height);
+                rive::Mat2D rendererTransform = invertAdjustment * transform * scaleDpi * centerAdjustment;
 
-                renderer->transform(invertAdjustment * transform * scaleDpi * centerAdjustment);
+                renderer->transform(rendererTransform);
+                c->m_InverseRendererTransform = rendererTransform.invertOrIdentity();
             }
             else if (ddf->m_CoordinateSystem == dmRiveDDF::RiveModelDesc::COORDINATE_SYSTEM_RIVE)
             {
@@ -530,7 +532,9 @@ namespace dmRive
                     c->m_ArtboardInstance->height(height);
                 }
 
-                renderer->align(rive_fit, rive_align, rive::AABB(0, 0, width, height), bounds);
+                rive::Mat2D rendererTransform = rive::computeAlignment(rive_fit, rive_align, rive::AABB(0, 0, width, height), bounds);
+                renderer->transform(rendererTransform);
+                c->m_InverseRendererTransform = rendererTransform.invertOrIdentity();
             }
 
             if (c->m_StateMachineInstance) {
@@ -1514,15 +1518,10 @@ namespace dmRive
 
     static rive::Vec2D WorldToLocal(RiveComponent* component, float x, float y)
     {
-        float scale = g_DisplayFactor;
-
-        rive::AABB bounds = component->m_ArtboardInstance->bounds();
-        Matrix4 world_inv = dmVMath::Inverse(component->m_World);
-        Vector4 local = (world_inv * Point3(x*scale, y*scale, 0));
-        float bounds_width_half = bounds.width() * 0.5f;
-        float bounds_height_half = bounds.height() * 0.5f;
-        rive::Vec2D p((local.getX() + bounds.width()) / scale, (bounds.height() - local.getY()) / scale);
-        return p;
+        dmGraphics::HContext graphics_context = dmGraphics::GetInstalledContext();
+        uint32_t window_height = dmGraphics::GetWindowHeight(graphics_context);
+        rive::Vec2D p_local = component->m_InverseRendererTransform * rive::Vec2D(x, window_height - y);
+        return p_local;
     }
 
     void CompRivePointerMove(RiveComponent* component, float x, float y)
