@@ -111,7 +111,7 @@ namespace dmRive
     static const dmhash_t PROP_MATERIAL           = dmHashString64("material");
     static const dmhash_t MATERIAL_EXT_HASH       = dmHashString64("materialc");
 
-    static float g_DisplayFactor = 1.0f;
+    static float g_DisplayFactor = 0.0f;
 
     static void ResourceReloadedCallback(const dmResource::ResourceReloadedParams* params);
     static void DestroyComponent(struct RiveWorld* world, uint32_t index);
@@ -160,7 +160,7 @@ namespace dmRive
         float top    = 1.0f;
 
         // Flip texture coordinates on y axis for OpenGL for the final blit:
-        if (dmGraphics::GetInstalledAdapterFamily() == dmGraphics::ADAPTER_FAMILY_OPENGL)
+        if (dmGraphics::GetInstalledAdapterFamily() != dmGraphics::ADAPTER_FAMILY_OPENGL)
         {
             top    = 0.0f;
             bottom = 1.0f;
@@ -513,22 +513,15 @@ namespace dmRive
                 rive::Mat2D transform;
                 Mat4ToMat2D(c->m_World, transform);
 
-                // Invert the artboard on the Y axis so that the coordinate system is aligned with Y-up
-                rive::Vec2D yflip(g_DisplayFactor, -g_DisplayFactor);
-                transform = transform.scale(yflip);
+                rive::Mat2D centerAdjustment = rive::Mat2D::fromTranslate(-bounds.width() / 2.0f, -bounds.height() / 2.0f);
+                rive::Mat2D scaleDpi         = rive::Mat2D::fromScale(1,-1);
+                rive::Mat2D invertAdjustment = rive::Mat2D::fromScaleAndTranslation(g_DisplayFactor, -g_DisplayFactor, 0, window_height);
 
-                // Apply the view transform to the artboard transform to place it in the "camera view"
-                renderer->transform(viewTransform * transform);
-
-                // Position the artboard so that its origo is at its center
-                renderer->align(rive::Fit::none,
-                    rive::Alignment::center,
-                    rive::AABB(-bounds.width(), bounds.height(), bounds.width(), -bounds.height()),
-                    bounds);
+                renderer->transform(invertAdjustment * transform * scaleDpi * centerAdjustment);
             }
             else if (ddf->m_CoordinateSystem == dmRiveDDF::RiveModelDesc::COORDINATE_SYSTEM_RIVE)
             {
-                rive::Fit rive_fit = DDFToRiveFit(ddf->m_ArtboardFit);
+                rive::Fit rive_fit         = DDFToRiveFit(ddf->m_ArtboardFit);
                 rive::Alignment rive_align = DDFToRiveAlignment(ddf->m_ArtboardAlignment);
 
                 if (rive_fit == rive::Fit::layout)
@@ -537,9 +530,7 @@ namespace dmRive
                     c->m_ArtboardInstance->height(height);
                 }
 
-                renderer->align(rive_fit, rive_align,
-                    rive::AABB(0, 0, width, height),
-                    bounds);
+                renderer->align(rive_fit, rive_align, rive::AABB(0, 0, width, height), bounds);
             }
 
             if (c->m_StateMachineInstance) {
@@ -1335,10 +1326,7 @@ namespace dmRive
         rivectx->m_RenderContext    = *(dmRender::HRenderContext*)ctx->m_Contexts.Get(dmHashString64("render"));
         rivectx->m_MaxInstanceCount = dmConfigFile::GetInt(ctx->m_Config, "rive.max_instance_count", 128);
 
-        float scale_factor_width = (float) dmGraphics::GetWindowWidth(rivectx->m_GraphicsContext) / (float) dmGraphics::GetWidth(rivectx->m_GraphicsContext);
-        float scale_factor_height = (float) dmGraphics::GetWindowHeight(rivectx->m_GraphicsContext) / (float) dmGraphics::GetHeight(rivectx->m_GraphicsContext);
-        float scale_factor_engine = dmGraphics::GetDisplayScaleFactor(rivectx->m_GraphicsContext);
-        g_DisplayFactor = dmMath::Max(scale_factor_engine, dmMath::Max(scale_factor_width, scale_factor_height));
+        g_DisplayFactor = GetDisplayScaleFactor(rivectx->m_GraphicsContext);
 
         dmLogInfo("Display Factor: %g", g_DisplayFactor);
 
@@ -1510,6 +1498,18 @@ namespace dmRive
         }
 
         return false;
+    }
+
+    float GetDisplayScaleFactor(dmGraphics::HContext graphics_context)
+    {
+        if (g_DisplayFactor < 1.0f)
+        {
+            float scale_factor_width = (float) dmGraphics::GetWindowWidth(graphics_context) / (float) dmGraphics::GetWidth(graphics_context);
+            float scale_factor_height = (float) dmGraphics::GetWindowHeight(graphics_context) / (float) dmGraphics::GetHeight(graphics_context);
+            float scale_factor_engine = dmGraphics::GetDisplayScaleFactor(graphics_context);
+            g_DisplayFactor = dmMath::Max(scale_factor_engine, dmMath::Max(scale_factor_width, scale_factor_height));
+        }
+        return g_DisplayFactor;
     }
 
     static rive::Vec2D WorldToLocal(RiveComponent* component, float x, float y)
