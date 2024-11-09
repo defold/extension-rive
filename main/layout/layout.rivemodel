@@ -2,3 +2,5 @@ scene: "/main/layout/layout.rivescene"
 default_animation: ""
 material: "/defold-rive/assets/rivemodel.material"
 default_state_machine: "State Machine 1"
+coordinate_system: COORDINATE_SYSTEM_RIVE
+artboard_fit: FIT_LAYOUT

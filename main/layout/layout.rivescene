@@ -1,2 +1,2 @@
-scene: "/main/layout/layout.riv"
+scene: "/main/layout/layouts_demo.riv"
 atlas: "/defold-rive/assets/empty.atlas"

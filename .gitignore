@@ -18,3 +18,5 @@ builtins
 bob.jar
 /defold-rive/lib/**/ext.settings
 /.editor_settings
+*.keystore*
+manifest.*

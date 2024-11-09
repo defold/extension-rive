@@ -20,11 +20,14 @@
 #include <dmsdk/sdk.h>
 #include <dmsdk/dlib/hash.h>
 #include <dmsdk/dlib/message.h>
+#include <dmsdk/dlib/vmath.h>
 #include <dmsdk/gameobject/script.h>
 #include <dmsdk/gamesys/script.h>
 
 #include "comp_rive.h"
 #include "rive_ddf.h"
+
+#include <private/defold_graphics.h>
 
 namespace dmRive
 {
@@ -308,17 +311,33 @@ namespace dmRive
         return 0;
     }
 
+    static int RiveComp_GetProjectionMatrix(lua_State* L)
+    {
+        DM_LUA_STACK_CHECK(L, 1);
+
+        dmGraphics::HContext graphics_context = dmGraphics::GetInstalledContext();
+
+        float scale_factor = CompRiveGetDisplayScaleFactor();
+        float right = (float) dmGraphics::GetWindowWidth(graphics_context) / scale_factor;
+        float top = (float) dmGraphics::GetWindowHeight(graphics_context) / scale_factor;
+
+        dmScript::PushMatrix4(L, dmVMath::Matrix4::orthographic(0, right, 0, top, -1, 1));
+
+        return 1;
+    }
+
     static const luaL_reg RIVE_FUNCTIONS[] =
     {
-        {"play_anim",           RiveComp_PlayAnim},
-        {"play_state_machine",  RiveComp_PlayStateMachine},
-        {"cancel",              RiveComp_Cancel},
-        {"get_go",              RiveComp_GetGO},
-        {"pointer_move",        RiveComp_PointerMove},
-        {"pointer_up",          RiveComp_PointerUp},
-        {"pointer_down",        RiveComp_PointerDown},
-        {"set_text_run",        RiveComp_SetTextRun},
-        {"get_text_run",        RiveComp_GetTextRun},
+        {"play_anim",             RiveComp_PlayAnim},
+        {"play_state_machine",    RiveComp_PlayStateMachine},
+        {"cancel",                RiveComp_Cancel},
+        {"get_go",                RiveComp_GetGO},
+        {"pointer_move",          RiveComp_PointerMove},
+        {"pointer_up",            RiveComp_PointerUp},
+        {"pointer_down",          RiveComp_PointerDown},
+        {"set_text_run",          RiveComp_SetTextRun},
+        {"get_text_run",          RiveComp_GetTextRun},
+        {"get_projection_matrix", RiveComp_GetProjectionMatrix},
         {0, 0}
     };
 

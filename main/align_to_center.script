@@ -1,8 +1,0 @@
-function init(self)
-	self.current_pos = go.get_position()
-end
-
-function update(self, dt)
-	local w,h = window.get_size()
-	go.set_position(vmath.vector3(w / 2, h / 2, self.current_pos.z))
-end

@@ -30,16 +30,73 @@ The Rive extension is using a native renderer from the [Rive runtime]()https://g
 The low-level renderer doesn't rasterize rive paths using regular triangles - instead a complex series of draw commands are issued that will produce smooth vector graphics.
 With this in mind, there are a few caveats for how the renderer works together with the regular Defold rendering.
 
-### Projection matrix
-The Rive API does not have an exposed projection matrix that can be set, which means that in order to match the Rive coordinate space, a fullscreen projection is used in the render script:
+### Coordinate systems
+
+The extension exposes two different coordinate systems that can be used to position the Rive content on screen:
+
+*Fullscreen*
+: Similar to the other Defold components, Y coordinates increase upwards.
+
+*Rive*
+: The Rive content will be placed according to the Rive coordinate system, where Y increases downwards from top-left. The placement can be further controlled by changing the `Fit` and `Alignment` modes on the Rive model component.
+
+![Coordinate system](rive-windows-system.png)
+
+When using the `Rive` coordinate system, the `Fit` and `Alignment` settings affect how the Rive content is rendered.
+
+The `Fit` parameter determines how the Rive content will be fitted to the view. There are a number of options available:
+
+*Cover*
+: Rive will cover the view, preserving the aspect ratio. If the Rive content has a different ratio to the view, then the Rive content will be clipped.
+
+*Contain*
+: (Default) Rive content will be contained within the view, preserving the aspect ratio. If the ratios differ, then a portion of the view will be unused.
+
+*Fill*
+: Rive content will fill the available view. If the aspect ratios differ, then the Rive content will be stretched.
+
+*FitWidth*
+: Rive content will fill to the width of the view. This may result in clipping or unfilled view space.
+
+*FitHeight*
+: Rive content will fill to the height of the view. This may result in clipping or unfilled view space.
+
+*None (default)*
+: Rive content will render to the size of its artboard, which may result in clipping or unfilled view space.
+
+*ScaleDown*
+: Rive content is scaled down to the size of the view, preserving the aspect ratio. This is equivalent to Contain when the content is larger than the canvas. If the canvas is larger, then ScaleDown will not scale up.
+
+
+The `Alignment` parameter determines how the content aligns with respect to the view bounds. The following options are available:
+
+*Center (Default)*
+*TopLeft*
+*TopCenter*
+*TopRight*
+*CenterLeft*
+*CenterRight*
+*BottomLeft*
+*BottomCenter*
+*BottomRight*
+
+### Mixing Defold and Rive content
+
+The Rive API does not have an exposed projection matrix that can be set, which means that in order to match the Rive coordinate space, a fullscreen projection is used in the render script.
+To help with mixing Defold and Rive cxontent, the extension provides the helper function `rive.get_projection_matrix()` that can be used as the projection matrix in the render script:
 
 ```
-render.set_projection(vmath.matrix4_orthographic(0, render.get_window_width(), 0, render.get_window_height(), -1, 1))
+render.set_projection_matrix(rive.get_projection_matrix())
 render.set_viewport(0, 0, render.get_window_width(), render.get_window_height())
+-- The rive component and sprite components will now be in the same coordinate system,
+-- as long as the coordinate system for Rive model used in the scene is set to "fullscreen"!
 render.draw(self.rive_pred)
+render.draw(self.sprite_pred)
 ```
 
-This means that you can put Defold and Rive content in the same coordinate space if you want to mix and match regular Defold content with Rive.
+::: important
+If you want to mix Defold and Rive content, you will need to set the `Coordinate system` field on the Rive component to "Fullscreen" in order to be able to place components in the same space.
+:::
 
 For convenience, there is a modified render script included with the projection matrix extension. Open your *game.project* file and modify the `Render` field in the `Bootstrap` section to use the `defold-rive/lua/rive.render` file from this extension.
 
@@ -47,6 +104,12 @@ For convenience, there is a modified render script included with the projection 
 
 View matrices are supported, but only in 2D space since Rive content is essentially orthographic by design.
 For example, using the view matrix from a camera component can be used to implement camera effects, such as screen shakes or as a regular game camera in 2D.
+
+Note! Support for using a view matrix / camera component to display Rive content is currently considered a work-in-progress and might not work as expected yet.
+
+::: important
+If you want to use a view matrix in 3D space, you will need to set the `Coordinate system` field on the Rive component to "Rive" in order to be able to place components in the same space.
+:::
 
 ### Blending
 

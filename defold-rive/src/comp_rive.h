@@ -49,6 +49,7 @@ namespace dmRive
         dmRender::HMaterial                     m_Material;
         dmScript::LuaCallbackInfo*              m_Callback;
         uint32_t                                m_CallbackId;
+        rive::Mat2D                             m_InverseRendererTransform;
 
         std::unique_ptr<rive::ArtboardInstance>         m_ArtboardInstance;
         std::unique_ptr<rive::LinearAnimationInstance>  m_AnimationInstance;
@@ -86,6 +87,8 @@ namespace dmRive
 
     const char* CompRiveGetTextRun(RiveComponent* component, const char* name, const char* nested_artboard_path);
     bool        CompRiveSetTextRun(RiveComponent* component, const char* name, const char* text_run, const char* nested_artboard_path);
+
+    float CompRiveGetDisplayScaleFactor();
 
     // bool CompRiveSetIKTargetInstance(RiveComponent* component, dmhash_t constraint_id, float mix, dmhash_t instance_id);
     // bool CompRiveSetIKTargetPosition(RiveComponent* component, dmhash_t constraint_id, float mix, Vectormath::Aos::Point3 position);

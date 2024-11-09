@@ -34,3 +34,9 @@ max_count = 16
 [shader]
 output_spirv = 1
 
+[render]
+clear_color_red = 0.25
+clear_color_green = 0.25
+clear_color_blue = 0.25
+clear_color_alpha = 1.0
+

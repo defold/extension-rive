@@ -111,7 +111,9 @@ namespace dmRive
     static const dmhash_t PROP_MATERIAL           = dmHashString64("material");
     static const dmhash_t MATERIAL_EXT_HASH       = dmHashString64("materialc");
 
-    static float g_DisplayFactor = 1.0f;
+    static float g_DisplayFactor = 0.0f;
+    static float g_OriginalWindowWidth = 0.0f;
+    static float g_OriginalWindowHeight = 0.0f;
 
     static void ResourceReloadedCallback(const dmResource::ResourceReloadedParams* params);
     static void DestroyComponent(struct RiveWorld* world, uint32_t index);
@@ -159,8 +161,8 @@ namespace dmRive
         float bottom = 0.0f;
         float top    = 1.0f;
 
-        // Flip texture coordinates on y axis for OpenGL
-        if (dmGraphics::GetInstalledAdapterFamily() == dmGraphics::ADAPTER_FAMILY_OPENGL)
+        // Flip texture coordinates on y axis for OpenGL for the final blit:
+        if (dmGraphics::GetInstalledAdapterFamily() != dmGraphics::ADAPTER_FAMILY_OPENGL)
         {
             top    = 0.0f;
             bottom = 1.0f;
@@ -441,6 +443,39 @@ namespace dmRive
         }
     }
 
+    static inline rive::Fit DDFToRiveFit(dmRiveDDF::RiveModelDesc::Fit fit)
+    {
+        switch(fit)
+        {
+            case dmRiveDDF::RiveModelDesc::FIT_FILL:         return rive::Fit::fill;
+            case dmRiveDDF::RiveModelDesc::FIT_CONTAIN:      return rive::Fit::contain;
+            case dmRiveDDF::RiveModelDesc::FIT_COVER:        return rive::Fit::cover;
+            case dmRiveDDF::RiveModelDesc::FIT_FIT_WIDTH:    return rive::Fit::fitWidth;
+            case dmRiveDDF::RiveModelDesc::FIT_FIT_HEIGHT:   return rive::Fit::fitHeight;
+            case dmRiveDDF::RiveModelDesc::FIT_NONE:         return rive::Fit::none;
+            case dmRiveDDF::RiveModelDesc::FIT_SCALE_DOWN:   return rive::Fit::scaleDown;
+            case dmRiveDDF::RiveModelDesc::FIT_LAYOUT:       return rive::Fit::layout;
+        }
+        return rive::Fit::none;
+    }
+
+    static inline rive::Alignment DDFToRiveAlignment(dmRiveDDF::RiveModelDesc::Alignment alignment)
+    {
+        switch(alignment)
+        {
+            case dmRiveDDF::RiveModelDesc::ALIGNMENT_TOP_LEFT:      return rive::Alignment::topLeft;
+            case dmRiveDDF::RiveModelDesc::ALIGNMENT_TOP_CENTER:    return rive::Alignment::topCenter;
+            case dmRiveDDF::RiveModelDesc::ALIGNMENT_TOP_RIGHT:     return rive::Alignment::topRight;
+            case dmRiveDDF::RiveModelDesc::ALIGNMENT_CENTER_LEFT:   return rive::Alignment::centerLeft;
+            case dmRiveDDF::RiveModelDesc::ALIGNMENT_CENTER:        return rive::Alignment::center;
+            case dmRiveDDF::RiveModelDesc::ALIGNMENT_CENTER_RIGHT:  return rive::Alignment::centerRight;
+            case dmRiveDDF::RiveModelDesc::ALIGNMENT_BOTTOM_LEFT:   return rive::Alignment::bottomLeft;
+            case dmRiveDDF::RiveModelDesc::ALIGNMENT_BOTTOM_CENTER: return rive::Alignment::bottomCenter;
+            case dmRiveDDF::RiveModelDesc::ALIGNMENT_BOTTOM_RIGHT:  return rive::Alignment::bottomRight;
+        }
+        return rive::Alignment::center;
+    }
+
     static void RenderBatch(RiveWorld* world, dmRender::HRenderContext render_context, dmRender::RenderListEntry *buf, uint32_t* begin, uint32_t* end)
     {
         RiveComponent*              first    = (RiveComponent*) buf[*begin].m_UserData;
@@ -465,25 +500,42 @@ namespace dmRive
             if (!c->m_Enabled || !c->m_AddedToUpdate)
                 continue;
 
-            rive::Mat2D transform;
-            Mat4ToMat2D(c->m_World, transform);
-
-            rive::AABB bounds = c->m_ArtboardInstance->bounds();
+            RiveModelResource* resource = c->m_Resource;
+            dmRiveDDF::RiveModelDesc* ddf = resource->m_DDF;
 
             renderer->save();
 
-            // Rive is using a different coordinate system than defold,
-            // we have to adhere to how our projection matrixes are
-            // constructed so we flip the renderer on the y axis here
-            rive::Vec2D yflip(g_DisplayFactor, -g_DisplayFactor);
-            transform = transform.scale(yflip);
+            rive::AABB bounds = c->m_ArtboardInstance->bounds();
 
-            renderer->transform(viewTransform * transform);
+            if (ddf->m_CoordinateSystem == dmRiveDDF::RiveModelDesc::COORDINATE_SYSTEM_FULLSCREEN)
+            {
+                // Apply the world matrix from the component to the artboard transform
+                rive::Mat2D transform;
+                Mat4ToMat2D(c->m_World, transform);
 
-            renderer->align(rive::Fit::none,
-                rive::Alignment::center,
-                rive::AABB(-bounds.width(), bounds.height(), bounds.width(), -bounds.height()),
-                bounds);
+                rive::Mat2D centerAdjustment  = rive::Mat2D::fromTranslate(-bounds.width() / 2.0f, -bounds.height() / 2.0f);
+                rive::Mat2D scaleDpi          = rive::Mat2D::fromScale(1,-1);
+                rive::Mat2D invertAdjustment  = rive::Mat2D::fromScaleAndTranslation(g_DisplayFactor, -g_DisplayFactor, 0, window_height);
+                rive::Mat2D rendererTransform = invertAdjustment * viewTransform * transform * scaleDpi * centerAdjustment;
+
+                renderer->transform(rendererTransform);
+                c->m_InverseRendererTransform = rendererTransform.invertOrIdentity();
+            }
+            else if (ddf->m_CoordinateSystem == dmRiveDDF::RiveModelDesc::COORDINATE_SYSTEM_RIVE)
+            {
+                rive::Fit rive_fit         = DDFToRiveFit(ddf->m_ArtboardFit);
+                rive::Alignment rive_align = DDFToRiveAlignment(ddf->m_ArtboardAlignment);
+
+                if (rive_fit == rive::Fit::layout)
+                {
+                    c->m_ArtboardInstance->width(width);
+                    c->m_ArtboardInstance->height(height);
+                }
+
+                rive::Mat2D rendererTransform = rive::computeAlignment(rive_fit, rive_align, rive::AABB(0, 0, width, height), bounds);
+                renderer->transform(rendererTransform);
+                c->m_InverseRendererTransform = rendererTransform.invertOrIdentity();
+            }
 
             if (c->m_StateMachineInstance) {
                 c->m_StateMachineInstance->draw(renderer);
@@ -512,14 +564,7 @@ namespace dmRive
 
             const Matrix4& go_world = dmGameObject::GetWorldMatrix(c->m_Instance);
             const Matrix4 local = dmTransform::ToMatrix4(c->m_Transform);
-            // if (dmGameObject::ScaleAlongZ(c->m_Instance))
-            // {
-            //     c->m_World = go_world * local;
-            // }
-            // else
-            {
-                c->m_World = dmTransform::MulNoScaleZ(go_world, local);
-            }
+            c->m_World = dmTransform::MulNoScaleZ(go_world, local);
         }
     }
 
@@ -1276,8 +1321,11 @@ namespace dmRive
         rivectx->m_RenderContext    = *(dmRender::HRenderContext*)ctx->m_Contexts.Get(dmHashString64("render"));
         rivectx->m_MaxInstanceCount = dmConfigFile::GetInt(ctx->m_Config, "rive.max_instance_count", 128);
 
-        float scale_factor_width = (float) dmGraphics::GetWindowWidth(rivectx->m_GraphicsContext) / (float) dmGraphics::GetWidth(rivectx->m_GraphicsContext);
-        float scale_factor_height = (float) dmGraphics::GetWindowHeight(rivectx->m_GraphicsContext) / (float) dmGraphics::GetHeight(rivectx->m_GraphicsContext);
+        g_OriginalWindowWidth = dmGraphics::GetWidth(rivectx->m_GraphicsContext);
+        g_OriginalWindowHeight = dmGraphics::GetHeight(rivectx->m_GraphicsContext);
+
+        float scale_factor_width = (float) dmGraphics::GetWindowWidth(rivectx->m_GraphicsContext) / g_OriginalWindowWidth;
+        float scale_factor_height = (float) dmGraphics::GetWindowHeight(rivectx->m_GraphicsContext) / g_OriginalWindowHeight;
         float scale_factor_engine = dmGraphics::GetDisplayScaleFactor(rivectx->m_GraphicsContext);
         g_DisplayFactor = dmMath::Max(scale_factor_engine, dmMath::Max(scale_factor_width, scale_factor_height));
 
@@ -1453,17 +1501,24 @@ namespace dmRive
         return false;
     }
 
+    float CompRiveGetDisplayScaleFactor()
+    {
+        return g_DisplayFactor;
+    }
+
     static rive::Vec2D WorldToLocal(RiveComponent* component, float x, float y)
     {
-        float scale = g_DisplayFactor;
+        dmGraphics::HContext graphics_context = dmGraphics::GetInstalledContext();
 
-        rive::AABB bounds = component->m_ArtboardInstance->bounds();
-        Matrix4 world_inv = dmVMath::Inverse(component->m_World);
-        Vector4 local = (world_inv * Point3(x*scale, y*scale, 0));
-        float bounds_width_half = bounds.width() * 0.5f;
-        float bounds_height_half = bounds.height() * 0.5f;
-        rive::Vec2D p((local.getX() + bounds.width()) / scale, (bounds.height() - local.getY()) / scale);
-        return p;
+        float window_width = (float) dmGraphics::GetWindowWidth(graphics_context);
+        float window_height = (float) dmGraphics::GetWindowHeight(graphics_context);
+
+        // Width/height are in screen coordinates and not window coordinates (i.e backbuffer size)
+        float normalized_x = x / g_OriginalWindowWidth;
+        float normalized_y = 1 - (y / g_OriginalWindowHeight);
+
+        rive::Vec2D p_local = component->m_InverseRendererTransform * rive::Vec2D(normalized_x * window_width, normalized_y * window_height);
+        return p_local;
     }
 
     void CompRivePointerMove(RiveComponent* component, float x, float y)
