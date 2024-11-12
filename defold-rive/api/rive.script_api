@@ -245,3 +245,27 @@
     - name: matrix
       type: vmath.matrix4
       desc: The projection matrix
+
+#*****************************************************************************************************
+
+  - name: get_state_machine_input
+    type: function
+    desc: Get the input values from a state machine input, either from the current top-level artboard, or from a nested artboard inside the Rive model artboard. Note: Trigger inputs will not generate a value!
+
+    parameters:
+      - name: url
+        type: url
+        desc: The Rive model
+
+      - name: name
+        type: string
+        desc: The name of the input
+
+      - name: nested_artboard
+        type: string
+        desc: (OPTIONAL) If specified, the input will be queried for the specified nested artboard
+
+    return:
+    - name: value
+      type: number|bool
+      desc: The value of the input
