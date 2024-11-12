@@ -250,7 +250,7 @@
 
   - name: get_state_machine_input
     type: function
-    desc: Get the input values from a state machine input, either from the current top-level artboard, or from a nested artboard inside the Rive model artboard. Note: Trigger inputs will not generate a value!
+    desc: Get the input values from a state machine input, either from the current top-level artboard, or from a nested artboard inside the Rive model artboard. Note that trigger inputs will not generate a value!
 
     parameters:
       - name: url
