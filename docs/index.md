@@ -40,7 +40,7 @@ The extension exposes two different coordinate systems that can be used to posit
 *Rive*
 : The Rive content will be placed according to the Rive coordinate system, where Y increases downwards from top-left. The placement can be further controlled by changing the `Fit` and `Alignment` modes on the Rive model component.
 
-![Coordinate system](rive-windows-system.png)
+![Coordinate system](rive-coordinate-system.png)
 
 When using the `Rive` coordinate system, the `Fit` and `Alignment` settings affect how the Rive content is rendered.
 
