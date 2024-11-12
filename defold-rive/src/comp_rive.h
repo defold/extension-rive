@@ -75,6 +75,31 @@ namespace dmRive
 
     // For scripting
 
+    struct GetStateMachineInputData
+    {
+        union
+        {
+            bool  m_BoolValue;
+            float m_NumberValue;
+        };
+
+        enum Result
+        {
+            RESULT_NOT_FOUND        = -2,
+            RESULT_TYPE_UNSUPPORTED = -1,
+            RESULT_OK               = 0,
+        };
+
+        enum Type
+        {
+            TYPE_INVALID = -1,
+            TYPE_BOOL    = 0,
+            TYPE_NUMBER  = 1
+        };
+
+        Type m_Type;
+    };
+
     // Get the game object identifier
     bool CompRiveGetBoneID(RiveComponent* component, dmhash_t bone_name, dmhash_t* id);
 
@@ -87,6 +112,8 @@ namespace dmRive
 
     const char* CompRiveGetTextRun(RiveComponent* component, const char* name, const char* nested_artboard_path);
     bool        CompRiveSetTextRun(RiveComponent* component, const char* name, const char* text_run, const char* nested_artboard_path);
+
+    GetStateMachineInputData::Result CompRiveGetStateMachineInput(RiveComponent* component, const char* input_name, const char* nested_artboard_path, GetStateMachineInputData& data);
 
     float CompRiveGetDisplayScaleFactor();
 

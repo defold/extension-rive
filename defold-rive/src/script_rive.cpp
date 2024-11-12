@@ -294,14 +294,13 @@ namespace dmRive
         dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
 
         const char* name = luaL_checkstring(L, 2);
+        const char* text_run = luaL_checkstring(L, 3);
         const char* nested_artboard_path = 0;
 
         if (lua_isstring(L, 4))
         {
             nested_artboard_path = lua_tostring(L, 4);
         }
-
-        const char* text_run = luaL_checkstring(L, 3);
 
         if (!CompRiveSetTextRun(component, name, text_run, nested_artboard_path))
         {
@@ -326,18 +325,57 @@ namespace dmRive
         return 1;
     }
 
+    static int RiveComp_GetStateMachineInput(lua_State* L)
+    {
+        DM_LUA_STACK_CHECK(L, 1);
+
+        RiveComponent* component = 0;
+        dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
+
+        const char* input_name = luaL_checkstring(L, 2);
+        const char* nested_artboard_path = 0; // optional
+
+        if (lua_isstring(L, 3))
+        {
+            nested_artboard_path = lua_tostring(L, 3);
+        }
+
+        GetStateMachineInputData data;
+        GetStateMachineInputData::Result res = CompRiveGetStateMachineInput(component, input_name, nested_artboard_path, data);
+
+        if (res != GetStateMachineInputData::RESULT_OK)
+        {
+            if (res == GetStateMachineInputData::RESULT_TYPE_UNSUPPORTED)
+                return DM_LUA_ERROR("The input '%s' has an unsupported type.", input_name);
+            assert(res == GetStateMachineInputData::RESULT_NOT_FOUND);
+            return DM_LUA_ERROR("The input '%s' could not be found (or an unknown error happened).", input_name);
+        }
+
+        switch(data.m_Type)
+        {
+            case GetStateMachineInputData::TYPE_BOOL:
+                lua_pushboolean(L, data.m_BoolValue);
+                break;
+            case GetStateMachineInputData::TYPE_NUMBER:
+                lua_pushnumber(L, data.m_NumberValue);
+                break;
+        }
+        return 1;
+    }
+
     static const luaL_reg RIVE_FUNCTIONS[] =
     {
-        {"play_anim",             RiveComp_PlayAnim},
-        {"play_state_machine",    RiveComp_PlayStateMachine},
-        {"cancel",                RiveComp_Cancel},
-        {"get_go",                RiveComp_GetGO},
-        {"pointer_move",          RiveComp_PointerMove},
-        {"pointer_up",            RiveComp_PointerUp},
-        {"pointer_down",          RiveComp_PointerDown},
-        {"set_text_run",          RiveComp_SetTextRun},
-        {"get_text_run",          RiveComp_GetTextRun},
-        {"get_projection_matrix", RiveComp_GetProjectionMatrix},
+        {"play_anim",               RiveComp_PlayAnim},
+        {"play_state_machine",      RiveComp_PlayStateMachine},
+        {"cancel",                  RiveComp_Cancel},
+        {"get_go",                  RiveComp_GetGO},
+        {"pointer_move",            RiveComp_PointerMove},
+        {"pointer_up",              RiveComp_PointerUp},
+        {"pointer_down",            RiveComp_PointerDown},
+        {"set_text_run",            RiveComp_SetTextRun},
+        {"get_text_run",            RiveComp_GetTextRun},
+        {"get_projection_matrix",   RiveComp_GetProjectionMatrix},
+        {"get_state_machine_input", RiveComp_GetStateMachineInput},
         {0, 0}
     };
 

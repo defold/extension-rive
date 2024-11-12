@@ -20,3 +20,4 @@ bob.jar
 /.editor_settings
 *.keystore*
 manifest.*
+/main/ignore
