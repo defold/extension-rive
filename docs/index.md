@@ -231,6 +231,15 @@ go.set("#rivemodel", "Trigger 1", true)
 
 -- Set the numeric value "Number 1" to 0.8
 go.set("#rivemodel", "Number 1", 0.8)
+
+-- Read the input value of the current state machine
+local v = rive.get_state_machine_input("#rivemodel", "Number 1")
+
+-- Read the input value of a nested artboard from the current state machine
+local v = rive.get_state_machine_input("#rivemodel", "Number 1", "My_Nested_Artboard")
+
+-- To go deeper into the nested hierarchy, you can add slashes between each scope
+local v = rive.get_state_machine_input("#rivemodel", "Number 1", "My_Nested_Artboard/My_Inner_Nested_Artboard")
 ```
 
 #### Events
