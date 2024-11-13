@@ -7,7 +7,7 @@
 
 #include <dmsdk/graphics/graphics_vulkan.h>
 
-#include <private/defold_graphics.h>
+#include <defold/defold_graphics.h>
 
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>

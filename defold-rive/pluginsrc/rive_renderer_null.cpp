@@ -1,7 +1,7 @@
 
 #include <rive/refcnt.hpp>
 
-#include <renderer.h>
+#include <defold/renderer.h>
 
 namespace dmRive
 {

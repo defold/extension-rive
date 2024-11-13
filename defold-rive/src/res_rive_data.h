@@ -16,7 +16,7 @@
 #include <stdint.h>
 #include <dmsdk/dlib/array.h>
 #include <dmsdk/dlib/hash.h>
-#include "renderer.h"
+#include "defold/renderer.h"
 
 namespace rive
 {

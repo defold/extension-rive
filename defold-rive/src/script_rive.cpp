@@ -27,7 +27,7 @@
 #include "comp_rive.h"
 #include "rive_ddf.h"
 
-#include <private/defold_graphics.h>
+#include <defold/defold_graphics.h>
 
 namespace dmRive
 {

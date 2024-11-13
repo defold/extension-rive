@@ -15,7 +15,7 @@
 
 #include <dmsdk/gamesys/resources/res_textureset.h>
 
-#include "renderer.h"
+#include "defold/renderer.h"
 
 #include "rive_ddf.h" // generated from the rive_ddf.proto
 
