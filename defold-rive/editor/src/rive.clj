@@ -784,7 +784,7 @@
   (property default-state-machine g/Str (default (protobuf/default rive-model-pb-class :default-state-machine))
             (dynamic error (g/fnk [_node-id rive-state-machine-ids default-state-machine rive-scene]
                                   (validate-model-default-state-machine _node-id rive-scene rive-state-machine-ids default-state-machine)))
-            (dynamic edit-type (g/fnk [rive-state-machine-ids] (properties/->choicebox rive-state-machine-ids))))
+            (dynamic edit-type (g/fnk [rive-state-machine-ids] (properties/->choicebox (cons "" rive-state-machine-ids)))))
 
   (property artboard g/Str (default (protobuf/default rive-model-pb-class :artboard))
           (dynamic error (g/fnk [_node-id rive-artboards artboard rive-scene]
