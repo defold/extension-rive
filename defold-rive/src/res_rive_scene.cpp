@@ -18,7 +18,7 @@
 #include <dmsdk/dlib/log.h>
 #include <dmsdk/resource/resource.h>
 
-#include "renderer.h"
+#include "defold/renderer.h"
 
 namespace dmRive
 {

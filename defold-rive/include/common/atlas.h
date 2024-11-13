@@ -21,7 +21,7 @@
 #include <rive/assets/file_asset.hpp>
 #include <rive/file_asset_loader.hpp>
 
-#include "renderer.h"
+#include "defold/renderer.h"
 
 namespace dmGameSystemDDF {
     struct TextureSet;

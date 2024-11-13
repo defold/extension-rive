@@ -24,7 +24,7 @@
 #include <rive/renderer/gl/render_context_gl_impl.hpp>
 #include <rive/renderer/gl/render_target_gl.hpp>
 
-#include <private/defold_graphics.h>
+#include <defold/defold_graphics.h>
 
 #ifdef RIVE_DESKTOP_GL
     #define GLFW_INCLUDE_NONE

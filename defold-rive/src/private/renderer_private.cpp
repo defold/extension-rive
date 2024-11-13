@@ -10,13 +10,13 @@
 
 #include <rive/renderer/rive_render_image.hpp>
 
-#include <private/defold_graphics.h>
-#include <private/defold_render.h>
-#include <private/shaders/rivemodel_blit.vpc.gen.h>
-#include <private/shaders/rivemodel_blit.fpc.gen.h>
+#include <defold/defold_graphics.h>
+#include <defold/defold_render.h>
+#include <defold/shaders/rivemodel_blit.vpc.gen.h>
+#include <defold/shaders/rivemodel_blit.fpc.gen.h>
 
 #include <common/vertices.h>
-#include <renderer.h>
+#include <defold/renderer.h>
 
 #include <assert.h>
 

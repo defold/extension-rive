@@ -55,6 +55,8 @@ namespace dmRive
         std::unique_ptr<rive::LinearAnimationInstance>  m_AnimationInstance;
         std::unique_ptr<rive::StateMachineInstance>     m_StateMachineInstance;
 
+        dmArray<std::unique_ptr<rive::StateMachineInstance>> m_AllSMSInstances;
+
         dmGameObject::Playback                  m_AnimationPlayback;
         float                                   m_AnimationPlaybackRate;
 

@@ -45,9 +45,8 @@
 #include <common/tess_renderer.h>
 
 // Defold Rive Renderer
-#include "renderer.h"
-
-#include <private/defold_graphics.h>
+#include <defold/renderer.h>
+#include <defold/defold_graphics.h>
 
 // DMSDK
 #include <dmsdk/script.h>
@@ -235,6 +234,26 @@ namespace dmRive
         return GetComponentFromIndex(world, index);
     }
 
+    static void InstantiateArtboard(RiveComponent* component)
+    {
+        dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
+
+        if (component->m_Resource->m_DDF->m_Artboard)
+        {
+            component->m_ArtboardInstance = data->m_File->artboardNamed(component->m_Resource->m_DDF->m_Artboard);
+
+            if (!component->m_ArtboardInstance)
+            {
+                dmLogWarning("Could not find artboard with name '%s'", component->m_Resource->m_DDF->m_Artboard);
+            }
+        }
+
+        if (!component->m_ArtboardInstance)
+        {
+            component->m_ArtboardInstance = data->m_File->artboardDefault();
+        }
+    }
+
     dmGameObject::CreateResult CompRiveCreate(const dmGameObject::ComponentCreateParams& params)
     {
         RiveWorld* world = (RiveWorld*)params.m_World;
@@ -263,22 +282,8 @@ namespace dmRive
         component->m_DoRender = 0;
         component->m_RenderConstants = 0;
 
-        dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
+        InstantiateArtboard(component);
 
-        if (component->m_Resource->m_DDF->m_Artboard)
-        {
-            component->m_ArtboardInstance = data->m_File->artboardNamed(component->m_Resource->m_DDF->m_Artboard);
-
-            if (!component->m_ArtboardInstance)
-            {
-                dmLogWarning("Could not find artboard with name '%s'", component->m_Resource->m_DDF->m_Artboard);
-            }
-        }
-
-        if (!component->m_ArtboardInstance)
-        {
-            component->m_ArtboardInstance = data->m_File->artboardDefault();
-        }
         component->m_ArtboardInstance->advance(0.0f);
 
         if (component->m_Resource->m_CreateGoBones)
@@ -578,7 +583,7 @@ namespace dmRive
         return dmGameObject::CREATE_RESULT_OK;
     }
 
-    static bool GetSender(RiveComponent* component, dmMessage::URL* out_sender)  
+    static bool GetSender(RiveComponent* component, dmMessage::URL* out_sender)
     {
         dmMessage::URL sender;
         sender.m_Socket = dmGameObject::GetMessageSocket(dmGameObject::GetCollection(component->m_Instance));
@@ -603,7 +608,6 @@ namespace dmRive
 
         component->m_AnimationInstance.reset();
         component->m_StateMachineInstance.reset();
-
         component->m_StateMachineInputs.SetSize(0);
     }
 
@@ -1030,11 +1034,14 @@ namespace dmRive
         CompRiveAnimationReset(component);
         CompRiveClearCallback(component);
 
+        // For now, we need to create a new state machine instance when playing a state machine, because of nested artboards+state machine events
+        InstantiateArtboard(component);
+
         component->m_Callback              = callback_info;
         component->m_CallbackId++;
         component->m_AnimationInstance     = nullptr;
-        component->m_StateMachineInstance  = component->m_ArtboardInstance->stateMachineAt(state_machine_index);
         component->m_AnimationPlaybackRate = playback_rate;
+        component->m_StateMachineInstance  = component->m_ArtboardInstance->stateMachineAt(state_machine_index);
 
         // update the list of current state machine inputs
         uint32_t count = component->m_StateMachineInstance->inputCount();
