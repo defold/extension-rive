@@ -20,21 +20,27 @@
 
 namespace rive
 {
-	class File;
+    class File;
 }
 
 namespace dmRive
 {
-	struct RiveBone;
+    struct RiveBone;
 
-	struct RiveSceneData
-	{
-		rive::File* 							m_File;
-		HRenderContext                          m_RiveRenderContext;
-		std::unique_ptr<rive::ArtboardInstance> m_ArtboardDefault;
-	    dmArray<dmhash_t> 						m_LinearAnimations;
-	    dmArray<dmhash_t> 						m_StateMachines;
-	};
+    struct RiveArtboardIdList
+    {
+        dmhash_t                                m_ArtboardNameHash;
+        dmArray<dmhash_t>                       m_LinearAnimations;
+        dmArray<dmhash_t>                       m_StateMachines;
+    };
+
+    struct RiveSceneData
+    {
+        rive::File*                             m_File;
+        HRenderContext                          m_RiveRenderContext;
+        std::unique_ptr<rive::ArtboardInstance> m_ArtboardDefault;
+        dmArray<RiveArtboardIdList>             m_ArtboardIdLists;
+    };
 }
 
 #endif // DM_RES_RIVE_DATA_H

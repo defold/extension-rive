@@ -200,6 +200,20 @@ namespace dmRive
         return dmGameObject::CREATE_RESULT_OK;
     }
 
+    static RiveArtboardIdList* FindArtboardIdList(rive::Artboard* artboard, dmRive::RiveSceneData* data)
+    {
+        dmhash_t artboard_id = dmHashString64(artboard->name().c_str());
+
+        for (int i = 0; i < data->m_ArtboardIdLists.Size(); ++i)
+        {
+            if (data->m_ArtboardIdLists[i].m_ArtboardNameHash == artboard_id)
+            {
+                return &data->m_ArtboardIdLists[i];
+            }
+        }
+        return 0x0;
+    }
+
     static inline dmRender::HMaterial GetMaterial(const RiveComponent* component, const RiveModelResource* resource) {
         return component->m_Material ? component->m_Material : resource->m_Material->m_Material;
     }
@@ -625,8 +639,10 @@ namespace dmRive
 
         dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
 
+        RiveArtboardIdList* id_list = FindArtboardIdList(component->m_ArtboardInstance.get(), data);
+
         dmRiveDDF::RiveAnimationDone message;
-        message.m_AnimationId = data->m_LinearAnimations[component->m_AnimationIndex];
+        message.m_AnimationId = id_list->m_LinearAnimations[component->m_AnimationIndex];
         message.m_Playback    = component->m_AnimationPlayback;
 
         if (component->m_Callback)
@@ -929,7 +945,13 @@ namespace dmRive
 
     static rive::LinearAnimation* FindAnimation(rive::Artboard* artboard, dmRive::RiveSceneData* data, int* animation_index, dmhash_t anim_id)
     {
-        int index = FindAnimationIndex(data->m_LinearAnimations.Begin(), data->m_LinearAnimations.Size(), anim_id);
+        RiveArtboardIdList* id_list = FindArtboardIdList(artboard, data);
+        if (!id_list)
+        {
+            return 0;
+        }
+
+        int index = FindAnimationIndex(id_list->m_LinearAnimations.Begin(), id_list->m_LinearAnimations.Size(), anim_id);
         if (index == -1) {
             return 0;
         }
@@ -939,7 +961,13 @@ namespace dmRive
 
     static rive::StateMachine* FindStateMachine(rive::Artboard* artboard, dmRive::RiveSceneData* data, int* state_machine_index, dmhash_t anim_id)
     {
-        int index = FindAnimationIndex(data->m_StateMachines.Begin(), data->m_StateMachines.Size(), anim_id);
+        RiveArtboardIdList* id_list = FindArtboardIdList(artboard, data);
+        if (!id_list)
+        {
+            return 0;
+        }
+
+        int index = FindAnimationIndex(id_list->m_StateMachines.Begin(), id_list->m_StateMachines.Size(), anim_id);
         if (index == -1) {
             return 0;
         }
@@ -1214,11 +1242,13 @@ namespace dmRive
         RiveComponent* component = GetComponentFromIndex(world, *params.m_UserData);
         dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
 
+        RiveArtboardIdList* id_list = FindArtboardIdList(component->m_ArtboardInstance.get(), data);
+
         if (params.m_PropertyId == PROP_ANIMATION)
         {
-            if (component->m_AnimationInstance && component->m_AnimationIndex < data->m_LinearAnimations.Size())
+            if (component->m_AnimationInstance && component->m_AnimationIndex < id_list->m_LinearAnimations.Size())
             {
-                out_value.m_Variant = dmGameObject::PropertyVar(data->m_LinearAnimations[component->m_AnimationIndex]);
+                out_value.m_Variant = dmGameObject::PropertyVar(id_list->m_LinearAnimations[component->m_AnimationIndex]);
             }
             return dmGameObject::PROPERTY_RESULT_OK;
         }
