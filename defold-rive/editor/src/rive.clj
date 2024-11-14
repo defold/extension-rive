@@ -170,8 +170,7 @@
 
   (property content g/Any)
   (property rive-handle g/Any) ; The cpp pointer
-  (property animations g/Any)
-  (property state-machine-ids g/Any)
+  (property artboard-id-list g/Any)
   (property aabb g/Any)
   (property vertices g/Any)
   (property bones g/Any)
@@ -220,15 +219,25 @@
   ; bones is a list of root Rive$Bone (Rive.java)
   (mapcat (fn [bone] (create-bone-hierarchy parent-id bone)) bones))
 
+;; Converts a list of java objects into a clojure map where we can get
+;; all the animations and state machines based on an artboard name.
+(defn- to-artboard-id-list [artboard-id-list-from-java]
+  (into {}
+        (map (fn [id-list]
+             [(.-artboardId id-list)
+              {:animation-ids (into [] (.-animations id-list))
+               :state-machine-ids (mapv (fn [sm] (.-name sm)) (.-stateMachines id-list))}])
+             artboard-id-list-from-java)))
+
 ; Loads the .riv file
 (defn- load-rive-file
   [project node-id resource]
   (let [content (resource->bytes resource)
         rive-handle (plugin-load-file content (resource/resource->proj-path resource))
-        animations (.-animations rive-handle)
+        artboard-id-list-from-java (.-artboardId rive-handle)
+        artboard-id-list (to-artboard-id-list artboard-id-list-from-java)
         artboards (.-artboards rive-handle)
-        state-machines (.-stateMachines rive-handle)
-        state-machine-ids (map (fn [state-machine] (.-name state-machine)) state-machines)
+
         _ (.Update rive-handle 0.0)
         aabb (convert-aabb (.-aabb rive-handle))
         bones (.-bones rive-handle)
@@ -237,8 +246,7 @@
                  (g/set-property node-id :content content)
                  (g/set-property node-id :rive-handle rive-handle)
                  (g/set-property node-id :artboards artboards)
-                 (g/set-property node-id :animations animations)
-                 (g/set-property node-id :state-machine-ids state-machine-ids)
+                 (g/set-property node-id :artboard-id-list artboard-id-list)
                  (g/set-property node-id :aabb aabb)
                  (g/set-property node-id :bones bones))
 
@@ -542,7 +550,7 @@
   (assert (= (:pass render-args) pass/outline))
   (render/render-aabb-outline gl render-args ::rive-outline renderables rcount))
 
-(g/defnk produce-main-scene [_node-id material-shader rive-file-handle rive-anim-ids aabb gpu-texture default-tex-params rive-scene-pb scene-structure texture-set-pb]
+(g/defnk produce-main-scene [_node-id material-shader rive-file-handle aabb gpu-texture default-tex-params rive-scene-pb scene-structure texture-set-pb]
   (when rive-file-handle
     (let [blend-mode :blend-mode-alpha]
       (assoc {:node-id _node-id :aabb aabb}
@@ -590,8 +598,7 @@
                                             [:rive-handle :rive-file-handle]
                                             [:structure :scene-structure]
                                             [:artboards :rive-artboards]
-                                            [:animations :rive-anim-ids]
-                                            [:state-machine-ids :rive-state-machine-ids]
+                                            [:artboard-id-list :rive-artboard-id-list]
                                             [:aabb :aabb]
                                             [:node-outline :source-outline]
                                             [:build-targets :dep-build-targets])))
@@ -628,8 +635,7 @@
   (input rive-file-resource resource/Resource)
   (input rive-file-handle g/Any)
   (input rive-artboards g/Any)
-  (input rive-anim-ids g/Any)
-  (input rive-state-machine-ids g/Any)
+  (input rive-artboard-id-list g/Any)
   (input aabb g/Any)
   (input atlas-resource resource/Resource)
 
@@ -653,8 +659,7 @@
   (output material-shader ShaderLifecycle (gu/passthrough material-shader))
   (output rive-file-handle g/Any :cached (gu/passthrough rive-file-handle))
   (output rive-artboards g/Any :cached (gu/passthrough rive-artboards))
-  (output rive-anim-ids g/Any :cached (gu/passthrough rive-anim-ids))
-  (output rive-state-machine-ids g/Any :cached (gu/passthrough rive-state-machine-ids))
+  (output rive-artboard-id-list g/Any :cached (gu/passthrough rive-artboard-id-list))
   (output aabb g/Any :cached (gu/passthrough aabb)))
 
 ; .rivescene
@@ -695,23 +700,23 @@
                            artboard
                            (set rive-artboards))))
 
-(defn- validate-model-default-animation [node-id rive-scene rive-anim-ids default-animation]
+(defn- validate-model-default-animation [node-id rive-scene animation-ids default-animation]
   (when (and rive-scene (not-empty default-animation))
     (validation/prop-error :fatal node-id :default-animation
                            (fn [anim ids]
                              (when-not (contains? ids anim)
                                (format "animation '%s' could not be found in the specified rive scene" anim)))
                            default-animation
-                           (set rive-anim-ids))))
+                           (set animation-ids))))
 
-(defn- validate-model-default-state-machine [node-id rive-scene rive-state-machine-ids default-state-machine]
+(defn- validate-model-default-state-machine [node-id rive-scene state-machine-ids default-state-machine]
   (when (and rive-scene (not-empty default-state-machine))
     (validation/prop-error :fatal node-id :default-state-machine
                            (fn [anim ids]
                              (when-not (contains? ids anim)
-                               (format "state machine '%s' could not be found in the specified rive scene" anim)))
+                               (format "state machine '%s' could not be found in the specified artboard or rive scene" anim)))
                            default-state-machine
-                           (set rive-state-machine-ids))))
+                           (set state-machine-ids))))
 
 (defn- validate-model-material [node-id material]
   (prop-resource-error node-id :material material "Material"))
@@ -719,13 +724,15 @@
 (defn- validate-model-rive-scene [node-id rive-scene]
   (prop-resource-error node-id :scene rive-scene "Rive Scene"))
 
-(g/defnk produce-model-own-build-errors [_node-id artboard default-animation default-state-machine material rive-artboards rive-anim-ids rive-state-machine-ids rive-scene scene-structure]
-  (g/package-errors _node-id
+(g/defnk produce-model-own-build-errors [_node-id artboard default-animation default-state-machine material rive-artboards rive-artboard-id-list rive-scene scene-structure]
+  (let [state-machine-ids (:state-machine-ids (get rive-artboard-id-list artboard))
+        animation-ids (:animation-ids (get rive-artboard-id-list artboard))]
+   (g/package-errors _node-id
                     (validate-model-material _node-id material)
                     (validate-model-rive-scene _node-id rive-scene)
                     (validate-model-artboard  _node-id rive-scene rive-artboards artboard)
-                    (validate-model-default-animation _node-id rive-scene rive-anim-ids default-animation)
-                    (validate-model-default-state-machine _node-id rive-scene rive-state-machine-ids default-state-machine)))
+                    (validate-model-default-animation _node-id rive-scene animation-ids default-animation)
+                    (validate-model-default-state-machine _node-id rive-scene state-machine-ids default-state-machine))))
 
 (defn- build-rive-model [resource dep-resources user-data]
   (let [pb (:proto-msg user-data)
@@ -759,8 +766,7 @@
                                             [:main-scene :rive-main-scene]
                                             [:rive-file-handle :rive-file-handle]
                                             [:rive-artboards :rive-artboards]
-                                            [:rive-anim-ids :rive-anim-ids]
-                                            [:rive-state-machine-ids :rive-state-machine-ids]
+                                            [:rive-artboard-id-list :rive-artboard-id-list]
                                             [:build-targets :dep-build-targets]
                                             [:anim-data :anim-data]
                                             [:scene-structure :scene-structure])))
@@ -781,20 +787,24 @@
             (dynamic edit-type (g/constantly {:type resource/Resource :ext "material"}))
             (dynamic error (g/fnk [_node-id material]
                                   (validate-model-material _node-id material))))
+
   (property default-state-machine g/Str (default (protobuf/default rive-model-pb-class :default-state-machine))
-            (dynamic error (g/fnk [_node-id rive-state-machine-ids default-state-machine rive-scene]
-                                  (validate-model-default-state-machine _node-id rive-scene rive-state-machine-ids default-state-machine)))
-            (dynamic edit-type (g/fnk [rive-state-machine-ids] (properties/->choicebox (cons "" rive-state-machine-ids)))))
+            (dynamic error (g/fnk [_node-id artboard rive-artboard-id-list default-state-machine rive-scene]
+                             (validate-model-default-state-machine _node-id rive-scene (:state-machine-ids (get rive-artboard-id-list artboard)) default-state-machine)))
+            (dynamic edit-type (g/fnk [artboard rive-artboard-id-list]
+                                 (properties/->choicebox (cons "" (:state-machine-ids (get rive-artboard-id-list artboard)))))))
+
+  (property default-animation g/Str
+            (dynamic error (g/fnk [_node-id artboard rive-artboard-id-list default-animation rive-scene]
+                             (validate-model-default-animation _node-id rive-scene (:animation-ids (get rive-artboard-id-list artboard)) default-animation)))
+            (dynamic edit-type (g/fnk [artboard rive-artboard-id-list]
+                                 (properties/->choicebox (cons "" (:animation-ids (get rive-artboard-id-list artboard)))))))
 
   (property artboard g/Str (default (protobuf/default rive-model-pb-class :artboard))
           (dynamic error (g/fnk [_node-id rive-artboards artboard rive-scene]
                                 (validate-model-artboard _node-id rive-scene rive-artboards artboard)))
           (dynamic edit-type (g/fnk [rive-artboards] (properties/->choicebox (cons "" rive-artboards)))))
 
-  (property default-animation g/Str ; Required protobuf field.
-            (dynamic error (g/fnk [_node-id rive-anim-ids default-animation rive-scene]
-                                  (validate-model-default-animation _node-id rive-scene rive-anim-ids default-animation)))
-            (dynamic edit-type (g/fnk [rive-anim-ids] (properties/->choicebox (cons "" rive-anim-ids)))))
   (property create-go-bones g/Bool (default (protobuf/default rive-model-pb-class :create-go-bones)))
 
   (property coordinate-system g/Any (default (protobuf/default rive-model-pb-class :coordinate-system))
@@ -812,8 +822,7 @@
   (input rive-main-scene g/Any)
   (input scene-structure g/Any)
   (input rive-artboards g/Any)
-  (input rive-anim-ids g/Any)
-  (input rive-state-machine-ids g/Any)
+  (input rive-artboard-id-list g/Any)
   (input texture-set-pb g/Any)
   (input atlas-resource resource/Resource)
   (input material-resource resource/Resource)
