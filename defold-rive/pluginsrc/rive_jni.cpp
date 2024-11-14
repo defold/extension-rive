@@ -51,6 +51,14 @@ struct StateMachineJNI
     jfieldID    inputs;  // array of StateMachineInput
 } g_StateMachineJNI;
 
+struct ArtboardIdList
+{
+    jclass      cls;
+    jfieldID    artboardId;    // String
+    jfieldID    stateMachines; // StateMachine[]
+    jfieldID    animations;    // String[]
+} g_ArtboardIdList;
+
 struct BoneJNI
 {
     jclass      cls;
@@ -69,14 +77,12 @@ struct BoneJNI
 struct RiveFileJNI
 {
     jclass      cls;
-    jfieldID    pointer;    // Pointer to a RiveFile*
-    jfieldID    path;       // string
-    jfieldID    aabb;       // Aabb
-    jfieldID    vertices;   // array of floats. Each vertex is: (x, y, u, v)
-    jfieldID    indices;    // array of indices into the vertices array. triangle list. 3 indices define a triangle
-
-    jfieldID    animations;    // array of strings
-    jfieldID    stateMachines; // array of state machines
+    jfieldID    pointer;       // Pointer to a RiveFile*
+    jfieldID    path;          // string
+    jfieldID    aabb;          // Aabb
+    jfieldID    vertices;      // array of floats. Each vertex is: (x, y, u, v)
+    jfieldID    indices;       // array of indices into the vertices array. triangle list. 3 indices define a triangle
+    jfieldID    artboardId;    // array artboard id lists
     jfieldID    bones;         // array of root bones
     jfieldID    renderObjects; // array of render objects
     jfieldID    artboards;     // array of strings
@@ -101,6 +107,12 @@ void InitializeJNITypes(JNIEnv* env)
         GET_FLD_ARRAY(inputs, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "StateMachineInput"));
     }
     {
+        SETUP_CLASS(ArtboardIdList, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "ArtboardIdList"));
+        GET_FLD_STRING(artboardId);
+        GET_FLD_ARRAY(stateMachines, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "StateMachine"));
+        GET_FLD_ARRAY(animations, "java/lang/String");
+    }
+    {
         SETUP_CLASS(BoneJNI, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "Bone"));
         GET_FLD_STRING(name);
         GET_FLD_TYPESTR(index, "I");
@@ -119,9 +131,8 @@ void InitializeJNITypes(JNIEnv* env)
         GET_FLD_TYPESTR(pointer, "J");
         GET_FLD_TYPESTR(vertices, "[F");
         GET_FLD_TYPESTR(indices, "[I");
-        GET_FLD_ARRAY(animations, "java/lang/String");
         GET_FLD(aabb, MAKE_TYPE_NAME(DM_DEFOLD_JNI_PACKAGE_NAME, "Aabb"));
-        GET_FLD_ARRAY(stateMachines, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "StateMachine"));
+        GET_FLD_ARRAY(artboardId, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "ArtboardIdList"));
         GET_FLD_ARRAY(bones, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "Bone"));
         GET_FLD_ARRAY(renderObjects, MAKE_TYPE_NAME(DM_RENDER_JNI_PACKAGE_NAME, "RenderObject"));
         GET_FLD_ARRAY(artboards, "java/lang/String");
@@ -222,9 +233,9 @@ static jobject CreateStateMachine(JNIEnv* env, const rive::StateMachine* state_m
     return obj;
 }
 
-static jobjectArray CreateStateMachines(JNIEnv* env, dmRive::RiveFile* rive_file)
+static jobjectArray CreateStateMachines(JNIEnv* env, dmRive::RiveFile* rive_file, int artboard_index)
 {
-    const rive::Artboard* artboard = rive_file->m_File->artboard();
+    const rive::Artboard* artboard = rive_file->m_File->artboard(artboard_index);
     uint32_t count = artboard->stateMachineCount();
 
     jobjectArray arr = env->NewObjectArray(count, g_StateMachineJNI.cls, 0);
@@ -238,9 +249,9 @@ static jobjectArray CreateStateMachines(JNIEnv* env, dmRive::RiveFile* rive_file
     return arr;
 }
 
-static jobjectArray CreateAnimations(JNIEnv* env, dmRive::RiveFile* rive_file)
+static jobjectArray CreateAnimations(JNIEnv* env, dmRive::RiveFile* rive_file, int artboard_index)
 {
-    rive::Artboard* artboard = rive_file->m_File->artboard();
+    rive::Artboard* artboard = rive_file->m_File->artboard(artboard_index);
     int num_animations = artboard->animationCount();
 
     jobjectArray arr = env->NewObjectArray(num_animations, env->FindClass("java/lang/String"), 0);
@@ -261,6 +272,32 @@ static jobjectArray CreateArtboards(JNIEnv* env, dmRive::RiveFile* rive_file)
     {
         env->SetObjectArrayElement(arr, i, env->NewStringUTF(rive_file->m_File->artboardNameAt(i).c_str()));
     }
+    return arr;
+}
+
+static jobjectArray CreateArtboardIds(JNIEnv* env, dmRive::RiveFile* rive_file)
+{
+    int num_artboards = rive_file->m_File->artboardCount();
+
+    jobjectArray arr = env->NewObjectArray(num_artboards, g_ArtboardIdList.cls, 0);
+
+    for (int i = 0; i < num_artboards; ++i)
+    {
+        jobject o = env->AllocObject(g_ArtboardIdList.cls);
+        dmDefoldJNI::SetFieldString(env, o, g_ArtboardIdList.artboardId, rive_file->m_File->artboardNameAt(i).c_str());
+
+        jobjectArray stateMachines = CreateStateMachines(env, rive_file, i);
+        dmDefoldJNI::SetFieldObject(env, o, g_ArtboardIdList.stateMachines, stateMachines);
+        env->DeleteLocalRef(stateMachines);
+
+        jobjectArray animations = CreateAnimations(env, rive_file, i);
+        dmDefoldJNI::SetFieldObject(env, o, g_ArtboardIdList.animations, animations);
+        env->DeleteLocalRef(animations);
+
+        env->SetObjectArrayElement(arr, i, o);
+        env->DeleteLocalRef(o);
+    }
+
     return arr;
 }
 
@@ -377,17 +414,13 @@ static jobject CreateRiveFile(JNIEnv* env, dmRive::RiveFile* rive_file)
     dmDefoldJNI::SetFieldString(env, obj, g_RiveFileJNI.path, rive_file->m_Path);
     env->SetLongField(obj, g_RiveFileJNI.pointer, ToLong(rive_file));
 
-    jobjectArray animations = CreateAnimations(env, rive_file);
-    dmDefoldJNI::SetFieldObject(env, obj, g_RiveFileJNI.animations, animations);
-    env->DeleteLocalRef(animations);
-
-    jobjectArray stateMachines = CreateStateMachines(env, rive_file);
-    dmDefoldJNI::SetFieldObject(env, obj, g_RiveFileJNI.stateMachines, stateMachines);
-    env->DeleteLocalRef(stateMachines);
-
     jobjectArray bones = CreateBones(env, rive_file);
     dmDefoldJNI::SetFieldObject(env, obj, g_RiveFileJNI.bones, bones);
     env->DeleteLocalRef(bones);
+
+    jobjectArray artboardIds = CreateArtboardIds(env, rive_file);
+    dmDefoldJNI::SetFieldObject(env, obj, g_RiveFileJNI.artboardId, artboardIds);
+    env->DeleteLocalRef(artboardIds);
 
     jobjectArray artboards = CreateArtboards(env, rive_file);
     dmDefoldJNI::SetFieldObject(env, obj, g_RiveFileJNI.artboards, artboards);

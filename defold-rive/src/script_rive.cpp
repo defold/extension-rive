@@ -359,6 +359,8 @@ namespace dmRive
             case GetStateMachineInputData::TYPE_NUMBER:
                 lua_pushnumber(L, data.m_NumberValue);
                 break;
+            case GetStateMachineInputData::TYPE_INVALID:
+                break;
         }
         return 1;
     }

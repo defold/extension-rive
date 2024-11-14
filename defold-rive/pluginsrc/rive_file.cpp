@@ -34,8 +34,8 @@ RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char*
                                                     &result,
                                                     &atlas_resolver);
 
-    if (result != rive::ImportResult::success) {
-        //file = 0;
+    if (result != rive::ImportResult::success)
+    {
         dmLogError("Failed to load rive file '%s'", path);
         delete factory;
         return 0;
@@ -45,7 +45,8 @@ RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char*
     out->m_Path = 0;
     out->m_File = 0;
 
-    if (file) {
+    if (file)
+    {
         out->m_Path = strdup(path);
         out->m_File = file.release();
         out->m_Factory = factory;
@@ -320,6 +321,10 @@ void SetArtboard(RiveFile* rive_file, const char* artboard)
     {
         return;
     }
+
+    rive_file->m_ArtboardInstance.reset();
+    rive_file->m_AnimationInstance.reset();
+    rive_file->m_StateMachineInstance.reset();
 
     if (artboard != 0)
     {

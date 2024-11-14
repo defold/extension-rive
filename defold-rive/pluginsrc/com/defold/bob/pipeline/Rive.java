@@ -75,6 +75,12 @@ public class Rive {
         public StateMachineInput[]  inputs;
     }
 
+    public static class ArtboardIdList {
+        public String         artboardId;
+        public StateMachine[] stateMachines;
+        public String[]       animations;
+    }
+
     public static class Bone {
         public String   name;
         public int      index;
@@ -99,12 +105,10 @@ public class Rive {
     public static class RiveFile {
         public String           path;
         public long             pointer;
-
         public Aabb             aabb;
         public float[]          vertices;
         public int[]            indices;
-        public String[]         animations;
-        public StateMachine[]   stateMachines;
+        public ArtboardIdList[] artboardId;
         public Bone[]           bones;
         public RenderObject[]   renderObjects;
         public byte[]           texture_set_bytes;
@@ -319,19 +323,25 @@ public class Rive {
 
         System.out.printf("--------------------------------\n");
 
-        System.out.printf("Num animations: %d\n", rive_file.animations.length);
-        for (String animation : rive_file.animations)
-        {
+        System.out.printf("Num artboard id lists: %d\n", rive_file.artboardId.length);
+        for (ArtboardIdList artboardIdEntry : rive_file.artboardId) {
             PrintIndent(1);
-            System.out.printf("%s\n", animation);
-        }
+            System.out.printf("Id: %s\n", artboardIdEntry.artboardId);
 
-        System.out.printf("--------------------------------\n");
+            PrintIndent(1);
+            System.out.printf("Num animations: %d\n", artboardIdEntry.animations.length);
 
-        System.out.printf("Num state machines: %d\n", rive_file.stateMachines.length);
-        for (StateMachine stateMachine : rive_file.stateMachines)
-        {
-            DebugStateMachine(stateMachine);
+            for (String animation : artboardIdEntry.animations) {
+                PrintIndent(2);
+                System.out.printf("%s\n", animation);
+            }
+
+            PrintIndent(1);
+            System.out.printf("Num state machines: %d\n", artboardIdEntry.stateMachines.length);
+
+            for (StateMachine stateMachine : artboardIdEntry.stateMachines) {
+                DebugStateMachine(stateMachine);
+            }
         }
 
         System.out.printf("--------------------------------\n");

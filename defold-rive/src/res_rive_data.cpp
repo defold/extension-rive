@@ -33,37 +33,60 @@ namespace dmRive
     {
         scene_data->m_File = file;
         scene_data->m_RiveRenderContext = rive_render_context;
-
         scene_data->m_ArtboardDefault = scene_data->m_File->artboardDefault();
-        rive::Artboard* artboard = scene_data->m_ArtboardDefault.get();
-        if (!artboard)
-            return;
-
-        uint32_t animation_count = (uint32_t)artboard->animationCount();
-        if (animation_count > 0)
+        if (!scene_data->m_ArtboardDefault.get())
         {
-            scene_data->m_LinearAnimations.SetCapacity(animation_count);
-            scene_data->m_LinearAnimations.SetSize(animation_count);
-
-            for (int i = 0; i < animation_count; ++i)
-            {
-                rive::LinearAnimation* animation = artboard->animation(i);
-                assert(animation);
-                scene_data->m_LinearAnimations[i] = dmHashString64(animation->name().c_str());
-            }
+            return;
         }
 
-        uint32_t state_machine_count = (uint32_t)artboard->stateMachineCount();
-        if (state_machine_count > 0)
-        {
-            scene_data->m_StateMachines.SetCapacity(state_machine_count);
-            scene_data->m_StateMachines.SetSize(state_machine_count);
+        size_t artboard_count = scene_data->m_File->artboardCount();
 
-            for (int i = 0; i < state_machine_count; ++i)
+        scene_data->m_ArtboardIdLists.SetCapacity(artboard_count);
+        scene_data->m_ArtboardIdLists.SetSize(artboard_count);
+
+        for (int i = 0; i < artboard_count; ++i)
+        {
+            rive::Artboard* artboard = scene_data->m_File->artboard(i);
+
+            scene_data->m_ArtboardIdLists[i].m_ArtboardNameHash = dmHashString64(artboard->name().c_str());
+
+        #if 0
+            dmLogInfo("Artboard[%d]: %s", i, artboard->name().c_str());
+        #endif
+
+            // Setup state machine ID lists
+            uint32_t state_machine_count = (uint32_t)artboard->stateMachineCount();
+            if (state_machine_count)
             {
-                rive::StateMachine* state_machine = artboard->stateMachine(i);
-                assert(state_machine);
-                scene_data->m_StateMachines[i] = dmHashString64(state_machine->name().c_str());
+                scene_data->m_ArtboardIdLists[i].m_StateMachines.SetCapacity(state_machine_count);
+                scene_data->m_ArtboardIdLists[i].m_StateMachines.SetSize(state_machine_count);
+
+                for (int j = 0; j < state_machine_count; ++j)
+                {
+                    rive::StateMachine* state_machine = artboard->stateMachine(j);
+                    scene_data->m_ArtboardIdLists[i].m_StateMachines[j] = dmHashString64(state_machine->name().c_str());
+                #if 0
+                    dmLogInfo("  State machine[%d]: %s", j, state_machine->name().c_str());
+                #endif
+                }
+            }
+
+            // Setup animation ID lists
+            uint32_t animation_count = (uint32_t)artboard->animationCount();
+            if (animation_count)
+            {
+                scene_data->m_ArtboardIdLists[i].m_LinearAnimations.SetCapacity(animation_count);
+                scene_data->m_ArtboardIdLists[i].m_LinearAnimations.SetSize(animation_count);
+
+                for (int j = 0; j < animation_count; ++j)
+                {
+                    rive::LinearAnimation* animation = artboard->animation(j);
+                    scene_data->m_ArtboardIdLists[i].m_LinearAnimations[j] = dmHashString64(animation->name().c_str());
+
+                #if 0
+                    dmLogInfo("  Animation[%d]: %s", j, animation->name().c_str());
+                #endif
+                }
             }
         }
     }
