@@ -39,7 +39,7 @@ namespace dmRive
         rive::File*                             m_File;
         HRenderContext                          m_RiveRenderContext;
         std::unique_ptr<rive::ArtboardInstance> m_ArtboardDefault;
-        dmArray<RiveArtboardIdList>             m_ArtboardIdLists;
+        dmArray<RiveArtboardIdList*>            m_ArtboardIdLists;
     };
 }
 

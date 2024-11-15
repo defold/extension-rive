@@ -206,9 +206,9 @@ namespace dmRive
 
         for (int i = 0; i < data->m_ArtboardIdLists.Size(); ++i)
         {
-            if (data->m_ArtboardIdLists[i].m_ArtboardNameHash == artboard_id)
+            if (data->m_ArtboardIdLists[i]->m_ArtboardNameHash == artboard_id)
             {
-                return &data->m_ArtboardIdLists[i];
+                return data->m_ArtboardIdLists[i];
             }
         }
         return 0x0;
