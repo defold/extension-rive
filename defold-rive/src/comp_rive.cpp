@@ -786,8 +786,6 @@ namespace dmRive
 
             if (component.m_StateMachineInstance)
             {
-                component.m_StateMachineInstance->advanceAndApply(dt * component.m_AnimationPlaybackRate);
-
                 size_t event_count = component.m_StateMachineInstance->reportedEventCount();
                 for (size_t i = 0; i < event_count; i++)
                 {
@@ -795,6 +793,8 @@ namespace dmRive
                     rive::Event* event = reported_event.event();
                     CompRiveEventTriggerCallback(&component, event);
                 }
+
+                component.m_StateMachineInstance->advanceAndApply(dt * component.m_AnimationPlaybackRate);
             }
             else if (component.m_AnimationInstance)
             {
