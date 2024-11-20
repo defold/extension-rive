@@ -326,6 +326,11 @@ namespace dmRive
         {
             renderer->m_BlitMaterial = dmRender::NewMaterial(render_context, renderer->m_BlitVs, renderer->m_BlitFs);
 
+            if (!dmRender::SetMaterialSampler(renderer->m_BlitMaterial, dmHashString64("texture_sampler"), 0, dmGraphics::TEXTURE_WRAP_CLAMP_TO_EDGE, dmGraphics::TEXTURE_WRAP_CLAMP_TO_EDGE, dmGraphics::TEXTURE_FILTER_LINEAR, dmGraphics::TEXTURE_FILTER_LINEAR, 1.0))
+            {
+                dmLogError("Failed to set material sampler");
+            }
+
             dmhash_t dummy_tag = dmHashString64("rive");
             dmRender::SetMaterialTags(renderer->m_BlitMaterial, 1, &dummy_tag);
         }
