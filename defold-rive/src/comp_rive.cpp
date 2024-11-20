@@ -548,11 +548,11 @@ namespace dmRive
 
                 if (rive_fit == rive::Fit::layout)
                 {
-                    c->m_ArtboardInstance->width(width);
-                    c->m_ArtboardInstance->height(height);
+                    c->m_ArtboardInstance->width(width / g_DisplayFactor);
+                    c->m_ArtboardInstance->height(height / g_DisplayFactor);
                 }
 
-                rive::Mat2D rendererTransform = rive::computeAlignment(rive_fit, rive_align, rive::AABB(0, 0, width, height), bounds);
+                rive::Mat2D rendererTransform = rive::computeAlignment(rive_fit, rive_align, rive::AABB(0, 0, width, height), bounds, g_DisplayFactor);
                 renderer->transform(rendererTransform);
                 c->m_InverseRendererTransform = rendererTransform.invertOrIdentity();
             }
@@ -1359,13 +1359,9 @@ namespace dmRive
         rivectx->m_RenderContext    = *(dmRender::HRenderContext*)ctx->m_Contexts.Get(dmHashString64("render"));
         rivectx->m_MaxInstanceCount = dmConfigFile::GetInt(ctx->m_Config, "rive.max_instance_count", 128);
 
-        g_OriginalWindowWidth = dmGraphics::GetWidth(rivectx->m_GraphicsContext);
+        g_OriginalWindowWidth  = dmGraphics::GetWidth(rivectx->m_GraphicsContext);
         g_OriginalWindowHeight = dmGraphics::GetHeight(rivectx->m_GraphicsContext);
-
-        float scale_factor_width = (float) dmGraphics::GetWindowWidth(rivectx->m_GraphicsContext) / g_OriginalWindowWidth;
-        float scale_factor_height = (float) dmGraphics::GetWindowHeight(rivectx->m_GraphicsContext) / g_OriginalWindowHeight;
-        float scale_factor_engine = dmGraphics::GetDisplayScaleFactor(rivectx->m_GraphicsContext);
-        g_DisplayFactor = dmMath::Max(scale_factor_engine, dmMath::Max(scale_factor_width, scale_factor_height));
+        g_DisplayFactor        = dmGraphics::GetDisplayScaleFactor(rivectx->m_GraphicsContext);
 
         dmLogInfo("Display Factor: %g", g_DisplayFactor);
 
