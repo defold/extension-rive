@@ -1,0 +1,15 @@
+function init(self)
+	msg.post(".", "acquire_input_focus")
+end
+
+function update(self, dt)
+	-- pprint(rive.get_state_machine_input("#rivemodel", "input_number", "Nested"))
+end
+
+function on_input(self, action_id, action)
+	if action_id == hash("space") and action.released then
+		-- rive.set_state_machine_input("#rivemodel", "input_boolean", true, "Nested")
+		-- rive.set_state_machine_input("#rivemodel", "input_trigger", true, "Nested")
+		rive.set_state_machine_input("#rivemodel", "input_number", 1.0, "Nested")
+	end
+end

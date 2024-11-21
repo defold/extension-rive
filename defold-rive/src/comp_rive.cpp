@@ -1582,7 +1582,7 @@ namespace dmRive
         }
     }
 
-    GetStateMachineInputData::Result CompRiveGetStateMachineInput(RiveComponent* component, const char* input_name, const char* nested_artboard_path, GetStateMachineInputData& out_value)
+    StateMachineInputData::Result CompRiveSetStateMachineInput(RiveComponent* component, const char* input_name, const char* nested_artboard_path, const StateMachineInputData& value)
     {
         rive::ArtboardInstance* artboard = component->m_ArtboardInstance.get();
         rive::SMIInput* input_instance = 0x0;
@@ -1601,7 +1601,65 @@ namespace dmRive
             }
         }
 
-        out_value.m_Type = GetStateMachineInputData::TYPE_INVALID;
+        if (input_instance)
+        {
+            const rive::StateMachineInput* input = input_instance->input();
+
+            if (input->is<rive::StateMachineTrigger>())
+            {
+                if (value.m_Type != StateMachineInputData::TYPE_BOOL)
+                {
+                    return StateMachineInputData::RESULT_TYPE_MISMATCH;
+                }
+                rive::SMITrigger* trigger = (rive::SMITrigger*)input_instance;
+                trigger->fire();
+                return StateMachineInputData::RESULT_OK;
+            }
+            else if (input->is<rive::StateMachineBool>())
+            {
+                if (value.m_Type != StateMachineInputData::TYPE_BOOL)
+                {
+                    return StateMachineInputData::RESULT_TYPE_MISMATCH;
+                }
+                rive::SMIBool* v = (rive::SMIBool*)input_instance;
+                v->value(value.m_BoolValue);
+                return StateMachineInputData::RESULT_OK;
+            }
+            else if (input->is<rive::StateMachineNumber>())
+            {
+                if (value.m_Type != StateMachineInputData::TYPE_NUMBER)
+                {
+                    return StateMachineInputData::RESULT_TYPE_MISMATCH;
+                }
+                rive::SMINumber* v = (rive::SMINumber*)input_instance;
+                v->value(value.m_NumberValue);
+                return StateMachineInputData::RESULT_OK;
+            }
+        }
+
+        return StateMachineInputData::RESULT_NOT_FOUND;
+    }
+
+    StateMachineInputData::Result CompRiveGetStateMachineInput(RiveComponent* component, const char* input_name, const char* nested_artboard_path, StateMachineInputData& out_value)
+    {
+        rive::ArtboardInstance* artboard = component->m_ArtboardInstance.get();
+        rive::SMIInput* input_instance = 0x0;
+
+        if (nested_artboard_path)
+        {
+            input_instance = artboard->input(input_name, nested_artboard_path);
+        }
+        else
+        {
+            dmhash_t input_hash = dmHashString64(input_name);
+            int index = FindStateMachineInputIndex(component, input_hash);
+            if (index >= 0)
+            {
+                input_instance = component->m_StateMachineInstance->input(index);
+            }
+        }
+
+        out_value.m_Type = StateMachineInputData::TYPE_INVALID;
 
         if (input_instance)
         {
@@ -1609,25 +1667,25 @@ namespace dmRive
 
             if (input->is<rive::StateMachineTrigger>())
             {
-                return GetStateMachineInputData::RESULT_TYPE_UNSUPPORTED;
+                return StateMachineInputData::RESULT_TYPE_UNSUPPORTED;
             }
             else if (input->is<rive::StateMachineBool>())
             {
                 rive::SMIBool* v = (rive::SMIBool*)input_instance;
-                out_value.m_Type = GetStateMachineInputData::TYPE_BOOL;
+                out_value.m_Type = StateMachineInputData::TYPE_BOOL;
                 out_value.m_BoolValue = v->value();
-                return GetStateMachineInputData::RESULT_OK;
+                return StateMachineInputData::RESULT_OK;
             }
             else if (input->is<rive::StateMachineNumber>())
             {
                 rive::SMINumber* v = (rive::SMINumber*)input_instance;
-                out_value.m_Type = GetStateMachineInputData::TYPE_NUMBER;
+                out_value.m_Type = StateMachineInputData::TYPE_NUMBER;
                 out_value.m_NumberValue = v->value();
-                return GetStateMachineInputData::RESULT_OK;
+                return StateMachineInputData::RESULT_OK;
             }
         }
 
-        return GetStateMachineInputData::RESULT_NOT_FOUND;
+        return StateMachineInputData::RESULT_NOT_FOUND;
     }
 
     static inline rive::TextValueRun* GetTextRun(rive::ArtboardInstance* artboard, const char* name, const char* nested_artboard_path)

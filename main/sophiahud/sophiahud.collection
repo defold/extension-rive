@@ -17,6 +17,7 @@ embedded_instances {
   "default_animation: \\\"LOGO_INTRO\\\"\\n"
   "material: \\\"/defold-rive/assets/rivemodel.material\\\"\\n"
   "default_state_machine: \\\"SOPHIA_III_DASHBOARD_SEQ\\\"\\n"
+  "artboard: \\\"SOPHIA III HUD\\\"\\n"
   "coordinate_system: COORDINATE_SYSTEM_RIVE\\n"
   "artboard_fit: FIT_CONTAIN\\n"
   "\"\n"
