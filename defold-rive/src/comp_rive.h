@@ -77,7 +77,7 @@ namespace dmRive
 
     // For scripting
 
-    struct GetStateMachineInputData
+    struct StateMachineInputData
     {
         union
         {
@@ -87,7 +87,8 @@ namespace dmRive
 
         enum Result
         {
-            RESULT_NOT_FOUND        = -2,
+            RESULT_NOT_FOUND        = -3,
+            RESULT_TYPE_MISMATCH    = -2,
             RESULT_TYPE_UNSUPPORTED = -1,
             RESULT_OK               = 0,
         };
@@ -115,7 +116,8 @@ namespace dmRive
     const char* CompRiveGetTextRun(RiveComponent* component, const char* name, const char* nested_artboard_path);
     bool        CompRiveSetTextRun(RiveComponent* component, const char* name, const char* text_run, const char* nested_artboard_path);
 
-    GetStateMachineInputData::Result CompRiveGetStateMachineInput(RiveComponent* component, const char* input_name, const char* nested_artboard_path, GetStateMachineInputData& data);
+    StateMachineInputData::Result CompRiveGetStateMachineInput(RiveComponent* component, const char* input_name, const char* nested_artboard_path, StateMachineInputData& data);
+    StateMachineInputData::Result CompRiveSetStateMachineInput(RiveComponent* component, const char* input_name, const char* nested_artboard_path, const StateMachineInputData& data);
 
     float CompRiveGetDisplayScaleFactor();
 

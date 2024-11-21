@@ -1,5 +1,6 @@
 scene: "/main/lights/lights.rivescene"
 default_animation: "Animation 1"
 material: "/defold-rive/assets/rivemodel.material"
+artboard: "Lights"
 coordinate_system: COORDINATE_SYSTEM_RIVE
 artboard_fit: FIT_CONTAIN

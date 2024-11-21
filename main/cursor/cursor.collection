@@ -2,22 +2,6 @@ name: "cursor"
 instances {
   id: "back"
   prototype: "/main/menu/back.go"
-  position {
-    x: 0.0
-    y: 0.0
-    z: 0.0
-  }
-  rotation {
-    x: 0.0
-    y: 0.0
-    z: 0.0
-    w: 1.0
-  }
-  scale3 {
-    x: 1.0
-    y: 1.0
-    z: 1.0
-  }
 }
 scale_along_z: 0
 embedded_instances {
@@ -25,19 +9,6 @@ embedded_instances {
   data: "components {\n"
   "  id: \"cursor\"\n"
   "  component: \"/main/cursor/cursor.script\"\n"
-  "  position {\n"
-  "    x: 0.0\n"
-  "    y: 0.0\n"
-  "    z: 0.0\n"
-  "  }\n"
-  "  rotation {\n"
-  "    x: 0.0\n"
-  "    y: 0.0\n"
-  "    z: 0.0\n"
-  "    w: 1.0\n"
-  "  }\n"
-  "  property_decls {\n"
-  "  }\n"
   "}\n"
   "embedded_components {\n"
   "  id: \"rivemodel\"\n"
@@ -45,38 +16,16 @@ embedded_instances {
   "  data: \"scene: \\\"/main/cursor/emoji.rivescene\\\"\\n"
   "default_animation: \\\"Dart_board\\\"\\n"
   "material: \\\"/defold-rive/assets/rivemodel.material\\\"\\n"
-  "blend_mode: BLEND_MODE_ALPHA\\n"
-  "default_state_machine: \\\"\\\"\\n"
-  "create_go_bones: false\\n"
-  "artboard: \\\"\\\"\\n"
+  "artboard: \\\"New Artboard\\\"\\n"
   "\"\n"
-  "  position {\n"
-  "    x: 0.0\n"
-  "    y: 0.0\n"
-  "    z: 0.0\n"
-  "  }\n"
-  "  rotation {\n"
-  "    x: 0.0\n"
-  "    y: 0.0\n"
-  "    z: 0.0\n"
-  "    w: 1.0\n"
-  "  }\n"
   "}\n"
   ""
   position {
     x: 480.0
     y: 323.0
-    z: 0.0
-  }
-  rotation {
-    x: 0.0
-    y: 0.0
-    z: 0.0
-    w: 1.0
   }
   scale3 {
     x: 0.5
     y: 0.5
-    z: 1.0
   }
 }

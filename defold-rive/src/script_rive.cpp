@@ -325,6 +325,51 @@ namespace dmRive
         return 1;
     }
 
+    static int RiveComp_SetStateMachineInput(lua_State* L)
+    {
+        DM_LUA_STACK_CHECK(L, 0);
+
+        RiveComponent* component = 0;
+        dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
+
+        const char* input_name = luaL_checkstring(L, 2);
+        const char* nested_artboard_path = 0; // optional
+
+        StateMachineInputData data = {};
+
+        if (lua_isnumber(L, 3))
+        {
+            data.m_Type = StateMachineInputData::TYPE_NUMBER;
+            data.m_NumberValue = lua_tonumber(L,3);
+        }
+        else if (lua_isboolean(L,3))
+        {
+            data.m_Type = StateMachineInputData::TYPE_BOOL;
+            data.m_BoolValue = lua_toboolean(L,3);
+        }
+        else
+        {
+            return DM_LUA_ERROR("Cannot set input '%s' with an unsupported type.", input_name);
+        }
+        
+        if (lua_isstring(L, 4))
+        {
+            nested_artboard_path = lua_tostring(L, 4);
+        }
+
+        StateMachineInputData::Result res = CompRiveSetStateMachineInput(component, input_name, nested_artboard_path, data);
+        if (res != StateMachineInputData::RESULT_OK)
+        {
+            if (res == StateMachineInputData::RESULT_TYPE_MISMATCH)
+            {
+                return DM_LUA_ERROR("Type mismatch for input '%s'.", input_name);
+            }
+            assert(res == StateMachineInputData::RESULT_NOT_FOUND);
+            return DM_LUA_ERROR("The input '%s' could not be found (or an unknown error happened).", input_name);
+        }
+        return 0;
+    }
+
     static int RiveComp_GetStateMachineInput(lua_State* L)
     {
         DM_LUA_STACK_CHECK(L, 1);
@@ -340,26 +385,28 @@ namespace dmRive
             nested_artboard_path = lua_tostring(L, 3);
         }
 
-        GetStateMachineInputData data;
-        GetStateMachineInputData::Result res = CompRiveGetStateMachineInput(component, input_name, nested_artboard_path, data);
+        StateMachineInputData data;
+        StateMachineInputData::Result res = CompRiveGetStateMachineInput(component, input_name, nested_artboard_path, data);
 
-        if (res != GetStateMachineInputData::RESULT_OK)
+        if (res != StateMachineInputData::RESULT_OK)
         {
-            if (res == GetStateMachineInputData::RESULT_TYPE_UNSUPPORTED)
+            if (res == StateMachineInputData::RESULT_TYPE_UNSUPPORTED)
+            {
                 return DM_LUA_ERROR("The input '%s' has an unsupported type.", input_name);
-            assert(res == GetStateMachineInputData::RESULT_NOT_FOUND);
+            }
+            assert(res == StateMachineInputData::RESULT_NOT_FOUND);
             return DM_LUA_ERROR("The input '%s' could not be found (or an unknown error happened).", input_name);
         }
 
         switch(data.m_Type)
         {
-            case GetStateMachineInputData::TYPE_BOOL:
+            case StateMachineInputData::TYPE_BOOL:
                 lua_pushboolean(L, data.m_BoolValue);
                 break;
-            case GetStateMachineInputData::TYPE_NUMBER:
+            case StateMachineInputData::TYPE_NUMBER:
                 lua_pushnumber(L, data.m_NumberValue);
                 break;
-            case GetStateMachineInputData::TYPE_INVALID:
+            case StateMachineInputData::TYPE_INVALID:
                 break;
         }
         return 1;
@@ -378,6 +425,7 @@ namespace dmRive
         {"get_text_run",            RiveComp_GetTextRun},
         {"get_projection_matrix",   RiveComp_GetProjectionMatrix},
         {"get_state_machine_input", RiveComp_GetStateMachineInput},
+        {"set_state_machine_input", RiveComp_SetStateMachineInput},
         {0, 0}
     };
 
