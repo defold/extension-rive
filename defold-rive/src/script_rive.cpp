@@ -412,6 +412,20 @@ namespace dmRive
         return 1;
     }
 
+    // This is an "all bets are off" mode.
+    static int RiveComp_DebugSetBlitMode(lua_State* L)
+    {
+        DM_LUA_STACK_CHECK(L, 0);
+
+        if (!lua_isboolean(L, 1))
+        {
+            return DM_LUA_ERROR("The first argument must be a boolean.");
+        }
+        bool value = lua_toboolean(L, 1);
+        CompRiveDebugSetBlitMode(value);
+        return 0;
+    }
+
     static const luaL_reg RIVE_FUNCTIONS[] =
     {
         {"play_anim",               RiveComp_PlayAnim},
@@ -426,6 +440,7 @@ namespace dmRive
         {"get_projection_matrix",   RiveComp_GetProjectionMatrix},
         {"get_state_machine_input", RiveComp_GetStateMachineInput},
         {"set_state_machine_input", RiveComp_SetStateMachineInput},
+        {"debug_set_blit_mode",     RiveComp_DebugSetBlitMode},
         {0, 0}
     };
 

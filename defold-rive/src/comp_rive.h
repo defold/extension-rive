@@ -120,6 +120,7 @@ namespace dmRive
     StateMachineInputData::Result CompRiveSetStateMachineInput(RiveComponent* component, const char* input_name, const char* nested_artboard_path, const StateMachineInputData& data);
 
     float CompRiveGetDisplayScaleFactor();
+    void  CompRiveDebugSetBlitMode(bool value);
 
     // bool CompRiveSetIKTargetInstance(RiveComponent* component, dmhash_t constraint_id, float mix, dmhash_t instance_id);
     // bool CompRiveSetIKTargetPosition(RiveComponent* component, dmhash_t constraint_id, float mix, Vectormath::Aos::Point3 position);

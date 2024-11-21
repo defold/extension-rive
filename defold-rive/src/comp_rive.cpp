@@ -114,6 +114,7 @@ namespace dmRive
     static float g_DisplayFactor = 0.0f;
     static float g_OriginalWindowWidth = 0.0f;
     static float g_OriginalWindowHeight = 0.0f;
+    static RenderBeginParams g_RenderBeginParams;
 
     static void ResourceReloadedCallback(const dmResource::ResourceReloadedParams* params);
     static void DestroyComponent(struct RiveWorld* world, uint32_t index);
@@ -448,18 +449,21 @@ namespace dmRive
         {
             RenderEnd(world->m_RiveRenderContext);
 
-            // Do our own resolve here
-            dmRender::RenderObject& ro = *world->m_RenderObjects.End();
-            world->m_RenderObjects.SetSize(world->m_RenderObjects.Size()+1);
-            ro.Init();
-            ro.m_Material          = GetBlitToBackBufferMaterial(world->m_RiveRenderContext, render_context);
-            ro.m_VertexDeclaration = dmRender::GetVertexDeclaration(ro.m_Material);
-            ro.m_VertexBuffer      = world->m_BlitToBackbufferVertexBuffer;
-            ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
-            ro.m_VertexStart       = 0;
-            ro.m_VertexCount       = 6;
-            ro.m_Textures[0]       = GetBackingTexture(world->m_RiveRenderContext);
-            dmRender::AddToRender(render_context, &ro);
+            if (g_RenderBeginParams.m_DoFinalBlit)
+            {
+                // Do our own resolve here
+                dmRender::RenderObject& ro = *world->m_RenderObjects.End();
+                world->m_RenderObjects.SetSize(world->m_RenderObjects.Size()+1);
+                ro.Init();
+                ro.m_Material          = GetBlitToBackBufferMaterial(world->m_RiveRenderContext, render_context);
+                ro.m_VertexDeclaration = dmRender::GetVertexDeclaration(ro.m_Material);
+                ro.m_VertexBuffer      = world->m_BlitToBackbufferVertexBuffer;
+                ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
+                ro.m_VertexStart       = 0;
+                ro.m_VertexCount       = 6;
+                ro.m_Textures[0]       = GetBackingTexture(world->m_RiveRenderContext);
+                dmRender::AddToRender(render_context, &ro);
+            }
         }
     }
 
@@ -503,7 +507,7 @@ namespace dmRive
         dmRive::RiveSceneData* data          = (dmRive::RiveSceneData*) scene_res->m_Scene;
         world->m_RiveRenderContext           = data->m_RiveRenderContext;
 
-        RenderBegin(world->m_RiveRenderContext, world->m_Ctx->m_Factory);
+        RenderBegin(world->m_RiveRenderContext, world->m_Ctx->m_Factory, g_RenderBeginParams);
 
         uint32_t width, height;
         GetDimensions(world->m_RiveRenderContext, &width, &height);
@@ -1359,6 +1363,9 @@ namespace dmRive
         rivectx->m_RenderContext    = *(dmRender::HRenderContext*)ctx->m_Contexts.Get(dmHashString64("render"));
         rivectx->m_MaxInstanceCount = dmConfigFile::GetInt(ctx->m_Config, "rive.max_instance_count", 128);
 
+        g_RenderBeginParams.m_DoFinalBlit       = true;
+        g_RenderBeginParams.m_BackbufferSamples = dmConfigFile::GetInt(ctx->m_Config, "display.samples", 0);
+
         g_OriginalWindowWidth  = dmGraphics::GetWidth(rivectx->m_GraphicsContext);
         g_OriginalWindowHeight = dmGraphics::GetHeight(rivectx->m_GraphicsContext);
         g_DisplayFactor        = dmGraphics::GetDisplayScaleFactor(rivectx->m_GraphicsContext);
@@ -1726,6 +1733,15 @@ namespace dmRive
             return 0;
         }
         return text_run_value->text().c_str();
+    }
+
+    void CompRiveDebugSetBlitMode(bool value)
+    {
+    #if defined (DM_PLATFORM_MACOS) || defined (DM_PLATFORM_IOS)
+        dmLogWarning("Changing the blit mode is not supported on this platform.");
+    #else
+        g_RenderBeginParams.m_DoFinalBlit = value;
+    #endif
     }
 }
 

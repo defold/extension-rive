@@ -35,6 +35,12 @@ namespace dmRive
     typedef void*  HRenderContext;
     typedef struct ShaderResources ShaderResources;
 
+    struct RenderBeginParams
+    {
+        bool    m_DoFinalBlit = true;
+        uint8_t m_BackbufferSamples = 0;
+    };
+
     HRenderContext               NewRenderContext();
     void                         DeleteRenderContext(HRenderContext context);
     rive::rcp<rive::RenderImage> CreateRiveRenderImage(HRenderContext context, void* bytes, uint32_t byte_count);
@@ -43,7 +49,7 @@ namespace dmRive
     rive::Mat2D                  GetViewTransform(HRenderContext context, dmRender::HRenderContext render_context);
     rive::Mat2D                  GetViewProjectionTransform(HRenderContext context, dmRender::HRenderContext render_context);
     void                         GetDimensions(HRenderContext context, uint32_t* width, uint32_t* height);
-    void                         RenderBegin(HRenderContext context, dmResource::HFactory factory);
+    void                         RenderBegin(HRenderContext context, dmResource::HFactory factory, const RenderBeginParams& params);
     void                         RenderEnd(HRenderContext context);
     dmResource::Result           LoadShaders(dmResource::HFactory factory, ShaderResources** resources);
     void                         ReleaseShaders(dmResource::HFactory factory, ShaderResources** resources);
