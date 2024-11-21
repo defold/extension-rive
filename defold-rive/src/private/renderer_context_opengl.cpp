@@ -140,8 +140,65 @@ namespace dmRive
                 m_DefoldPipelineState.m_WriteColorMask & (1<<0));
         }
 
-        void OnSizeChanged(uint32_t width, uint32_t height, uint32_t sample_count) override
+        void OnSizeChanged(uint32_t width, uint32_t height, uint32_t sample_count, bool do_final_blit) override
         {
+            uint32_t fbo_id = GetFrameBufferId(width, height, do_final_blit);
+            uint32_t fbo_samples = do_final_blit ? 0 : sample_count;
+
+            dmLogInfo("OnSizeChanged %d %d %d %d", width, height, fbo_id, fbo_samples);
+
+            m_RenderTarget = rive::make_rcp<rive::gpu::FramebufferRenderTargetGL>(width, height, fbo_id, fbo_samples);
+            OpenGLCheckError("OnSizeChanged After");
+
+            glViewport(0, 0, width, height);
+        }
+
+        void SetGraphicsContext(dmGraphics::HContext graphics_context) override
+        {
+            m_GraphicsContext = graphics_context;
+        }
+
+        void SetRenderTargetTexture(dmGraphics::HTexture texture) override
+        {
+
+        }
+
+        dmGraphics::HTexture GetBackingTexture() override
+        {
+            return dmGraphics::GetRenderTargetTexture(m_DefoldRenderTarget, dmGraphics::BUFFER_TYPE_COLOR0_BIT);
+        }
+
+        rive::rcp<rive::gpu::Texture> MakeImageTexture(uint32_t width,
+                                                      uint32_t height,
+                                                      uint32_t mipLevelCount,
+                                                      const uint8_t imageDataRGBA[]) override
+        {
+            if (mipLevelCount < 1)
+                mipLevelCount = 1;
+
+            auto renderContextImpl = m_RenderContext->static_impl_cast<rive::gpu::RenderContextGLImpl>();
+            auto texture = renderContextImpl->makeImageTexture(width, height, mipLevelCount, imageDataRGBA);
+            OpenGLCheckError("MakeImageTexture After");
+            return texture;
+        }
+
+    private:
+
+        void SetDefoldGraphicsState(dmGraphics::State state, bool flag)
+        {
+            if (flag)
+                dmGraphics::EnableState(m_GraphicsContext, state);
+            else
+                dmGraphics::DisableState(m_GraphicsContext, state);
+        }
+
+        uint32_t GetFrameBufferId(uint32_t width, uint32_t height, bool do_final_blit)
+        {
+            // Use framebuffer for the final blit
+            if (!do_final_blit)
+                return 0;
+
+            // Otherwise, use an intermediate framebuffer for the final blit
             if (!m_DefoldRenderTarget)
             {
                 dmGraphics::RenderTargetCreationParams params = {};
@@ -195,53 +252,8 @@ namespace dmRive
             {
                 dmGraphics::SetRenderTargetSize(m_DefoldRenderTarget, width, height);
             }
-
             assert(m_DefoldRenderTarget);
-            uint32_t id = dmGraphics::OpenGLGetRenderTargetId(m_GraphicsContext, m_DefoldRenderTarget);
-
-            m_RenderTarget = rive::make_rcp<rive::gpu::FramebufferRenderTargetGL>(width, height, id, sample_count);
-            OpenGLCheckError("OnSizeChanged After");
-
-            glViewport(0, 0, width, height);
-        }
-
-        void SetGraphicsContext(dmGraphics::HContext graphics_context) override
-        {
-            m_GraphicsContext = graphics_context;
-        }
-
-        void SetRenderTargetTexture(dmGraphics::HTexture texture) override
-        {
-
-        }
-
-        dmGraphics::HTexture GetBackingTexture() override
-        {
-            return dmGraphics::GetRenderTargetTexture(m_DefoldRenderTarget, dmGraphics::BUFFER_TYPE_COLOR0_BIT);
-        }
-
-        rive::rcp<rive::gpu::Texture> MakeImageTexture(uint32_t width,
-                                                      uint32_t height,
-                                                      uint32_t mipLevelCount,
-                                                      const uint8_t imageDataRGBA[]) override
-        {
-            if (mipLevelCount < 1)
-                mipLevelCount = 1;
-
-            auto renderContextImpl = m_RenderContext->static_impl_cast<rive::gpu::RenderContextGLImpl>();
-            auto texture = renderContextImpl->makeImageTexture(width, height, mipLevelCount, imageDataRGBA);
-            OpenGLCheckError("MakeImageTexture After");
-            return texture;
-        }
-
-    private:
-
-        void SetDefoldGraphicsState(dmGraphics::State state, bool flag)
-        {
-            if (flag)
-                dmGraphics::EnableState(m_GraphicsContext, state);
-            else
-                dmGraphics::DisableState(m_GraphicsContext, state);
+            return dmGraphics::OpenGLGetRenderTargetId(m_GraphicsContext, m_DefoldRenderTarget);
         }
 
         std::unique_ptr<rive::gpu::RenderContext> m_RenderContext;

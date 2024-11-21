@@ -58,6 +58,7 @@ namespace dmRive
 
         uint32_t             m_LastWidth;
         uint32_t             m_LastHeight;
+        uint8_t              m_LastDoFinalBlit : 1;
         uint8_t              m_FrameBegin : 1;
     };
 
@@ -157,7 +158,7 @@ namespace dmRive
         return renderer->m_RenderContext->GetBackingTexture();
     }
 
-    void RenderBegin(HRenderContext context, dmResource::HFactory factory)
+    void RenderBegin(HRenderContext context, dmResource::HFactory factory, const RenderBeginParams& params)
     {
         DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
 
@@ -177,24 +178,28 @@ namespace dmRive
             uint32_t width  = dmGraphics::GetWindowWidth(renderer->m_GraphicsContext);
             uint32_t height = dmGraphics::GetWindowHeight(renderer->m_GraphicsContext);
 
-            if (width != renderer->m_LastWidth || height != renderer->m_LastHeight)
+            if (width != renderer->m_LastWidth || height != renderer->m_LastHeight || renderer->m_LastDoFinalBlit != params.m_DoFinalBlit)
             {
                 dmLogInfo("Change size to %d, %d", width, height);
-                renderer->m_RenderContext->OnSizeChanged(width, height, 0);
+                renderer->m_RenderContext->OnSizeChanged(width, height, params.m_BackbufferSamples, params.m_DoFinalBlit);
                 renderer->m_LastWidth  = width;
                 renderer->m_LastHeight = height;
+                renderer->m_LastDoFinalBlit = params.m_DoFinalBlit;
             }
+
+            int samples = (int) params.m_DoFinalBlit ? 0 : params.m_BackbufferSamples;
 
         #if defined(DM_PLATFORM_MACOS) || defined(DM_PLATFORM_IOS)
             dmGraphics::HTexture swap_chain_texture = dmGraphics::VulkanGetActiveSwapChainTexture(renderer->m_GraphicsContext);
             renderer->m_RenderContext->SetRenderTargetTexture(swap_chain_texture);
+            samples = 0;
         #endif
 
             renderer->m_RenderContext->BeginFrame({
                 .renderTargetWidth      = width,
                 .renderTargetHeight     = height,
                 .clearColor             = 0x00000000,
-                .msaaSampleCount        = 0,
+                .msaaSampleCount        = samples,
                 // .disableRasterOrdering  = s_forceAtomicMode,
                 // .wireframe              = s_wireframe,
                 // .fillsDisabled          = s_disableFill,
