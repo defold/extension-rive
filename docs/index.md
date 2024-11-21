@@ -240,6 +240,15 @@ local v = rive.get_state_machine_input("#rivemodel", "Number 1", "My_Nested_Artb
 
 -- To go deeper into the nested hierarchy, you can add slashes between each scope
 local v = rive.get_state_machine_input("#rivemodel", "Number 1", "My_Nested_Artboard/My_Inner_Nested_Artboard")
+
+-- Set the input value of the current state machine
+rive.set_state_machine_input("#rivemodel", "Number 1", 0.5)
+
+-- Set the input value of a nested artboard
+rive.set_state_machine_input("#rivemodel", "Number 1", 0.5, "My_Nested_Artboard")
+
+-- Same as the example above, to go even deeper, separate the scopers with slashes!
+rive.set_state_machine_input("#rivemodel", "Number 1", 0.5, "My_Nested_Artboard/My_Inner_Nested_Artboard")
 ```
 
 #### Events
