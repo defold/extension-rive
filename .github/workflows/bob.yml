@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-java@v3
         with:
-          java-version: '17.0.5+8'
+          java-version: '21.0.5+11.0.LTS'
           architecture: x64
           distribution: 'temurin'
 
@@ -65,7 +65,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-java@v3
         with:
-          java-version: '17.0.5+8'
+          java-version: '21.0.5+11.0.LTS'
           architecture: x64
           distribution: 'temurin'
 
@@ -100,7 +100,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-java@v3
         with:
-          java-version: '17.0.5+8'
+          java-version: '21.0.5+11.0.LTS'
           architecture: x64
           distribution: 'temurin'
 
