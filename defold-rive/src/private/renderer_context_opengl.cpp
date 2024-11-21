@@ -145,8 +145,6 @@ namespace dmRive
             uint32_t fbo_id = GetFrameBufferId(width, height, do_final_blit);
             uint32_t fbo_samples = do_final_blit ? 0 : sample_count;
 
-            dmLogInfo("OnSizeChanged %d %d %d %d", width, height, fbo_id, fbo_samples);
-
             m_RenderTarget = rive::make_rcp<rive::gpu::FramebufferRenderTargetGL>(width, height, fbo_id, fbo_samples);
             OpenGLCheckError("OnSizeChanged After");
 
