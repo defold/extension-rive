@@ -219,8 +219,8 @@ A *Rive Model* component also has a number of different properties that can be m
 : The animation playback rate (`number`).
 
 
-### Interacting with State Machines
-To interact with a State Machine in a *Rive Model* component it first needs to be started using [`rive.play_state_machine()`](/extension-rive/rive_api/#rive.play_state_machine). Once it has been started it can be interacted with using [`go.set()`](/ref/go#go.set):
+### Interacting with State Machine Inputs
+[Inputs](https://rive.app/community/doc/inputs/docwgNrq7ssz) are used to control the transitions in a State Machine by assigning them as conditions in the Rive editor. At runtime it is possible to tie into these inputs from your game logic. In order to modify the inputs the State Machine needs to be started using [`rive.play_state_machine()`](/extension-rive/rive_api/#rive.play_state_machine). Once it has been started it can be interacted with using [`go.set()`](/ref/go#go.set):
 
 ```lua
 -- Start the State Machine named "State Machine 1"
@@ -254,8 +254,7 @@ rive.set_state_machine_input("#rivemodel", "Number 1", 0.5, "My_Nested_Artboard/
 
 #### Listeners
 
-Listeners can be used to define click, hover, and mouse move actions that can change State Machine inputs at runtime. You can forward mouse and touch actions to a State Machine in a *Rive Model* component like this:
-
+[Listeners](https://rive.app/community/doc/listeners/doceaiA9rRW1) can be used to define click, hover, and mouse move actions that can change State Machine Inputs at runtime. You can forward mouse and touch actions to a State Machine in a *Rive Model* component like this:
 
 ```lua
 function on_input(self, action_id, action)
@@ -316,8 +315,9 @@ local forearm = rive.get_go("#rivemodel", "Left forearm")
 msg.post("pistol", "set_parent", { parent_id = forearm })
 ```
 
-### Getting and setting text runs
-To set and get text runs, you can use the following functions:
+
+### Getting and setting Text Runs
+To set and get [Text Runs](https://rive.app/community/doc/text-runs/docrTbOtaAk3), you can use the following functions:
 
 ```lua
 local text = rive.get_text_run("#rivemodel", "my_text_run")
@@ -338,6 +338,7 @@ rive.set_text_run("#rivemodel", "my_text_run", "Hello, World!", "my_nested_artbo
 Note! You need to export all the names from within Rive to use these functions:
 
 ![Rive export names](rive-export-names.png)
+
 
 ## Source code
 The source code is available on [GitHub](https://github.com/defold/extension-rive)
