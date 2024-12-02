@@ -4,7 +4,7 @@ brief: This manual describes how to show Rive animations using the Rive extensio
 ---
 
 # Rive animation
-[Rive](https://rive.app/) is a real-time interactive design and animation tool by Rive Inc.. Use the Rive editor to create vector based motion graphics that respond to different states and user inputs. Rive lets you create advanced timeline animations through animation mixing, interpolation and inverse-kinematics. Transition between animations using state machines.
+[Rive](https://rive.app/) is a real-time interactive design and animation tool by Rive Inc.. Use the Rive editor to create vector based motion graphics that respond to different states and user inputs. Rive lets you create advanced timeline animations through animation mixing, interpolation and inverse-kinematics. Transition between animations using [State Machines](https://rive.app/community/doc/state-machine/docwH5zPdh93).
 
 ![Rive editor](rive-editor.png)
 
@@ -123,7 +123,7 @@ Blending is currently only supported from within the .riv files themselves. Chan
 : This file is used to create a reference to a Rive data file (.riv).
 
 *Rive model*
-: This file represents a *Rive Model* component that can be added to a game object. It references a *Rive Scene*, blend mode, material and the default state machine and animation to use.
+: This file represents a *Rive Model* component that can be added to a game object. It references a *Rive Scene*, blend mode, material and the default State Machine and animation to use.
 
 
 ## Creating a Rive scene
@@ -159,7 +159,7 @@ Apart from the properties *Id*, *Position* and *Rotation* the following componen
 : If you need to render the model with a custom material, change this property.
 
 *Default State Machine*
-: Set this to the state machine you want the model to start with.
+: Set this to the State Machine you want the model to start with.
 
 *Default Animation*
 : Set this to the animation you want the model to start with.
@@ -219,11 +219,11 @@ A *Rive Model* component also has a number of different properties that can be m
 : The animation playback rate (`number`).
 
 
-### Interacting with state machines
-To interact with a state machine in a *Rive Model* component it first needs to be started using [`rive.play_state_machine()`](/extension-rive/rive_api/#rive.play_state_machine). Once it has been started it can be interacted with using [`go.set()`](/ref/go#go.set):
+### Interacting with State Machines
+To interact with a State Machine in a *Rive Model* component it first needs to be started using [`rive.play_state_machine()`](/extension-rive/rive_api/#rive.play_state_machine). Once it has been started it can be interacted with using [`go.set()`](/ref/go#go.set):
 
 ```lua
--- Start the state machine named "State Machine 1"
+-- Start the State Machine named "State Machine 1"
 rive.play_state_machine("#rivemodel", "State Machine 1")
 
 -- Set the boolean value "Trigger 1" to true
@@ -232,16 +232,16 @@ go.set("#rivemodel", "Trigger 1", true)
 -- Set the numeric value "Number 1" to 0.8
 go.set("#rivemodel", "Number 1", 0.8)
 
--- Read the input value of the current state machine
+-- Read the input value of the current State Machine
 local v = rive.get_state_machine_input("#rivemodel", "Number 1")
 
--- Read the input value of a nested artboard from the current state machine
+-- Read the input value of a nested artboard from the current State Machine
 local v = rive.get_state_machine_input("#rivemodel", "Number 1", "My_Nested_Artboard")
 
 -- To go deeper into the nested hierarchy, you can add slashes between each scope
 local v = rive.get_state_machine_input("#rivemodel", "Number 1", "My_Nested_Artboard/My_Inner_Nested_Artboard")
 
--- Set the input value of the current state machine
+-- Set the input value of the current State Machine
 rive.set_state_machine_input("#rivemodel", "Number 1", 0.5)
 
 -- Set the input value of a nested artboard
@@ -251,8 +251,29 @@ rive.set_state_machine_input("#rivemodel", "Number 1", 0.5, "My_Nested_Artboard"
 rive.set_state_machine_input("#rivemodel", "Number 1", 0.5, "My_Nested_Artboard/My_Inner_Nested_Artboard")
 ```
 
+
+#### Listeners
+
+Listeners can be used to define click, hover, and mouse move actions that can change State Machine inputs at runtime. You can forward mouse and touch actions to a State Machine in a *Rive Model* component like this:
+
+
+```lua
+function on_input(self, action_id, action)
+	if not action_id or action_id == hash("touch") then
+		if action.pressed then
+			rive.pointer_down("#rivemodel", action.x, action.y)
+		elseif action.released then
+			rive.pointer_up("#rivemodel", action.x, action.y)
+		else
+			rive.pointer_move("#rivemodel", action.x, action.y)
+		end
+	end
+end
+```
+
+
 #### Events
-Events that trigger while a state machine is playing are sent to the callback function provided when calling `rive.play_state_machine(url, state_machine_id, options, callback`):
+Events that trigger while a State Machine is playing are sent to the callback function provided when calling `rive.play_state_machine(url, state_machine_id, options, callback`):
 
 ```lua
 local function rive_event_handler(self, message_id, message)
