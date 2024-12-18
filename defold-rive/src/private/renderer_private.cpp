@@ -195,6 +195,11 @@ namespace dmRive
             samples = 0;
         #endif
 
+        #if defined(DM_PLATFORM_HTML5)
+            // dmGraphics::HTexture swap_chain_texture = dmGraphics::WebGPUGetActiveSwapChainTexture(renderer->m_GraphicsContext);
+            // renderer->m_RenderContext->SetRenderTargetTexture(swap_chain_texture);
+        #endif
+
             renderer->m_RenderContext->BeginFrame({
                 .renderTargetWidth      = width,
                 .renderTargetHeight     = height,

@@ -30,15 +30,14 @@ namespace dmRive
             m_Device = wgpu::Device::Acquire(webgpu_device);
             m_Queue = wgpu::Queue::Acquire(webgpu_queue);
 
-            // rive::gpu::RenderContextWebGPUImpl::ContextOptions contextOptions = {
-            //     .plsType = plsType,
-            //     .disableStorageBuffers =
-            //         maxVertexStorageBlocks < gpu::kMaxStorageBuffers,
-            // };
+            rive::gpu::RenderContextWebGPUImpl::ContextOptions contextOptions = {
+                .plsType = rive::gpu::RenderContextWebGPUImpl::PixelLocalStorageType::none,
+                .disableStorageBuffers = true
+            };
 
             dmLogInfo("Before creating WebGPU context.");
 
-            m_RenderContext = rive::gpu::RenderContextWebGPUImpl::MakeContext(m_Device, m_Queue, rive::gpu::RenderContextWebGPUImpl::ContextOptions());
+            m_RenderContext = rive::gpu::RenderContextWebGPUImpl::MakeContext(m_Device, m_Queue, contextOptions);
 
             dmLogInfo("After creating WebGPU context.");
         }
@@ -88,7 +87,7 @@ namespace dmRive
             default_texture_creation_params.m_Width          = width;
             default_texture_creation_params.m_Height         = height;
             default_texture_creation_params.m_Depth          = 1;
-            default_texture_creation_params.m_UsageHintBits  = dmGraphics::TEXTURE_USAGE_FLAG_SAMPLE;
+            default_texture_creation_params.m_UsageHintBits  = dmGraphics::TEXTURE_USAGE_FLAG_SAMPLE | dmGraphics::TEXTURE_USAGE_FLAG_COLOR;
             default_texture_creation_params.m_OriginalWidth  = default_texture_creation_params.m_Width;
             default_texture_creation_params.m_OriginalHeight = default_texture_creation_params.m_Height;
 
@@ -97,7 +96,7 @@ namespace dmRive
             dmGraphics::TextureParams tp = {};
             tp.m_Width                   = width;
             tp.m_Height                  = height;
-            tp.m_Format                  = dmGraphics::TEXTURE_FORMAT_RGBA;
+            tp.m_Format                  = dmGraphics::TEXTURE_FORMAT_BGRA8U;
 
             dmGraphics::SetTexture(m_BackingTexture, tp);
 
