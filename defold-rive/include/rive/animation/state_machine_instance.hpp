@@ -36,6 +36,7 @@ class KeyedProperty;
 class EventReport;
 class DataBind;
 class BindableProperty;
+class HitDrawable;
 
 #ifdef WITH_RIVE_TOOLS
 class StateMachineInstance;
@@ -66,7 +67,12 @@ private:
                                           bool ignoreTriggers);
     StateTransition* findAllowedTransition(StateInstance* stateFromInstance,
                                            bool ignoreTriggers);
-    DataContext* m_DataContext;
+    DataContext* m_DataContext = nullptr;
+    void addToHitLookup(Component* target,
+                        bool isLayoutComponent,
+                        std::unordered_map<Component*, HitDrawable*>& hitLookup,
+                        ListenerGroup* listenerGroup,
+                        bool isOpaque);
 
 public:
     StateMachineInstance(const StateMachine* machine,
@@ -77,7 +83,9 @@ public:
     void markNeedsAdvance();
     // Advance the state machine by the specified time. Returns true if the
     // state machine will continue to animate after this advance.
-    bool advance(float seconds);
+    bool advance(float seconds, bool newFrame);
+
+    bool advance(float seconds) { return advance(seconds, true); }
 
     // Returns true when the StateMachineInstance has more data to process.
     bool needsAdvance() const;
@@ -107,14 +115,14 @@ public:
     const LayerState* stateChangedByIndex(size_t index) const;
 
     bool advanceAndApply(float secs) override;
+    void advancedDataContext();
     std::string name() const override;
     HitResult pointerMove(Vec2D position) override;
     HitResult pointerDown(Vec2D position) override;
     HitResult pointerUp(Vec2D position) override;
     HitResult pointerExit(Vec2D position) override;
-#ifdef WITH_RIVE_TOOLS
+    bool tryChangeState();
     bool hitTest(Vec2D position) const;
-#endif
 
     float durationSeconds() const override { return -1; }
     Loop loop() const override { return Loop::oneShot; }
@@ -154,6 +162,7 @@ public:
     BindableProperty* bindablePropertyInstance(
         BindableProperty* bindableProperty) const;
     DataBind* bindableDataBind(BindableProperty* bindableProperty);
+    bool hasListeners() { return m_hitComponents.size() > 0; }
 #ifdef TESTING
     size_t hitComponentsCount() { return m_hitComponents.size(); };
     HitComponent* hitComponent(size_t index)
@@ -183,6 +192,7 @@ private:
     std::unordered_map<BindableProperty*, BindableProperty*>
         m_bindablePropertyInstances;
     std::unordered_map<BindableProperty*, DataBind*> m_bindableDataBinds;
+    uint8_t m_drawOrderChangeCounter = 0;
 
 #ifdef WITH_RIVE_TOOLS
 public:
@@ -208,9 +218,7 @@ public:
                                    ListenerType hitType,
                                    bool canHit) = 0;
     virtual void prepareEvent(Vec2D position, ListenerType hitType) = 0;
-#ifdef WITH_RIVE_TOOLS
     virtual bool hitTest(Vec2D position) const = 0;
-#endif
 #ifdef TESTING
     int earlyOutCount = 0;
 #endif

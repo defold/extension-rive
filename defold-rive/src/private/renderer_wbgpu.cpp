@@ -31,7 +31,7 @@ namespace dmRive
             m_Queue = wgpu::Queue::Acquire(webgpu_queue);
 
             rive::gpu::RenderContextWebGPUImpl::ContextOptions contextOptions = {
-                .plsType = rive::gpu::RenderContextWebGPUImpl::PixelLocalStorageType::none,
+                .plsType = rive::gpu::RenderContextWebGPUImpl::PixelLocalStorageType::EXT_shader_pixel_local_storage,
                 .disableStorageBuffers = true
             };
 
