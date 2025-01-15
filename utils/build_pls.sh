@@ -106,12 +106,15 @@ function build_library() {
     echo "Using DEFINES=${DEFINES}"
     echo "Using INCLUDES=${INCLUDES}"
 
-    # make sure it doesn't pick up the project's app manifest
-    echo "[native_extension]" > ${target_dir}/ext.settings
-    echo "app_manifest =" >> ${target_dir}/ext.settings
+    local settings="${SETTINGS}"
+    if [ "" == "${settings}" ]; then
+        settings="${target_dir}/ext.settings"
+        echo "[native_extension]" > "$settings"
+        echo "app_manifest =" >> "$settings"
+    fi
 
     # remove --defoldsdk for building WebGL/WebGPU
-    java -jar $BOB --debug-output-spirv=true --debug-output-wgsl=true --platform=$platform --architectures=$platform --settings=${target_dir}/ext.settings resolve build --build-artifacts=library --variant $VARIANT --build-server=$SERVER --debug-ne-upload true --ne-output-name=${name} --ne-build-dir ${source_dir} # --defoldsdk=${DEFOLDSDK}
+    java -jar $BOB --debug-output-spirv=true --debug-output-wgsl=true --platform=$platform --architectures=$platform --settings=$settings resolve build --build-artifacts=library --variant $VARIANT --build-server=$SERVER --debug-ne-upload true --ne-output-name=${name} --ne-build-dir ${source_dir} # --defoldsdk=${DEFOLDSDK}
 
     # java -jar $BOB --debug-output-spirv=true --debug-output-wgsl=true --platform=$platform --architectures=$platform --settings=${target_dir}/ext.settings resolve build --build-artifacts=library --variant $VARIANT --build-server=$SERVER --debug-ne-upload true --ne-output-name=${name} --ne-build-dir ${source_dir} --defoldsdk=${DEFOLDSDK}
 
