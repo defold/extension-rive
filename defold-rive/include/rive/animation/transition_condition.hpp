@@ -16,8 +16,8 @@ public:
 
     StatusCode import(ImportStack& importStack) override;
 
-    virtual bool evaluate(
-        const StateMachineInstance* stateMachineInstance) const
+    virtual bool evaluate(const StateMachineInstance* stateMachineInstance,
+                          StateMachineLayerInstance* layerInstance) const
     {
         return true;
     }

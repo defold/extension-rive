@@ -164,8 +164,6 @@ protected:
         size_t capacityInBytes, StorageBufferStructure) override;
     std::unique_ptr<BufferRing> makeVertexBufferRing(
         size_t capacityInBytes) override;
-    std::unique_ptr<BufferRing> makeTextureTransferBufferRing(
-        size_t capacityInBytes) override;
 
 private:
     // Renders paths to the main render target.
@@ -210,6 +208,9 @@ private:
     class ColorRampPipeline;
     std::unique_ptr<ColorRampPipeline> m_colorRampPipeline;
     id<MTLTexture> m_gradientTexture = nullptr;
+
+    // Gaussian integral table for feathering.
+    id<MTLTexture> m_featherTexture = nullptr;
 
     // Renders tessellated vertices to the tessellation texture.
     class TessellatePipeline;

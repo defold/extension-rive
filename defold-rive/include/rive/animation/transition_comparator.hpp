@@ -8,13 +8,15 @@
 namespace rive
 {
 class StateMachineInstance;
+class StateMachineLayerInstance;
 class TransitionComparator : public TransitionComparatorBase
 {
 public:
     StatusCode import(ImportStack& importStack) override;
     virtual bool compare(TransitionComparator* comparand,
                          TransitionConditionOp operation,
-                         const StateMachineInstance* stateMachineInstance);
+                         const StateMachineInstance* stateMachineInstance,
+                         StateMachineLayerInstance* layerInstance);
 
 protected:
     bool compareNumbers(float left, float right, TransitionConditionOp op);

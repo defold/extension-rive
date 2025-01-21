@@ -173,7 +173,6 @@ private:
     IMPLEMENT_PLS_STRUCTURED_BUFFER(PaintBuffer, m_paintBufferRing)
     IMPLEMENT_PLS_STRUCTURED_BUFFER(PaintAuxBuffer, m_paintAuxBufferRing)
     IMPLEMENT_PLS_STRUCTURED_BUFFER(ContourBuffer, m_contourBufferRing)
-    IMPLEMENT_PLS_BUFFER(SimpleColorRampsBuffer, m_simpleColorRampsBufferRing)
     IMPLEMENT_PLS_BUFFER(GradSpanBuffer, m_gradSpanBufferRing)
     IMPLEMENT_PLS_BUFFER(TessVertexSpanBuffer, m_tessSpanBufferRing)
     IMPLEMENT_PLS_BUFFER(TriangleVertexBuffer, m_triangleBufferRing)
@@ -230,7 +229,6 @@ private:
     vkutil::BufferRing m_paintBufferRing;
     vkutil::BufferRing m_paintAuxBufferRing;
     vkutil::BufferRing m_contourBufferRing;
-    vkutil::BufferRing m_simpleColorRampsBufferRing;
     vkutil::BufferRing m_gradSpanBufferRing;
     vkutil::BufferRing m_tessSpanBufferRing;
     vkutil::BufferRing m_triangleBufferRing;
@@ -243,6 +241,9 @@ private:
     rcp<vkutil::Texture> m_gradientTexture;
     rcp<vkutil::TextureView> m_gradTextureView;
     rcp<vkutil::Framebuffer> m_gradTextureFramebuffer;
+
+    // Gaussian integral table for feathering.
+    rcp<TextureVulkanImpl> m_featherTexture;
 
     // Renders tessellated vertices to the tessellation texture.
     class TessellatePipeline;
@@ -269,8 +270,8 @@ private:
     class DrawPipeline;
     std::map<uint32_t, DrawPipeline> m_drawPipelines;
 
-    rcp<TextureVulkanImpl>
-        m_nullImageTexture; // Bound when there is not an image paint.
+    // Bound when there is not an image paint.
+    rcp<TextureVulkanImpl> m_nullImageTexture;
     VkSampler m_linearSampler;
     VkSampler m_mipmapSampler;
     rcp<vkutil::Buffer> m_pathPatchVertexBuffer;
