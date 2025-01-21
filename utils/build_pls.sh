@@ -110,7 +110,10 @@ function build_library() {
     echo "[native_extension]" > ${target_dir}/ext.settings
     echo "app_manifest =" >> ${target_dir}/ext.settings
 
-    java -jar $BOB --platform=$platform --architectures=$platform --settings=${target_dir}/ext.settings resolve build --build-artifacts=library --variant $VARIANT --build-server=$SERVER --debug-ne-upload true --ne-output-name=${name} --ne-build-dir ${source_dir} --defoldsdk=${DEFOLDSDK} # remove --defoldsdk for building WebGL
+    # remove --defoldsdk for building WebGL/WebGPU
+    java -jar $BOB --debug-output-spirv=true --debug-output-wgsl=true --platform=$platform --architectures=$platform --settings=${target_dir}/ext.settings resolve build --build-artifacts=library --variant $VARIANT --build-server=$SERVER --debug-ne-upload true --ne-output-name=${name} --ne-build-dir ${source_dir} # --defoldsdk=${DEFOLDSDK}
+
+    # java -jar $BOB --debug-output-spirv=true --debug-output-wgsl=true --platform=$platform --architectures=$platform --settings=${target_dir}/ext.settings resolve build --build-artifacts=library --variant $VARIANT --build-server=$SERVER --debug-ne-upload true --ne-output-name=${name} --ne-build-dir ${source_dir} --defoldsdk=${DEFOLDSDK}
 
     copy_results $platform $platform_ne $target_dir
 
@@ -399,7 +402,7 @@ for platform in $PLATFORMS; do
     echo "************************************************************"
 
     export CXXFLAGS="-std=c++17 -fno-rtti -fno-exceptions"
-    export DEFINES="WITH_RIVE_TEXT WITH_RIVE_LAYOUT YOGA_EXPORT="
+    export DEFINES="WITH_RIVE_TEXT WITH_RIVE_LAYOUT _RIVE_INTERNAL_ YOGA_EXPORT="
     unset INCLUDES
     build_library rive $platform $platform_ne ${RIVECPP_SOURCE_DIR} ${BUILD}
 
@@ -580,7 +583,10 @@ for platform in $PLATFORMS; do
 
             # remove any previously generated shaders
             (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && rm -rf ./out)
-            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make spirv FLAGS="-p ${LIBPLY_PATH}") # Remove spirv if not building for webgpu
+            #(cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make spirv FLAGS="-p ${LIBPLY_PATH}") # Remove spirv if not building for webgpu
+
+            # DEBUG!!
+            (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && pwd && make spirv FLAGS="-p ${LIBPLY_PATH} --human-readable") # Remove spirv if not building for webgpu
 
             cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/out/generated/**.*       ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/
             cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/out/generated/spirv/**.* ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/spirv

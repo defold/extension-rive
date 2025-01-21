@@ -32,13 +32,14 @@ public:
                            const Mat2D& inverseWorld) const override;
     Vec2D deformWorldPoint(Vec2D point) const override;
     Vec2D scaleForNSlicer() const;
-    Mat2D boundsTransform() const;
 
     Vec2D measureLayout(float width,
                         LayoutMeasureMode widthMode,
                         float height,
                         LayoutMeasureMode heightMode) override;
-    void controlSize(Vec2D size) override;
+    void controlSize(Vec2D size,
+                     LayoutScaleType widthScaleType,
+                     LayoutScaleType heightScaleType) override;
     bool shouldPropagateSizeToChildren() override { return false; }
 };
 } // namespace rive

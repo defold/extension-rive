@@ -139,19 +139,20 @@ struct GradientSpan
     // fixed-point range 0..65535.
     RIVE_ALWAYS_INLINE void set(uint32_t x0Fixed,
                                 uint32_t x1Fixed,
-                                float y_,
+                                uint32_t y,
+                                uint32_t flags,
                                 ColorInt color0_,
                                 ColorInt color1_)
     {
         assert(x0Fixed < 65536);
         assert(x1Fixed < 65536);
         horizontalSpan = (x1Fixed << 16) | x0Fixed;
-        y = y_;
+        yWithFlags = flags | y;
         color0 = color0_;
         color1 = color1_;
     }
     uint32_t horizontalSpan;
-    uint32_t y;
+    uint32_t yWithFlags;
     uint32_t color0;
     uint32_t color1;
 };
@@ -160,6 +161,9 @@ static_assert(256 % sizeof(GradientSpan) == 0);
 // Metal requires vertex buffers to be 256-byte aligned.
 constexpr static size_t kGradSpanBufferAlignmentInElements =
     256 / sizeof(GradientSpan);
+
+// Gradient spans are drawn as 1px-tall triangle strips with 3 sub-rectangles.
+constexpr uint32_t GRAD_SPAN_TRI_STRIP_VERTEX_COUNT = 8;
 
 // Each curve gets tessellated into vertices. This is performed by rendering a
 // horizontal span of positions and normals into the tessellation data texture,
@@ -324,11 +328,10 @@ struct ColorRampLocation
 // and images reference an additional Gradient* and Texture* respectively.
 union SimplePaintValue
 {
-    ColorInt color = 0xff000000; // PaintType::solidColor
-    ColorRampLocation
-        colorRampLocation; // Paintype::linearGradient, Paintype::radialGradient
-    float imageOpacity;    // PaintType::image
-    uint32_t outerClipID;  // Paintype::clipUpdate
+    ColorInt color = 0xff000000;         // PaintType::solidColor
+    ColorRampLocation colorRampLocation; // Paintype::linear/radialGradient
+    float imageOpacity;                  // PaintType::image
+    uint32_t outerClipID;                // Paintype::clipUpdate
 };
 static_assert(sizeof(SimplePaintValue) == 4);
 
@@ -773,10 +776,12 @@ enum class DrawContents
     none = 0,
     opaquePaint = 1 << 0,
     stroke = 1 << 1,
-    evenOddFill = 1 << 2,
-    activeClip = 1 << 3,
-    clipUpdate = 1 << 4,
-    advancedBlend = 1 << 5,
+    clockwiseFill = 1 << 2,
+    nonZeroFill = 1 << 3,
+    evenOddFill = 1 << 4,
+    activeClip = 1 << 5,
+    clipUpdate = 1 << 6,
+    advancedBlend = 1 << 7,
 };
 RIVE_MAKE_ENUM_BITSET(DrawContents)
 
@@ -830,12 +835,7 @@ struct DrawBatch
 // memory from the CPU instead of rendering them.
 struct TwoTexelRamp
 {
-    void set(const ColorInt colors[2])
-    {
-        UnpackColorToRGBA8(colors[0], colorData);
-        UnpackColorToRGBA8(colors[1], colorData + 4);
-    }
-    uint8_t colorData[8];
+    ColorInt color0, color1;
 };
 static_assert(sizeof(TwoTexelRamp) == 8 * sizeof(uint8_t));
 
@@ -857,7 +857,7 @@ public:
 //
 //  1. Render the complex gradients from the gradSpanBuffer to the gradient
 //  texture
-//     (complexGradSpanCount, firstComplexGradSpan, complexGradRowsTop,
+//     (gradSpanCount, firstComplexGradSpan, complexGradRowsTop,
 //     complexGradRowsHeight).
 //
 //  2. Transfer the simple gradient texels from the simpleColorRampsBuffer to
@@ -907,17 +907,14 @@ struct FlushDescriptor
     size_t firstPaintAux = 0;
     uint32_t contourCount = 0;
     size_t firstContour = 0;
-    uint32_t complexGradSpanCount = 0;
-    size_t firstComplexGradSpan = 0;
+    uint32_t gradSpanCount = 0;
+    size_t firstGradSpan = 0;
     uint32_t tessVertexSpanCount = 0;
     size_t firstTessVertexSpan = 0;
-    uint32_t simpleGradTexelsWidth = 0;
-    uint32_t simpleGradTexelsHeight = 0;
-    size_t simpleGradDataOffsetInBytes = 0;
-    uint32_t complexGradRowsTop = 0;
-    uint32_t complexGradRowsHeight = 0;
+    uint32_t gradDataHeight = 0;
     uint32_t tessDataHeight = 0;
-    bool clockwiseFill = false; // Override path fill rules with "clockwise".
+    // Override path fill rules with "clockwise".
+    bool clockwiseFillOverride = false;
     bool hasTriangleVertices = false;
     bool wireframe = false;
     bool isFinalFlushOfFrame = false;
@@ -1108,7 +1105,7 @@ public:
     constexpr static StorageBufferStructure kBufferStructure =
         StorageBufferStructure::uint32x2;
 
-    void set(FillRule,
+    void set(DrawContents singleDrawContents,
              PaintType,
              SimplePaintValue,
              GradTextureLayout,

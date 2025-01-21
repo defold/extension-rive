@@ -60,18 +60,10 @@ public:
 
     StatusCode import(ImportStack& importStack) override;
 
-    bool isCollapsed() const
+    virtual bool isCollapsed() const
     {
         return (m_Dirt & ComponentDirt::Collapsed) == ComponentDirt::Collapsed;
     }
-};
-
-class AdvancingComponent
-{
-public:
-    virtual bool advanceComponent(float elapsedSeconds,
-                                  bool animate = true) = 0;
-    static AdvancingComponent* from(Component* component);
 };
 } // namespace rive
 

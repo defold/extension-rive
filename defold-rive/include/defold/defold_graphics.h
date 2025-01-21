@@ -198,7 +198,8 @@ namespace dmGraphics
     };
 
 	HTexture NewTexture(HContext context, const TextureCreationParams& params);
-    void SetTexture(HTexture texture, const TextureParams& params);
+    void     DeleteTexture(HTexture texture);
+    void     SetTexture(HTexture texture, const TextureParams& params);
 
     HRenderTarget NewRenderTarget(HContext context, uint32_t buffer_type_flags, const RenderTargetCreationParams params);
     void          DeleteRenderTarget(HRenderTarget render_target);

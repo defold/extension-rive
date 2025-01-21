@@ -39,8 +39,11 @@ platforms:
 
     web:
         context:
-            defines: ["DM_RIVE_USE_OPENGL", "RIVE_WEBGL"]
+            defines: ["DM_RIVE_USE_OPENGL", "RIVE_WEBGL", "RIVE_WEBGPU"]
+            symbols: [GraphicsAdapterWebGPU]
+            libs: [graphics_webgpu]
             flags: ["-std=c++17", "-fno-rtti"]
+            emscriptenLinkFlags: [USE_WEBGPU=1, GL_WORKAROUND_SAFARI_GETCONTEXT_BUG=0, ASYNCIFY=1, ASYNCIFY_IGNORE_INDIRECT=1, 'ASYNCIFY_ADD=["main","dmEngineCreate(*)","requestDeviceCallback(*)","WebGPUCreateSwapchain(*)","instanceRequestAdapterCallback(*)"]']
   
     android:
         context:
