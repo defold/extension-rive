@@ -399,7 +399,7 @@ for platform in $PLATFORMS; do
     echo "************************************************************"
 
     export CXXFLAGS="-std=c++17 -fno-rtti -fno-exceptions"
-    export DEFINES="WITH_RIVE_TEXT WITH_RIVE_LAYOUT YOGA_EXPORT="
+    export DEFINES="WITH_RIVE_TEXT WITH_RIVE_LAYOUT _RIVE_INTERNAL_ YOGA_EXPORT="
     unset INCLUDES
     build_library rive $platform $platform_ne ${RIVECPP_SOURCE_DIR} ${BUILD}
 

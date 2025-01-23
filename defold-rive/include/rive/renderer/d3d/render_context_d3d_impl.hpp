@@ -131,8 +131,6 @@ private:
         gpu::StorageBufferStructure) override;
     std::unique_ptr<BufferRing> makeVertexBufferRing(
         size_t capacityInBytes) override;
-    std::unique_ptr<BufferRing> makeTextureTransferBufferRing(
-        size_t capacityInBytes) override;
 
     void resizeGradientTexture(uint32_t width, uint32_t height) override;
     void resizeTessellationTexture(uint32_t width, uint32_t height) override;
@@ -152,6 +150,10 @@ private:
     ComPtr<ID3D11Texture2D> m_gradTexture;
     ComPtr<ID3D11ShaderResourceView> m_gradTextureSRV;
     ComPtr<ID3D11RenderTargetView> m_gradTextureRTV;
+
+    // Gaussian integral table for feathering.
+    ComPtr<ID3D11Texture2D> m_featherTexture;
+    ComPtr<ID3D11ShaderResourceView> m_featherTextureSRV;
 
     ComPtr<ID3D11Texture2D> m_tessTexture;
     ComPtr<ID3D11ShaderResourceView> m_tessTextureSRV;

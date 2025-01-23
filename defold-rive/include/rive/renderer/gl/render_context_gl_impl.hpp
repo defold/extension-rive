@@ -134,8 +134,6 @@ private:
 
     static std::unique_ptr<PixelLocalStorageImpl> MakePLSImplEXTNative(
         const GLCapabilities&);
-    static std::unique_ptr<PixelLocalStorageImpl> MakePLSImplFramebufferFetch(
-        const GLCapabilities&);
     static std::unique_ptr<PixelLocalStorageImpl> MakePLSImplWebGL();
     static std::unique_ptr<PixelLocalStorageImpl> MakePLSImplRWTexture();
 
@@ -207,8 +205,6 @@ private:
         gpu::StorageBufferStructure) override;
     std::unique_ptr<BufferRing> makeVertexBufferRing(
         size_t capacityInBytes) override;
-    std::unique_ptr<BufferRing> makeTextureTransferBufferRing(
-        size_t capacityInBytes) override;
 
     void resizeGradientTexture(uint32_t width, uint32_t height) override;
     void resizeTessellationTexture(uint32_t width, uint32_t height) override;
@@ -224,6 +220,9 @@ private:
     glutils::VAO m_colorRampVAO;
     glutils::Framebuffer m_colorRampFBO;
     GLuint m_gradientTexture = 0;
+
+    // Gaussian integral table for feathering.
+    glutils::Texture m_featherTexture;
 
     // Tessellation texture rendering.
     glutils::Program m_tessellateProgram;

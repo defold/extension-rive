@@ -1,6 +1,7 @@
 #ifndef _RIVE_ARTBOARD_HPP_
 #define _RIVE_ARTBOARD_HPP_
 
+#include "rive/advance_flags.hpp"
 #include "rive/animation/linear_animation.hpp"
 #include "rive/animation/state_machine.hpp"
 #include "rive/core_context.hpp"
@@ -66,7 +67,6 @@ private:
     std::vector<DataBind*> m_AllDataBinds;
     DataContext* m_DataContext = nullptr;
     bool m_JoysticksApplyBeforeUpdate = true;
-    bool m_HasChangedDrawOrderInLastUpdate = false;
 
     unsigned int m_DirtDepth = 0;
     RawPath m_backgroundRawPath;
@@ -81,6 +81,11 @@ private:
     Artboard* parentArtboard() const;
     NestedArtboard* m_host = nullptr;
     bool sharesLayoutWithHost() const;
+
+    // Variable that tracks whenever the draw order changes. It is used by the
+    // state machine controllers to sort their hittable components when they are
+    // out of sync
+    uint8_t m_drawOrderChangeCounter = 0;
 
 #ifdef EXTERNAL_RIVE_AUDIO_ENGINE
     rcp<AudioEngine> m_audioEngine;
@@ -127,6 +132,10 @@ public:
 
     /// Update components that depend on each other in DAG order.
     bool updateComponents();
+
+    // Update layouts and components. Returns true if it updated something.
+    bool updatePass(bool isRoot);
+
     void onDirty(ComponentDirt dirt) override;
 
     // Artboards don't update their world transforms in the same way
@@ -141,15 +150,15 @@ public:
     bool syncStyleChanges();
     bool canHaveOverrides() override { return true; }
 
-    bool advance(float elapsedSeconds, bool nested = true, bool animate = true);
+    bool advance(float elapsedSeconds,
+                 AdvanceFlags flags = AdvanceFlags::AdvanceNested |
+                                      AdvanceFlags::Animate |
+                                      AdvanceFlags::NewFrame);
     bool advanceInternal(float elapsedSeconds,
-                         bool isRoot,
-                         bool nested = true,
-                         bool animate = true);
-    bool hasChangedDrawOrderInLastUpdate()
-    {
-        return m_HasChangedDrawOrderInLastUpdate;
-    };
+                         AdvanceFlags flags = AdvanceFlags::AdvanceNested |
+                                              AdvanceFlags::Animate |
+                                              AdvanceFlags::NewFrame);
+    uint8_t drawOrderChangeCounter() { return m_drawOrderChangeCounter; }
     Drawable* firstDrawable() { return m_FirstDrawable; };
 
     enum class DrawOption
@@ -202,7 +211,7 @@ public:
     void setDataContextFromInstance(ViewModelInstance* viewModelInstance);
     void addDataBind(DataBind* dataBind);
     void populateDataBinds(std::vector<DataBind*>* dataBinds);
-    void sortDataBinds(std::vector<DataBind*> dataBinds);
+    void sortDataBinds();
     void collectDataBinds();
 
     bool hasAudio() const;
@@ -315,7 +324,13 @@ public:
                         auto dataBindClone =
                             static_cast<DataBind*>(dataBind->clone());
                         dataBindClone->target(cloneObjects.back());
-                        dataBindClone->converter(dataBind->converter());
+                        if (dataBind->converter() != nullptr)
+                        {
+
+                            dataBindClone->converter(dataBind->converter()
+                                                         ->clone()
+                                                         ->as<DataConverter>());
+                        }
                         artboardClone->m_DataBinds.push_back(dataBindClone);
                     }
                 }
