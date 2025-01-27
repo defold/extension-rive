@@ -112,8 +112,8 @@ protected:
         LayoutStyleInterpolation::hold;
     float m_inheritedInterpolationTime = 0;
     Rectangle m_backgroundRect;
-    rcp<RenderPath> m_backgroundPath;
-    rcp<RenderPath> m_clipPath;
+    ShapePaintPath m_localPath;
+    ShapePaintPath m_worldPath;
     DrawableProxy m_proxy;
     bool m_displayChanged = false;
     std::vector<LayoutConstraint*> m_layoutConstraints;
@@ -136,6 +136,7 @@ protected:
     }
     bool isDisplayHidden() const;
     void propagateCollapse(bool collapse);
+    bool collapse(bool value) override;
 
 private:
     float m_widthOverride = NAN;
@@ -159,6 +160,12 @@ protected:
 #endif
 
 public:
+    // Implemented for ShapePaintContainer.
+    const Mat2D& shapeWorldTransform() const override
+    {
+        return worldTransform();
+    }
+
     LayoutComponentStyle* style() { return m_style; }
     void style(LayoutComponentStyle* style) { m_style = style; }
 
@@ -223,7 +230,6 @@ public:
     bool overridesKeyedInterpolation(int propertyKey) override;
     bool hasShapePaints() const { return m_ShapePaints.size() > 0; }
     const Rectangle* backgroundRect() const { return &m_backgroundRect; }
-    RenderPath* backgroundPath() const { return m_backgroundPath.get(); }
     bool advanceComponent(float elapsedSeconds,
                           AdvanceFlags flags = AdvanceFlags::Animate |
                                                AdvanceFlags::NewFrame) override;
@@ -281,6 +287,11 @@ public:
                         LayoutMeasureMode widthMode,
                         float height,
                         LayoutMeasureMode heightMode) override;
+
+    ShapePaintPath* worldPath() override;
+    ShapePaintPath* localPath() override;
+    ShapePaintPath* localClockwisePath() override;
+    Component* pathBuilder() override;
 };
 } // namespace rive
 

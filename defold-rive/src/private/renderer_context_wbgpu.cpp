@@ -32,7 +32,9 @@ namespace dmRive
 
             rive::gpu::RenderContextWebGPUImpl::ContextOptions contextOptions = {
                 .plsType = rive::gpu::RenderContextWebGPUImpl::PixelLocalStorageType::EXT_shader_pixel_local_storage,
-                .disableStorageBuffers = true
+                .disableStorageBuffers = true,
+                .invertRenderTargetY = true,
+                // .invertRenderTargetFrontFace = true,
             };
 
             dmLogInfo("Before creating WebGPU context.");
