@@ -10,6 +10,11 @@ if [ "" == "${PLATFORMS}" ]; then
     PLATFORMS="x86_64-macos arm64-macos x86_64-linux x86_64-win32 x86-win32 arm64-ios x86_64-ios arm64-android"
 fi
 
+###
+# DONE x86_64-macos arm64-macos x86-win32 x86_64-win32 arm64-ios x86_64-ios
+# LEFT x86_64-linux arm64-android
+###
+
 DEFAULT_SERVER_NAME=build-stage.defold.com
 if [ "" == "${DM_EXTENDER_USERNAME}" ] && [ "" == "${DM_EXTENDER_PASSWORD}" ]; then
     DEFAULT_SERVER=https://${DEFAULT_SERVER_NAME}
@@ -356,7 +361,7 @@ for platform in $PLATFORMS; do
     export DEFINES="YOGA_EXPORT="
     export INCLUDES="upload/src"
     export CXXFLAGS="-std=c++17 -fno-rtti -fno-exceptions"
-    #build_library yoga $platform $platform_ne ${RIVE_YOGA_SOURCE_DIR} ${BUILD}
+    build_library yoga $platform $platform_ne ${RIVE_YOGA_SOURCE_DIR} ${BUILD}
 
     echo "************************************************************"
     echo "HARFBUZZ ${platform}"
@@ -366,7 +371,7 @@ for platform in $PLATFORMS; do
     export CXXFLAGS="-std=c++17 -fno-rtti -fno-exceptions"
     export DEFINES="HAVE_CONFIG_H"
     unset INCLUDES
-    #build_library harfbuzz $platform $platform_ne ${HARFBUZZ_SOURCE_DIR} ${BUILD}
+    build_library harfbuzz $platform $platform_ne ${HARFBUZZ_SOURCE_DIR} ${BUILD}
 
     echo "************************************************************"
     echo "SHEENBIDI ${platform}"
@@ -375,7 +380,7 @@ for platform in $PLATFORMS; do
     export INCLUDES="upload/Headers" # TODO: Make includes work with relative paths
     export CXXFLAGS="-x c"
     unset DEFINES
-    #build_library sheenbidi $platform $platform_ne ${SHEENBIDI_SOURCE_DIR} ${BUILD}
+    build_library sheenbidi $platform $platform_ne ${SHEENBIDI_SOURCE_DIR} ${BUILD}
 
     echo "************************************************************"
     echo "TESS2 ${platform}"
@@ -384,7 +389,7 @@ for platform in $PLATFORMS; do
     export INCLUDES="upload/Include" # TODO: Make includes work with relative paths
     export CXXFLAGS="-x c"
     unset DEFINES
-    #build_library tess2 $platform $platform_ne ${LIBTESS2_SOURCE_DIR} ${BUILD}
+    build_library tess2 $platform $platform_ne ${LIBTESS2_SOURCE_DIR} ${BUILD}
 
     echo "************************************************************"
     echo "RIVECPP TESS ${platform}"
@@ -392,7 +397,7 @@ for platform in $PLATFORMS; do
     unset DEFINES
     unset INCLUDES
     export CXXFLAGS="-std=c++17 -fno-rtti -fno-exceptions"
-    #build_library rivetess $platform $platform_ne ${RIVECPP_TESS_SOURCE_DIR} ${BUILD}
+    build_library rivetess $platform $platform_ne ${RIVECPP_TESS_SOURCE_DIR} ${BUILD}
 
     echo "************************************************************"
     echo "RIVE CPP ${platform}"
@@ -401,7 +406,7 @@ for platform in $PLATFORMS; do
     export CXXFLAGS="-std=c++17 -fno-rtti -fno-exceptions"
     export DEFINES="WITH_RIVE_TEXT WITH_RIVE_LAYOUT _RIVE_INTERNAL_ YOGA_EXPORT="
     unset INCLUDES
-    #build_library rive $platform $platform_ne ${RIVECPP_SOURCE_DIR} ${BUILD}
+    build_library rive $platform $platform_ne ${RIVECPP_SOURCE_DIR} ${BUILD}
 
     echo "************************************************************"
     echo "RIVE Renderer ${platform}"
@@ -608,7 +613,7 @@ for platform in $PLATFORMS; do
         export DEFINES="${RIVE_RENDERER_DEFINES}"
     fi
 
-    #build_library rive_renderer $platform $platform_ne ${RIVECPP_RENDERER_SOURCE_DIR} ${BUILD}
+    build_library rive_renderer $platform $platform_ne ${RIVECPP_RENDERER_SOURCE_DIR} ${BUILD}
 
     echo "************************************************************"
     echo "RIVE SHADERS ${platform}"
