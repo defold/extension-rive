@@ -207,7 +207,6 @@ namespace dmGraphics
     HUniformLocation GetUniformLocation(HProgram prog, const char* name);
     uint32_t         GetUniformName(HProgram prog, uint32_t index, char* buffer, uint32_t buffer_size, Type* type, int32_t* size);
     uint32_t         GetUniformCount(HProgram prog);
-    HProgram         NewProgram(HContext context, HVertexProgram vertex_program, HFragmentProgram fragment_program);
 
     void SetStencilMask(HContext context, uint32_t mask);
     void SetStencilFunc(HContext context, CompareFunc func, uint32_t ref, uint32_t mask);

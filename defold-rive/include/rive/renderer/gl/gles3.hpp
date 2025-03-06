@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <stdint.h>
 #include <string.h>
 
 #ifdef RIVE_DESKTOP_GL
@@ -116,12 +117,22 @@ struct GLCapabilities
                ((major << 16) | minor);
     }
 
+    // GL version.
     int contextVersionMajor;
     int contextVersionMinor;
+
+    // Driver info.
     bool isGLES : 1;
     bool isAndroidANGLE : 1;
     bool isAdreno : 1;
+    bool isMali : 1;
     bool isPowerVR : 1;
+
+    // Workarounds.
+    // Some devices crash when issuing draw commands with a large instancecount.
+    uint32_t maxSupportedInstancesPerDrawCommand = ~0u;
+
+    // Extensions
     bool ANGLE_base_vertex_base_instance_shader_builtin : 1;
     bool ANGLE_shader_pixel_local_storage : 1;
     bool ANGLE_shader_pixel_local_storage_coherent : 1;
@@ -135,6 +146,8 @@ struct GLCapabilities
     bool KHR_blend_equation_advanced_coherent : 1;
     bool EXT_base_instance : 1;
     bool EXT_clip_cull_distance : 1;
+    bool EXT_color_buffer_half_float : 1;
+    bool EXT_float_blend : 1; // Implies EXT_color_buffer_float.
     bool EXT_multisampled_render_to_texture : 1;
     bool EXT_shader_framebuffer_fetch : 1;
     bool EXT_shader_pixel_local_storage : 1;

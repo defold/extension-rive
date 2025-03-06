@@ -5,6 +5,7 @@
 #include "rive/drawable.hpp"
 #include "rive/generated/layout_component_base.hpp"
 #include "rive/layout/layout_measure_mode.hpp"
+#include "rive/layout/layout_node_provider.hpp"
 #include "rive/math/raw_path.hpp"
 #include "rive/shapes/rectangle.hpp"
 #include "rive/shapes/shape_paint_container.hpp"
@@ -95,7 +96,8 @@ class LayoutComponent : public LayoutComponentBase,
                         public ProxyDrawing,
                         public ShapePaintContainer,
                         public AdvancingComponent,
-                        public InterpolatorHost
+                        public InterpolatorHost,
+                        public LayoutNodeProvider
 {
 protected:
     LayoutComponentStyle* m_style = nullptr;
@@ -111,12 +113,12 @@ protected:
     LayoutStyleInterpolation m_inheritedInterpolation =
         LayoutStyleInterpolation::hold;
     float m_inheritedInterpolationTime = 0;
+    LayoutDirection m_inheritedDirection = LayoutDirection::inherit;
     Rectangle m_backgroundRect;
-    rcp<RenderPath> m_backgroundPath;
-    rcp<RenderPath> m_clipPath;
+    ShapePaintPath m_localPath;
+    ShapePaintPath m_worldPath;
     DrawableProxy m_proxy;
-    bool m_displayChanged = false;
-    std::vector<LayoutConstraint*> m_layoutConstraints;
+    bool m_displayHidden = false;
 
     Artboard* getArtboard() override { return artboard(); }
     LayoutAnimationData* currentAnimationData();
@@ -136,6 +138,7 @@ protected:
     }
     bool isDisplayHidden() const;
     void propagateCollapse(bool collapse);
+    bool collapse(bool value) override;
 
 private:
     float m_widthOverride = NAN;
@@ -147,18 +150,24 @@ private:
     bool m_heightIntrinsicallySizeOverride = false;
     float m_forcedWidth = NAN;
     float m_forcedHeight = NAN;
+    bool m_forceUpdateLayoutBounds = false;
 
 #ifdef WITH_RIVE_LAYOUT
 protected:
     void syncLayoutChildren();
     void propagateSizeToChildren(ContainerComponent* component);
     bool applyInterpolation(float elapsedSeconds, bool animate = true);
-
-protected:
     void calculateLayout();
+    bool styleDisplayHidden();
 #endif
 
 public:
+    // Implemented for ShapePaintContainer.
+    const Mat2D& shapeWorldTransform() const override
+    {
+        return worldTransform();
+    }
+
     LayoutComponentStyle* style() { return m_style; }
     void style(LayoutComponentStyle* style) { m_style = style; }
 
@@ -170,7 +179,7 @@ public:
     virtual void updateRenderPath();
     void update(ComponentDirt value) override;
     void onDirty(ComponentDirt value) override;
-    AABB layoutBounds()
+    AABB layoutBounds() override
     {
         return AABB::fromLTWH(m_layout.left(),
                               m_layout.top(),
@@ -223,7 +232,6 @@ public:
     bool overridesKeyedInterpolation(int propertyKey) override;
     bool hasShapePaints() const { return m_ShapePaints.size() > 0; }
     const Rectangle* backgroundRect() const { return &m_backgroundRect; }
-    RenderPath* backgroundPath() const { return m_backgroundPath.get(); }
     bool advanceComponent(float elapsedSeconds,
                           AdvanceFlags flags = AdvanceFlags::Animate |
                                                AdvanceFlags::NewFrame) override;
@@ -233,7 +241,10 @@ public:
     void forcedWidth(float width);
     void forcedHeight(float height);
     void updateConstraints() override;
-    void addLayoutConstraint(LayoutConstraint* constraint);
+    TransformComponent* transformComponent() override
+    {
+        return this->as<TransformComponent>();
+    }
 
     LayoutComponent();
     ~LayoutComponent();
@@ -251,9 +262,10 @@ public:
     LayoutStyleInterpolation interpolation();
     float interpolationTime();
 
-    void cascadeAnimationStyle(LayoutStyleInterpolation inheritedInterpolation,
-                               KeyFrameInterpolator* inheritedInterpolator,
-                               float inheritedInterpolationTime);
+    void cascadeLayoutStyle(LayoutStyleInterpolation inheritedInterpolation,
+                            KeyFrameInterpolator* inheritedInterpolator,
+                            float inheritedInterpolationTime,
+                            LayoutDirection direction);
     void setInheritedInterpolation(
         LayoutStyleInterpolation inheritedInterpolation,
         KeyFrameInterpolator* inheritedInterpolator,
@@ -265,10 +277,12 @@ public:
     void scaleTypeChanged();
     void displayChanged();
     void flexDirectionChanged();
+    void directionChanged();
+    LayoutDirection actualDirection();
 #endif
     void buildDependencies() override;
 
-    void markLayoutNodeDirty();
+    void markLayoutNodeDirty(bool shouldForceUpdateLayoutBounds = false);
     void markLayoutStyleDirty();
     void clipChanged() override;
     void widthChanged() override;
@@ -281,6 +295,11 @@ public:
                         LayoutMeasureMode widthMode,
                         float height,
                         LayoutMeasureMode heightMode) override;
+
+    ShapePaintPath* worldPath() override;
+    ShapePaintPath* localPath() override;
+    ShapePaintPath* localClockwisePath() override;
+    Component* pathBuilder() override;
 };
 } // namespace rive
 

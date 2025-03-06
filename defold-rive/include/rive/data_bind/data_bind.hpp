@@ -6,6 +6,7 @@
 #include "rive/data_bind/data_context.hpp"
 #include "rive/data_bind/converters/data_converter.hpp"
 #include "rive/data_bind/data_values/data_type.hpp"
+#include "rive/dirtyable.hpp"
 #include <stdio.h>
 namespace rive
 {
@@ -14,13 +15,13 @@ class DataBindContextValue;
 class DataBind;
 typedef void (*DataBindChanged)();
 #endif
-class DataBind : public DataBindBase
+class DataBind : public DataBindBase, public Dirtyable
 {
 public:
     ~DataBind();
     StatusCode onAddedDirty(CoreContext* context) override;
     StatusCode import(ImportStack& importStack) override;
-    virtual void updateSourceBinding();
+    virtual void updateSourceBinding(bool invalidate = false);
     virtual void update(ComponentDirt value);
     Core* target() const { return m_target; };
     void target(Core* value) { m_target = value; };
@@ -28,12 +29,13 @@ public:
     virtual void unbind();
     ComponentDirt dirt() { return m_Dirt; };
     void dirt(ComponentDirt value) { m_Dirt = value; };
-    bool addDirt(ComponentDirt value, bool recurse);
+    void addDirt(ComponentDirt value, bool recurse) override;
     DataConverter* converter() const { return m_dataConverter; };
     void converter(DataConverter* value) { m_dataConverter = value; };
     ViewModelInstanceValue* source() const { return m_Source; };
     bool toSource();
     bool toTarget();
+    bool advance(float elapsedTime);
 
 protected:
     ComponentDirt m_Dirt = ComponentDirt::Filthy;

@@ -89,6 +89,12 @@ public:
         return ((A * t + B) * t + C) * t + D;
     }
 
+    RIVE_ALWAYS_INLINE float4 at(float4 t) const
+    {
+        // At^3 + Bt^2 + Ct + P0
+        return ((A * t + B) * t + C) * t + D;
+    }
+
 private:
     const float4 A;
     const float4 B;
@@ -145,38 +151,28 @@ float measure_angle_between_vectors(Vec2D a, Vec2D b);
 // on a degenerate flat line.
 int find_cubic_convex_180_chops(const Vec2D[], float T[2], bool* areCusps);
 
-// Returns up to 4 T values at which to chop the given curve in order to
-// guarantee the resulting cubics are convex and rotate no more than 90 degrees.
-//
-// If the curve has any cusp points (proper cusps or 180-degree turnarounds on
-// a degenerate flat line), the cusps are straddled with `cuspPadding` on either
-// side and `areCusps` is set to true. In this cases, odd-numbered curves after
-// chopping will always be the small sections that pass through the cusp.
-int find_cubic_convex_90_chops(const Vec2D[],
-                               float T[4],
-                               float cuspPadding,
-                               bool* areCusps);
-
-// Find the location and value of a cubic's maximum height, relative to the
-// baseline p0->p3.
-float find_cubic_max_height(const Vec2D pts[4], float* outT);
-
-// Measure the amount of curvature, in radians, of the given cubic, centered at
-// location T, and covering a spread of width "desiredSpread" in local
-// coordinates. If "desiredSpread" would reach outside the range t=0..1, a
-// smaller spread is used.
-float measure_cubic_local_curvature(const Vec2D pts[4],
-                                    const math::CubicCoeffs& coeffs,
-                                    float T,
-                                    float desiredSpread);
-inline float measure_cubic_local_curvature(const Vec2D pts[4],
-                                           float T,
-                                           float desiredSpread)
+// Finds the tangents of the curve at T=0 and T=1 respectively.
+RIVE_ALWAYS_INLINE Vec2D find_cubic_tan0(const Vec2D p[4])
 {
-    return measure_cubic_local_curvature(pts,
-                                         CubicCoeffs(pts),
-                                         T,
-                                         desiredSpread);
+    Vec2D tan0 = (p[0] != p[1] ? p[1] : p[1] != p[2] ? p[2] : p[3]) - p[0];
+    return tan0;
+}
+RIVE_ALWAYS_INLINE Vec2D find_cubic_tan1(const Vec2D p[4])
+{
+    Vec2D tan1 = p[3] - (p[3] != p[2] ? p[2] : p[2] != p[1] ? p[1] : p[0]);
+    return tan1;
+}
+RIVE_ALWAYS_INLINE void find_cubic_tangents(const Vec2D p[4], Vec2D tangents[2])
+{
+    tangents[0] = find_cubic_tan0(p);
+    tangents[1] = find_cubic_tan1(p);
+}
+
+RIVE_ALWAYS_INLINE constexpr float pow2(float x) { return x * x; }
+RIVE_ALWAYS_INLINE constexpr float pow3(float x) { return x * pow2(x); }
+RIVE_ALWAYS_INLINE constexpr float length_pow2(Vec2D v)
+{
+    return pow2(v.x) + pow2(v.y);
 }
 } // namespace math
 } // namespace rive

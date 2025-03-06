@@ -22,6 +22,7 @@ private:
     PathComposer m_PathComposer;
     std::vector<Path*> m_Paths;
     AABB m_WorldBounds;
+    float m_WorldLength = -1;
 
     bool m_WantDifferencePath = false;
     RenderPathDeformer* m_deformer = nullptr;
@@ -56,6 +57,9 @@ public:
     bool isEmpty();
     void pathCollapseChanged();
 
+    float length() override;
+    void setLength(float value) override {}
+
     AABB worldBounds()
     {
         if ((static_cast<DrawableFlag>(drawableFlags()) &
@@ -72,6 +76,7 @@ public:
     {
         drawableFlags(drawableFlags() & ~static_cast<unsigned short>(
                                             DrawableFlag::WorldBoundsClean));
+        m_WorldLength = -1;
     }
 
     AABB computeWorldBounds(const Mat2D* xform = nullptr) const;
@@ -83,6 +88,16 @@ public:
 
     bool hitTestAABB(const Vec2D& position) override;
     bool hitTestHiFi(const Vec2D& position, float hitRadius) override;
+    // Implemented for ShapePaintContainer.
+    const Mat2D& shapeWorldTransform() const override
+    {
+        return worldTransform();
+    }
+
+    ShapePaintPath* worldPath() override;
+    ShapePaintPath* localPath() override;
+    ShapePaintPath* localClockwisePath() override;
+    Component* pathBuilder() override;
 };
 } // namespace rive
 
