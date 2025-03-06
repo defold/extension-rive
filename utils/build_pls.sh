@@ -323,7 +323,7 @@ echo "Setup shader source variables"
 source ${SCRIPT_DIR}/gen_embedded_shaders.sh
 
 DEFOLDSHADERS_INPUT_DIR=${SCRIPT_DIR}/../defold-rive/assets/shader-library
-DEFOLDSHADERS_INCLUDE_DIR=${SCRIPT_DIR}/../defold-rive/include/private/shaders
+DEFOLDSHADERS_INCLUDE_DIR=${SCRIPT_DIR}/../defold-rive/include/defold/shaders
 DEFOLDSHADERS_SOURCE_DIR=${SOURCE_DIR}/defoldshaders/src
 
 mkdir -p ${DEFOLDSHADERS_INCLUDE_DIR}
@@ -356,7 +356,7 @@ for platform in $PLATFORMS; do
     export DEFINES="YOGA_EXPORT="
     export INCLUDES="upload/src"
     export CXXFLAGS="-std=c++17 -fno-rtti -fno-exceptions"
-    build_library yoga $platform $platform_ne ${RIVE_YOGA_SOURCE_DIR} ${BUILD}
+    #build_library yoga $platform $platform_ne ${RIVE_YOGA_SOURCE_DIR} ${BUILD}
 
     echo "************************************************************"
     echo "HARFBUZZ ${platform}"
@@ -366,7 +366,7 @@ for platform in $PLATFORMS; do
     export CXXFLAGS="-std=c++17 -fno-rtti -fno-exceptions"
     export DEFINES="HAVE_CONFIG_H"
     unset INCLUDES
-    build_library harfbuzz $platform $platform_ne ${HARFBUZZ_SOURCE_DIR} ${BUILD}
+    #build_library harfbuzz $platform $platform_ne ${HARFBUZZ_SOURCE_DIR} ${BUILD}
 
     echo "************************************************************"
     echo "SHEENBIDI ${platform}"
@@ -375,7 +375,7 @@ for platform in $PLATFORMS; do
     export INCLUDES="upload/Headers" # TODO: Make includes work with relative paths
     export CXXFLAGS="-x c"
     unset DEFINES
-    build_library sheenbidi $platform $platform_ne ${SHEENBIDI_SOURCE_DIR} ${BUILD}
+    #build_library sheenbidi $platform $platform_ne ${SHEENBIDI_SOURCE_DIR} ${BUILD}
 
     echo "************************************************************"
     echo "TESS2 ${platform}"
@@ -384,7 +384,7 @@ for platform in $PLATFORMS; do
     export INCLUDES="upload/Include" # TODO: Make includes work with relative paths
     export CXXFLAGS="-x c"
     unset DEFINES
-    build_library tess2 $platform $platform_ne ${LIBTESS2_SOURCE_DIR} ${BUILD}
+    #build_library tess2 $platform $platform_ne ${LIBTESS2_SOURCE_DIR} ${BUILD}
 
     echo "************************************************************"
     echo "RIVECPP TESS ${platform}"
@@ -392,7 +392,7 @@ for platform in $PLATFORMS; do
     unset DEFINES
     unset INCLUDES
     export CXXFLAGS="-std=c++17 -fno-rtti -fno-exceptions"
-    build_library rivetess $platform $platform_ne ${RIVECPP_TESS_SOURCE_DIR} ${BUILD}
+    #build_library rivetess $platform $platform_ne ${RIVECPP_TESS_SOURCE_DIR} ${BUILD}
 
     echo "************************************************************"
     echo "RIVE CPP ${platform}"
@@ -401,7 +401,7 @@ for platform in $PLATFORMS; do
     export CXXFLAGS="-std=c++17 -fno-rtti -fno-exceptions"
     export DEFINES="WITH_RIVE_TEXT WITH_RIVE_LAYOUT _RIVE_INTERNAL_ YOGA_EXPORT="
     unset INCLUDES
-    build_library rive $platform $platform_ne ${RIVECPP_SOURCE_DIR} ${BUILD}
+    #build_library rive $platform $platform_ne ${RIVECPP_SOURCE_DIR} ${BUILD}
 
     echo "************************************************************"
     echo "RIVE Renderer ${platform}"
@@ -608,7 +608,7 @@ for platform in $PLATFORMS; do
         export DEFINES="${RIVE_RENDERER_DEFINES}"
     fi
 
-    build_library rive_renderer $platform $platform_ne ${RIVECPP_RENDERER_SOURCE_DIR} ${BUILD}
+    #build_library rive_renderer $platform $platform_ne ${RIVECPP_RENDERER_SOURCE_DIR} ${BUILD}
 
     echo "************************************************************"
     echo "RIVE SHADERS ${platform}"
@@ -616,7 +616,7 @@ for platform in $PLATFORMS; do
     unset DEFINES
     unset INCLUDES
     export CXXFLAGS="-x c"
-    generate_cpp_sources ${platform} ${DEFOLDSHADERS_INPUT_DIR} ${DEFOLDSHADERS_SOURCE_DIR}
+    generate_cpp_sources ${platform} ${DEFOLDSHADERS_INPUT_DIR}/rivemodel_blit.vp ${DEFOLDSHADERS_INPUT_DIR}/rivemodel_blit.fp ${DEFOLDSHADERS_SOURCE_DIR}/rivemodel_blit.spc
     build_library riveshaders $platform $platform_ne ${DEFOLDSHADERS_SOURCE_DIR} ${BUILD}
 
     # TODO: Fix this (paths are wrong)

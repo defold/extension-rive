@@ -68,6 +68,7 @@
 #include <dmsdk/gamesys/resources/res_animationset.h>
 #include <dmsdk/gamesys/resources/res_textureset.h>
 
+
 // Not in dmSDK yet
 namespace dmScript
 {
@@ -75,7 +76,7 @@ namespace dmScript
     void PushURL(lua_State* L, const dmMessage::URL& m);
 }
 
-DM_PROPERTY_GROUP(rmtp_Rive, "Rive");
+DM_PROPERTY_GROUP(rmtp_Rive, "Rive", 0);
 DM_PROPERTY_U32(rmtp_RiveBones, 0, FrameReset, "# rive bones", &rmtp_Rive);
 DM_PROPERTY_U32(rmtp_RiveComponents, 0, FrameReset, "# rive components", &rmtp_Rive);
 

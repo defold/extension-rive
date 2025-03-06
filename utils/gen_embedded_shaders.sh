@@ -45,15 +45,16 @@ function copyfile() {
 function build_shader() {
     local shader_type=$1
     local platform=$2
-    local src=$3
-    local dst=$4
+    local vp=$3
+    local fp=$4
+    local dst=$5
     local variant=release
     local class_name=com.dynamo.bob.pipeline.${shader_type}
 
-    echo "Compiling shader ${src} for platform ${platform} with ${shader_type}"
+    echo "Compiling shader ${vp} for platform ${platform} with ${shader_type}"
     echo "    ${output}"
 
-    java -cp ${BOB} ${class_name} ${src} ${dst} ${platform} --platform=${platform} --variant=${variant} ${OUTPUT_SPIRV}
+    java -cp ${BOB} ${class_name} ${vp} ${fp} ${dst} ${platform} --platform=${platform} --variant=${variant} ${OUTPUT_SPIRV}
 }
 
 function generate_cpp_source() {
@@ -82,36 +83,21 @@ function generate_cpp_source() {
 
 function generate_cpp_sources() {
     local platform=$1
-    local input_dir=$2
-    local target_dir=$3
+    local input_vp=$2
+    local input_fp=$3
+    local target_file=$4
 
     # Allow for file patterns not returning any files
     shopt -s nullglob
 
-    for name in ${input_dir}/*.vp; do
-        local short_name=$(basename $name)
-        local shader=${target_dir}/${short_name}c
-        build_shader VertexProgramBuilder ${platform} ${name} ${shader}
-    done
+    echo "${input_vp} ${input_fp} ${target_file} ${platform}"
 
-    for name in ${input_dir}/*.fp; do
-        local short_name=$(basename $name)
-        local shader=${target_dir}/${short_name}c
-        build_shader FragmentProgramBuilder ${platform} ${name} ${shader}
-    done
+    build_shader ShaderProgramBuilder ${platform} ${input_vp} ${input_fp} ${target_file}
 
-    for name in ${target_dir}/*.vpc ${target_dir}/*.fpc; do
-        local short_name=$(basename $name)
-        local shader=${target_dir}/${short_name}
-        local header=${target_dir}/${short_name}.gen.h
-        local source=${target_dir}/${short_name}.gen.c
+    local header=${target_file}.gen.h
+    local source=${target_file}.gen.c
 
-        generate_cpp_source ${platform} ${shader} ${header} ${source}
-    done
-
-    for name in ${input_dir}/*.gen.*; do
-        echo "Generated ${name}"
-    done
+    generate_cpp_source ${platform} ${target_file} ${header} ${source}
 
     # enable file patterns to default behavior
     shopt -u nullglob
