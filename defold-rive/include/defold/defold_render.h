@@ -22,7 +22,6 @@
 namespace dmRender
 {
     const dmVMath::Matrix4& GetViewMatrix(HRenderContext render_context);
-    const dmVMath::Matrix4& GetViewProjectionMatrix(HRenderContext render_context);
     HMaterial               NewMaterial(dmRender::HRenderContext render_context, dmGraphics::HProgram program);
     void                    SetMaterialTags(HMaterial material, uint32_t tag_count, const dmhash_t* tags);
     bool                    SetMaterialSampler(HMaterial material, dmhash_t name_hash, uint32_t unit, dmGraphics::TextureWrap u_wrap, dmGraphics::TextureWrap v_wrap, dmGraphics::TextureFilter min_filter, dmGraphics::TextureFilter mag_filter, float max_anisotropy);

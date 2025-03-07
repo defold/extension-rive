@@ -5,15 +5,10 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 OUTPUT_LIB_DIR=${SCRIPT_DIR}/../defold-rive/lib
 
 PLATFORMS=$1
-# web isn't yet supported: js-web wasm-web
-if [ "" == "${PLATFORMS}" ]; then
-    PLATFORMS="x86_64-macos arm64-macos x86_64-linux x86_64-win32 x86-win32 arm64-ios x86_64-ios arm64-android"
-fi
 
-###
-# DONE x86_64-macos arm64-macos x86-win32 x86_64-win32 arm64-ios x86_64-ios
-# LEFT x86_64-linux arm64-android
-###
+if [ "" == "${PLATFORMS}" ]; then
+    PLATFORMS="x86_64-macos arm64-macos x86_64-linux x86_64-win32 x86-win32 arm64-ios x86_64-ios arm64-android js-web wasm-web"
+fi
 
 DEFAULT_SERVER_NAME=build-stage.defold.com
 if [ "" == "${DM_EXTENDER_USERNAME}" ] && [ "" == "${DM_EXTENDER_PASSWORD}" ]; then
@@ -355,6 +350,15 @@ for platform in $PLATFORMS; do
     BUILD=$(realpath ${BUILD})
 
     echo "************************************************************"
+    echo "RIVE CPP ${platform}"
+    echo "************************************************************"
+
+    export CXXFLAGS="-std=c++17 -fno-rtti -fno-exceptions"
+    export DEFINES="WITH_RIVE_TEXT WITH_RIVE_LAYOUT _RIVE_INTERNAL_ YOGA_EXPORT="
+    unset INCLUDES
+    build_library rive $platform $platform_ne ${RIVECPP_SOURCE_DIR} ${BUILD}
+
+    echo "************************************************************"
     echo "YOGA ${platform}"
     echo "************************************************************"
 
@@ -400,15 +404,6 @@ for platform in $PLATFORMS; do
     build_library rivetess $platform $platform_ne ${RIVECPP_TESS_SOURCE_DIR} ${BUILD}
 
     echo "************************************************************"
-    echo "RIVE CPP ${platform}"
-    echo "************************************************************"
-
-    export CXXFLAGS="-std=c++17 -fno-rtti -fno-exceptions"
-    export DEFINES="WITH_RIVE_TEXT WITH_RIVE_LAYOUT _RIVE_INTERNAL_ YOGA_EXPORT="
-    unset INCLUDES
-    build_library rive $platform $platform_ne ${RIVECPP_SOURCE_DIR} ${BUILD}
-
-    echo "************************************************************"
     echo "RIVE Renderer ${platform}"
     echo "************************************************************"
 
@@ -447,7 +442,7 @@ for platform in $PLATFORMS; do
             # Android specific
             cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/load_gles_extensions.cpp       ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
             cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_ext_native.cpp        ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
-            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_framebuffer_fetch.cpp ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            #cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_framebuffer_fetch.cpp ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
             ;;
         x86_64-win32|x86-win32)
             RIVE_RENDERER_DEFINES="RIVE_DESKTOP_GL RIVE_WINDOWS"
