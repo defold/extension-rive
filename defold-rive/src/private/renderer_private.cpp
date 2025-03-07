@@ -12,8 +12,8 @@
 
 #include <defold/defold_graphics.h>
 #include <defold/defold_render.h>
-#include <defold/shaders/rivemodel_blit.vpc.gen.h>
-#include <defold/shaders/rivemodel_blit.fpc.gen.h>
+
+#include <defold/shaders/rivemodel_blit.spc.gen.h>
 
 #include <common/vertices.h>
 #include <defold/renderer.h>
@@ -52,9 +52,8 @@ namespace dmRive
         rive::Renderer*      m_RiveRenderer;
         dmGraphics::HContext m_GraphicsContext;
 
-        dmGraphics::HVertexProgram   m_BlitVs;
-        dmGraphics::HFragmentProgram m_BlitFs;
-        dmRender::HMaterial          m_BlitMaterial;
+        dmGraphics::HProgram m_BlitSpc;
+        dmRender::HMaterial  m_BlitMaterial;
 
         uint32_t             m_LastWidth;
         uint32_t             m_LastHeight;
@@ -81,14 +80,12 @@ namespace dmRive
 
     static void AddShaderResources(dmResource::HFactory factory)
     {
-        dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/rivemodel_blit.vpc", RIVEMODEL_BLIT_VPC_SIZE, RIVEMODEL_BLIT_VPC);
-        dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/rivemodel_blit.fpc", RIVEMODEL_BLIT_FPC_SIZE, RIVEMODEL_BLIT_FPC);
+        dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/rivemodel_blit.spc", RIVEMODEL_BLIT_SPC_SIZE, RIVEMODEL_BLIT_SPC);
     }
 
     static void RemoveShaderResources(dmResource::HFactory factory)
     {
-        dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/rivemodel_blit.vpc");
-        dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/rivemodel_blit.fpc");
+        dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/rivemodel_blit.spc");
     }
 
     dmResource::Result LoadShaders(dmResource::HFactory factory, ShaderResources** resources)
@@ -105,8 +102,7 @@ namespace dmRive
                 return result; \
             }
 
-        GET_SHADER("/defold-rive/assets/pls-shaders/rivemodel_blit.vpc", g_RiveRenderer->m_BlitVs);
-        GET_SHADER("/defold-rive/assets/pls-shaders/rivemodel_blit.fpc", g_RiveRenderer->m_BlitFs);
+        GET_SHADER("/defold-rive/assets/pls-shaders/rivemodel_blit.spc", g_RiveRenderer->m_BlitSpc);
 
         #undef GET_SHADER
 
@@ -119,8 +115,7 @@ namespace dmRive
     {
         #define RELEASE_SHADER(res) \
             if (res) dmResource::Release(factory, (void*) res);
-        RELEASE_SHADER(g_RiveRenderer->m_BlitVs);
-        RELEASE_SHADER(g_RiveRenderer->m_BlitFs);
+        RELEASE_SHADER(g_RiveRenderer->m_BlitSpc);
         #undef RELEASE_SHADER
     }
 
@@ -169,8 +164,7 @@ namespace dmRive
             renderer->m_RiveRenderer = renderer->m_RenderContext->MakeRenderer();
             renderer->m_Factory = factory;
 
-            dmResource::IncRef(factory, (void*) renderer->m_BlitVs);
-            dmResource::IncRef(factory, (void*) renderer->m_BlitFs);
+            dmResource::IncRef(factory, (void*) renderer->m_BlitSpc);
         }
 
         if (!renderer->m_FrameBegin)
@@ -330,7 +324,7 @@ namespace dmRive
         DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
         if (!renderer->m_BlitMaterial)
         {
-            renderer->m_BlitMaterial = dmRender::NewMaterial(render_context, renderer->m_BlitVs, renderer->m_BlitFs);
+            renderer->m_BlitMaterial = dmRender::NewMaterial(render_context, renderer->m_BlitSpc);
 
             if (!dmRender::SetMaterialSampler(renderer->m_BlitMaterial, dmHashString64("texture_sampler"), 0, dmGraphics::TEXTURE_WRAP_CLAMP_TO_EDGE, dmGraphics::TEXTURE_WRAP_CLAMP_TO_EDGE, dmGraphics::TEXTURE_FILTER_LINEAR, dmGraphics::TEXTURE_FILTER_LINEAR, 1.0))
             {

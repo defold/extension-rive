@@ -5,9 +5,9 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 OUTPUT_LIB_DIR=${SCRIPT_DIR}/../defold-rive/lib
 
 PLATFORMS=$1
-# web isn't yet supported: js-web wasm-web
+
 if [ "" == "${PLATFORMS}" ]; then
-    PLATFORMS="x86_64-macos arm64-macos x86_64-linux x86_64-win32 x86-win32 arm64-ios x86_64-ios arm64-android"
+    PLATFORMS="x86_64-macos arm64-macos x86_64-linux x86_64-win32 x86-win32 arm64-ios x86_64-ios arm64-android js-web wasm-web"
 fi
 
 DEFAULT_SERVER_NAME=build-stage.defold.com
@@ -323,7 +323,7 @@ echo "Setup shader source variables"
 source ${SCRIPT_DIR}/gen_embedded_shaders.sh
 
 DEFOLDSHADERS_INPUT_DIR=${SCRIPT_DIR}/../defold-rive/assets/shader-library
-DEFOLDSHADERS_INCLUDE_DIR=${SCRIPT_DIR}/../defold-rive/include/private/shaders
+DEFOLDSHADERS_INCLUDE_DIR=${SCRIPT_DIR}/../defold-rive/include/defold/shaders
 DEFOLDSHADERS_SOURCE_DIR=${SOURCE_DIR}/defoldshaders/src
 
 mkdir -p ${DEFOLDSHADERS_INCLUDE_DIR}
@@ -348,6 +348,15 @@ for platform in $PLATFORMS; do
     BUILD=${OUTPUT_LIB_DIR}/${platform_ne}
     mkdir -p ${BUILD}
     BUILD=$(realpath ${BUILD})
+
+    echo "************************************************************"
+    echo "RIVE CPP ${platform}"
+    echo "************************************************************"
+
+    export CXXFLAGS="-std=c++17 -fno-rtti -fno-exceptions"
+    export DEFINES="WITH_RIVE_TEXT WITH_RIVE_LAYOUT _RIVE_INTERNAL_ YOGA_EXPORT="
+    unset INCLUDES
+    build_library rive $platform $platform_ne ${RIVECPP_SOURCE_DIR} ${BUILD}
 
     echo "************************************************************"
     echo "YOGA ${platform}"
@@ -395,15 +404,6 @@ for platform in $PLATFORMS; do
     build_library rivetess $platform $platform_ne ${RIVECPP_TESS_SOURCE_DIR} ${BUILD}
 
     echo "************************************************************"
-    echo "RIVE CPP ${platform}"
-    echo "************************************************************"
-
-    export CXXFLAGS="-std=c++17 -fno-rtti -fno-exceptions"
-    export DEFINES="WITH_RIVE_TEXT WITH_RIVE_LAYOUT _RIVE_INTERNAL_ YOGA_EXPORT="
-    unset INCLUDES
-    build_library rive $platform $platform_ne ${RIVECPP_SOURCE_DIR} ${BUILD}
-
-    echo "************************************************************"
     echo "RIVE Renderer ${platform}"
     echo "************************************************************"
 
@@ -442,7 +442,7 @@ for platform in $PLATFORMS; do
             # Android specific
             cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/load_gles_extensions.cpp       ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
             cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_ext_native.cpp        ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
-            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_framebuffer_fetch.cpp ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+            #cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_framebuffer_fetch.cpp ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
             ;;
         x86_64-win32|x86-win32)
             RIVE_RENDERER_DEFINES="RIVE_DESKTOP_GL RIVE_WINDOWS"
@@ -616,7 +616,7 @@ for platform in $PLATFORMS; do
     unset DEFINES
     unset INCLUDES
     export CXXFLAGS="-x c"
-    generate_cpp_sources ${platform} ${DEFOLDSHADERS_INPUT_DIR} ${DEFOLDSHADERS_SOURCE_DIR}
+    generate_cpp_sources ${platform} ${DEFOLDSHADERS_INPUT_DIR}/rivemodel_blit.vp ${DEFOLDSHADERS_INPUT_DIR}/rivemodel_blit.fp ${DEFOLDSHADERS_SOURCE_DIR}/rivemodel_blit.spc
     build_library riveshaders $platform $platform_ne ${DEFOLDSHADERS_SOURCE_DIR} ${BUILD}
 
     # TODO: Fix this (paths are wrong)

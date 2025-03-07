@@ -8,6 +8,7 @@
 #include "rive/math/aabb.hpp"
 #include "rive/math/mat2d.hpp"
 #include "rive/math/vec2d.hpp"
+#include "rive/math/simd.hpp"
 #include "rive/refcnt.hpp"
 #include "rive/shapes/paint/blend_mode.hpp"
 #include "rive/shapes/paint/color.hpp"
@@ -49,6 +50,15 @@ constexpr static int kPolarPrecision = 8;
 // Maximum supported numbers of tessellated segments in a single curve.
 constexpr static uint32_t kMaxParametricSegments = 1023;
 constexpr static uint32_t kMaxPolarSegments = 1023;
+
+// The Gaussian distribution is very blurry on the outer edges. Regardless of
+// how wide a feather is, the polar segments never need to have a finer angle
+// than this value.
+constexpr static float FEATHER_POLAR_SEGMENT_MIN_ANGLE = math::PI / 16;
+
+// cos(FEATHER_MIN_POLAR_SEGMENT_ANGLE / 2)
+constexpr static float COS_FEATHER_POLAR_SEGMENT_MIN_ANGLE_OVER_2 =
+    0.99518472667f;
 
 // We allocate all our GPU buffers in rings. This ensures the CPU can prepare
 // frames in parallel while the GPU renders them.
@@ -95,7 +105,12 @@ constexpr static uint32_t kGradTextureWidth = 512;
 constexpr static uint32_t kGradTextureWidthInSimpleRamps =
     kGradTextureWidth / 2;
 
-// Backend-specific capabilities/workarounds and fine tuning.
+// Depth/stencil parameters
+constexpr static float DEPTH_MIN = 0.0f;
+constexpr static float DEPTH_MAX = 1.0f;
+constexpr static uint32_t STENCIL_CLEAR = 0u;
+
+// Backend-specific capabilities/workarounds and fine tunin// g.
 struct PlatformFeatures
 {
     // InterlockMode::rasterOrdering.
@@ -109,21 +124,72 @@ struct PlatformFeatures
     // Required for @ENABLE_CLIP_RECT in msaa mode.
     bool supportsClipPlanes = false;
     bool avoidFlatVaryings = false;
-    // Invert Y when drawing to offscreen render targets? (Gradient and
-    // tessellation textures.)
-    bool invertOffscreenY = false;
-    // Specifies whether the graphics layer appends a negation of Y to on-screen
-    // vertex shaders that needs to be undone.
-    bool uninvertOnScreenY = false;
-    // Does the built-in pixel coordinate in the fragment shader go bottom-up or
-    // top-down?
-    bool fragCoordBottomUp = false;
+    // Vivo Y21 (PowerVR Rogue GE8320; OpenGL ES 3.2 build 1.13@5776728a) seems
+    // to hit some sort of reset condition that corrupts pixel local storage
+    // when rendering a complex feather. Provide a workaround that allows the
+    // implementation to opt in to always feathering to the atlas instead of
+    // rendering directly to the screen.
+    bool alwaysFeatherToAtlas = false;
+    // clipSpaceBottomUp specifies whether the top of the viewport, in clip
+    // coordinates, is at Y=+1 (OpenGL, Metal, D3D, WebGPU) or Y=-1 (Vulkan).
+    //
+    // framebufferBottomUp specifies whether "row 0" of the framebuffer is the
+    // bottom of the image (OpenGL) or the top (Metal, D3D, WebGPU, Vulkan).
+    //
+    //
+    //                                OpenGL
+    //           (clipSpaceBottomUp=true, framebufferBottomUp=true)
+    //
+    //  Rive Pixel Space             Clip Space              Framebuffer
+    //
+    //  0 ----------->                   ^ +1                ^ height
+    //  |          width                 |                   |
+    //  |                         -1     |     +1            |
+    //  |                 ===>    <------|------>    ===>    |
+    //  |                                |                   |
+    //  |                                |                   |          width
+    //  v height                         v -1                0 ----------->
+    //
+    //
+    //
+    //                            Metal/D3D/WebGPU
+    //           (clipSpaceBottomUp=true, framebufferBottomUp=false)
+    //
+    //  Rive Pixel Space             Clip Space              Framebuffer
+    //
+    //  0 ----------->                   ^ +1                0 ----------->
+    //  |          width                 |                   |          width
+    //  |                         -1     |     +1            |
+    //  |                 ===>    <------|------>    ===>    |
+    //  |                                |                   |
+    //  |                                |                   |
+    //  v height                         v -1                v height
+    //
+    //
+    //
+    //                                Vulkan
+    //          (clipSpaceBottomUp=false, framebufferBottomUp=false)
+    //
+    //  Rive Pixel Space             Clip Space              Framebuffer
+    //
+    //  0 ----------->                   ^ -1                0 ----------->
+    //  |          width                 |                   |          width
+    //  |                         -1     |     +1            |
+    //  |                 ===>    <------|------>    ===>    |
+    //  |                                |                   |
+    //  |                                |                   |
+    //  v height                         v +1                v height
+    //
+    bool clipSpaceBottomUp = false;
+    bool framebufferBottomUp = false;
     // Backend cannot initialize PLS with typical clear/load APIs in atomic
     // mode. Issue a "DrawType::atomicInitialize" draw instead.
     bool atomicPLSMustBeInitializedAsDraw = false;
     // Workaround for precision issues. Determines how far apart we space unique
     // path IDs when they will be bit-casted to fp16.
     uint8_t pathIDGranularity = 1;
+    // Maximum size (width or height) of a texture.
+    uint32_t maxTextureSize = 2048;
     // Maximum length (in 32-bit uints) of the coverage buffer used for paths in
     // clockwiseFill/atomic mode. 2^27 bytes is the minimum storage buffer size
     // requirement in the Vulkan, GL, and D3D11 specs. Metal guarantees 256 MB.
@@ -541,6 +607,7 @@ enum class DrawType : uint8_t
     outerCurvePatches, // Just the outer curves of a path; the interior will be
                        // triangulated.
     interiorTriangulation,
+    atlasBlit,
     imageRect,
     imageMesh,
     atomicInitialize, // Clear/init PLS data when we can't do it with existing
@@ -562,6 +629,7 @@ constexpr static bool DrawTypeIsImageDraw(DrawType drawType)
         case DrawType::midpointFanCenterAAPatches:
         case DrawType::outerCurvePatches:
         case DrawType::interiorTriangulation:
+        case DrawType::atlasBlit:
         case DrawType::atomicInitialize:
         case DrawType::atomicResolve:
         case DrawType::stencilClipReset:
@@ -581,6 +649,7 @@ constexpr static uint32_t PatchIndexCount(DrawType drawType)
         case DrawType::outerCurvePatches:
             return kOuterCurvePatchIndexCount;
         case DrawType::interiorTriangulation:
+        case DrawType::atlasBlit:
         case DrawType::imageRect:
         case DrawType::imageMesh:
         case DrawType::atomicInitialize:
@@ -602,6 +671,7 @@ constexpr static uint32_t PatchBorderIndexCount(DrawType drawType)
         case DrawType::outerCurvePatches:
             return kOuterCurvePatchBorderIndexCount;
         case DrawType::interiorTriangulation:
+        case DrawType::atlasBlit:
         case DrawType::imageRect:
         case DrawType::imageMesh:
         case DrawType::atomicInitialize:
@@ -628,6 +698,7 @@ constexpr static uint32_t PatchBaseIndex(DrawType drawType)
         case DrawType::outerCurvePatches:
             return kOuterCurvePatchBaseIndex;
         case DrawType::interiorTriangulation:
+        case DrawType::atlasBlit:
         case DrawType::imageRect:
         case DrawType::imageMesh:
         case DrawType::atomicInitialize:
@@ -665,6 +736,14 @@ enum class InterlockMode
 };
 constexpr static size_t kInterlockModeCount = 4;
 
+// Low-level batch of scissored geometry for rendering to the offscreen atlas.
+struct AtlasDrawBatch
+{
+    TAABB<uint16_t> scissor;
+    uint32_t patchCount;
+    uint32_t basePatch;
+};
+
 // "Uber shader" features that can be #defined in a draw shader.
 // This set is strictly limited to switches that don't *change* the behavior of
 // the shader, i.e., turning them all on will enable all types Rive content, but
@@ -678,9 +757,9 @@ enum class ShaderFeatures
     ENABLE_CLIPPING = 1 << 0,
     ENABLE_CLIP_RECT = 1 << 1,
     ENABLE_ADVANCED_BLEND = 1 << 2,
+    ENABLE_FEATHER = 1 << 3,
 
     // Fragment-only features.
-    ENABLE_FEATHER = 1 << 3,
     ENABLE_EVEN_ODD = 1 << 4,
     ENABLE_NESTED_CLIPPING = 1 << 5,
     ENABLE_HSL_BLEND_MODES = 1 << 6,
@@ -691,7 +770,7 @@ constexpr static ShaderFeatures kAllShaderFeatures =
     static_cast<gpu::ShaderFeatures>((1 << kShaderFeatureCount) - 1);
 constexpr static ShaderFeatures kVertexShaderFeaturesMask =
     ShaderFeatures::ENABLE_CLIPPING | ShaderFeatures::ENABLE_CLIP_RECT |
-    ShaderFeatures::ENABLE_ADVANCED_BLEND;
+    ShaderFeatures::ENABLE_ADVANCED_BLEND | ShaderFeatures::ENABLE_FEATHER;
 
 constexpr static ShaderFeatures ShaderFeaturesMaskFor(
     InterlockMode interlockMode)
@@ -703,54 +782,15 @@ constexpr static ShaderFeatures ShaderFeaturesMaskFor(
         case InterlockMode::atomics:
             return kAllShaderFeatures & ~ShaderFeatures::ENABLE_NESTED_CLIPPING;
         case InterlockMode::clockwiseAtomic:
-            // TODO: shaders features aren't yet implemented in clockwiseAtomic
-            // mode.
-            return ShaderFeatures::NONE;
+            // TODO: shader features aren't fully implemented yet in
+            // clockwiseAtomic mode.
+            return ShaderFeatures::ENABLE_FEATHER;
         case InterlockMode::msaa:
             return ShaderFeatures::ENABLE_CLIP_RECT |
                    ShaderFeatures::ENABLE_ADVANCED_BLEND |
                    ShaderFeatures::ENABLE_HSL_BLEND_MODES;
     }
     RIVE_UNREACHABLE();
-}
-
-constexpr static ShaderFeatures ShaderFeaturesMaskFor(
-    DrawType drawType,
-    InterlockMode interlockMode)
-{
-    ShaderFeatures mask = ShaderFeatures::NONE;
-    switch (drawType)
-    {
-        case DrawType::imageRect:
-        case DrawType::imageMesh:
-            if (interlockMode != gpu::InterlockMode::atomics)
-            {
-                mask = ShaderFeatures::ENABLE_CLIPPING |
-                       ShaderFeatures::ENABLE_CLIP_RECT |
-                       ShaderFeatures::ENABLE_ADVANCED_BLEND |
-                       ShaderFeatures::ENABLE_HSL_BLEND_MODES;
-                break;
-            }
-            // Since atomic mode has to resolve previous draws, images need to
-            // consider the same shader features for path draws.
-            [[fallthrough]];
-        case DrawType::midpointFanPatches:
-        case DrawType::midpointFanCenterAAPatches:
-        case DrawType::outerCurvePatches:
-        case DrawType::interiorTriangulation:
-        case DrawType::atomicResolve:
-            mask = kAllShaderFeatures;
-            break;
-        case DrawType::atomicInitialize:
-            assert(interlockMode == gpu::InterlockMode::atomics);
-            mask = ShaderFeatures::ENABLE_CLIPPING |
-                   ShaderFeatures::ENABLE_ADVANCED_BLEND;
-            break;
-        case DrawType::stencilClipReset:
-            mask = ShaderFeatures::NONE;
-            break;
-    }
-    return mask & ShaderFeaturesMaskFor(interlockMode);
 }
 
 // Miscellaneous switches that *do* affect the behavior of the fragment shader.
@@ -793,6 +833,46 @@ enum class ShaderMiscFlags : uint32_t
     coalescedResolveAndTransfer = 1 << 5,
 };
 RIVE_MAKE_ENUM_BITSET(ShaderMiscFlags)
+
+constexpr static ShaderFeatures ShaderFeaturesMaskFor(
+    DrawType drawType,
+    InterlockMode interlockMode)
+{
+    ShaderFeatures mask = ShaderFeatures::NONE;
+    switch (drawType)
+    {
+        case DrawType::imageRect:
+        case DrawType::imageMesh:
+        case DrawType::atlasBlit:
+            if (interlockMode != gpu::InterlockMode::atomics)
+            {
+                mask = ShaderFeatures::ENABLE_CLIPPING |
+                       ShaderFeatures::ENABLE_CLIP_RECT |
+                       ShaderFeatures::ENABLE_ADVANCED_BLEND |
+                       ShaderFeatures::ENABLE_HSL_BLEND_MODES;
+                break;
+            }
+            // Since atomic mode has to resolve previous draws, images need to
+            // consider the same shader features for path draws.
+            [[fallthrough]];
+        case DrawType::midpointFanPatches:
+        case DrawType::midpointFanCenterAAPatches:
+        case DrawType::outerCurvePatches:
+        case DrawType::interiorTriangulation:
+        case DrawType::atomicResolve:
+            mask = kAllShaderFeatures;
+            break;
+        case DrawType::atomicInitialize:
+            assert(interlockMode == gpu::InterlockMode::atomics);
+            mask = ShaderFeatures::ENABLE_CLIPPING |
+                   ShaderFeatures::ENABLE_ADVANCED_BLEND;
+            break;
+        case DrawType::stencilClipReset:
+            mask = ShaderFeatures::NONE;
+            break;
+    }
+    return mask & ShaderFeaturesMaskFor(interlockMode);
+}
 
 // Returns a unique value that can be used to key a shader.
 uint32_t ShaderUniqueKey(DrawType,
@@ -896,18 +976,15 @@ public:
 // buffers and draw a flush. A typical flush is done in 4 steps:
 //
 //  1. Render the complex gradients from the gradSpanBuffer to the gradient
-//  texture
-//     (gradSpanCount, firstComplexGradSpan, complexGradRowsTop,
+//     texture (gradSpanCount, firstComplexGradSpan, complexGradRowsTop,
 //     complexGradRowsHeight).
 //
 //  2. Transfer the simple gradient texels from the simpleColorRampsBuffer to
-//  the top of the
-//     gradient texture (simpleGradTexelsWidth, simpleGradTexelsHeight,
-//     simpleGradDataOffsetInBytes, tessDataHeight).
+//     the top of the gradient texture (simpleGradTexelsWidth,
+//     simpleGradTexelsHeight, simpleGradDataOffsetInBytes, tessDataHeight).
 //
 //  3. Render the tessellation texture from the tessVertexSpanBuffer
-//  (tessVertexSpanCount,
-//     firstTessVertexSpan).
+//     (tessVertexSpanCount, firstTessVertexSpan).
 //
 //  4. Execute the drawList, reading from the newly rendered resource textures.
 //
@@ -919,11 +996,22 @@ struct FlushDescriptor
     int msaaSampleCount = 0; // (0 unless interlockMode is msaa.)
 
     LoadAction colorLoadAction = LoadAction::clear;
-    ColorInt clearColor = 0; // When loadAction == LoadAction::clear.
+    ColorInt colorClearValue = 0; // When loadAction == LoadAction::clear.
     uint32_t coverageClearValue = 0;
+    float depthClearValue = DEPTH_MAX;
+    ColorInt stencilClearValue = STENCIL_CLEAR;
 
     IAABB renderTargetUpdateBounds; // drawBounds, or renderTargetBounds if
                                     // loadAction == LoadAction::clear.
+
+    // Physical size of the atlas texture.
+    uint16_t atlasTextureWidth;
+    uint16_t atlasTextureHeight;
+
+    // Boundaries of the content for this specific flush within the atlas
+    // texture.
+    uint16_t atlasContentWidth;
+    uint16_t atlasContentHeight;
 
     // Monotonically increasing prefix that gets appended to the most
     // significant "32 - CLOCKWISE_COVERAGE_BIT_COUNT" bits of coverage buffer
@@ -969,6 +1057,18 @@ struct FlushDescriptor
     // executing the entire frame. (Null if isFinalFlushOfFrame is false.)
     gpu::CommandBufferCompletionFence* frameCompletionFence = nullptr;
 
+    // List of feathered fills (if any) that must be rendered to the atlas
+    // before the main render pass.
+    const AtlasDrawBatch* atlasFillBatches = nullptr;
+    size_t atlasFillBatchCount = 0;
+
+    // List of feathered strokes (if any) that must be rendered to the atlas
+    // before the main render pass.
+    const AtlasDrawBatch* atlasStrokeBatches = nullptr;
+    size_t atlasStrokeBatchCount = 0;
+
+    // List of draws in the main render pass. These are rendered directly to the
+    // renderTarget.
     const BlockAllocatedLinkedList<DrawBatch>* drawList = nullptr;
 };
 
@@ -1041,8 +1141,8 @@ private:
     };
 
     WRITEONLY InverseViewports m_inverseViewports;
-    WRITEONLY uint32_t m_renderTargetWidth = 0;
-    WRITEONLY uint32_t m_renderTargetHeight = 0;
+    WRITEONLY uint32_t m_renderTargetWidth;
+    WRITEONLY uint32_t m_renderTargetHeight;
     // Only used if clears are implemented as draws.
     WRITEONLY uint32_t m_colorClearValue;
     // Only used if clears are implemented as draws.
@@ -1050,16 +1150,18 @@ private:
     // drawBounds, or renderTargetBounds if there is a clear. (Used by the
     // "@RESOLVE_PLS" step in InterlockMode::atomics.)
     WRITEONLY IAABB m_renderTargetUpdateBounds;
+    WRITEONLY Vec2D m_atlasTextureInverseSize; // 1 / [atlasWidth, atlasHeight]
+    WRITEONLY Vec2D m_atlasContentInverseViewport; // 2 / atlasContentBounds
     // Monotonically increasing prefix that gets appended to the most
     // significant "32 - CLOCKWISE_COVERAGE_BIT_COUNT" bits of coverage buffer
     // values. (clockwiseAtomic mode only.)
     WRITEONLY uint32_t m_coverageBufferPrefix;
     // Spacing between adjacent path IDs (1 if IEEE compliant).
-    WRITEONLY uint32_t m_pathIDGranularity = 0;
-    WRITEONLY float m_vertexDiscardValue =
-        std::numeric_limits<float>::quiet_NaN();
+    WRITEONLY uint32_t m_pathIDGranularity;
+    WRITEONLY float m_vertexDiscardValue;
+    WRITEONLY uint32_t m_wireframeEnabled; // Forces coverage to solid.
     // Uniform blocks must be multiples of 256 bytes in size.
-    WRITEONLY uint8_t m_padTo256Bytes[256 - 60];
+    WRITEONLY uint8_t m_padTo256Bytes[256 - 80];
 };
 static_assert(sizeof(FlushUniforms) == 256);
 
@@ -1091,6 +1193,15 @@ constexpr static uint32_t StorageBufferElementSizeInBytes(
     RIVE_UNREACHABLE();
 }
 
+// Defines a transform from screen space into a region of the atlas.
+// The atlas may have a different scale factor than the screen.
+struct AtlasTransform
+{
+    float scaleFactor;
+    float translateX;
+    float translateY;
+};
+
 // Defines a sub-allocation for a path's coverage data within the
 // renderContext's coverage buffer. (clockwiseAtomic mode only.)
 struct CoverageBufferRange
@@ -1118,6 +1229,7 @@ public:
              float strokeRadius,
              float featherRadius,
              uint32_t zIndex,
+             const AtlasTransform&,
              const CoverageBufferRange&);
 
 private:
@@ -1127,7 +1239,8 @@ private:
     WRITEONLY float m_featherRadius;
     // InterlockMode::msaa.
     WRITEONLY uint32_t m_zIndex;
-    WRITEONLY uint32_t pad[3];
+    // Only used when rendering coverage via the atlas.
+    WRITEONLY AtlasTransform m_atlasTransform;
     // InterlockMode::clockwiseAtomic.
     WRITEONLY CoverageBufferRange m_coverageBufferRange;
 };
@@ -1419,15 +1532,18 @@ enum class TriState
 
 // These tables integrate the gaussian function, and its inverse, covering a
 // spread of -FEATHER_TEXTURE_STDDEVS to +FEATHER_TEXTURE_STDDEVS.
-constexpr int GAUSSIAN_TABLE_SIZE = 512;
+constexpr static uint32_t GAUSSIAN_TABLE_SIZE = 512;
 extern const uint16_t g_gaussianIntegralTableF16[GAUSSIAN_TABLE_SIZE];
-extern const float g_inverseGaussianIntegralTableF32[GAUSSIAN_TABLE_SIZE];
+extern const uint16_t g_inverseGaussianIntegralTableF16[GAUSSIAN_TABLE_SIZE];
 
-// Looks up the value of "x" in the given Gaussian table, with linear filtering.
-float gaussian_table_lookup(const float (&table)[GAUSSIAN_TABLE_SIZE], float x);
+float4 cast_f16_to_f32(uint16x4 x);
+uint16x4 cast_f32_to_f16(float4);
 
-inline float inverse_gaussian_integral(float y)
-{
-    return gaussian_table_lookup(g_inverseGaussianIntegralTableF32, y);
-}
+// Code to generate g_gaussianIntegralTableF16 and
+// g_inverseGaussianIntegralTableF32. This is left in the codebase but #ifdef'd
+// out in case we ever want to change any parameters of the built-in tables.
+#if 0
+void generate_gausian_integral_table(float (&)[GAUSSIAN_TABLE_SIZE]);
+void generate_inverse_gausian_integral_table(float (&)[GAUSSIAN_TABLE_SIZE]);
+#endif
 } // namespace rive::gpu

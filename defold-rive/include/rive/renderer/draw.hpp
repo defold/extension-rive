@@ -36,14 +36,13 @@ public:
 
     enum class Type : uint8_t
     {
-        midpointFanPath,
-        interiorTriangulationPath,
+        path,
         imageRect,
         imageMesh,
         stencilClipReset,
     };
 
-    Draw(AABB bounds,
+    Draw(IAABB pixelBounds,
          const Mat2D&,
          BlendMode,
          rcp<const Texture> imageTexture,
@@ -55,11 +54,6 @@ public:
     BlendMode blendMode() const { return m_blendMode; }
     Type type() const { return m_type; }
     gpu::DrawContents drawContents() const { return m_drawContents; }
-    bool isStroke() const { return m_drawContents & gpu::DrawContents::stroke; }
-    bool isEvenOddFill() const
-    {
-        return m_drawContents & gpu::DrawContents::evenOddFill;
-    }
     bool isOpaque() const
     {
         return m_drawContents & gpu::DrawContents::opaquePaint;
@@ -140,7 +134,6 @@ public:
 
 protected:
     const Texture* const m_imageTextureRef;
-    const AABB m_bounds;
     const IAABB m_pixelBounds;
     const Mat2D m_matrix;
     const BlendMode m_blendMode;
@@ -185,7 +178,7 @@ inline void DrawReleaseRefs::operator()(Draw* draw) { draw->releaseRefs(); }
 
 // High level abstraction of a single path to be drawn (midpoint fan or interior
 // triangulation).
-class RiveRenderPathDraw : public Draw
+class PathDraw : public Draw
 {
 public:
     // Creates either a normal path draw or an interior triangulation if the
@@ -197,46 +190,62 @@ public:
                               const RiveRenderPaint*,
                               RawPath* scratchPath);
 
-    RiveRenderPathDraw(AABB,
-                       const Mat2D&,
-                       rcp<const RiveRenderPath>,
-                       FillRule,
-                       const RiveRenderPaint*,
-                       Type,
-                       const RenderContext::FrameDescriptor&,
-                       gpu::InterlockMode);
+    // Determines how coverage is calculated for antialiasing and feathers.
+    // CoverageType is mostly decided by the InterlockMode, but we keep these
+    // concepts separate because atlas coverage may be used with any
+    // InterlockMode.
+    enum class CoverageType
+    {
+        pixelLocalStorage, // InterlockMode::rasterOrdering and atomics
+        clockwiseAtomic,   // InterlockMode::clockwiseAtomic
+        msaa,              // InterlockMode::msaa
+        atlas, // Any InterlockMode may opt to use atlas coverage for large
+               // feathers; msaa always has to use an atlas for feathers.
+    };
 
-    // Copy constructor
-    RiveRenderPathDraw(const RiveRenderPathDraw&,
-                       float tx,
-                       float ty,
-                       rcp<const RiveRenderPath>,
-                       FillRule fillRule,
-                       const RiveRenderPaint* paint,
-                       const RenderContext::FrameDescriptor&,
-                       gpu::InterlockMode);
+    PathDraw(IAABB pixelBounds,
+             const Mat2D&,
+             rcp<const RiveRenderPath>,
+             FillRule,
+             const RiveRenderPaint*,
+             CoverageType,
+             const RenderContext::FrameDescriptor&);
+
+    CoverageType coverageType() const { return m_coverageType; }
 
     const Gradient* gradient() const { return m_gradientRef; }
     gpu::PaintType paintType() const { return m_paintType; }
     bool isFeatheredFill() const
     {
-        return m_drawContents & gpu::DrawContents::featheredFill;
+        return m_featherRadius != 0 && m_strokeRadius == 0;
     }
     bool isStrokeOrFeather() const
     {
-        return m_drawContents &
-               (gpu::DrawContents::stroke | gpu::DrawContents::featheredFill);
+        return (math::bit_cast<uint32_t>(m_featherRadius) |
+                math::bit_cast<uint32_t>(m_strokeRadius)) != 0;
     }
+    bool isStroke() const { return m_strokeRadius != 0; }
     float strokeRadius() const { return m_strokeRadius; }
     float featherRadius() const { return m_featherRadius; }
     gpu::ContourDirections contourDirections() const
     {
         return m_contourDirections;
     }
+
+    // Only used when rendering coverage via the atlas.
+    const gpu::AtlasTransform& atlasTransform() const
+    {
+        return m_atlasTransform;
+    }
+    const TAABB<uint16_t>& atlasScissor() const { return m_atlasScissor; }
+    bool atlasScissorEnabled() const { return m_atlasScissorEnabled; }
+
+    // clockwiseAtomic only.
     const gpu::CoverageBufferRange& coverageBufferRange() const
     {
         return m_coverageBufferRange;
     }
+
     GrInnerFanTriangulator* triangulator() const { return m_triangulator; }
 
     bool allocateResourcesAndSubpasses(RenderContext::LogicalFlush*) override;
@@ -244,9 +253,23 @@ public:
     void pushToRenderContext(RenderContext::LogicalFlush*,
                              int subpassIndex) override;
 
+    // Called after pushToRenderContext(), and only when this draw uses an atlas
+    // for tessellation. In the CoverageType::atlas case, pushToRenderContext()
+    // is where we emit the rectangle that reads the atlas (and writes to the
+    // main render target). So this method is where we push the tessellation
+    // that gets rendered separately to the offscreen atlas.
+    void pushAtlasTessellation(RenderContext::LogicalFlush*,
+                               uint32_t* tessVertexCount,
+                               uint32_t* tessBaseVertex);
+
     void releaseRefs() override;
 
 protected:
+    static CoverageType SelectCoverageType(const RiveRenderPaint*,
+                                           float matrixMaxScale,
+                                           const gpu::PlatformFeatures&,
+                                           gpu::InterlockMode);
+
     // Prepares to draw the path by tessellating a fan around its midpoint.
     void initForMidpointFan(RenderContext*, const RiveRenderPaint*);
 
@@ -263,16 +286,9 @@ protected:
                                       RawPath*,
                                       TriangulatorAxis);
 
-    // Implements pushToRenderContext() for paths that use rasterOrdering or
-    // atomics.
-    void pushToRenderContextImpl(RenderContext::LogicalFlush*,
-                                 int subpassIndex,
-                                 uint32_t tessVertexCount);
-
-    // Implements pushToRenderContext() for paths that use MSAA.
-    void pushToRenderContextImplMSAA(RenderContext::LogicalFlush*,
-                                     int subpassIndex,
-                                     uint32_t tessVertexCount);
+    void pushTessellationData(RenderContext::LogicalFlush*,
+                              uint32_t* tessVertexCount,
+                              uint32_t* tessLocation);
 
     // Pushes the contours and cubics to the renderContext for a
     // "midpointFanPatches" draw.
@@ -311,13 +327,23 @@ protected:
                                       RenderContext::TessellationWriter*);
 
     const RiveRenderPath* const m_pathRef;
+    const FillRule m_pathFillRule; // Fill rule can mutate on RenderPath.
     const Gradient* m_gradientRef;
     const gpu::PaintType m_paintType;
+    const CoverageType m_coverageType;
     float m_strokeRadius = 0;
     float m_featherRadius = 0;
     gpu::ContourDirections m_contourDirections;
     uint32_t m_contourFlags = 0;
-    gpu::CoverageBufferRange m_coverageBufferRange; // clockwiseAtomic only.
+
+    // Only used when rendering coverage via the atlas.
+    gpu::AtlasTransform m_atlasTransform;
+    TAABB<uint16_t> m_atlasScissor; // Scissor rect when rendering to the atlas.
+    bool m_atlasScissorEnabled;
+
+    // clockwiseAtomic only.
+    gpu::CoverageBufferRange m_coverageBufferRange;
+
     GrInnerFanTriangulator* m_triangulator = nullptr;
 
     StrokeJoin m_strokeJoin;
@@ -440,7 +466,10 @@ public:
         intersectPreviousClip,
     };
 
-    StencilClipReset(RenderContext*, uint32_t previousClipID, ResetAction);
+    StencilClipReset(RenderContext*,
+                     uint32_t previousClipID,
+                     gpu::DrawContents previousClipDrawContents,
+                     ResetAction);
 
     uint32_t previousClipID() const { return m_previousClipID; }
 

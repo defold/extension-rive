@@ -66,10 +66,10 @@ private:
     std::vector<DataBind*> m_DataBinds;
     std::vector<DataBind*> m_AllDataBinds;
     DataContext* m_DataContext = nullptr;
+    bool m_ownsDataContext = false;
     bool m_JoysticksApplyBeforeUpdate = true;
 
     unsigned int m_DirtDepth = 0;
-    RawPath m_backgroundRawPath;
     Factory* m_Factory = nullptr;
     Drawable* m_FirstDrawable = nullptr;
     bool m_IsInstance = false;
@@ -100,6 +100,12 @@ private:
 public:
     void host(NestedArtboard* nestedArtboard);
     NestedArtboard* host() const;
+
+    // Implemented for ShapePaintContainer.
+    const Mat2D& shapeWorldTransform() const override
+    {
+        return worldTransform();
+    }
 
 private:
 #ifdef TESTING
@@ -172,8 +178,8 @@ public:
     void addToRenderPath(RenderPath* path, const Mat2D& transform);
 
 #ifdef TESTING
-    RenderPath* clipPath() const { return m_clipPath.get(); }
-    RenderPath* backgroundPath() const { return m_backgroundPath.get(); }
+    ShapePaintPath* clipPath() { return &m_worldPath; }
+    ShapePaintPath* backgroundPath() { return &m_localPath; }
 #endif
 
     const std::vector<Core*>& objects() const { return m_Objects; }
@@ -203,12 +209,12 @@ public:
     void dataContext(DataContext* dataContext);
     void internalDataContext(DataContext* dataContext, bool isRoot);
     void clearDataContext();
-    void setDataContextFromInstance(ViewModelInstance* viewModelInstance,
-                                    DataContext* parent);
-    void setDataContextFromInstance(ViewModelInstance* viewModelInstance,
-                                    DataContext* parent,
-                                    bool isRoot);
-    void setDataContextFromInstance(ViewModelInstance* viewModelInstance);
+    void bindViewModelInstance(rcp<ViewModelInstance> viewModelInstance,
+                               DataContext* parent);
+    void bindViewModelInstance(rcp<ViewModelInstance> viewModelInstance,
+                               DataContext* parent,
+                               bool isRoot);
+    void bindViewModelInstance(rcp<ViewModelInstance> viewModelInstance);
     void addDataBind(DataBind* dataBind);
     void populateDataBinds(std::vector<DataBind*>* dataBinds);
     void sortDataBinds();
@@ -415,6 +421,7 @@ public:
     void onLayoutDirty(ArtboardCallback callback)
     {
         m_layoutDirtyCallback = callback;
+        addDirt(ComponentDirt::Components);
     }
 #endif
 };

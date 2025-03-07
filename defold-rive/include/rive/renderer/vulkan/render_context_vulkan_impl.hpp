@@ -61,6 +61,7 @@ public:
     VkImage clipTexture() const { return *m_clipTexture; }
     VkImage scratchColorTexture() const { return *m_scratchColorTexture; }
     VkImage coverageAtomicTexture() const { return *m_coverageAtomicTexture; }
+    VkImage depthStencilTexture() const { return *m_depthStencilTexture; }
 
     // getters that lazy load if needed.
 
@@ -69,6 +70,7 @@ public:
     vkutil::TextureView* ensureScratchColorTextureView();
     vkutil::TextureView* ensureCoverageTextureView();
     vkutil::TextureView* ensureCoverageAtomicTextureView();
+    vkutil::TextureView* ensureDepthStencilTextureView();
 
 private:
     friend class RenderContextVulkanImpl;
@@ -96,12 +98,14 @@ private:
     rcp<vkutil::Texture> m_scratchColorTexture;
     rcp<vkutil::Texture>
         m_coverageAtomicTexture; // gpu::InterlockMode::atomics.
+    rcp<vkutil::Texture> m_depthStencilTexture;
 
     rcp<vkutil::TextureView> m_offscreenColorTextureView;
     rcp<vkutil::TextureView> m_coverageTextureView;
     rcp<vkutil::TextureView> m_clipTextureView;
     rcp<vkutil::TextureView> m_scratchColorTextureView;
     rcp<vkutil::TextureView> m_coverageAtomicTextureView;
+    rcp<vkutil::TextureView> m_depthStencilTextureView;
 };
 
 class RenderContextVulkanImpl : public RenderContextImpl
@@ -130,6 +134,8 @@ public:
                                        size_t) override;
 
     rcp<Texture> decodeImageTexture(Span<const uint8_t> encodedBytes) override;
+
+    void hotloadShaders(rive::Span<const uint32_t> spirvData);
 
 private:
     RenderContextVulkanImpl(VkInstance instance,
@@ -182,6 +188,7 @@ private:
 
     void resizeGradientTexture(uint32_t width, uint32_t height) override;
     void resizeTessellationTexture(uint32_t width, uint32_t height) override;
+    void resizeAtlasTexture(uint32_t width, uint32_t height) override;
     void resizeCoverageBuffer(size_t sizeInBytes) override;
 
     // Wraps a VkDescriptorPool created specifically for a PLS flush, and tracks
@@ -235,15 +242,34 @@ private:
     std::chrono::steady_clock::time_point m_localEpoch =
         std::chrono::steady_clock::now();
 
+    // Immutable samplers.
+    VkSampler m_linearSampler;
+    VkSampler m_mipmapSampler;
+
+    // Bound when there is not an image paint.
+    rcp<TextureVulkanImpl> m_nullImageTexture;
+
+    // With the exception of PLS texture bindings, which differ by interlock
+    // mode, all other shaders use the same shared descriptor set layouts.
+    VkDescriptorSetLayout m_perFlushDescriptorSetLayout;
+    VkDescriptorSetLayout m_perDrawDescriptorSetLayout;
+    VkDescriptorSetLayout m_immutableSamplerDescriptorSetLayout;
+    VkDescriptorSetLayout m_emptyDescriptorSetLayout; // For when a set isn't
+                                                      // used by a shader.
+
+    VkDescriptorPool m_staticDescriptorPool; // For descriptorSets that never
+                                             // change between frames.
+    VkDescriptorSet m_nullImageDescriptorSet;
+    VkDescriptorSet m_immutableSamplerDescriptorSet; // Empty since samplers are
+                                                     // immutable, but also
+                                                     // required by Vulkan.
+
     // Renders color ramps to the gradient texture.
     class ColorRampPipeline;
     std::unique_ptr<ColorRampPipeline> m_colorRampPipeline;
     rcp<vkutil::Texture> m_gradientTexture;
     rcp<vkutil::TextureView> m_gradTextureView;
     rcp<vkutil::Framebuffer> m_gradTextureFramebuffer;
-
-    // Gaussian integral table for feathering.
-    rcp<TextureVulkanImpl> m_featherTexture;
 
     // Renders tessellated vertices to the tessellation texture.
     class TessellatePipeline;
@@ -252,6 +278,13 @@ private:
     rcp<vkutil::Texture> m_tessVertexTexture;
     rcp<vkutil::TextureView> m_tessVertexTextureView;
     rcp<vkutil::Framebuffer> m_tessTextureFramebuffer;
+
+    // Renders feathers to the atlas.
+    class AtlasPipeline;
+    std::unique_ptr<AtlasPipeline> m_atlasPipeline;
+    rcp<vkutil::Texture> m_atlasTexture;
+    rcp<vkutil::TextureView> m_atlasTextureView;
+    rcp<vkutil::Framebuffer> m_atlasFramebuffer;
 
     // Coverage buffer used by shaders in clockwiseAtomic mode.
     rcp<vkutil::Buffer> m_coverageBuffer;
@@ -270,10 +303,9 @@ private:
     class DrawPipeline;
     std::map<uint32_t, DrawPipeline> m_drawPipelines;
 
-    // Bound when there is not an image paint.
-    rcp<TextureVulkanImpl> m_nullImageTexture;
-    VkSampler m_linearSampler;
-    VkSampler m_mipmapSampler;
+    // Gaussian integral table for feathering.
+    rcp<TextureVulkanImpl> m_featherTexture;
+
     rcp<vkutil::Buffer> m_pathPatchVertexBuffer;
     rcp<vkutil::Buffer> m_pathPatchIndexBuffer;
     rcp<vkutil::Buffer> m_imageRectVertexBuffer;

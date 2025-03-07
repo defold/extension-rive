@@ -8,6 +8,7 @@
 #include "rive/renderer/gpu.hpp"
 #include "rive/renderer/rive_render_factory.hpp"
 #include "rive/renderer/render_target.hpp"
+#include "rive/renderer/sk_rectanizer_skyline.hpp"
 #include "rive/renderer/trivial_block_allocator.hpp"
 #include "rive/shapes/paint/color.hpp"
 #include <array>
@@ -33,7 +34,7 @@ class StencilClipReset;
 class Draw;
 class Gradient;
 class RenderContextImpl;
-class RiveRenderPathDraw;
+class PathDraw;
 
 // Used as a key for complex gradients.
 class GradientContentKey
@@ -266,7 +267,7 @@ public:
 
 private:
     friend class Draw;
-    friend class RiveRenderPathDraw;
+    friend class PathDraw;
     friend class ImageRectDraw;
     friend class ImageMeshDraw;
     friend class StencilClipReset;
@@ -276,12 +277,20 @@ private:
     // Resets the CPU-side STL containers so they don't have unbounded growth.
     void resetContainers();
 
+    // Throttled width/height of the atlas texture. If drawing to a render
+    // target larger than this, we may create a larger atlas anyway.
+    uint32_t atlasMaxSize() const
+    {
+        constexpr static uint32_t MAX_ATLAS_MAX_SIZE = 4096;
+        return std::min(platformFeatures().maxTextureSize, MAX_ATLAS_MAX_SIZE);
+    }
+
     // Defines the exact size of each of our GPU resources. Computed during
     // flush(), based on LogicalFlush::ResourceCounters and
     // LogicalFlush::LayoutCounters.
     struct ResourceAllocationCounts
     {
-        constexpr static int NUM_ELEMENTS = 12;
+        constexpr static int NUM_ELEMENTS = 14;
         using VecType = simd::gvec<size_t, NUM_ELEMENTS>;
 
         RIVE_ALWAYS_INLINE VecType toVec() const
@@ -313,6 +322,8 @@ private:
         size_t triangleVertexBufferCount = 0;
         size_t gradTextureHeight = 0;
         size_t tessTextureHeight = 0;
+        size_t atlasTextureWidth = 0;
+        size_t atlasTextureHeight = 0;
         size_t coverageBufferLength = 0; // clockwiseAtomic mode only.
     };
 
@@ -527,6 +538,8 @@ private:
             uint32_t gradSpanPaddingCount = 0;
             uint32_t maxGradTextureHeight = 0;
             uint32_t maxTessTextureHeight = 0;
+            uint32_t maxAtlasWidth = 0;
+            uint32_t maxAtlasHeight = 0;
             size_t maxCoverageBufferLength = 0;
         };
 
@@ -541,6 +554,22 @@ private:
         // the caller must issue a logical flush and try again.
         [[nodiscard]] bool allocateGradient(const Gradient*,
                                             gpu::ColorRampLocation*);
+
+        // Allocates a rectangular region in the atlas for this draw to use, and
+        // registers a future callback to PathDraw::pushAtlasTessellation()
+        // where it will render its coverage data to this same region in the
+        // atlas.
+        //
+        // Attempts to leave a border of "desiredPadding" pixels surrounding the
+        // rectangular region, but the allocation may not be padded if the path
+        // is up against an edge.
+        bool allocateAtlasDraw(PathDraw*,
+                               uint16_t drawWidth,
+                               uint16_t drawHeight,
+                               uint16_t desiredPadding,
+                               uint16_t* x,
+                               uint16_t* y,
+                               TAABB<uint16_t>* paddedRegion);
 
         // Reserves a range within the coverage buffer for a path to use in
         // clockwiseAtomic mode.
@@ -596,7 +625,7 @@ private:
         // This method does not add the path to the draw list. The caller must
         // define that draw specifically with a separate call to
         // pushMidpointFanDraw() or pushOuterCubicsDraw().
-        [[nodiscard]] uint32_t pushPath(const RiveRenderPathDraw* draw);
+        [[nodiscard]] uint32_t pushPath(const PathDraw* draw);
 
         // Pushes a contour record to the GPU that references the given path.
         //
@@ -607,8 +636,8 @@ private:
         // Returns a unique 16-bit "contourID" handle for this specific record.
         // This ID may be or-ed with '*_CONTOUR_FLAG' bits from constants.glsl.
         [[nodiscard]] uint32_t pushContour(uint32_t pathID,
-                                           gpu::DrawContents,
                                            Vec2D midpoint,
+                                           bool isStroke,
                                            bool closed,
                                            uint32_t vertexIndex0);
 
@@ -619,10 +648,10 @@ private:
         // Pushes a "midpointFanPatches" draw to the list. Path, contour, and
         // cubic data are pushed separately.
         //
-        // Also adds the RiveRenderPathDraw to a dstRead list if one is
+        // Also adds the PathDraw to a dstRead list if one is
         // required, and if this is the path's first subpass.
         void pushMidpointFanDraw(
-            const RiveRenderPathDraw*,
+            const PathDraw*,
             uint32_t tessVertexCount,
             uint32_t tessLocation,
             gpu::ShaderMiscFlags = gpu::ShaderMiscFlags::none);
@@ -630,10 +659,10 @@ private:
         // Pushes an "outerCurvePatches" draw to the list. Path, contour, and
         // cubic data are pushed separately.
         //
-        // Also adds the RiveRenderPathDraw to a dstRead list if one is
+        // Also adds the PathDraw to a dstRead list if one is
         // required, and if this is the path's first subpass.
         void pushOuterCubicsDraw(
-            const RiveRenderPathDraw*,
+            const PathDraw*,
             uint32_t tessVertexCount,
             uint32_t tessLocation,
             gpu::ShaderMiscFlags = gpu::ShaderMiscFlags::none);
@@ -642,10 +671,15 @@ private:
         // an "interiorTriangulation" draw to the list.
         // Returns the number of vertices actually written.
         size_t pushInteriorTriangulationDraw(
-            const RiveRenderPathDraw*,
+            const PathDraw*,
             uint32_t pathID,
             gpu::WindingFaces,
             gpu::ShaderMiscFlags = gpu::ShaderMiscFlags::none);
+
+        // Pushes a screen-space rectangle to the draw list, whose pixel
+        // coverage is determined by the atlas region associated with the given
+        // pathID.
+        void pushAtlasBlit(PathDraw*, uint32_t pathID);
 
         // Pushes an "imageRect" to the draw list.
         // This should only be used when we in atomic mode. Otherwise, images
@@ -671,7 +705,7 @@ private:
         // Either appends a new drawBatch to m_drawList or merges into
         // m_drawList.tail(). Updates the batch's ShaderFeatures according to
         // the passed parameters.
-        DrawBatch& pushPathDraw(const RiveRenderPathDraw*,
+        DrawBatch& pushPathDraw(const PathDraw*,
                                 DrawType,
                                 gpu::ShaderMiscFlags,
                                 uint32_t vertexCount,
@@ -741,6 +775,12 @@ private:
         uint32_t m_currentPathID;
         uint32_t m_currentContourID;
 
+        // Atlas for offscreen feathering.
+        std::unique_ptr<skgpu::RectanizerSkyline> m_atlasRectanizer;
+        uint32_t m_atlasMaxX = 0;
+        uint32_t m_atlasMaxY = 0;
+        std::vector<PathDraw*> m_pendingAtlasDraws;
+
         // Total coverage allocated via allocateCoverageBufferRange().
         // (clockwiseAtomic mode only.)
         uint32_t m_coverageBufferLength = 0;
@@ -801,8 +841,8 @@ private:
         // 'paddingVertexCount' tessellation vertices, colocated at T=0. The
         // caller must use this argument to align the end of the contour on
         // a boundary of the patch size. (See gpu::PaddingToAlignUp().)
-        [[nodiscard]] uint32_t pushContour(gpu::DrawContents,
-                                           Vec2D midpoint,
+        [[nodiscard]] uint32_t pushContour(Vec2D midpoint,
+                                           bool isStroke,
                                            bool closed,
                                            uint32_t paddingVertexCount);
 

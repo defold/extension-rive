@@ -2,9 +2,12 @@
 #define _RIVE_TEXT_CORE_HPP_
 #include "rive/generated/text/text_base.hpp"
 #include "rive/math/aabb.hpp"
+#include "rive/math/rect.hpp"
 #include "rive/text/text_value_run.hpp"
 #include "rive/text_engine.hpp"
+#include "rive/shapes/shape_paint_path.hpp"
 #include "rive/simple_array.hpp"
+#include <unordered_map>
 #include <vector>
 #include "rive/text/glyph_lookup.hpp"
 namespace rive
@@ -177,6 +180,22 @@ public:
     }
 };
 
+struct TextBoundsInfo
+{
+    float minY;
+    float maxWidth;
+    float totalHeight;
+    int ellipsisLine;
+    bool isEllipsisLineLast;
+};
+
+enum class LineIter : uint8_t
+{
+    drawLine,
+    skipThisLine,
+    yOutOfBounds
+};
+
 class TextStyle;
 class Text : public TextBase
 {
@@ -189,8 +208,11 @@ public:
     void modifierShapeDirty();
     void markPaintDirty();
     void update(ComponentDirt value) override;
+    void onDirty(ComponentDirt value) override;
     Mat2D m_transform;
+    Mat2D m_shapeWorldTransform;
 
+    const Mat2D& shapeWorldTransform() const { return m_shapeWorldTransform; }
     TextSizing sizing() const { return (TextSizing)sizingValue(); }
     TextSizing effectiveSizing() const;
     TextOverflow overflow() const { return (TextOverflow)overflowValue(); }
@@ -200,6 +222,7 @@ public:
     {
         return (VerticalTextAlign)verticalAlignValue();
     }
+    TextAlign align() const;
     void overflow(TextOverflow value) { return overflowValue((uint32_t)value); }
     void buildRenderStyles();
     const TextStyle* styleFromShaperId(uint16_t id) const;
@@ -214,7 +237,8 @@ public:
                         LayoutMeasureMode heightMode) override;
     void controlSize(Vec2D size,
                      LayoutScaleType widthScaleType,
-                     LayoutScaleType heightScaleType) override;
+                     LayoutScaleType heightScaleType,
+                     LayoutDirection direction) override;
     float effectiveWidth()
     {
         return std::isnan(m_layoutWidth) ? width() : m_layoutWidth;
@@ -282,7 +306,8 @@ private:
     // Runs ordered by paragraph line.
     std::vector<OrderedLine> m_orderedLines;
     GlyphRun m_ellipsisRun;
-    rcp<RenderPath> m_clipRenderPath;
+    RawPath m_clipRect;
+    ShapePaintPath m_clipPath;
     AABB m_bounds;
     std::vector<TextModifierGroup*> m_modifierGroups;
 
@@ -290,11 +315,18 @@ private:
     StyledText m_modifierStyledText;
 
     GlyphLookup m_glyphLookup;
+
+    std::unordered_map<uint16_t, std::vector<Rect>> m_textValueRunToRects;
+    void clearRenderStyles();
+    TextBoundsInfo computeBoundsInfo();
+    LineIter shouldDrawLine(float y, float totalHeight, const GlyphLine& line);
+
 #endif
     float m_layoutWidth = NAN;
     float m_layoutHeight = NAN;
     uint8_t m_layoutWidthScaleType = std::numeric_limits<uint8_t>::max();
     uint8_t m_layoutHeightScaleType = std::numeric_limits<uint8_t>::max();
+    LayoutDirection m_layoutDirection = LayoutDirection::inherit;
     Vec2D measure(Vec2D maxSize);
 };
 } // namespace rive

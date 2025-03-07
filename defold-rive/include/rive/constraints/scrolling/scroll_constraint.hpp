@@ -11,6 +11,7 @@
 #include <stdio.h>
 namespace rive
 {
+class LayoutNodeProvider;
 
 class ScrollConstraint : public ScrollConstraintBase,
                          public AdvancingComponent,
@@ -23,16 +24,21 @@ private:
     float m_offsetY = 0;
     ScrollPhysics* m_physics;
     Mat2D m_scrollTransform;
+    bool m_isDragging = false;
+
+    Vec2D positionAtIndex(float index);
+    float indexAtPosition(Vec2D pos);
 
 public:
     void constrain(TransformComponent* component) override;
     std::vector<DraggableProxy*> draggables() override;
     void buildDependencies() override;
     StatusCode import(ImportStack& importStack) override;
+    StatusCode onAddedDirty(CoreContext* context) override;
     Core* clone() const override;
     void dragView(Vec2D delta);
     void runPhysics();
-    void constrainChild(LayoutComponent* component) override;
+    void constrainChild(LayoutNodeProvider* child) override;
     bool advanceComponent(float elapsedSeconds,
                           AdvanceFlags flags = AdvanceFlags::Animate |
                                                AdvanceFlags::NewFrame) override;
@@ -40,6 +46,7 @@ public:
     ScrollPhysics* physics() const { return m_physics; }
     void physics(ScrollPhysics* physics) { m_physics = physics; }
     void initPhysics();
+    void stopPhysics();
 
     ScrollPhysicsType physicsType() const
     {
@@ -147,6 +154,16 @@ public:
         m_offsetY = value;
         content()->markWorldTransformDirty();
     }
+
+    void scrollOffsetXChanged() override { offsetX(scrollOffsetX()); }
+    void scrollOffsetYChanged() override { offsetY(scrollOffsetY()); }
+
+    float scrollPercentX() override;
+    float scrollPercentY() override;
+    float scrollIndex() override;
+    void setScrollPercentX(float value) override;
+    void setScrollPercentY(float value) override;
+    void setScrollIndex(float value) override;
 };
 } // namespace rive
 

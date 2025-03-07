@@ -236,8 +236,8 @@ public:
             .y = static_cast<float>(rect.offset.y),
             .width = static_cast<float>(rect.extent.width),
             .height = static_cast<float>(rect.extent.height),
-            .minDepth = 0,
-            .maxDepth = 1,
+            .minDepth = DEPTH_MIN,
+            .maxDepth = DEPTH_MAX,
         }
     {}
 
@@ -247,19 +247,42 @@ private:
     VkViewport m_viewport;
 };
 
-template <size_t Size>
-void set_shader_code(VkShaderModuleCreateInfo& info,
-                     const uint32_t (&code)[Size])
+inline void set_shader_code(VkShaderModuleCreateInfo& info,
+                            const uint32_t* code,
+                            size_t codeSize)
 {
-    info.codeSize = sizeof(code);
+    info.codeSize = codeSize;
     info.pCode = code;
 }
 
-template <size_t SizeIf, size_t SizeElse>
-void set_shader_code_if_then_else(VkShaderModuleCreateInfo& info,
-                                  bool _if,
-                                  const uint32_t (&codeIf)[SizeIf],
-                                  const uint32_t (&codeElse)[SizeElse])
+inline void set_shader_code_if_then_else(VkShaderModuleCreateInfo& info,
+                                         bool _if,
+                                         const uint32_t* codeIf,
+                                         size_t codeSizeIf,
+                                         const uint32_t* codeElse,
+                                         size_t codeSizeElse)
+{
+    if (_if)
+    {
+        set_shader_code(info, codeIf, codeSizeIf);
+    }
+    else
+    {
+        set_shader_code(info, codeElse, codeSizeElse);
+    }
+}
+
+inline void set_shader_code(VkShaderModuleCreateInfo& info,
+                            rive::Span<const uint32_t> code)
+{
+    info.codeSize = code.size_bytes();
+    info.pCode = code.data();
+}
+
+inline void set_shader_code_if_then_else(VkShaderModuleCreateInfo& info,
+                                         bool _if,
+                                         rive::Span<const uint32_t> codeIf,
+                                         rive::Span<const uint32_t> codeElse)
 {
     if (_if)
     {
