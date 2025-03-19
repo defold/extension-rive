@@ -77,8 +77,8 @@ namespace dmScript
 }
 
 DM_PROPERTY_GROUP(rmtp_Rive, "Rive", 0);
-DM_PROPERTY_U32(rmtp_RiveBones, 0, FrameReset, "# rive bones", &rmtp_Rive);
-DM_PROPERTY_U32(rmtp_RiveComponents, 0, FrameReset, "# rive components", &rmtp_Rive);
+DM_PROPERTY_U32(rmtp_RiveBones, 0, PROFILE_PROPERTY_FRAME_RESET, "# rive bones", &rmtp_Rive);
+DM_PROPERTY_U32(rmtp_RiveComponents, 0, PROFILE_PROPERTY_FRAME_RESET, "# rive components", &rmtp_Rive);
 
 namespace dmGraphics
 {
