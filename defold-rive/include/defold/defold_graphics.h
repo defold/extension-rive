@@ -85,23 +85,27 @@ namespace dmGraphics
         , m_Width(0)
         , m_Height(0)
         , m_Depth(1)
+        , m_LayerCount(1)
         , m_OriginalWidth(0)
         , m_OriginalHeight(0)
+        , m_OriginalDepth(1)
         , m_MipMapCount(1)
-        , m_UsageHintBits(TEXTURE_USAGE_HINT_SAMPLE)
+        , m_UsageHintBits(TEXTURE_USAGE_FLAG_SAMPLE)
         {}
 
         TextureType m_Type;
         uint16_t    m_Width;
         uint16_t    m_Height;
         uint16_t    m_Depth;
+        uint16_t    m_LayerCount;
         uint16_t    m_OriginalWidth;
         uint16_t    m_OriginalHeight;
+        uint16_t    m_OriginalDepth;
         uint8_t     m_MipMapCount;
         uint8_t     m_UsageHintBits;
     };
 
-	struct TextureParams
+    struct TextureParams
     {
         TextureParams()
         : m_Data(0x0)
@@ -114,9 +118,11 @@ namespace dmGraphics
         , m_X(0)
         , m_Y(0)
         , m_Z(0)
+        , m_Slice(0)
         , m_Width(0)
         , m_Height(0)
         , m_Depth(0)
+        , m_LayerCount(0)
         , m_MipMap(0)
         , m_SubUpdate(false)
         {}
@@ -132,11 +138,13 @@ namespace dmGraphics
         // For sub texture updates
         uint32_t m_X;
         uint32_t m_Y;
-        uint32_t m_Z; // For array texture, this is the slice to set
+        uint32_t m_Z;
+        uint32_t m_Slice;
 
         uint16_t m_Width;
         uint16_t m_Height;
-        uint16_t m_Depth; // For array texture, this is slice count
+        uint16_t m_Depth;
+        uint16_t m_LayerCount; // For array texture, this is slice count
         uint8_t  m_MipMap    : 7;
         uint8_t  m_SubUpdate : 1;
     };
