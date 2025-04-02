@@ -884,7 +884,7 @@
                                                                    :icon rive-model-icon
                                                                    :outline-error? (g/error-fatal? own-build-errors)}
 
-                                                            (resource/openable-resource? scene)
+                                                            (resource/resource? scene)
                                                             (assoc :link scene :outline-reference? false))))
   (output save-value g/Any :cached produce-rivemodel-save-value)
   (output own-build-errors g/Any produce-model-own-build-errors)
