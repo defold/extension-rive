@@ -63,6 +63,7 @@ namespace dmRive
             dmGraphics::TextureParams tp = {};
             tp.m_Width                   = width;
             tp.m_Height                  = height;
+            tp.m_Depth                   = 1;
             tp.m_Format                  = dmGraphics::TEXTURE_FORMAT_BGRA8U;
 
             dmGraphics::SetTexture(m_BackingTexture, tp);
