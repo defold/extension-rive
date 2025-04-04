@@ -7,10 +7,12 @@
 #include "rive/refcnt.hpp"
 #include "rive/renderer/gpu.hpp"
 #include <cassert>
+#include <deque>
 #include <stdio.h>
 #include <stdlib.h>
 #include <vulkan/vulkan.h>
-#include <vk_mem_alloc.h>
+
+VK_DEFINE_HANDLE(VmaAllocation);
 
 namespace rive::gpu
 {
@@ -33,13 +35,6 @@ inline static void vk_check(VkResult res, const char* file, int line)
 }
 
 #define VK_CHECK(x) ::rive::gpu::vkutil::vk_check(x, __FILE__, __LINE__)
-
-constexpr static uint32_t kVendorAMD = 0x1002;
-constexpr static uint32_t kVendorImgTec = 0x1010;
-constexpr static uint32_t kVendorNVIDIA = 0x10DE;
-constexpr static uint32_t kVendorARM = 0x13B5;
-constexpr static uint32_t kVendorQualcomm = 0x5143;
-constexpr static uint32_t kVendorINTEL = 0x8086;
 
 constexpr static VkColorComponentFlags kColorWriteMaskNone = 0;
 constexpr static VkColorComponentFlags kColorWriteMaskRGBA =
@@ -80,16 +75,14 @@ private:
 // object may still be referenced by an in-flight command buffer.
 template <typename T> struct ZombieResource
 {
-    ZombieResource(T* resource_, uint64_t lastFrameUsed) :
-        resource(resource_),
-        expirationFrameIdx(lastFrameUsed + gpu::kBufferRingSize)
+    ZombieResource(T* resource_, uint64_t lastFrameNumber_) :
+        resource(resource_), lastFrameNumber(lastFrameNumber_)
     {
         assert(resource_->debugging_refcnt() == 0);
     }
     std::unique_ptr<T> resource;
-    // Frame index at which the underlying Vulkan resource is no longer is use
-    // by an in-flight command buffer.
-    const uint64_t expirationFrameIdx;
+    // Frame number at which the underlying Vulkan resource was last used.
+    const uint64_t lastFrameNumber;
 };
 
 class Buffer : public RenderingResource
@@ -136,33 +129,49 @@ private:
     void* m_contents;
 };
 
-// Wraps a ring of VkBuffers so we can map one while other(s) are in-flight.
-class BufferRing
+// Wraps a pool of Buffers so we can map one while other(s) are in-flight.
+class BufferPool
 {
 public:
-    BufferRing(rcp<VulkanContext>, VkBufferUsageFlags, Mappability, size_t = 0);
+    BufferPool(rcp<VulkanContext> vk,
+               VkBufferUsageFlags usageFlags,
+               size_t size = 0) :
+        m_vk(std::move(vk)), m_usageFlags(usageFlags), m_targetSize(size)
+    {}
+
+    VulkanContext* vulkanContext() const { return m_vk.get(); }
 
     size_t size() const { return m_targetSize; }
-
-    VkBuffer vkBufferAt(int bufferRingIdx) const
-    {
-        return *m_buffers[bufferRingIdx];
-    }
-
-    const VkBuffer* vkBufferAtAddressOf(int bufferRingIdx) const
-    {
-        return m_buffers[bufferRingIdx]->vkBufferAddressOf();
-    }
-
     void setTargetSize(size_t size);
-    void synchronizeSizeAt(int bufferRingIdx);
-    void* contentsAt(int bufferRingIdx, size_t dirtySize = VK_WHOLE_SIZE);
-    void flushContentsAt(int bufferRingIdx);
+
+    vkutil::Buffer* currentBuffer();
+    uint64_t currentBufferFrameNumber() { return m_currentBufferFrameNumber; }
+
+    void* mapCurrentBuffer(size_t dirtySize = VK_WHOLE_SIZE);
+    void unmapCurrentBuffer();
+
+    // Returns the current buffer to the pool.
+    void releaseCurrentBuffer();
 
 private:
+    const rcp<VulkanContext> m_vk;
+    const VkBufferUsageFlags m_usageFlags;
     size_t m_targetSize;
+    rcp<vkutil::Buffer> m_currentBuffer;
+    uint64_t m_currentBufferFrameNumber = 0;
     size_t m_pendingFlushSize = 0;
-    rcp<vkutil::Buffer> m_buffers[gpu::kBufferRingSize];
+
+    struct PooledBuffer
+    {
+        PooledBuffer() = default;
+        PooledBuffer(rcp<vkutil::Buffer> buffer_, uint64_t lastFrameNumber_) :
+            buffer(std::move(buffer_)), lastFrameNumber(lastFrameNumber_)
+        {}
+        rcp<vkutil::Buffer> buffer;
+        uint64_t lastFrameNumber = 0;
+    };
+
+    std::deque<PooledBuffer> m_pool;
 };
 
 class Texture : public RenderingResource
@@ -190,7 +199,6 @@ public:
     ~TextureView() override;
 
     const VkImageViewCreateInfo& info() { return m_info; }
-    const VkImageUsageFlags usageFlags() { return m_usageFlags; }
     operator VkImageView() const { return m_vkImageView; }
     VkImageView vkImageView() const { return m_vkImageView; }
     const VkImageView* vkImageViewAddressOf() const { return &m_vkImageView; }
@@ -200,11 +208,9 @@ private:
 
     TextureView(rcp<VulkanContext>,
                 rcp<Texture> textureRef,
-                VkImageUsageFlags,
                 const VkImageViewCreateInfo&);
 
     const rcp<Texture> m_textureRefOrNull;
-    VkImageUsageFlags m_usageFlags;
     VkImageViewCreateInfo m_info;
     VkImageView m_vkImageView;
 };

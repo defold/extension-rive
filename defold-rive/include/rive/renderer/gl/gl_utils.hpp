@@ -11,6 +11,16 @@
 
 namespace glutils
 {
+// Used when the driver doesn't support gl_BaseInstance
+// (GLCapabilities::ANGLE_base_vertex_base_instance_shader_builtin is false).
+//
+// The client must set this uniform value before drawing if the shader needs an
+// instance index.
+//
+// (Begin the variable name with an underscore so it won't collide with any
+// renames from minify.py.)
+constexpr static char BASE_INSTANCE_UNIFORM_NAME[] = "_baseInstance";
+
 void CompileAndAttachShader(GLuint program,
                             GLenum type,
                             const char* source,
@@ -232,4 +242,9 @@ void BlitFramebuffer(rive::IAABB bounds,
                      GLbitfield mask = GL_COLOR_BUFFER_BIT);
 
 void Uniform1iByName(GLuint programID, const char* name, GLint value);
+
+// ANGLE_shader_pixel_local_storage enum values had a breaking change in early
+// 2025. Return true if we can verify that we're running on the latest
+// ANGLE_shader_pixel_local_storage spec.
+bool validate_pixel_local_storage_angle();
 } // namespace glutils
