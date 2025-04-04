@@ -18,10 +18,18 @@ class TextureVulkanImpl;
 class RenderTargetVulkan : public RenderTarget
 {
 public:
-    void setTargetTextureView(rcp<vkutil::TextureView> view,
-                              VulkanContext::TextureAccess targetLastAccess)
+    const VkFormat framebufferFormat() const { return m_framebufferFormat; }
+    const VkImageUsageFlags targetUsageFlags() const
     {
-        m_targetTextureView = std::move(view);
+        return m_targetUsageFlags;
+    }
+
+    void setTargetImageView(VkImageView imageView,
+                            VkImage image,
+                            VulkanContext::TextureAccess targetLastAccess)
+    {
+        m_targetImageView = imageView;
+        m_targetImage = image;
         setTargetLastAccess(targetLastAccess);
     }
 
@@ -30,25 +38,33 @@ public:
         m_targetLastAccess = lastAccess;
     }
 
+    VkImageView targetImageView() const { return m_targetImageView; }
+    VkImage targetImage() const { return m_targetImage; }
     const VulkanContext::TextureAccess& targetLastAccess() const
     {
         return m_targetLastAccess;
     }
 
-    bool targetViewContainsUsageFlag(VkImageUsageFlagBits bit) const
+private:
+    friend class RenderContextVulkanImpl;
+
+    RenderTargetVulkan(rcp<VulkanContext> vk,
+                       uint32_t width,
+                       uint32_t height,
+                       VkFormat framebufferFormat,
+                       VkImageUsageFlags targetUsageFlags) :
+        RenderTarget(width, height),
+        m_vk(std::move(vk)),
+        m_framebufferFormat(framebufferFormat),
+        m_targetUsageFlags(targetUsageFlags)
     {
-        return m_targetTextureView
-                   ? static_cast<bool>(m_targetTextureView->usageFlags() & bit)
-                   : false;
-    }
-
-    const VkFormat framebufferFormat() const { return m_framebufferFormat; }
-
-    VkImage targetTexture() const { return m_targetTextureView->info().image; }
-
-    vkutil::TextureView* targetTextureView() const
-    {
-        return m_targetTextureView.get();
+        // In order to implement blend modes, the target texture needs to either
+        // support input attachment usage (ideal), or else transfers.
+        constexpr static VkImageUsageFlags TRANSFER_SRC_AND_DST =
+            VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        assert((m_targetUsageFlags & VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT) ||
+               (m_targetUsageFlags & TRANSFER_SRC_AND_DST) ==
+                   TRANSFER_SRC_AND_DST);
     }
 
     vkutil::TextureView* offscreenColorTextureView() const
@@ -72,32 +88,22 @@ public:
     vkutil::TextureView* ensureCoverageAtomicTextureView();
     vkutil::TextureView* ensureDepthStencilTextureView();
 
-private:
-    friend class RenderContextVulkanImpl;
-
-    RenderTargetVulkan(rcp<VulkanContext> vk,
-                       uint32_t width,
-                       uint32_t height,
-                       VkFormat framebufferFormat) :
-        RenderTarget(width, height),
-        m_vk(std::move(vk)),
-        m_framebufferFormat(framebufferFormat)
-    {}
-
     const rcp<VulkanContext> m_vk;
     const VkFormat m_framebufferFormat;
-    rcp<vkutil::TextureView> m_targetTextureView;
+    const VkImageUsageFlags m_targetUsageFlags;
+
+    VkImageView m_targetImageView;
+    VkImage m_targetImage;
     VulkanContext::TextureAccess m_targetLastAccess;
 
-    rcp<vkutil::Texture>
-        m_offscreenColorTexture; // Used when m_targetTextureView does not have
-                                 // VK_ACCESS_INPUT_ATTACHMENT_READ_BIT
-    rcp<vkutil::Texture>
-        m_coverageTexture; // gpu::InterlockMode::rasterOrdering.
+    // Used when m_targetTextureView does not have
+    // VK_ACCESS_INPUT_ATTACHMENT_READ_BIT
+    rcp<vkutil::Texture> m_offscreenColorTexture;
+
+    rcp<vkutil::Texture> m_coverageTexture; // InterlockMode::rasterOrdering.
     rcp<vkutil::Texture> m_clipTexture;
     rcp<vkutil::Texture> m_scratchColorTexture;
-    rcp<vkutil::Texture>
-        m_coverageAtomicTexture; // gpu::InterlockMode::atomics.
+    rcp<vkutil::Texture> m_coverageAtomicTexture; // InterlockMode::atomics.
     rcp<vkutil::Texture> m_depthStencilTexture;
 
     rcp<vkutil::TextureView> m_offscreenColorTextureView;
@@ -111,22 +117,26 @@ private:
 class RenderContextVulkanImpl : public RenderContextImpl
 {
 public:
-    static std::unique_ptr<RenderContext> MakeContext(VkInstance,
-                                                      VkPhysicalDevice,
-                                                      VkDevice,
-                                                      const VulkanFeatures&,
-                                                      PFN_vkGetInstanceProcAddr,
-                                                      PFN_vkGetDeviceProcAddr);
+    static std::unique_ptr<RenderContext> MakeContext(
+        VkInstance,
+        VkPhysicalDevice,
+        VkDevice,
+        const VulkanFeatures&,
+        PFN_vkGetInstanceProcAddr);
     ~RenderContextVulkanImpl();
 
     VulkanContext* vulkanContext() const { return m_vk.get(); }
 
     rcp<RenderTargetVulkan> makeRenderTarget(uint32_t width,
                                              uint32_t height,
-                                             VkFormat framebufferFormat)
+                                             VkFormat framebufferFormat,
+                                             VkImageUsageFlags targetUsageFlags)
     {
-        return rcp(
-            new RenderTargetVulkan(m_vk, width, height, framebufferFormat));
+        return rcp(new RenderTargetVulkan(m_vk,
+                                          width,
+                                          height,
+                                          framebufferFormat,
+                                          targetUsageFlags));
     }
 
     rcp<RenderBuffer> makeRenderBuffer(RenderBufferType,
@@ -138,17 +148,14 @@ public:
     void hotloadShaders(rive::Span<const uint32_t> spirvData);
 
 private:
-    RenderContextVulkanImpl(VkInstance instance,
-                            VkPhysicalDevice physicalDevice,
-                            VkDevice device,
-                            const VulkanFeatures& features,
-                            PFN_vkGetInstanceProcAddr fp_vkGetInstanceProcAddr,
-                            PFN_vkGetDeviceProcAddr fp_vkGetDeviceProcAddr);
+    RenderContextVulkanImpl(rcp<VulkanContext>,
+                            const VkPhysicalDeviceProperties&);
 
     // Called outside the constructor so we can use virtual methods.
     void initGPUObjects();
 
-    void prepareToMapBuffers() override;
+    void prepareToFlush(uint64_t nextFrameNumber,
+                        uint64_t safeFrameNumber) override;
 
 #define IMPLEMENT_PLS_BUFFER(Name, m_name)                                     \
     void resize##Name(size_t sizeInBytes) override                             \
@@ -157,9 +164,9 @@ private:
     }                                                                          \
     void* map##Name(size_t mapSizeInBytes) override                            \
     {                                                                          \
-        return m_name.contentsAt(m_bufferRingIdx, mapSizeInBytes);             \
+        return m_name.mapCurrentBuffer(mapSizeInBytes);                        \
     }                                                                          \
-    void unmap##Name() override { m_name.flushContentsAt(m_bufferRingIdx); }
+    void unmap##Name() override { m_name.unmapCurrentBuffer(); }
 
 #define IMPLEMENT_PLS_STRUCTURED_BUFFER(Name, m_name)                          \
     void resize##Name(size_t sizeInBytes, gpu::StorageBufferStructure)         \
@@ -169,19 +176,19 @@ private:
     }                                                                          \
     void* map##Name(size_t mapSizeInBytes) override                            \
     {                                                                          \
-        return m_name.contentsAt(m_bufferRingIdx, mapSizeInBytes);             \
+        return m_name.mapCurrentBuffer(mapSizeInBytes);                        \
     }                                                                          \
-    void unmap##Name() override { m_name.flushContentsAt(m_bufferRingIdx); }
+    void unmap##Name() override { m_name.unmapCurrentBuffer(); }
 
-    IMPLEMENT_PLS_BUFFER(FlushUniformBuffer, m_flushUniformBufferRing)
-    IMPLEMENT_PLS_BUFFER(ImageDrawUniformBuffer, m_imageDrawUniformBufferRing)
-    IMPLEMENT_PLS_STRUCTURED_BUFFER(PathBuffer, m_pathBufferRing)
-    IMPLEMENT_PLS_STRUCTURED_BUFFER(PaintBuffer, m_paintBufferRing)
-    IMPLEMENT_PLS_STRUCTURED_BUFFER(PaintAuxBuffer, m_paintAuxBufferRing)
-    IMPLEMENT_PLS_STRUCTURED_BUFFER(ContourBuffer, m_contourBufferRing)
-    IMPLEMENT_PLS_BUFFER(GradSpanBuffer, m_gradSpanBufferRing)
-    IMPLEMENT_PLS_BUFFER(TessVertexSpanBuffer, m_tessSpanBufferRing)
-    IMPLEMENT_PLS_BUFFER(TriangleVertexBuffer, m_triangleBufferRing)
+    IMPLEMENT_PLS_BUFFER(FlushUniformBuffer, m_flushUniformBufferPool)
+    IMPLEMENT_PLS_BUFFER(ImageDrawUniformBuffer, m_imageDrawUniformBufferPool)
+    IMPLEMENT_PLS_STRUCTURED_BUFFER(PathBuffer, m_pathBufferPool)
+    IMPLEMENT_PLS_STRUCTURED_BUFFER(PaintBuffer, m_paintBufferPool)
+    IMPLEMENT_PLS_STRUCTURED_BUFFER(PaintAuxBuffer, m_paintAuxBufferPool)
+    IMPLEMENT_PLS_STRUCTURED_BUFFER(ContourBuffer, m_contourBufferPool)
+    IMPLEMENT_PLS_BUFFER(GradSpanBuffer, m_gradSpanBufferPool)
+    IMPLEMENT_PLS_BUFFER(TessVertexSpanBuffer, m_tessSpanBufferPool)
+    IMPLEMENT_PLS_BUFFER(TriangleVertexBuffer, m_triangleBufferPool)
 
 #undef IMPLEMENT_PLS_BUFFER
 #undef IMPLEMENT_PLS_STRUCTURED_BUFFER
@@ -228,17 +235,20 @@ private:
     }
 
     const rcp<VulkanContext> m_vk;
+    const uint32_t m_vendorID;
+    const VkFormat m_atlasFormat;
 
-    // PLS buffers.
-    vkutil::BufferRing m_flushUniformBufferRing;
-    vkutil::BufferRing m_imageDrawUniformBufferRing;
-    vkutil::BufferRing m_pathBufferRing;
-    vkutil::BufferRing m_paintBufferRing;
-    vkutil::BufferRing m_paintAuxBufferRing;
-    vkutil::BufferRing m_contourBufferRing;
-    vkutil::BufferRing m_gradSpanBufferRing;
-    vkutil::BufferRing m_tessSpanBufferRing;
-    vkutil::BufferRing m_triangleBufferRing;
+    // Rive buffers.
+    vkutil::BufferPool m_flushUniformBufferPool;
+    vkutil::BufferPool m_imageDrawUniformBufferPool;
+    vkutil::BufferPool m_pathBufferPool;
+    vkutil::BufferPool m_paintBufferPool;
+    vkutil::BufferPool m_paintAuxBufferPool;
+    vkutil::BufferPool m_contourBufferPool;
+    vkutil::BufferPool m_gradSpanBufferPool;
+    vkutil::BufferPool m_tessSpanBufferPool;
+    vkutil::BufferPool m_triangleBufferPool;
+
     std::chrono::steady_clock::time_point m_localEpoch =
         std::chrono::steady_clock::now();
 
@@ -310,10 +320,6 @@ private:
     rcp<vkutil::Buffer> m_pathPatchIndexBuffer;
     rcp<vkutil::Buffer> m_imageRectVertexBuffer;
     rcp<vkutil::Buffer> m_imageRectIndexBuffer;
-
-    rcp<gpu::CommandBufferCompletionFence>
-        m_frameCompletionFences[gpu::kBufferRingSize];
-    int m_bufferRingIdx = -1;
 
     // Pool of DescriptorSetPools that have been fully released. These will be
     // recycled once their expirationFrameIdx is reached.

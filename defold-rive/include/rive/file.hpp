@@ -11,8 +11,10 @@
 #include "rive/viewmodel/viewmodel_instance_value.hpp"
 #include "rive/viewmodel/viewmodel_instance_viewmodel.hpp"
 #include "rive/viewmodel/viewmodel_instance_list_item.hpp"
+#include "rive/animation/keyframe_interpolator.hpp"
 #include <vector>
 #include <set>
+#include <unordered_map>
 
 ///
 /// Default namespace for Rive Cpp runtime code.
@@ -22,6 +24,7 @@ namespace rive
 class BinaryReader;
 class RuntimeHeader;
 class Factory;
+class ScrollPhysics;
 class ViewModelRuntime;
 
 ///
@@ -130,6 +133,10 @@ public:
         rcp<ViewModelInstance> viewModelInstance,
         Artboard* artboard);
     void completeViewModelInstance(
+        rcp<ViewModelInstance> viewModelInstance,
+        std::unordered_map<ViewModelInstance*, rcp<ViewModelInstance>>
+            instancesMap) const;
+    void completeViewModelInstance(
         rcp<ViewModelInstance> viewModelInstance) const;
     const std::vector<DataEnum*>& enums() const;
 
@@ -157,11 +164,16 @@ private:
 
     std::vector<DataConverter*> m_DataConverters;
 
+    std::vector<KeyFrameInterpolator*> m_keyframeInterpolators;
+    std::vector<ScrollPhysics*> m_scrollPhysics;
+
     /// List of artboards in the file. Each artboard encapsulates a set of
     /// Rive components and animations.
     std::vector<Artboard*> m_artboards;
 
     std::vector<ViewModel*> m_ViewModels;
+
+    mutable std::vector<ViewModelRuntime*> m_viewModelRuntimes;
     std::vector<DataEnum*> m_Enums;
 
     Factory* m_factory;
@@ -171,10 +183,11 @@ private:
     FileAssetLoader* m_assetLoader;
 
     rcp<ViewModelInstance> copyViewModelInstance(
-        ViewModelInstance* viewModelInstance) const;
+        ViewModelInstance* viewModelInstance,
+        std::unordered_map<ViewModelInstance*, rcp<ViewModelInstance>>
+            instancesMap) const;
 
-    rcp<ViewModelInstance> copyViewModelInstance(
-        rcp<ViewModelInstance> viewModelInstance) const;
+    ViewModelRuntime* createViewModelRuntime(ViewModel* viewModel) const;
 
     uint32_t findViewModelId(ViewModel* search) const;
 };

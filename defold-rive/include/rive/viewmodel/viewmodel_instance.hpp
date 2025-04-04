@@ -20,13 +20,15 @@ public:
     void addValue(ViewModelInstanceValue* value);
     ViewModelInstanceValue* propertyValue(const uint32_t id);
     ViewModelInstanceValue* propertyValue(const std::string& name);
+    bool replaceViewModelByName(const std::string& name,
+                                rcp<ViewModelInstance> value);
     std::vector<ViewModelInstanceValue*> propertyValues();
     ViewModelInstanceValue* propertyFromPath(std::vector<uint32_t>* path,
                                              size_t index);
     void viewModel(ViewModel* value);
     ViewModel* viewModel() const;
     void onComponentDirty(Component* component);
-    void setAsRoot();
+    void setAsRoot(rcp<ViewModelInstance> instance);
     void setRoot(rcp<ViewModelInstance> value);
     Core* clone() const override;
     StatusCode import(ImportStack& importStack) override;
