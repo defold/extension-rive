@@ -147,6 +147,7 @@ namespace dmRive
         dmArray<dmRender::RenderObject>         m_RenderObjects;
         dmArray<dmRender::HNamedConstantBuffer> m_RenderConstants; // 1:1 mapping with the render objects
         dmGraphics::HVertexBuffer               m_BlitToBackbufferVertexBuffer;
+        dmGraphics::HVertexDeclaration          m_VertexDeclaration;
     };
 
     dmGameObject::CreateResult CompRiveNewWorld(const dmGameObject::ComponentNewWorldParams& params)
@@ -181,6 +182,11 @@ namespace dmRive
 
         world->m_BlitToBackbufferVertexBuffer = dmGraphics::NewVertexBuffer(context->m_GraphicsContext, sizeof(vertex_data), (void*) vertex_data, dmGraphics::BUFFER_USAGE_STATIC_DRAW);
 
+        dmGraphics::HVertexStreamDeclaration stream_declaration_vertex = dmGraphics::NewVertexStreamDeclaration(context->m_GraphicsContext);
+        dmGraphics::AddVertexStream(stream_declaration_vertex, "position",  2, dmGraphics::TYPE_FLOAT, false);
+        dmGraphics::AddVertexStream(stream_declaration_vertex, "texcoord0", 2, dmGraphics::TYPE_FLOAT, false);
+        world->m_VertexDeclaration = dmGraphics::NewVertexDeclaration(context->m_GraphicsContext, stream_declaration_vertex);
+
         memset(world->m_RenderConstants.Begin(), 0, sizeof(dmGameSystem::HComponentRenderConstants)*world->m_RenderConstants.Capacity());
 
         *params.m_World = world;
@@ -195,6 +201,7 @@ namespace dmRive
         RiveWorld* world = (RiveWorld*)params.m_World;
 
         dmGraphics::DeleteVertexBuffer(world->m_BlitToBackbufferVertexBuffer);
+        dmGraphics::DeleteVertexDeclaration(world->m_VertexDeclaration);
 
         dmResource::UnregisterResourceReloadedCallback(((CompRiveContext*)params.m_Context)->m_Factory, ResourceReloadedCallback, world);
 
@@ -457,7 +464,7 @@ namespace dmRive
                 world->m_RenderObjects.SetSize(world->m_RenderObjects.Size()+1);
                 ro.Init();
                 ro.m_Material          = GetBlitToBackBufferMaterial(world->m_RiveRenderContext, render_context);
-                ro.m_VertexDeclaration = dmRender::GetVertexDeclaration(ro.m_Material);
+                ro.m_VertexDeclaration = world->m_VertexDeclaration;
                 ro.m_VertexBuffer      = world->m_BlitToBackbufferVertexBuffer;
                 ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
                 ro.m_VertexStart       = 0;
