@@ -16,7 +16,7 @@ input_method = HiddenInputField
 package = com.defold.extensionrive
 
 [project]
-title = extension-rive
+title = ExtensionRive
 bundle_exclude_resources = utils
 dependencies#0 = https://github.com/andsve/dirtylarry/archive/master.zip
 
