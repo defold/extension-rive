@@ -27,6 +27,7 @@ namespace dmRive
             WGPUDevice webgpu_device = dmGraphics::WebGPUGetDevice(graphics_context);
             WGPUQueue webgpu_queue = dmGraphics::WebGPUGetQueue(graphics_context);
 
+            m_BackingTexture = 0;
             m_Device = wgpu::Device::Acquire(webgpu_device);
             m_Queue = wgpu::Queue::Acquire(webgpu_queue);
 
