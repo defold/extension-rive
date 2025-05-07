@@ -6,8 +6,8 @@
 
 #include "rive/refcnt.hpp"
 #include "rive/renderer/gpu.hpp"
+#include "rive/renderer/gpu_resource.hpp"
 #include <cassert>
-#include <deque>
 #include <stdio.h>
 #include <stdlib.h>
 #include <vulkan/vulkan.h>
@@ -50,42 +50,18 @@ enum class Mappability
 
 // Base class for a GPU resource that needs to be kept alive until any in-flight
 // command buffers that reference it have completed.
-class RenderingResource : public RefCnt<RenderingResource>
+class Resource : public GPUResource
 {
 public:
-    virtual ~RenderingResource() {}
+    virtual ~Resource() {}
 
-    const VulkanContext* vulkanContext() const { return m_vk.get(); }
+    VulkanContext* vk() const;
 
 protected:
-    RenderingResource(rcp<VulkanContext> vk) : m_vk(std::move(vk)) {}
-
-    const rcp<VulkanContext> m_vk;
-
-private:
-    friend class RefCnt<RenderingResource>;
-
-    // Don't delete RenderingResources immediately when their ref count reaches
-    // zero; wait until any in-flight command buffers are done referencing their
-    // underlying Vulkan objects.
-    void onRefCntReachedZero() const;
+    Resource(rcp<VulkanContext>);
 };
 
-// A RenderingResource that has been fully released, but whose underlying Vulkan
-// object may still be referenced by an in-flight command buffer.
-template <typename T> struct ZombieResource
-{
-    ZombieResource(T* resource_, uint64_t lastFrameNumber_) :
-        resource(resource_), lastFrameNumber(lastFrameNumber_)
-    {
-        assert(resource_->debugging_refcnt() == 0);
-    }
-    std::unique_ptr<T> resource;
-    // Frame number at which the underlying Vulkan resource was last used.
-    const uint64_t lastFrameNumber;
-};
-
-class Buffer : public RenderingResource
+class Buffer : public Resource
 {
 public:
     ~Buffer() override;
@@ -97,7 +73,7 @@ public:
     // Resize the underlying VkBuffer without waiting for any pipeline
     // synchronization. The caller is responsible to guarantee the underlying
     // VkBuffer is not queued up in any in-flight command buffers.
-    void resizeImmediately(size_t sizeInBytes);
+    void resizeImmediately(VkDeviceSize sizeInBytes);
 
     void* contents()
     {
@@ -108,12 +84,12 @@ public:
     // Calls through to vkFlushMappedMemoryRanges().
     // Called after modifying contents() with the CPU. Makes those modifications
     // available to the GPU.
-    void flushContents(size_t sizeInBytes = VK_WHOLE_SIZE);
+    void flushContents(VkDeviceSize sizeInBytes = VK_WHOLE_SIZE);
 
     // Calls through to vkInvalidateMappedMemoryRanges().
     // Called after modifying the buffer with the GPU. Makes those modifications
     // available to the CPU via contents().
-    void invalidateContents(size_t sizeInBytes = VK_WHOLE_SIZE);
+    void invalidateContents(VkDeviceSize sizeInBytes = VK_WHOLE_SIZE);
 
 private:
     friend class ::rive::gpu::VulkanContext;
@@ -130,51 +106,32 @@ private:
 };
 
 // Wraps a pool of Buffers so we can map one while other(s) are in-flight.
-class BufferPool
+class BufferPool : public GPUResourcePool
 {
 public:
-    BufferPool(rcp<VulkanContext> vk,
-               VkBufferUsageFlags usageFlags,
-               size_t size = 0) :
-        m_vk(std::move(vk)), m_usageFlags(usageFlags), m_targetSize(size)
-    {}
+    BufferPool(rcp<VulkanContext>, VkBufferUsageFlags, VkDeviceSize size = 0);
 
-    VulkanContext* vulkanContext() const { return m_vk.get(); }
+    VkDeviceSize size() const { return m_targetSize; }
+    void setTargetSize(VkDeviceSize size);
 
-    size_t size() const { return m_targetSize; }
-    void setTargetSize(size_t size);
+    // Returns a Buffer that is guaranteed to exist and be of size
+    // 'm_targetSize'.
+    rcp<vkutil::Buffer> acquire();
 
-    vkutil::Buffer* currentBuffer();
-    uint64_t currentBufferFrameNumber() { return m_currentBufferFrameNumber; }
-
-    void* mapCurrentBuffer(size_t dirtySize = VK_WHOLE_SIZE);
-    void unmapCurrentBuffer();
-
-    // Returns the current buffer to the pool.
-    void releaseCurrentBuffer();
+    void recycle(rcp<vkutil::Buffer> buffer)
+    {
+        GPUResourcePool::recycle(std::move(buffer));
+    }
 
 private:
-    const rcp<VulkanContext> m_vk;
+    VulkanContext* vk() const;
+
+    constexpr static VkDeviceSize MAX_POOL_SIZE = 8;
     const VkBufferUsageFlags m_usageFlags;
-    size_t m_targetSize;
-    rcp<vkutil::Buffer> m_currentBuffer;
-    uint64_t m_currentBufferFrameNumber = 0;
-    size_t m_pendingFlushSize = 0;
-
-    struct PooledBuffer
-    {
-        PooledBuffer() = default;
-        PooledBuffer(rcp<vkutil::Buffer> buffer_, uint64_t lastFrameNumber_) :
-            buffer(std::move(buffer_)), lastFrameNumber(lastFrameNumber_)
-        {}
-        rcp<vkutil::Buffer> buffer;
-        uint64_t lastFrameNumber = 0;
-    };
-
-    std::deque<PooledBuffer> m_pool;
+    VkDeviceSize m_targetSize;
 };
 
-class Texture : public RenderingResource
+class Texture : public Resource
 {
 public:
     ~Texture() override;
@@ -193,7 +150,7 @@ private:
     VkImage m_vkImage;
 };
 
-class TextureView : public RenderingResource
+class TextureView : public Resource
 {
 public:
     ~TextureView() override;
@@ -215,7 +172,7 @@ private:
     VkImageView m_vkImageView;
 };
 
-class Framebuffer : public RenderingResource
+class Framebuffer : public Resource
 {
 public:
     ~Framebuffer() override;
@@ -251,6 +208,29 @@ public:
 
 private:
     VkViewport m_viewport;
+};
+
+// Tracks the current layout and access parameters of a VkImage.
+struct TextureAccess
+{
+    VkPipelineStageFlags pipelineStages = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    VkAccessFlags accessMask = VK_ACCESS_NONE;
+    VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    bool operator==(const TextureAccess& rhs) const
+    {
+        return pipelineStages == rhs.pipelineStages &&
+               accessMask == rhs.accessMask && layout == rhs.layout;
+    }
+    bool operator!=(const TextureAccess& rhs) const { return !(*this == rhs); }
+};
+
+// Provides a way to communicate that a VkImage may be invalidated (layout
+// converted to VK_IMAGE_LAYOUT_UNDEFINED) while performing a barrier.
+enum class TextureAccessAction : bool
+{
+    preserveContents,
+    invalidateContents,
 };
 
 inline void set_shader_code(VkShaderModuleCreateInfo& info,
@@ -312,5 +292,11 @@ inline VkClearColorValue color_clear_r32ui(uint32_t value)
     VkClearColorValue ret;
     ret.uint32[0] = value;
     return ret;
+}
+
+inline VkFormat get_preferred_depth_stencil_format(bool isD24S8Supported)
+{
+    return isD24S8Supported ? VK_FORMAT_D24_UNORM_S8_UINT
+                            : VK_FORMAT_D32_SFLOAT_S8_UINT;
 }
 } // namespace rive::gpu::vkutil

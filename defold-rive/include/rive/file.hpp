@@ -140,6 +140,8 @@ public:
         rcp<ViewModelInstance> viewModelInstance) const;
     const std::vector<DataEnum*>& enums() const;
 
+    std::vector<Artboard*> artboards() { return m_artboards; };
+
 #ifdef WITH_RIVE_TOOLS
     /// Strips FileAssetContents for FileAssets of given typeKeys.
     /// @param data the raw data of the file.
@@ -171,7 +173,14 @@ private:
     /// Rive components and animations.
     std::vector<Artboard*> m_artboards;
 
+    /// List of view models in the file. They may outlive the file if viewmodel
+    /// instances are still needed after the file is destroyed
     std::vector<ViewModel*> m_ViewModels;
+
+    /// List of view models instances in the file. We keep this list to keep
+    /// them alive during the lifetime of this file. This list does not hold a
+    /// reference to instances created by users.
+    std::vector<ViewModelInstance*> m_ViewModelInstances;
 
     mutable std::vector<ViewModelRuntime*> m_viewModelRuntimes;
     std::vector<DataEnum*> m_Enums;
