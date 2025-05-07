@@ -134,6 +134,7 @@ function download_zip() {
         echo "Unpacking ${zip} to ${dir}"
         mkdir -p $(dirname ${dir})
         unzip ${zip} -d ${dir}
+        echo "Unpack $1 done."
     else
         echo "Skipping unpack of ${zip} as ${dir} already exists."
     fi
@@ -418,7 +419,7 @@ for platform in $PLATFORMS; do
     echo "// intentionally left empty due to the self include issue" > ${RIVECPP_RENDERER_SOURCE_DIR}/renderer/src/rive_render_path.hpp
 
     case ${platform} in
-        arm64-android)
+        armv7-android|arm64-android)
             RIVE_RENDERER_DEFINES="RIVE_ANDROID"
 
             mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl
@@ -566,7 +567,7 @@ for platform in $PLATFORMS; do
             cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.h                          ${RIVECPP_RENDERER_SOURCE_DIR}/include/rive/renderer/gl/
             ;;
 
-        wasm-web|js-web)
+        wasm-web|wasm_pthread-web|js-web)
             RIVE_RENDERER_DEFINES="RIVE_WEBGL RIVE_WEBGPU"
 
             # NOTE: To build WebGL, you have to do the following manual steps:
