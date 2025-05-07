@@ -40,7 +40,7 @@ jobs:
           echo "Remove after we've fixed the headless build for plugins"
           sudo add-apt-repository ppa:apt-fast/stable
           sudo apt-get update
-          sudo apt-fast install -y --no-install-recommends libopenal-dev libgl1-mesa-dev libglw1-mesa-dev freeglut3-dev
+          sudo apt-get install -y --no-install-recommends libopenal-dev libgl1-mesa-dev libglw1-mesa-dev freeglut3-dev
 
       - name: Check shared dependencies
         run: |
