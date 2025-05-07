@@ -1,10 +1,6 @@
 
 #ifdef DM_RIVE_USE_OPENGL
 
-// NOTE FOR LINUX:
-// If there are issues linking linux (opengl/glad related symbols already defined),
-// the current solution is to define GLAPI with extern linkage in glad_custom.h
-// At some point it would be nice to have a proper solution, but for now it's good enough..
 
 #if defined(RIVE_ANDROID) || defined(RIVE_WEBGL)
     #undef GL_ES_VERSION_2_0
@@ -18,6 +14,17 @@
 #include <dmsdk/dlib/log.h>
 
 #include "renderer_context.h"
+
+// NOTE FOR LINUX:
+// If there are issues linking linux (opengl/glad related symbols already defined),
+// the current solution is to define GLAPI with extern linkage in glad_custom.h
+// At some point it would be nice to have a proper solution, but for now it's good enough..
+#if defined(RIVE_LINUX)
+    #if defined(GLAPI)
+        #undef GLAPI
+    #endif
+    #define GLAPI extern "C"
+#endif
 
 #include <rive/renderer/rive_renderer.hpp>
 #include <rive/renderer/texture.hpp>
