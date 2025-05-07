@@ -7,7 +7,7 @@ OUTPUT_LIB_DIR=${SCRIPT_DIR}/../defold-rive/lib
 PLATFORMS=$1
 
 if [ "" == "${PLATFORMS}" ]; then
-    PLATFORMS="x86_64-macos arm64-macos x86_64-linux x86_64-win32 x86-win32 arm64-ios x86_64-ios arm64-android js-web wasm-web"
+    PLATFORMS="x86_64-macos arm64-macos x86_64-linux x86_64-win32 x86-win32 arm64-ios x86_64-ios arm64-android js-web wasm-web wasm_pthread-web"
 fi
 
 DEFAULT_SERVER_NAME=build-stage.defold.com
@@ -236,9 +236,10 @@ download_zip ${EARCUT_ZIP} ${DOWNLOAD_DIR}/earcut ${EARCUT_URL}
 echo "*************************************************"
 echo "Downloading rive-cpp files"
 
-RIVECPP_VERSION=main
+# https://github.com/rive-app/rive-runtime/commit/<sha>
+RIVECPP_VERSION=273128c9f0a0e5fe59823ee36fbcb465b5980032
 RIVECPP_ZIP=${DOWNLOAD_DIR}/rivecpp-${RIVECPP_VERSION}.zip
-RIVECPP_URL="https://github.com/rive-app/rive-runtime/archive/refs/heads/${RIVECPP_VERSION}.zip"
+RIVECPP_URL="https://github.com/rive-app/rive-runtime/archive/${RIVECPP_VERSION}.zip"
 
 RIVECPP_ORIGINAL_DIR=${DOWNLOAD_DIR}/rivecpp/rive-runtime-${RIVECPP_VERSION}
 RIVECPP_SOURCE_DIR=${SOURCE_DIR}/rivecpp/src
