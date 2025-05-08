@@ -1,0 +1,26 @@
+name: "egg"
+instances {
+  id: "back"
+  prototype: "/main/menu/back.go"
+}
+scale_along_z: 0
+embedded_instances {
+  id: "go"
+  data: "components {\n"
+  "  id: \"test\"\n"
+  "  component: \"/main/egg/egg.rivemodel\"\n"
+  "  position {\n"
+  "    x: 375.60974\n"
+  "  }\n"
+  "}\n"
+  ""
+  position {
+    x: 337.7781
+    y: 268.6295
+  }
+  scale3 {
+    x: 0.41
+    y: 0.41
+    z: 0.82
+  }
+}

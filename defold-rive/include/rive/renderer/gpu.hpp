@@ -9,7 +9,6 @@
 #include "rive/math/mat2d.hpp"
 #include "rive/math/vec2d.hpp"
 #include "rive/math/simd.hpp"
-#include "rive/refcnt.hpp"
 #include "rive/shapes/paint/blend_mode.hpp"
 #include "rive/shapes/paint/color.hpp"
 #include "rive/renderer/trivial_block_allocator.hpp"
@@ -602,20 +601,45 @@ void GeneratePatchBufferData(PatchVertex[kPatchVertexBufferCount],
 
 enum class DrawType : uint8_t
 {
-    midpointFanPatches,         // Fills, strokes, feathered strokes.
-    midpointFanCenterAAPatches, // Feathered fills.
-    outerCurvePatches, // Just the outer curves of a path; the interior will be
-                       // triangulated.
+    // Fills, strokes, feathered strokes.
+    midpointFanPatches,
+
+    // Feathered fills.
+    midpointFanCenterAAPatches,
+
+    // Just the outer curves of a path; the interior will be triangulated.
+    outerCurvePatches,
+
     interiorTriangulation,
     atlasBlit,
     imageRect,
     imageMesh,
-    atomicInitialize, // Clear/init PLS data when we can't do it with existing
-                      // clear/load APIs.
-    atomicResolve, // Resolve PLS data to the final renderTarget color in atomic
-                   // mode.
-    stencilClipReset, // Clear or intersect (based on DrawContents) the stencil
-                      // clip bit.
+
+    // Clear/init PLS data when we can't do it with existing clear/load APIs.
+    atomicInitialize,
+
+    // Resolve PLS data to the final renderTarget color in atomic mode.
+    atomicResolve,
+
+    // MSAA strokes can't be merged with fills because they require their own
+    // dedicated stencil settings.
+    msaaStrokes,
+
+    // MSAA "fast" path: (effectively) single pass rendering.
+    msaaMidpointFanBorrowedCoverage,
+    msaaMidpointFans,
+    msaaMidpointFanStencilReset,
+
+    // MSAA "slow" path: stencil-then-cover.
+    msaaMidpointFanPathsStencil,
+    msaaMidpointFanPathsCover,
+
+    // MSAA interior triangulation is not currently supported, but this one draw
+    // type is included in order to support the "retrofittedcubictriangles" GM.
+    msaaOuterCubics,
+
+    // Clear or intersect (based on DrawContents) the stencil clip bit.
+    msaaStencilClipReset,
 };
 
 constexpr static bool DrawTypeIsImageDraw(DrawType drawType)
@@ -632,7 +656,14 @@ constexpr static bool DrawTypeIsImageDraw(DrawType drawType)
         case DrawType::atlasBlit:
         case DrawType::atomicInitialize:
         case DrawType::atomicResolve:
-        case DrawType::stencilClipReset:
+        case DrawType::msaaStrokes:
+        case DrawType::msaaMidpointFanBorrowedCoverage:
+        case DrawType::msaaMidpointFans:
+        case DrawType::msaaMidpointFanStencilReset:
+        case DrawType::msaaMidpointFanPathsStencil:
+        case DrawType::msaaMidpointFanPathsCover:
+        case DrawType::msaaOuterCubics:
+        case DrawType::msaaStencilClipReset:
             return false;
     }
     RIVE_UNREACHABLE();
@@ -648,43 +679,28 @@ constexpr static uint32_t PatchIndexCount(DrawType drawType)
             return kMidpointFanCenterAAPatchIndexCount;
         case DrawType::outerCurvePatches:
             return kOuterCurvePatchIndexCount;
-        case DrawType::interiorTriangulation:
-        case DrawType::atlasBlit:
-        case DrawType::imageRect:
-        case DrawType::imageMesh:
-        case DrawType::atomicInitialize:
-        case DrawType::atomicResolve:
-        case DrawType::stencilClipReset:
-            RIVE_UNREACHABLE();
-    }
-    RIVE_UNREACHABLE();
-}
-
-constexpr static uint32_t PatchBorderIndexCount(DrawType drawType)
-{
-    switch (drawType)
-    {
-        case DrawType::midpointFanPatches:
+        case DrawType::msaaStrokes:
             return kMidpointFanPatchBorderIndexCount;
-        case DrawType::midpointFanCenterAAPatches:
-            return kMidpointFanCenterAAPatchBorderIndexCount;
-        case DrawType::outerCurvePatches:
-            return kOuterCurvePatchBorderIndexCount;
+        case DrawType::msaaMidpointFanBorrowedCoverage:
+        case DrawType::msaaMidpointFans:
+        case DrawType::msaaMidpointFanStencilReset:
+        case DrawType::msaaMidpointFanPathsStencil:
+        case DrawType::msaaMidpointFanPathsCover:
+            return kMidpointFanPatchIndexCount -
+                   kMidpointFanPatchBorderIndexCount;
+        case DrawType::msaaOuterCubics:
+            return kOuterCurvePatchIndexCount -
+                   kOuterCurvePatchBorderIndexCount;
         case DrawType::interiorTriangulation:
         case DrawType::atlasBlit:
         case DrawType::imageRect:
         case DrawType::imageMesh:
         case DrawType::atomicInitialize:
         case DrawType::atomicResolve:
-        case DrawType::stencilClipReset:
+        case DrawType::msaaStencilClipReset:
             RIVE_UNREACHABLE();
     }
     RIVE_UNREACHABLE();
-}
-
-constexpr static uint32_t PatchFanIndexCount(DrawType drawType)
-{
-    return PatchIndexCount(drawType) - PatchBorderIndexCount(drawType);
 }
 
 constexpr static uint32_t PatchBaseIndex(DrawType drawType)
@@ -692,26 +708,31 @@ constexpr static uint32_t PatchBaseIndex(DrawType drawType)
     switch (drawType)
     {
         case DrawType::midpointFanPatches:
+        case DrawType::msaaStrokes:
             return kMidpointFanPatchBaseIndex;
         case DrawType::midpointFanCenterAAPatches:
             return kMidpointFanCenterAAPatchBaseIndex;
         case DrawType::outerCurvePatches:
             return kOuterCurvePatchBaseIndex;
+        case DrawType::msaaMidpointFanBorrowedCoverage:
+        case DrawType::msaaMidpointFans:
+        case DrawType::msaaMidpointFanStencilReset:
+        case DrawType::msaaMidpointFanPathsStencil:
+        case DrawType::msaaMidpointFanPathsCover:
+            return kMidpointFanPatchBaseIndex +
+                   kMidpointFanPatchBorderIndexCount;
+        case DrawType::msaaOuterCubics:
+            return kOuterCurvePatchBaseIndex + kOuterCurvePatchBorderIndexCount;
         case DrawType::interiorTriangulation:
         case DrawType::atlasBlit:
         case DrawType::imageRect:
         case DrawType::imageMesh:
         case DrawType::atomicInitialize:
         case DrawType::atomicResolve:
-        case DrawType::stencilClipReset:
+        case DrawType::msaaStencilClipReset:
             RIVE_UNREACHABLE();
     }
     RIVE_UNREACHABLE();
-}
-
-constexpr static uint32_t PatchFanBaseIndex(DrawType drawType)
-{
-    return PatchBaseIndex(drawType) + PatchBorderIndexCount(drawType);
 }
 
 // Specifies what to do with the render target at the beginning of a flush.
@@ -859,6 +880,13 @@ constexpr static ShaderFeatures ShaderFeaturesMaskFor(
         case DrawType::midpointFanCenterAAPatches:
         case DrawType::outerCurvePatches:
         case DrawType::interiorTriangulation:
+        case DrawType::msaaStrokes:
+        case DrawType::msaaMidpointFanBorrowedCoverage:
+        case DrawType::msaaMidpointFans:
+        case DrawType::msaaMidpointFanStencilReset:
+        case DrawType::msaaMidpointFanPathsStencil:
+        case DrawType::msaaMidpointFanPathsCover:
+        case DrawType::msaaOuterCubics:
         case DrawType::atomicResolve:
             mask = kAllShaderFeatures;
             break;
@@ -867,7 +895,7 @@ constexpr static ShaderFeatures ShaderFeaturesMaskFor(
             mask = ShaderFeatures::ENABLE_CLIPPING |
                    ShaderFeatures::ENABLE_ADVANCED_BLEND;
             break;
-        case DrawType::stencilClipReset:
+        case DrawType::msaaStencilClipReset:
             mask = ShaderFeatures::NONE;
             break;
     }
@@ -910,6 +938,35 @@ RIVE_MAKE_ENUM_BITSET(DrawContents)
 constexpr static gpu::DrawContents kNestedClipUpdateMask =
     (gpu::DrawContents::activeClip | gpu::DrawContents::clipUpdate);
 
+// Types of barriers that may be required between DrawBatches.
+enum class BarrierFlags : uint8_t
+{
+    none = 0,
+
+    // Pixel-local dependency in the PLS planes. (Atomic mode only.) Ensure
+    // prior draws complete at each pixel before beginning new ones.
+    plsAtomic = 1 << 0,
+    plsAtomicPostInit = 1 << 1,   // Once after the initial clear/load.
+    plsAtomicPreResolve = 1 << 2, // Once before the final resolve.
+
+    // Pixel-local dependency in the coverage buffer. (clockwiseAtomic mode
+    // only.) All "borrowed coverage" draws have now been issued. Ensure they
+    // complete at each pixel before beginning the "forward coverage" draws.
+    clockwiseBorrowedCoverage = 1 << 3,
+
+    // The next DrawBatch needs to perform an advanced blend, but on the current
+    // hardware, we can only fetch the dst color via a separate texture. (MSAA
+    // mode only.) Prepare a dstColorTexture with the current framebuffer
+    // contents. If we're lucky, this will be a Vulkan input attachment. On GL,
+    // this is a literal MSAA resolve & blit to a separate texture.
+    dstColorTexture = 1 << 4,
+
+    // Only prevent future DrawBatches from being combined with the current
+    // drawList. (No GPU dependencies.)
+    drawBatchBreak = 1 << 5,
+};
+RIVE_MAKE_ENUM_BITSET(BarrierFlags);
+
 // Low-level batch of geometry to submit to the GPU.
 struct DrawBatch
 {
@@ -917,12 +974,14 @@ struct DrawBatch
               gpu::ShaderMiscFlags shaderMiscFlags_,
               uint32_t elementCount_,
               uint32_t baseElement_,
-              rive::BlendMode blendMode) :
+              rive::BlendMode blendMode,
+              BarrierFlags barriers_) :
         drawType(drawType_),
         shaderMiscFlags(shaderMiscFlags_),
         elementCount(elementCount_),
         baseElement(baseElement_),
-        firstBlendMode(blendMode)
+        firstBlendMode(blendMode),
+        barriers(barriers_)
     {}
 
     const DrawType drawType;
@@ -930,10 +989,10 @@ struct DrawBatch
     uint32_t elementCount; // Vertex, index, or instance count.
     uint32_t baseElement;  // Base vertex, index, or instance.
     rive::BlendMode firstBlendMode;
+    BarrierFlags barriers; // Barriers to execute before drawing this batch.
+
     DrawContents drawContents = DrawContents::none;
     ShaderFeatures shaderFeatures = ShaderFeatures::NONE;
-    bool needsBarrier = false; // Pixel-local-storage barrier required after
-                               // submitting this batch.
 
     // DrawType::imageRect and DrawType::imageMesh.
     uint32_t imageDrawDataOffset = 0;
@@ -980,6 +1039,9 @@ struct FlushDescriptor
     RenderTarget* renderTarget = nullptr;
     ShaderFeatures combinedShaderFeatures = ShaderFeatures::NONE;
     InterlockMode interlockMode = InterlockMode::rasterOrdering;
+    // Atomic mode only: there a no advanced blend modes, so we can render
+    // directly to the main target with fixed function (src-over) blending.
+    bool atomicFixedFunctionColorOutput = false;
     int msaaSampleCount = 0; // (0 unless interlockMode is msaa.)
 
     LoadAction colorLoadAction = LoadAction::clear;
@@ -1032,7 +1094,6 @@ struct FlushDescriptor
     bool clockwiseFillOverride = false;
     bool hasTriangleVertices = false;
     bool wireframe = false;
-    bool isFinalFlushOfFrame = false;
 
     // Command buffer that rendering commands will be added to.
     //  - VkCommandBuffer on Vulkan.
@@ -1102,7 +1163,9 @@ public:
 
     void operator=(const FlushUniforms& rhs)
     {
-        memcpy(this, &rhs, sizeof(*this) - sizeof(m_padTo256Bytes));
+        memcpy(static_cast<void*>(this),
+               &rhs,
+               sizeof(*this) - sizeof(m_padTo256Bytes));
     }
 
     bool operator!=(const FlushUniforms& rhs) const
@@ -1442,8 +1505,21 @@ public:
                      MapResourceBufferFn mapFn,
                      size_t elementCount)
     {
+        assert(m_mappedMemory == nullptr);
         void* ptr = (impl->*mapFn)(elementCount * sizeof(T));
         reset(reinterpret_cast<T*>(ptr), elementCount);
+    }
+
+    using UnmapResourceBufferFn =
+        void (RenderContextImpl::*)(size_t mapSizeInBytes);
+    void unmapElements(RenderContextImpl* impl,
+                       UnmapResourceBufferFn unmapFn,
+                       size_t elementCount)
+    {
+        assert(m_mappedMemory != nullptr);
+        assert(m_mappingEnd - m_mappedMemory == elementCount);
+        (impl->*unmapFn)(elementCount * sizeof(T));
+        reset();
     }
 
     operator bool() const { return m_mappedMemory; }
@@ -1480,7 +1556,7 @@ public:
         T* dst = push(count);
         if (values != nullptr)
         {
-            memcpy(dst, values, count * sizeof(T));
+            memcpy(static_cast<void*>(dst), values, count * sizeof(T));
         }
     }
     void skip_back() { push(); }
@@ -1513,14 +1589,132 @@ enum class TriState
     unknown
 };
 
+enum class StencilOp : uint8_t
+{
+    keep,
+    replace,
+    zero,
+    decrClamp,
+    incrWrap,
+    decrWrap
+};
+
+enum class StencilCompareOp : uint8_t
+{
+    less,
+    equal,
+    lessOrEqual,
+    notEqual,
+    always,
+};
+
+struct StencilFaceOps
+{
+    StencilOp failOp;
+    StencilOp passOp;
+    StencilOp depthFailOp;
+    StencilCompareOp compareOp;
+};
+
+enum class CullFace : uint8_t
+{
+    none,
+    clockwise,
+    counterclockwise,
+};
+
+// Blend equation to select for the fixed-function GPU pipeline (not our own
+// in-shader blending). For now, the backend is free to decide whether it will
+// use premultiplied alpha or not.
+enum class BlendEquation : uint8_t
+{
+    // Hardware blend is disabled.
+    none = 0,
+
+    // Core hardware blend equations supported on all platforms.
+    srcOver = static_cast<int>(rive::BlendMode::srcOver),
+    plus = srcOver + 1,
+    max = plus + 1,
+
+    // "Advanced" hardware blend equations.
+    // PlatformFeatures::supportsKHRBlendEquations is required.
+    screen = static_cast<int>(rive::BlendMode::screen),
+    overlay = static_cast<int>(rive::BlendMode::overlay),
+    darken = static_cast<int>(rive::BlendMode::darken),
+    lighten = static_cast<int>(rive::BlendMode::lighten),
+    colorDodge = static_cast<int>(rive::BlendMode::colorDodge),
+    colorBurn = static_cast<int>(rive::BlendMode::colorBurn),
+    hardLight = static_cast<int>(rive::BlendMode::hardLight),
+    softLight = static_cast<int>(rive::BlendMode::softLight),
+    difference = static_cast<int>(rive::BlendMode::difference),
+    exclusion = static_cast<int>(rive::BlendMode::exclusion),
+    multiply = static_cast<int>(rive::BlendMode::multiply),
+    hue = static_cast<int>(rive::BlendMode::hue),
+    saturation = static_cast<int>(rive::BlendMode::saturation),
+    color = static_cast<int>(rive::BlendMode::color),
+    luminosity = static_cast<int>(rive::BlendMode::luminosity),
+};
+
+// Common pipeline state that applies to every low-level draw and every backend.
+struct PipelineState
+{
+    bool depthTestEnabled;
+    bool depthWriteEnabled;
+    bool stencilTestEnabled;
+    bool stencilDoubleSided;
+    uint8_t stencilCompareMask;
+    uint8_t stencilWriteMask;
+    uint8_t stencilReference;
+    StencilFaceOps stencilFrontOps;
+    StencilFaceOps stencilBackOps;
+    CullFace cullFace;
+    BlendEquation blendEquation;
+    bool colorWriteEnabled;
+};
+
+void get_pipeline_state(const DrawBatch&,
+                        const FlushDescriptor&,
+                        const PlatformFeatures&,
+                        PipelineState*);
+
+constexpr static PipelineState COLOR_ONLY_PIPELINE_STATE = {
+    .depthTestEnabled = false,
+    .depthWriteEnabled = false,
+    .stencilTestEnabled = false,
+    .stencilWriteMask = 0,
+    .cullFace = CullFace::none,
+    .blendEquation = BlendEquation::none,
+    .colorWriteEnabled = true,
+};
+
+constexpr static PipelineState ATLAS_FILL_PIPELINE_STATE = {
+    .depthTestEnabled = false,
+    .depthWriteEnabled = false,
+    .stencilTestEnabled = false,
+    .stencilWriteMask = 0,
+    .cullFace = CullFace::counterclockwise,
+    .blendEquation = BlendEquation::plus,
+    .colorWriteEnabled = true,
+};
+
+constexpr static PipelineState ATLAS_STROKE_PIPELINE_STATE = {
+    .depthTestEnabled = false,
+    .depthWriteEnabled = false,
+    .stencilTestEnabled = false,
+    .stencilWriteMask = 0,
+    .cullFace = CullFace::counterclockwise,
+    .blendEquation = BlendEquation::max,
+    .colorWriteEnabled = true,
+};
+
+float4 cast_f16_to_f32(uint16x4 x);
+uint16x4 cast_f32_to_f16(float4);
+
 // These tables integrate the gaussian function, and its inverse, covering a
 // spread of -FEATHER_TEXTURE_STDDEVS to +FEATHER_TEXTURE_STDDEVS.
 constexpr static uint32_t GAUSSIAN_TABLE_SIZE = 512;
 extern const uint16_t g_gaussianIntegralTableF16[GAUSSIAN_TABLE_SIZE];
 extern const uint16_t g_inverseGaussianIntegralTableF16[GAUSSIAN_TABLE_SIZE];
-
-float4 cast_f16_to_f32(uint16x4 x);
-uint16x4 cast_f32_to_f16(float4);
 
 // Code to generate g_gaussianIntegralTableF16 and
 // g_inverseGaussianIntegralTableF32. This is left in the codebase but #ifdef'd

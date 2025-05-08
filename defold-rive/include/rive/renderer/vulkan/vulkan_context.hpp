@@ -4,8 +4,8 @@
 
 #pragma once
 
+#include "rive/renderer/gpu_resource.hpp"
 #include "rive/renderer/vulkan/vkutil.hpp"
-#include <deque>
 
 VK_DEFINE_HANDLE(VmaAllocator);
 
@@ -35,7 +35,7 @@ struct VulkanFeatures
 //
 // Provides minor helper utilities, but for the most part, the client is
 // expected to make raw Vulkan calls via the provided function pointers.
-class VulkanContext : public RefCnt<VulkanContext>
+class VulkanContext : public GPUResourceManager
 {
 public:
     VulkanContext(VkInstance,
@@ -105,27 +105,6 @@ public:
     bool isFormatSupportedWithFeatureFlags(VkFormat, VkFormatFeatureFlagBits);
     bool supportsD24S8() const { return m_supportsD24S8; }
 
-    // Resource lifetime counters. Resources last used on or before
-    // 'safeFrameNumber' are safe to be released or recycled.
-    uint64_t currentFrameNumber() const { return m_currentFrameNumber; }
-    uint64_t safeFrameNumber() const { return m_safeFrameNumber; }
-
-    // Purges released resources whose lastFrameNumber is on or before
-    // safeFrameNumber, and updates the context's monotonically increasing
-    // m_currentFrameNumber.
-    void advanceFrameNumber(uint64_t nextFrameNumber, uint64_t safeFrameNumber);
-
-    // Called when a vkutil::RenderingResource has been fully released (refCnt
-    // reaches 0). The resource won't actually be deleted until the current
-    // frame's command buffer has finished executing.
-    void onRenderingResourceReleased(const vkutil::RenderingResource* resource);
-
-    // Called prior to the client beginning its shutdown cycle, and after all
-    // command buffers from all frames have finished executing. After shutting
-    // down, we delete vkutil::RenderingResources immediately instead of going
-    // through m_resourcePurgatory.
-    void shutdown();
-
     // Resource allocation.
     rcp<vkutil::Buffer> makeBuffer(const VkBufferCreateInfo&,
                                    vkutil::Mappability);
@@ -174,17 +153,10 @@ public:
                             &imageMemoryBarrier);
     }
 
-    struct TextureAccess
-    {
-        VkPipelineStageFlags pipelineStages = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-        VkAccessFlags accessMask = VK_ACCESS_NONE;
-        VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
-    };
-
-    const TextureAccess& simpleImageMemoryBarrier(
+    const vkutil::TextureAccess& simpleImageMemoryBarrier(
         VkCommandBuffer commandBuffer,
-        const TextureAccess& srcAccess,
-        const TextureAccess& dstAccess,
+        const vkutil::TextureAccess& srcAccess,
+        const vkutil::TextureAccess& dstAccess,
         VkImage image,
         VkDependencyFlags dependencyFlags = 0)
     {
@@ -215,23 +187,6 @@ public:
 
 private:
     const VmaAllocator m_vmaAllocator;
-
-    // Temporary storage for vkutil::RenderingResource instances that have been
-    // fully released, but need to persist until in-flight command buffers have
-    // finished referencing their underlying Vulkan objects.
-    std::deque<vkutil::ZombieResource<const vkutil::RenderingResource>>
-        m_resourcePurgatory;
-
-    // A m_currentFrameNumber of this value indicates we're in a shutdown cycle
-    // and resources should be deleted immediatly upon release instead of going
-    // through m_resourcePurgatory.
-    constexpr static uint64_t SHUTDOWN_FRAME_NUMBER =
-        std::numeric_limits<uint64_t>::max();
-
-    // Resource lifetime counters. Resources last used on or before
-    // 'safeFrameNumber' are safe to be released or recycled.
-    uint64_t m_currentFrameNumber = 0;
-    uint64_t m_safeFrameNumber = 0;
 
     // Vulkan spec: must support one of D24S8 and D32S8.
     bool m_supportsD24S8 = false;

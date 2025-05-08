@@ -30,7 +30,6 @@ public:
     virtual void apply(Core* component,
                        uint32_t propertyKey,
                        bool isMainDirection){};
-    virtual void update(Core* component){};
     void invalidate() { m_isValid = false; };
     virtual bool syncTargetValue(Core* target, uint32_t propertyKey)
     {
@@ -85,8 +84,10 @@ public:
             // Calculate new value after converters are applied
             auto value = calculateValue<T, U>(input, isMainDirection, dataBind);
             // Apply value to source
+            dataBind->suppressDirt(true);
             auto source = dataBind->source();
             source->as<V>()->propertyValue(value);
+            dataBind->suppressDirt(false);
             m_isValid = true;
         }
     };

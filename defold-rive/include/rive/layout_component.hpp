@@ -139,6 +139,10 @@ protected:
     bool isDisplayHidden() const;
     void propagateCollapse(bool collapse);
     bool collapse(bool value) override;
+    float computedLocalX() override { return m_layout.left(); };
+    float computedLocalY() override { return m_layout.top(); };
+    float computedWidth() override { return m_layout.width(); };
+    float computedHeight() override { return m_layout.height(); };
 
 private:
     float m_widthOverride = NAN;
@@ -154,7 +158,6 @@ private:
 
 #ifdef WITH_RIVE_LAYOUT
 protected:
-    void syncLayoutChildren();
     void propagateSizeToChildren(ContainerComponent* component);
     bool applyInterpolation(float elapsedSeconds, bool animate = true);
     void calculateLayout();
@@ -224,6 +227,7 @@ public:
     // layout's width/height and unit values.
     void widthOverride(float width, int unitValue = 1, bool isRow = true);
     void heightOverride(float height, int unitValue = 1, bool isRow = true);
+    void parentIsRow(bool isRow);
     void widthIntrinsicallySizeOverride(bool intrinsic);
     void heightIntrinsicallySizeOverride(bool intrinsic);
     virtual bool canHaveOverrides() { return false; }
@@ -250,9 +254,12 @@ public:
     ~LayoutComponent();
 #ifdef WITH_RIVE_LAYOUT
 
+    void* layoutNode(int index) override;
     void syncStyle();
+    void syncLayoutChildren();
+    void clearLayoutChildren();
     virtual void propagateSize();
-    void updateLayoutBounds(bool animate = true);
+    void updateLayoutBounds(bool animate = true) override;
     StatusCode onAddedDirty(CoreContext* context) override;
     StatusCode onAddedClean(CoreContext* context) override;
     bool advance(float elapsedSeconds);
@@ -282,7 +289,8 @@ public:
 #endif
     void buildDependencies() override;
 
-    void markLayoutNodeDirty(bool shouldForceUpdateLayoutBounds = false);
+    void markLayoutNodeDirty(
+        bool shouldForceUpdateLayoutBounds = false) override;
     void markLayoutStyleDirty();
     void clipChanged() override;
     void widthChanged() override;

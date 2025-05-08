@@ -7,7 +7,7 @@ OUTPUT_LIB_DIR=${SCRIPT_DIR}/../defold-rive/lib
 PLATFORMS=$1
 
 if [ "" == "${PLATFORMS}" ]; then
-    PLATFORMS="x86_64-macos arm64-macos x86_64-linux x86_64-win32 x86-win32 arm64-ios x86_64-ios arm64-android js-web wasm-web"
+    PLATFORMS="x86_64-macos arm64-macos x86_64-linux x86_64-win32 x86-win32 arm64-ios x86_64-ios arm64-android js-web wasm-web wasm_pthread-web"
 fi
 
 DEFAULT_SERVER_NAME=build-stage.defold.com
@@ -61,9 +61,9 @@ function stripfile() {
         x86_64-macos|arm64-macos|arm64-ios|x86_64-ios)
             STRIP=$(which strip)
             ;;
-        arm64-android)
-            STRIP=$(find ~/Library/android/sdk -iname "*llvm-strip" | sort -r | head -n 1)
-            ;;
+        # arm64-android)
+        #     STRIP=$(find ~/Library/android/sdk -iname "*llvm-strip" | sort -r | head -n 1)
+        #     ;;
     esac
 
     if [ "" != "${STRIP}" ]; then
@@ -134,6 +134,7 @@ function download_zip() {
         echo "Unpacking ${zip} to ${dir}"
         mkdir -p $(dirname ${dir})
         unzip ${zip} -d ${dir}
+        echo "Unpack $1 done."
     else
         echo "Skipping unpack of ${zip} as ${dir} already exists."
     fi
@@ -236,9 +237,10 @@ download_zip ${EARCUT_ZIP} ${DOWNLOAD_DIR}/earcut ${EARCUT_URL}
 echo "*************************************************"
 echo "Downloading rive-cpp files"
 
-RIVECPP_VERSION=main
+# https://github.com/rive-app/rive-runtime/commit/<sha>
+RIVECPP_VERSION=273128c9f0a0e5fe59823ee36fbcb465b5980032
 RIVECPP_ZIP=${DOWNLOAD_DIR}/rivecpp-${RIVECPP_VERSION}.zip
-RIVECPP_URL="https://github.com/rive-app/rive-runtime/archive/refs/heads/${RIVECPP_VERSION}.zip"
+RIVECPP_URL="https://github.com/rive-app/rive-runtime/archive/${RIVECPP_VERSION}.zip"
 
 RIVECPP_ORIGINAL_DIR=${DOWNLOAD_DIR}/rivecpp/rive-runtime-${RIVECPP_VERSION}
 RIVECPP_SOURCE_DIR=${SOURCE_DIR}/rivecpp/src
@@ -417,7 +419,7 @@ for platform in $PLATFORMS; do
     echo "// intentionally left empty due to the self include issue" > ${RIVECPP_RENDERER_SOURCE_DIR}/renderer/src/rive_render_path.hpp
 
     case ${platform} in
-        arm64-android)
+        armv7-android|arm64-android)
             RIVE_RENDERER_DEFINES="RIVE_ANDROID"
 
             mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl
@@ -565,7 +567,7 @@ for platform in $PLATFORMS; do
             cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.h                          ${RIVECPP_RENDERER_SOURCE_DIR}/include/rive/renderer/gl/
             ;;
 
-        wasm-web|js-web)
+        wasm-web|wasm_pthread-web|js-web)
             RIVE_RENDERER_DEFINES="RIVE_WEBGL RIVE_WEBGPU"
 
             # NOTE: To build WebGL, you have to do the following manual steps:
