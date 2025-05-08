@@ -61,9 +61,9 @@ function stripfile() {
         x86_64-macos|arm64-macos|arm64-ios|x86_64-ios)
             STRIP=$(which strip)
             ;;
-        arm64-android)
-            STRIP=$(find ~/Library/android/sdk -iname "*llvm-strip" | sort -r | head -n 1)
-            ;;
+        # arm64-android)
+        #     STRIP=$(find ~/Library/android/sdk -iname "*llvm-strip" | sort -r | head -n 1)
+        #     ;;
     esac
 
     if [ "" != "${STRIP}" ]; then
