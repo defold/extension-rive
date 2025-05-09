@@ -14,27 +14,25 @@
 
 #include <string.h> // memset
 
-// rive-cpp
+
 #include <rive/animation/linear_animation_instance.hpp>
-#include <rive/animation/state_machine_instance.hpp>
-#include <rive/animation/state_machine_input.hpp>
-#include <rive/animation/state_machine_input_instance.hpp>
-#include <rive/animation/state_machine_trigger.hpp>
-#include <rive/animation/state_machine_bool.hpp>
-#include <rive/animation/state_machine_number.hpp>
 #include <rive/animation/loop.hpp>
+#include <rive/animation/state_machine.hpp>
+#include <rive/animation/state_machine_instance.hpp>
 #include <rive/bones/bone.hpp>
 #include <rive/custom_property.hpp>
 #include <rive/custom_property_boolean.hpp>
 #include <rive/custom_property_number.hpp>
 #include <rive/custom_property_string.hpp>
-#include <rive/text/text.hpp>
 #include <rive/file.hpp>
+#include <rive/math/mat2d.hpp>
+#include <rive/nested_artboard.hpp> // Artboard
 #include <rive/renderer.hpp>
-#include <rive/nested_artboard.hpp>
+#include <rive/text/text.hpp>
 
 // Rive extension
 #include "comp_rive.h"
+#include "comp_rive_private.h"
 #include "res_rive_data.h"
 #include "res_rive_scene.h"
 #include "res_rive_model.h"
@@ -209,7 +207,7 @@ namespace dmRive
         return dmGameObject::CREATE_RESULT_OK;
     }
 
-    static RiveArtboardIdList* FindArtboardIdList(rive::Artboard* artboard, dmRive::RiveSceneData* data)
+    RiveArtboardIdList* FindArtboardIdList(rive::Artboard* artboard, dmRive::RiveSceneData* data)
     {
         dmhash_t artboard_id = dmHashString64(artboard->name().c_str());
 
@@ -943,7 +941,7 @@ namespace dmRive
         component->m_ReHash = 1;
     }
 
-    static int FindAnimationIndex(dmhash_t* entries, uint32_t num_entries, dmhash_t anim_id)
+    int FindAnimationIndex(dmhash_t* entries, uint32_t num_entries, dmhash_t anim_id)
     {
         for (int i = 0; i < num_entries; ++i)
         {
@@ -969,22 +967,6 @@ namespace dmRive
         }
         *animation_index = index;
         return artboard->animation(index);
-    }
-
-    static rive::StateMachine* FindStateMachine(rive::Artboard* artboard, dmRive::RiveSceneData* data, int* state_machine_index, dmhash_t anim_id)
-    {
-        RiveArtboardIdList* id_list = FindArtboardIdList(artboard, data);
-        if (!id_list)
-        {
-            return 0;
-        }
-
-        int index = FindAnimationIndex(id_list->m_StateMachines.Begin(), id_list->m_StateMachines.Size(), anim_id);
-        if (index == -1) {
-            return 0;
-        }
-        *state_machine_index = index;
-        return artboard->stateMachine(index);
     }
 
     bool CompRivePlayAnimation(RiveComponent* component, dmRiveDDF::RivePlayAnimation* ddf, dmScript::LuaCallbackInfo* callback_info)
@@ -1084,18 +1066,7 @@ namespace dmRive
         component->m_StateMachineInstance  = component->m_ArtboardInstance->stateMachineAt(state_machine_index);
 
         // update the list of current state machine inputs
-        uint32_t count = component->m_StateMachineInstance->inputCount();
-        if (count > component->m_StateMachineInputs.Capacity())
-        {
-            component->m_StateMachineInputs.SetCapacity(count);
-        }
-        component->m_StateMachineInputs.SetSize(count);
-
-        for (uint32_t i = 0; i < count; ++i)
-        {
-            const rive::SMIInput* input = component->m_StateMachineInstance->input(i);
-            component->m_StateMachineInputs[i] = dmHashString64(input->name().c_str());
-        }
+        GetStateMachineInputNames(component->m_StateMachineInstance.get(), component->m_StateMachineInputs);
         return true;
     }
 
@@ -1156,95 +1127,6 @@ namespace dmRive
         RiveComponent* component = GetComponentFromIndex(world, index);
         component->m_Resource = (RiveModelResource*)params.m_Resource;
         (void)OnResourceReloaded(world, component, index);
-    }
-
-    static int FindStateMachineInputIndex(RiveComponent* component, dmhash_t property_name)
-    {
-        uint32_t count = component->m_StateMachineInputs.Size();
-        for (uint32_t i = 0; i < count; ++i)
-        {
-            if (component->m_StateMachineInputs[i] == property_name)
-            {
-                return (int)i;
-            }
-        }
-        return -1;
-    }
-
-    static dmGameObject::PropertyResult SetStateMachineInput(RiveComponent* component, int index, const dmGameObject::ComponentSetPropertyParams& params)
-    {
-        const rive::StateMachine* state_machine = component->m_StateMachineInstance->stateMachine();
-        const rive::StateMachineInput* input = state_machine->input(index);
-        rive::SMIInput* input_instance = component->m_StateMachineInstance->input(index);
-
-        if (input->is<rive::StateMachineTrigger>())
-        {
-            if (params.m_Value.m_Type != dmGameObject::PROPERTY_TYPE_BOOLEAN)
-            {
-                dmLogError("Found property %s of type trigger, but didn't receive a boolean", input->name().c_str());
-                return dmGameObject::PROPERTY_RESULT_TYPE_MISMATCH;
-            }
-
-            // The trigger can only respond to the value "true"
-            if (!params.m_Value.m_Bool)
-            {
-                dmLogError("Found property %s of type trigger, but didn't receive a boolean of true", input->name().c_str());
-                return dmGameObject::PROPERTY_RESULT_TYPE_MISMATCH;
-            }
-
-            rive::SMITrigger* trigger = (rive::SMITrigger*)input_instance;
-            trigger->fire();
-        }
-        else if (input->is<rive::StateMachineBool>())
-        {
-            if (params.m_Value.m_Type != dmGameObject::PROPERTY_TYPE_BOOLEAN)
-            {
-                dmLogError("Found property %s of type bool, but didn't receive a boolean", input->name().c_str());
-                return dmGameObject::PROPERTY_RESULT_TYPE_MISMATCH;
-            }
-
-            rive::SMIBool* v = (rive::SMIBool*)input_instance;
-            v->value(params.m_Value.m_Bool);
-        }
-        else if (input->is<rive::StateMachineNumber>())
-        {
-            if (params.m_Value.m_Type != dmGameObject::PROPERTY_TYPE_NUMBER)
-            {
-                dmLogError("Found property %s of type number, but didn't receive a number", input->name().c_str());
-                return dmGameObject::PROPERTY_RESULT_TYPE_MISMATCH;
-            }
-
-            rive::SMINumber* v = (rive::SMINumber*)input_instance;
-            v->value(params.m_Value.m_Number);
-        }
-
-        return dmGameObject::PROPERTY_RESULT_OK;
-    }
-
-    static dmGameObject::PropertyResult GetStateMachineInput(RiveComponent* component, int index,
-            const dmGameObject::ComponentGetPropertyParams& params, dmGameObject::PropertyDesc& out_value)
-    {
-        const rive::StateMachine* state_machine = component->m_StateMachineInstance->stateMachine();
-        const rive::StateMachineInput* input = state_machine->input(index);
-        rive::SMIInput* input_instance = component->m_StateMachineInstance->input(index);
-
-        if (input->is<rive::StateMachineTrigger>())
-        {
-            dmLogError("Cannot get value of input type trigger ( %s )", input->name().c_str());
-            return dmGameObject::PROPERTY_RESULT_TYPE_MISMATCH;
-        }
-        else if (input->is<rive::StateMachineBool>())
-        {
-            rive::SMIBool* v = (rive::SMIBool*)input_instance;
-            out_value.m_Variant = dmGameObject::PropertyVar(v->value());
-        }
-        else if (input->is<rive::StateMachineNumber>())
-        {
-            rive::SMINumber* v = (rive::SMINumber*)input_instance;
-            out_value.m_Variant = dmGameObject::PropertyVar(v->value());
-        }
-
-        return dmGameObject::PROPERTY_RESULT_OK;
     }
 
     dmGameObject::PropertyResult CompRiveGetProperty(const dmGameObject::ComponentGetPropertyParams& params, dmGameObject::PropertyDesc& out_value)
@@ -1555,7 +1437,7 @@ namespace dmRive
         return g_DisplayFactor;
     }
 
-    static rive::Vec2D WorldToLocal(RiveComponent* component, float x, float y)
+    rive::Vec2D WorldToLocal(RiveComponent* component, float x, float y)
     {
         dmGraphics::HContext graphics_context = dmGraphics::GetInstalledContext();
 
@@ -1568,139 +1450,6 @@ namespace dmRive
 
         rive::Vec2D p_local = component->m_InverseRendererTransform * rive::Vec2D(normalized_x * window_width, normalized_y * window_height);
         return p_local;
-    }
-
-    void CompRivePointerMove(RiveComponent* component, float x, float y)
-    {
-        if (component->m_StateMachineInstance)
-        {
-            rive::Vec2D p = WorldToLocal(component, x, y);
-            component->m_StateMachineInstance->pointerMove(p);
-        }
-    }
-
-    void CompRivePointerUp(RiveComponent* component, float x, float y)
-    {
-        if (component->m_StateMachineInstance)
-        {
-            rive::Vec2D p = WorldToLocal(component, x, y);
-            component->m_StateMachineInstance->pointerUp(p);
-        }
-    }
-
-    void CompRivePointerDown(RiveComponent* component, float x, float y)
-    {
-        if (component->m_StateMachineInstance)
-        {
-            rive::Vec2D p = WorldToLocal(component, x, y);
-            component->m_StateMachineInstance->pointerDown(p);
-        }
-    }
-
-    StateMachineInputData::Result CompRiveSetStateMachineInput(RiveComponent* component, const char* input_name, const char* nested_artboard_path, const StateMachineInputData& value)
-    {
-        rive::ArtboardInstance* artboard = component->m_ArtboardInstance.get();
-        rive::SMIInput* input_instance = 0x0;
-
-        if (nested_artboard_path)
-        {
-            input_instance = artboard->input(input_name, nested_artboard_path);
-        }
-        else
-        {
-            dmhash_t input_hash = dmHashString64(input_name);
-            int index = FindStateMachineInputIndex(component, input_hash);
-            if (index >= 0)
-            {
-                input_instance = component->m_StateMachineInstance->input(index);
-            }
-        }
-
-        if (input_instance)
-        {
-            const rive::StateMachineInput* input = input_instance->input();
-
-            if (input->is<rive::StateMachineTrigger>())
-            {
-                if (value.m_Type != StateMachineInputData::TYPE_BOOL)
-                {
-                    return StateMachineInputData::RESULT_TYPE_MISMATCH;
-                }
-                rive::SMITrigger* trigger = (rive::SMITrigger*)input_instance;
-                trigger->fire();
-                return StateMachineInputData::RESULT_OK;
-            }
-            else if (input->is<rive::StateMachineBool>())
-            {
-                if (value.m_Type != StateMachineInputData::TYPE_BOOL)
-                {
-                    return StateMachineInputData::RESULT_TYPE_MISMATCH;
-                }
-                rive::SMIBool* v = (rive::SMIBool*)input_instance;
-                v->value(value.m_BoolValue);
-                return StateMachineInputData::RESULT_OK;
-            }
-            else if (input->is<rive::StateMachineNumber>())
-            {
-                if (value.m_Type != StateMachineInputData::TYPE_NUMBER)
-                {
-                    return StateMachineInputData::RESULT_TYPE_MISMATCH;
-                }
-                rive::SMINumber* v = (rive::SMINumber*)input_instance;
-                v->value(value.m_NumberValue);
-                return StateMachineInputData::RESULT_OK;
-            }
-        }
-
-        return StateMachineInputData::RESULT_NOT_FOUND;
-    }
-
-    StateMachineInputData::Result CompRiveGetStateMachineInput(RiveComponent* component, const char* input_name, const char* nested_artboard_path, StateMachineInputData& out_value)
-    {
-        rive::ArtboardInstance* artboard = component->m_ArtboardInstance.get();
-        rive::SMIInput* input_instance = 0x0;
-
-        if (nested_artboard_path)
-        {
-            input_instance = artboard->input(input_name, nested_artboard_path);
-        }
-        else
-        {
-            dmhash_t input_hash = dmHashString64(input_name);
-            int index = FindStateMachineInputIndex(component, input_hash);
-            if (index >= 0)
-            {
-                input_instance = component->m_StateMachineInstance->input(index);
-            }
-        }
-
-        out_value.m_Type = StateMachineInputData::TYPE_INVALID;
-
-        if (input_instance)
-        {
-            const rive::StateMachineInput* input = input_instance->input();
-
-            if (input->is<rive::StateMachineTrigger>())
-            {
-                return StateMachineInputData::RESULT_TYPE_UNSUPPORTED;
-            }
-            else if (input->is<rive::StateMachineBool>())
-            {
-                rive::SMIBool* v = (rive::SMIBool*)input_instance;
-                out_value.m_Type = StateMachineInputData::TYPE_BOOL;
-                out_value.m_BoolValue = v->value();
-                return StateMachineInputData::RESULT_OK;
-            }
-            else if (input->is<rive::StateMachineNumber>())
-            {
-                rive::SMINumber* v = (rive::SMINumber*)input_instance;
-                out_value.m_Type = StateMachineInputData::TYPE_NUMBER;
-                out_value.m_NumberValue = v->value();
-                return StateMachineInputData::RESULT_OK;
-            }
-        }
-
-        return StateMachineInputData::RESULT_NOT_FOUND;
     }
 
     static inline rive::TextValueRun* GetTextRun(rive::ArtboardInstance* artboard, const char* name, const char* nested_artboard_path)

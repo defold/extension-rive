@@ -25,6 +25,7 @@
 #include <dmsdk/gamesys/script.h>
 
 #include "comp_rive.h"
+#include "comp_rive_private.h"
 #include "rive_ddf.h"
 
 #include <defold/defold_graphics.h>
