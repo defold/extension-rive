@@ -96,6 +96,12 @@ embedded_instances {
   "  data: \"collection: \\\"/main/layout/layout.collection\\\"\\n"
   "\"\n"
   "}\n"
+  "embedded_components {\n"
+  "  id: \"egg\"\n"
+  "  type: \"collectionproxy\"\n"
+  "  data: \"collection: \\\"/main/egg/egg.collection\\\"\\n"
+  "\"\n"
+  "}\n"
   ""
 }
 embedded_instances {
