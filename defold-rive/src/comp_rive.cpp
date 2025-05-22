@@ -286,7 +286,7 @@ namespace dmRive
         }
 
         RiveComponent* component = new RiveComponent;
-        memset(component, 0, sizeof(RiveComponent));
+        memset(component, 0, sizeof(RiveComponent)); // yes, this works for dmArray and dmHashTable too
 
         uint32_t index = world->m_Components.Alloc();
         world->m_Components.Set(index, component);

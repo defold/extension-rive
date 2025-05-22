@@ -16,7 +16,9 @@
 #include <stdint.h>
 
 #include <dmsdk/script.h>
+#include <dmsdk/dlib/array.h>
 #include <dmsdk/dlib/hash.h>
+#include <dmsdk/dlib/hashtable.h>
 #include <dmsdk/dlib/vmath.h>
 #include <dmsdk/dlib/transform.h>
 #include <dmsdk/gameobject/gameobject.h>
@@ -34,6 +36,8 @@ namespace rive
     class LinearAnimationInstance;
     class StateMachine;
     class StateMachineInstance;
+    class ViewModelInstance;
+    class ViewModelInstanceRuntime;
 }
 
 namespace dmGameObject
@@ -63,9 +67,10 @@ namespace dmRive
         uint32_t                                m_CallbackId;
         rive::Mat2D                             m_InverseRendererTransform;
 
-        std::unique_ptr<rive::ArtboardInstance>         m_ArtboardInstance;
-        std::unique_ptr<rive::LinearAnimationInstance>  m_AnimationInstance;
-        std::unique_ptr<rive::StateMachineInstance>     m_StateMachineInstance;
+        std::unique_ptr<rive::ArtboardInstance>             m_ArtboardInstance;
+        std::unique_ptr<rive::LinearAnimationInstance>      m_AnimationInstance;
+        std::unique_ptr<rive::StateMachineInstance>         m_StateMachineInstance;
+        dmHashTable64<rive::ViewModelInstanceRuntime*>      m_ViewModelInstanceRuntimes;
 
         dmArray<std::unique_ptr<rive::StateMachineInstance>> m_AllSMSInstances;
 
@@ -102,6 +107,13 @@ namespace dmRive
     dmGameObject::PropertyResult SetStateMachineInput(RiveComponent* component, int index, const dmGameObject::ComponentSetPropertyParams& params);
     dmGameObject::PropertyResult GetStateMachineInput(RiveComponent* component, int index,
                                                       const dmGameObject::ComponentGetPropertyParams& params, dmGameObject::PropertyDesc& out_value);
+
+    // Data bindings
+    rive::ViewModelInstanceRuntime* CreateDataBinding(RiveComponent* component, const char* name);
+    void                            SetViewModelInstance(RiveComponent* component, rive::ViewModelInstanceRuntime* vmir);
+
+    bool SetViewModelPropertyNumber(RiveComponent* component, rive::ViewModelInstanceRuntime* vmir, const char* name, float number);
+    void DebugModelViews(RiveComponent* component);
 }
 
 #endif //DM_COMP_RIVE_PRIVATE_H
