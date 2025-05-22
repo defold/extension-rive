@@ -108,19 +108,18 @@ static int SetProperties(lua_State* L)
         }
         else if (lua_isnumber(L, -1))
         {
-            float number = lua_tonumber(L, -1);
-            printf("  number: %f\n", number);
-            dmRive::CompRiveRuntimePropertyF32(component, handle, path, number);
+            float value = lua_tonumber(L, -1);
+            dmRive::CompRiveRuntimePropertyF32(component, handle, path, value);
         }
         else if (lua_isboolean(L, -1))
         {
-            bool boolean = lua_toboolean(L, -1);
-            printf("  boolean: %d\n", (int)boolean);
+            bool value = lua_toboolean(L, -1);
+            dmRive::CompRiveRuntimePropertyBool(component, handle, path, value);
         }
         else if (lua_isstring(L, -1))
         {
-            const char* str = lua_tostring(L, -1);
-            printf("  string: '%s'\n", str?str:"");
+            const char* value = lua_tostring(L, -1);
+            dmRive::CompRiveRuntimePropertyString(component, handle, path, value);
         }
         else
         {

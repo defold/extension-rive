@@ -177,8 +177,6 @@ bool CompRiveRuntimePropertyBool(RiveComponent* component, uint32_t handle, cons
     }
 
     prop->value(value);
-
-    dmLogInfo("%s:%d: Setting boolean: %s = %d", __FUNCTION__, __LINE__, path, (int)value);
     return true;
 }
 
@@ -198,8 +196,6 @@ bool CompRiveRuntimePropertyF32(RiveComponent* component, uint32_t handle, const
     }
 
     prop->value(value);
-
-    dmLogInfo("%s:%d: Setting number: %s = %f", __FUNCTION__, __LINE__, path, value);
     return true;
 }
 
@@ -219,12 +215,25 @@ bool CompRiveRuntimePropertyColor(RiveComponent* component, uint32_t handle, con
     }
 
     prop->argb(255 * color->getW(), 255 * color->getX(), 255 * color->getY(), 255 * color->getZ());
+    return true;
+}
 
-    dmLogInfo("%s:%d: Setting color: %s = %d %d %d %d", __FUNCTION__, __LINE__, path,
-        (int)(255 * color->getW()),
-        (int)(255 * color->getX()),
-        (int)(255 * color->getY()),
-        (int)(255 * color->getZ()));
+bool CompRiveRuntimePropertyString(RiveComponent* component, uint32_t handle, const char* path, const char* text)
+{
+    rive::ViewModelInstanceRuntime* vmir = FromHandle(component, handle);
+    if (!vmir)
+    {
+        return false;
+    }
+
+    rive::ViewModelInstanceStringRuntime* prop = vmir->propertyString(path);
+    if (!prop)
+    {
+        dmLogError("No property of type number, with path '%s'", path);
+        return false;
+    }
+
+    prop->value(text);
     return true;
 }
 

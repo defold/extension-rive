@@ -119,9 +119,10 @@ namespace dmRive
     uint32_t  CompRiveCreateViewModelInstanceRuntime(RiveComponent* component, dmhash_t name_hash);
     bool      CompRiveSetViewModelInstanceRuntime(RiveComponent* component, uint32_t handle);
     uint32_t  CompRiveGetViewModelInstanceRuntime(RiveComponent* component);
-    bool      CompRiveRuntimePropertyBool(RiveComponent* component, uint32_t handle, const char* name, bool value);
-    bool      CompRiveRuntimePropertyF32(RiveComponent* component, uint32_t handle, const char* name, float value);
-    bool      CompRiveRuntimePropertyColor(RiveComponent* component, uint32_t handle, const char* name, dmVMath::Vector4* color);
+    bool      CompRiveRuntimePropertyBool(RiveComponent* component, uint32_t handle, const char* path, bool value);
+    bool      CompRiveRuntimePropertyF32(RiveComponent* component, uint32_t handle, const char* path, float value);
+    bool      CompRiveRuntimePropertyColor(RiveComponent* component, uint32_t handle, const char* path, dmVMath::Vector4* color);
+    bool      CompRiveRuntimePropertyString(RiveComponent* component, uint32_t handle, const char* path, const char* text);
 }
 
 #endif //DM_COMP_RIVE_PRIVATE_H
