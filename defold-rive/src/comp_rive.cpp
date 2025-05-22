@@ -302,6 +302,8 @@ namespace dmRive
         component->m_World = Matrix4::identity();
         component->m_DoRender = 0;
         component->m_RenderConstants = 0;
+        component->m_CurrentViewModelInstanceRuntime = 0;
+        component->m_HandleCounter = 0;
 
         InstantiateArtboard(component);
 
@@ -345,6 +347,19 @@ namespace dmRive
             }
         }
 
+        bool auto_binding = true;
+        const char* view_model_name = 0;
+
+        component->m_CurrentViewModelInstanceRuntime = 0xFFFFFFFF;
+        if (auto_binding)
+        {
+            dmLogInfo("Auto binding default ViewModelInstance '%s'", view_model_name?view_model_name:"");
+            dmhash_t name_hash = view_model_name ? dmHashString64(view_model_name) : 0;
+            component->m_CurrentViewModelInstanceRuntime = CompRiveCreateViewModelInstanceRuntime(component, name_hash);
+            if (component->m_CurrentViewModelInstanceRuntime != dmRive::INVALID_HANDLE)
+            {
+                CompRiveSetViewModelInstanceRuntime(component, component->m_CurrentViewModelInstanceRuntime);
+            }
         component->m_ReHash = 1;
 
         *params.m_UserData = (uintptr_t)index;

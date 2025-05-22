@@ -70,7 +70,7 @@ namespace dmRive
         std::unique_ptr<rive::ArtboardInstance>             m_ArtboardInstance;
         std::unique_ptr<rive::LinearAnimationInstance>      m_AnimationInstance;
         std::unique_ptr<rive::StateMachineInstance>         m_StateMachineInstance;
-        dmHashTable64<rive::ViewModelInstanceRuntime*>      m_ViewModelInstanceRuntimes;
+        dmHashTable32<rive::ViewModelInstanceRuntime*>      m_ViewModelInstanceRuntimes;
 
         dmArray<std::unique_ptr<rive::StateMachineInstance>> m_AllSMSInstances;
 
@@ -84,13 +84,17 @@ namespace dmRive
         uint32_t                                m_VertexCount;
         uint32_t                                m_IndexCount;
         uint32_t                                m_MixedHash;
-        uint16_t                                m_ComponentIndex;
+        uint32_t                                m_CurrentViewModelInstanceRuntime;
+        uint16_t                                m_HandleCounter;
+        uint16_t                                m_ComponentIndex; // The component type index
         uint8_t                                 m_AnimationIndex;
         uint8_t                                 m_Enabled : 1;
         uint8_t                                 m_DoRender : 1;
         uint8_t                                 m_AddedToUpdate : 1;
         uint8_t                                 m_ReHash : 1;
     };
+
+    static const uint32_t INVALID_HANDLE = 0xFFFFFFFF;
 
     // Math
     rive::Vec2D         WorldToLocal(RiveComponent* component, float x, float y);
@@ -109,11 +113,15 @@ namespace dmRive
                                                       const dmGameObject::ComponentGetPropertyParams& params, dmGameObject::PropertyDesc& out_value);
 
     // Data bindings
-    rive::ViewModelInstanceRuntime* CreateDataBinding(RiveComponent* component, const char* name);
-    void                            SetViewModelInstance(RiveComponent* component, rive::ViewModelInstanceRuntime* vmir);
+    void      DebugModelViews(RiveComponent* component);
 
-    bool SetViewModelPropertyNumber(RiveComponent* component, rive::ViewModelInstanceRuntime* vmir, const char* name, float number);
-    void DebugModelViews(RiveComponent* component);
+    // script api
+    uint32_t  CompRiveCreateViewModelInstanceRuntime(RiveComponent* component, dmhash_t name_hash);
+    bool      CompRiveSetViewModelInstanceRuntime(RiveComponent* component, uint32_t handle);
+    uint32_t  CompRiveGetViewModelInstanceRuntime(RiveComponent* component);
+    bool      CompRiveRuntimePropertyBool(RiveComponent* component, uint32_t handle, const char* name, bool value);
+    bool      CompRiveRuntimePropertyF32(RiveComponent* component, uint32_t handle, const char* name, float value);
+    bool      CompRiveRuntimePropertyColor(RiveComponent* component, uint32_t handle, const char* name, dmVMath::Vector4* color);
 }
 
 #endif //DM_COMP_RIVE_PRIVATE_H

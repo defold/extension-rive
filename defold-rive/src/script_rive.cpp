@@ -445,9 +445,12 @@ namespace dmRive
         {0, 0}
     };
 
+    extern void ScriptInitializeDataBinding(lua_State* L);
+
     void ScriptRegister(lua_State* L)
     {
         luaL_register(L, "rive", RIVE_FUNCTIONS);
+            ScriptInitializeDataBinding(L);
         lua_pop(L, 1);
     }
 }
