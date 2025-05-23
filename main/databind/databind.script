@@ -24,8 +24,6 @@ function init(self)
 		menuIsOpen = true,
 		accentColor = vmath.vector4(1,1,0,1),
 		modalCopy = "Hello Folks! This is a test of data bindings between the Rive scene and the Defold Game Engine!",
-		--test = "foo"
-		--menuIsOpen = "foo"
 	}
 	rive.databind.set_properties(self.url, self.handle, self.data)
 end
