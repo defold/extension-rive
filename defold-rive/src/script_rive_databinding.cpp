@@ -53,7 +53,14 @@ static int CreateViewModelInstanceRuntime(lua_State* L)
 
 static int DestroyViewModelInstanceRuntime(lua_State* L)
 {
-    return 1;
+    DM_LUA_STACK_CHECK(L, 0);
+
+    RiveComponent* component = 0;
+    dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
+
+    uint32_t handle = luaL_checkinteger(L, 2);
+    dmRive::CompRiveDestroyViewModelInstanceRuntime(component, handle);
+    return 0;
 }
 
 static int SetViewModelInstanceRuntime(lua_State* L)

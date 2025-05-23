@@ -155,8 +155,6 @@ uint32_t CompRiveGetViewModelInstanceRuntime(RiveComponent* component)
 
 uint32_t CompRiveCreateViewModelInstanceRuntime(RiveComponent* component, dmhash_t name_hash)
 {
-    dmLogInfo("%s", __FUNCTION__);
-
     uint32_t handle = dmRive::INVALID_HANDLE;
     rive::ViewModelInstanceRuntime* vmir = dmRive::CreateViewModelInstanceRuntimeByHash(component, name_hash);
     if (vmir)
@@ -174,6 +172,16 @@ uint32_t CompRiveCreateViewModelInstanceRuntime(RiveComponent* component, dmhash
 
     //dmRive::DebugModelViews(component);
     return handle;
+}
+
+bool CompRiveDestroyViewModelInstanceRuntime(RiveComponent* component, uint32_t handle)
+{
+    rive::ViewModelInstanceRuntime* vmir = FromHandle(component, handle);
+    CHECK_VMIR(vmir, handle);
+
+    // According to the Rive team, there is no need to free the pointer, as it belongs to runtime
+    component->m_ViewModelInstanceRuntimes.Erase(handle);
+    return true;
 }
 
 // **************************************************************************************************************

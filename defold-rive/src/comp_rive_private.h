@@ -118,6 +118,7 @@ namespace dmRive
 
     // script api
     uint32_t    CompRiveCreateViewModelInstanceRuntime(RiveComponent* component, dmhash_t name_hash);
+    bool        CompRiveDestroyViewModelInstanceRuntime(RiveComponent* component, uint32_t handle);
     bool        CompRiveSetViewModelInstanceRuntime(RiveComponent* component, uint32_t handle);
     uint32_t    CompRiveGetViewModelInstanceRuntime(RiveComponent* component);
     bool        CompRiveRuntimeSetPropertyBool(RiveComponent* component, uint32_t handle, const char* path, bool value);
