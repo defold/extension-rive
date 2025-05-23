@@ -1,0 +1,58 @@
+
+-- CREDITS:
+--  calc.riv is from user https://rive.app/@thefloridianfreak/:
+-- https://rive.app/marketplace/19344-36364-supplied-mutliplication/
+-- dynamic_modal.riv by https://rive.app/@drawsgood/:
+--   https://rive.app/marketplace/19673-37017-dynamic-modal/
+
+function init(self)
+	msg.post(".", "acquire_input_focus")
+
+	--self.url = msg.url("#progress")
+	-- self.min = 20
+	-- self.max = 80
+	-- self.current = 60
+	-- self.color = vmath.vector4(1, 1, 0, 1)
+	-- self.data = {
+	-- 	min = self.min, max = self.max, current = self.current, bar = self.color
+	-- }
+	self.url = msg.url("#modal")
+	self.handle = rive.databind.get_view_model_instance_runtime(self.url)
+
+	self.data = {
+		menuIsOpen = true,
+		accentColor = vmath.vector4(1,1,0,1),
+		modalCopy = "Hello Folks! This is a test of data bindings between the Rive scene and the Defold Game Engine!",
+	}
+	rive.databind.set_properties(self.url, self.handle, self.data)
+end
+
+function final(self)
+	-- Add finalization code here
+	-- Learn more: https://defold.com/manuals/script/
+	-- Remove this function if not needed
+end
+
+function update(self, dt)
+	-- Add update code here
+	-- Learn more: https://defold.com/manuals/script/
+	-- Remove this function if not needed
+end
+
+function on_message(self, message_id, message, sender)
+	-- Add message-handling code here
+	-- Learn more: https://defold.com/manuals/message-passing/
+	-- Remove this function if not needed
+end
+
+function on_input(self, action_id, action)
+	if not action_id or action_id == hash("touch") then
+		if action.pressed then
+			rive.pointer_down(self.url, action.x, action.y)
+		elseif action.released then
+			rive.pointer_up(self.url, action.x, action.y)
+		else
+			rive.pointer_move(self.url, action.x, action.y)
+		end
+	end
+end

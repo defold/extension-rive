@@ -25,6 +25,7 @@
 #include <dmsdk/gamesys/script.h>
 
 #include "comp_rive.h"
+#include "comp_rive_private.h"
 #include "rive_ddf.h"
 
 #include <defold/defold_graphics.h>
@@ -444,9 +445,12 @@ namespace dmRive
         {0, 0}
     };
 
+    extern void ScriptInitializeDataBinding(lua_State* L);
+
     void ScriptRegister(lua_State* L)
     {
         luaL_register(L, "rive", RIVE_FUNCTIONS);
+            ScriptInitializeDataBinding(L);
         lua_pop(L, 1);
     }
 }
