@@ -360,6 +360,7 @@ namespace dmRive
             {
                 CompRiveSetViewModelInstanceRuntime(component, component->m_CurrentViewModelInstanceRuntime);
             }
+        }
         component->m_ReHash = 1;
 
         *params.m_UserData = (uintptr_t)index;
