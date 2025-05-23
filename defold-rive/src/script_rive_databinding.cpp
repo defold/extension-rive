@@ -21,6 +21,8 @@
 #include "comp_rive.h"
 #include "comp_rive_private.h"
 
+#include <rive/data_bind/data_values/data_type.hpp>
+
 namespace dmRive
 {
 
@@ -81,54 +83,118 @@ static int GetViewModelInstanceRuntime(lua_State* L)
     return 1;
 }
 
+
+    // /*#
+    //  * Get component user data from a url.
+    //  * @note The object referenced by the url must be in the same collection as the caller.
+    //  *
+    //  * @name GetComponentFromLua
+    //  * @param L [type:lua_State*] Lua state
+    //  * @param index [type:int] index to argument (a url)
+    //  * @param component_type [type:const char*] E.g. "factoryc". The call will fail if the found component does not have the specified extension
+    //  * @param world [type:dmGameObject::HComponentWorld*] The world associated owning the component. May be 0
+    //  * @param component [type:dmGameObject::HComponent*] The component data associated with the url. May be 0
+    //  * @param url [type:dmMessage::URL*] The resolved url. May be 0
+    //  */
+    // void GetComponentFromLua(lua_State* L, int index, const char* component_type, dmGameObject::HComponentWorld* out_world, dmGameObject::HComponent* component, dmMessage::URL* url);
+
+#define CHECK_BOOLEAN(PATH, INDEX) \
+    if (!lua_isboolean(L, INDEX)) { \
+        char buffer[1024]; \
+        lua_pushvalue(L, INDEX); \
+        dmSnPrintf(buffer, sizeof(buffer), "Property '%s' is not a boolesn: '%s'", PATH, lua_tostring(L, -1)); \
+        lua_pop(L, lua_gettop(L) - top); \
+        return DM_LUA_ERROR("%s", buffer); \
+    }
+
 static int SetProperties(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
+    int top = lua_gettop(L);
 
+    dmMessage::URL url;
     RiveComponent* component = 0;
-    dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
+    dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, &url);
 
     uint32_t handle = luaL_checkinteger(L, 2);
-
-    printf("SETPROPERTIES:\n");
 
     luaL_checktype(L, 3, LUA_TTABLE);
     lua_pushvalue(L, 3);
     lua_pushnil(L);
     while (lua_next(L, -2)) {
+        lua_pushvalue(L, -2); // Add a duplicate of the key, as we do a lua_tostring on it
+
         // Note: This is a "path", as it may refer to a property within a nested structure of view model instance runtimes
-        const char* path = lua_tostring(L, -2);
-        printf("PATH: '%s'\n", path);
+        const char* path = lua_tostring(L, -1); // the key
+
+        #define CHECK_RESULT(RESULT, URL, PATH, INDEX) \
+            if (!result) { \
+                char buffer[1024]; \
+                lua_pushvalue(L, INDEX); \
+                dmSnPrintf(buffer, sizeof(buffer), "%s has no property with path '%s' that accepts type '%s' (value='%s')", dmScript::UrlToString(URL, buffer, sizeof(buffer)), PATH, lua_typename(L, lua_type(L, -1)), lua_tostring(L, -1)); \
+                lua_pop(L, lua_gettop(L) - top); \
+                return DM_LUA_ERROR("%s", buffer); \
+            }
 
         dmVMath::Vector4* color = 0;
-        if ((color = dmScript::ToVector4(L, -1)))
+
+        if (lua_isnumber(L, -2))
         {
-            printf("  color: %.2f %.2f %.2f %.2f\n", color->getX(), color->getY(), color->getZ(), color->getW());
-            dmRive::CompRiveRuntimePropertyColor(component, handle, path, color);
+            float value = lua_tonumber(L, -2);
+            bool result = dmRive::CompRiveRuntimeSetPropertyF32(component, handle, path, value);
+            CHECK_RESULT(result, &url, path, -2);
         }
-        else if (lua_isnumber(L, -1))
+        else if ((color = dmScript::ToVector4(L, -2)))
         {
-            float value = lua_tonumber(L, -1);
-            dmRive::CompRiveRuntimePropertyF32(component, handle, path, value);
-        }
-        else if (lua_isboolean(L, -1))
-        {
-            bool value = lua_toboolean(L, -1);
-            dmRive::CompRiveRuntimePropertyBool(component, handle, path, value);
-        }
-        else if (lua_isstring(L, -1))
-        {
-            const char* value = lua_tostring(L, -1);
-            dmRive::CompRiveRuntimePropertyString(component, handle, path, value);
+            bool result = dmRive::CompRiveRuntimeSetPropertyColor(component, handle, path, color);
+            CHECK_RESULT(result, &url, path, -2);
         }
         else
         {
-            // In Lua, we cannot easily represent Rive types: enum, list and trigger
-            // See data_type.hpp
+            // In Lua, we cannot represent all Rive types: enum, list, trigger, viewModel
+            // So we need to do our own checking
+            rive::DataType data_type = rive::DataType::none;
+            bool result = dmRive::GetPropertyDataType(component, handle, path, &data_type);
+            CHECK_RESULT(result, &url, path, -2);
 
+            if (data_type == rive::DataType::string)
+            {
+                const char* value = luaL_checkstring(L, -2);
+                bool result = dmRive::CompRiveRuntimeSetPropertyString(component, handle, path, value);
+                CHECK_RESULT(result, &url, path, -2);
+            }
+            else if (data_type == rive::DataType::boolean)
+            {
+                CHECK_BOOLEAN(path, -2);
+                bool value = lua_toboolean(L, -2);
+                bool result = dmRive::CompRiveRuntimeSetPropertyBool(component, handle, path, value);
+                CHECK_RESULT(result, &url, path, -2);
+            }
+            else if (data_type == rive::DataType::trigger)
+            {
+                CHECK_BOOLEAN(path, -2);
+                bool value = lua_toboolean(L, -2);
+                // Trigger doesn't really use a value.
+                // But no value would mean nil, and nil would mean it's not in the table to begin with.
+                // So we use a bool as the "dummy" value!
+                // However, it would feel strange to trigger() on a false value :/
+                if (value)
+                {
+                    bool result = dmRive::CompRiveRuntimeSetPropertyTrigger(component, handle, path);
+                    CHECK_RESULT(result, &url, path, -2);
+                }
+            }
+            else if (data_type == rive::DataType::enumType)
+            {
+                const char* value = luaL_checkstring(L, -2);
+                result = dmRive::CompRiveRuntimeSetPropertyEnum(component, handle, path, value);
+                CHECK_RESULT(result, &url, path, -2);
+            }
         }
 
-        lua_pop(L, 1);
+        #undef CHECK_RESULT
+
+        lua_pop(L, 2);
     }
     lua_pop(L, 1);
 

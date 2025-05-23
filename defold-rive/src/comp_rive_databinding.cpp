@@ -25,6 +25,7 @@
 #include <rive/viewmodel/runtime/viewmodel_instance_runtime.hpp>
 #include <rive/viewmodel/runtime/viewmodel_instance_value_runtime.hpp>
 #include <rive/viewmodel/runtime/viewmodel_instance_number_runtime.hpp>
+#include <rive/data_bind/data_values/data_type.hpp>
 
 //debug
 #include <rive/viewmodel/runtime/viewmodel_runtime.hpp>
@@ -32,6 +33,24 @@
 
 namespace dmRive
 {
+
+#define CHECK_VMIR(VMIR, HANDLE) \
+    if (!(VMIR)) { \
+        dmLogError("No viewmodel runtime instance with handle '%u'", (HANDLE)); \
+        return false; \
+    }
+
+#define CHECK_PROP_RESULT(PROP, TYPE, PATH) \
+    if (!(PROP)) { \
+        dmLogError("No property of type '%s', with path '%s'", (TYPE), (PATH)); \
+        return false; \
+    }
+
+static rive::ViewModelInstanceRuntime* FromHandle(RiveComponent* component, uint32_t handle)
+{
+    rive::ViewModelInstanceRuntime** pvmir = component->m_ViewModelInstanceRuntimes.Get(handle);
+    return pvmir ? *pvmir : 0;
+}
 
 static rive::ViewModelRuntime* FindViewModelRuntimeByHash(RiveComponent* component, dmhash_t name_hash)
 {
@@ -103,22 +122,26 @@ void DebugModelViews(RiveComponent* component)
     }
 }
 
-// Scripting api + helpers
-
-static rive::ViewModelInstanceRuntime* FromHandle(RiveComponent* component, uint32_t handle)
+static void PrintModelViewInstanceRuntime(rive::ViewModelInstanceRuntime* vmir)
 {
-    rive::ViewModelInstanceRuntime** pvmir = component->m_ViewModelInstanceRuntimes.Get(handle);
-    return pvmir ? *pvmir : 0;
+
 }
+
+bool PrintModelViewInstanceRuntime(RiveComponent* component, uint32_t handle)
+{
+    rive::ViewModelInstanceRuntime* vmir = FromHandle(component, handle);
+    CHECK_VMIR(vmir, handle);
+    PrintModelViewInstanceRuntime(vmir);
+    return true;
+}
+
+// Scripting api + helpers
 
 bool CompRiveSetViewModelInstanceRuntime(RiveComponent* component, uint32_t handle)
 {
-    dmLogInfo("Setting default ViewModelInstance");
+    dmLogInfo("Setting ViewModelInstanceRuntime");
     rive::ViewModelInstanceRuntime* vmir = FromHandle(component, handle);
-    if (!vmir)
-    {
-        return false;
-    }
+    CHECK_VMIR(vmir, handle);
 
     dmRive::SetViewModelInstanceRuntime(component, vmir);
     component->m_CurrentViewModelInstanceRuntime = handle;
@@ -143,13 +166,6 @@ uint32_t CompRiveCreateViewModelInstanceRuntime(RiveComponent* component, dmhash
         if (component->m_ViewModelInstanceRuntimes.Full())
             component->m_ViewModelInstanceRuntimes.OffsetCapacity(4);
         component->m_ViewModelInstanceRuntimes.Put(handle, vmir);
-
-        // test
-        //dmLogInfo("Setting number ViewModelInstance");
-        //dmRive::SetViewModelPropertyNumber(component, vmir, "1st_Num", 10);
-        // dmRive::SetViewModelPropertyNumber(component, vmir, "min", -30);
-        // dmRive::SetViewModelPropertyNumber(component, vmir, "max", 150);
-        // dmRive::SetViewModelPropertyNumber(component, vmir, "current", 75);
     }
     else
     {
@@ -160,35 +176,81 @@ uint32_t CompRiveCreateViewModelInstanceRuntime(RiveComponent* component, dmhash
     return handle;
 }
 
+// **************************************************************************************************************
+// PROPERTIES
 
-bool CompRiveRuntimePropertyBool(RiveComponent* component, uint32_t handle, const char* path, bool value)
+// NOTE: This is incredibly inefficient, but in the light of a missing accessor function,
+// I'll keep it this way, as it's unclear when the "properies()" result is updated.
+// I don't wish to store info thay may grow stale. /MAWE
+static rive::DataType GetDataType(rive::ViewModelInstanceRuntime* vmir, const char* path)
+{
+    // We check the rare occurrences first, as we can do correct type checking for the Lua types
+    // in the scripting api
+    rive::ViewModelInstanceTriggerRuntime* prop_trigger = vmir->propertyTrigger(path);
+    if (prop_trigger)
+        return rive::DataType::trigger;
+
+    rive::ViewModelInstanceEnumRuntime* prop_enum = vmir->propertyEnum(path);
+    if (prop_enum)
+        return rive::DataType::enumType;
+
+    rive::ViewModelInstanceRuntime* prop_vmir = vmir->propertyViewModel(path);
+    if (prop_vmir)
+        return rive::DataType::viewModel;
+
+    rive::ViewModelInstanceListRuntime* prop_list = vmir->propertyList(path);
+    if (prop_list)
+        return rive::DataType::list;
+
+    rive::ViewModelInstanceColorRuntime* prop_color = vmir->propertyColor(path);
+    if (prop_color)
+        return rive::DataType::color;
+
+    rive::ViewModelInstanceNumberRuntime* prop_number = vmir->propertyNumber(path);
+    if (prop_number)
+        return rive::DataType::number;
+
+    rive::ViewModelInstanceStringRuntime* prop_string = vmir->propertyString(path);
+    if (prop_string)
+        return rive::DataType::string;
+
+    rive::ViewModelInstanceBooleanRuntime* prop_boolean = vmir->propertyBoolean(path);
+    if (prop_boolean)
+        return rive::DataType::boolean;
+
+    return rive::DataType::none;
+};
+
+bool GetPropertyDataType(RiveComponent* component, uint32_t handle, const char* path, rive::DataType* type)
 {
     rive::ViewModelInstanceRuntime* vmir = FromHandle(component, handle);
     if (!vmir)
     {
         return false;
     }
+
+    *type = GetDataType(vmir, path);
+    return *type != rive::DataType::none;
+}
+
+bool CompRiveRuntimeSetPropertyBool(RiveComponent* component, uint32_t handle, const char* path, bool value)
+{
+    rive::ViewModelInstanceRuntime* vmir = FromHandle(component, handle);
+    CHECK_VMIR(vmir, handle);
 
     rive::ViewModelInstanceBooleanRuntime* prop = vmir->propertyBoolean(path);
-    if (!prop)
-    {
-        dmLogError("No property of type number, with path '%s'", path);
-        return false;
-    }
-
+    CHECK_PROP_RESULT(prop, "boolean", path);
     prop->value(value);
     return true;
 }
 
-bool CompRiveRuntimePropertyF32(RiveComponent* component, uint32_t handle, const char* path, float value)
+bool CompRiveRuntimeSetPropertyF32(RiveComponent* component, uint32_t handle, const char* path, float value)
 {
     rive::ViewModelInstanceRuntime* vmir = FromHandle(component, handle);
-    if (!vmir)
-    {
-        return false;
-    }
+    CHECK_VMIR(vmir, handle);
 
     rive::ViewModelInstanceNumberRuntime* prop = vmir->propertyNumber(path);
+    CHECK_PROP_RESULT(prop, "number", path);
     if (!prop)
     {
         dmLogError("No property of type number, with path '%s'", path);
@@ -199,42 +261,54 @@ bool CompRiveRuntimePropertyF32(RiveComponent* component, uint32_t handle, const
     return true;
 }
 
-bool CompRiveRuntimePropertyColor(RiveComponent* component, uint32_t handle, const char* path, dmVMath::Vector4* color)
+bool CompRiveRuntimeSetPropertyColor(RiveComponent* component, uint32_t handle, const char* path, dmVMath::Vector4* color)
 {
     rive::ViewModelInstanceRuntime* vmir = FromHandle(component, handle);
-    if (!vmir)
-    {
-        return false;
-    }
+    CHECK_VMIR(vmir, handle);
 
     rive::ViewModelInstanceColorRuntime* prop = vmir->propertyColor(path);
-    if (!prop)
-    {
-        dmLogError("No property of type number, with path '%s'", path);
-        return false;
-    }
+    CHECK_PROP_RESULT(prop, "color", path);
 
     prop->argb(255 * color->getW(), 255 * color->getX(), 255 * color->getY(), 255 * color->getZ());
     return true;
 }
 
-bool CompRiveRuntimePropertyString(RiveComponent* component, uint32_t handle, const char* path, const char* text)
+bool CompRiveRuntimeSetPropertyString(RiveComponent* component, uint32_t handle, const char* path, const char* value)
 {
     rive::ViewModelInstanceRuntime* vmir = FromHandle(component, handle);
-    if (!vmir)
-    {
-        return false;
-    }
+    CHECK_VMIR(vmir, handle);
 
     rive::ViewModelInstanceStringRuntime* prop = vmir->propertyString(path);
-    if (!prop)
-    {
-        dmLogError("No property of type number, with path '%s'", path);
-        return false;
-    }
+    CHECK_PROP_RESULT(prop, "string", path);
 
-    prop->value(text);
+    prop->value(value);
     return true;
+}
+
+bool CompRiveRuntimeSetPropertyEnum(RiveComponent* component, uint32_t handle, const char* path, const char* value)
+{
+    rive::ViewModelInstanceRuntime* vmir = FromHandle(component, handle);
+    CHECK_VMIR(vmir, handle);
+
+    rive::ViewModelInstanceEnumRuntime* prop = vmir->propertyEnum(path);
+    CHECK_PROP_RESULT(prop, "enum", path);
+
+    prop->value(value);
+    return true;
+
+}
+
+bool CompRiveRuntimeSetPropertyTrigger(RiveComponent* component, uint32_t handle, const char* path)
+{
+    rive::ViewModelInstanceRuntime* vmir = FromHandle(component, handle);
+    CHECK_VMIR(vmir, handle);
+
+    rive::ViewModelInstanceTriggerRuntime* prop = vmir->propertyTrigger(path);
+    CHECK_PROP_RESULT(prop, "trigger", path);
+
+    prop->trigger();
+    return true;
+
 }
 
 } // namespace

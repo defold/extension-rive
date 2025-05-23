@@ -38,6 +38,7 @@ namespace rive
     class StateMachineInstance;
     class ViewModelInstance;
     class ViewModelInstanceRuntime;
+    enum class DataType : unsigned int;
 }
 
 namespace dmGameObject
@@ -116,13 +117,17 @@ namespace dmRive
     void      DebugModelViews(RiveComponent* component);
 
     // script api
-    uint32_t  CompRiveCreateViewModelInstanceRuntime(RiveComponent* component, dmhash_t name_hash);
-    bool      CompRiveSetViewModelInstanceRuntime(RiveComponent* component, uint32_t handle);
-    uint32_t  CompRiveGetViewModelInstanceRuntime(RiveComponent* component);
-    bool      CompRiveRuntimePropertyBool(RiveComponent* component, uint32_t handle, const char* path, bool value);
-    bool      CompRiveRuntimePropertyF32(RiveComponent* component, uint32_t handle, const char* path, float value);
-    bool      CompRiveRuntimePropertyColor(RiveComponent* component, uint32_t handle, const char* path, dmVMath::Vector4* color);
-    bool      CompRiveRuntimePropertyString(RiveComponent* component, uint32_t handle, const char* path, const char* text);
+    uint32_t    CompRiveCreateViewModelInstanceRuntime(RiveComponent* component, dmhash_t name_hash);
+    bool        CompRiveSetViewModelInstanceRuntime(RiveComponent* component, uint32_t handle);
+    uint32_t    CompRiveGetViewModelInstanceRuntime(RiveComponent* component);
+    bool        CompRiveRuntimeSetPropertyBool(RiveComponent* component, uint32_t handle, const char* path, bool value);
+    bool        CompRiveRuntimeSetPropertyF32(RiveComponent* component, uint32_t handle, const char* path, float value);
+    bool        CompRiveRuntimeSetPropertyColor(RiveComponent* component, uint32_t handle, const char* path, dmVMath::Vector4* color);
+    bool        CompRiveRuntimeSetPropertyString(RiveComponent* component, uint32_t handle, const char* path, const char* value);
+    bool        CompRiveRuntimeSetPropertyEnum(RiveComponent* component, uint32_t handle, const char* path, const char* value);
+    bool        CompRiveRuntimeSetPropertyTrigger(RiveComponent* component, uint32_t handle, const char* path);
+
+    bool        GetPropertyDataType(RiveComponent* component, uint32_t handle, const char* path, rive::DataType* type);
 }
 
 #endif //DM_COMP_RIVE_PRIVATE_H
