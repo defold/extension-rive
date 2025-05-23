@@ -18,7 +18,6 @@ function init(self)
 	-- }
 	self.url = msg.url("#modal")
 	self.handle = rive.databind.get_view_model_instance_runtime(self.url)
-	print("URL:", self.url, "handle", self.handle)
 
 	self.data = {
 		menuIsOpen = true,

@@ -220,7 +220,7 @@ static const luaL_reg RIVE_DATABIND_FUNCTIONS[] =
     {"set_view_model_instance_runtime",     SetViewModelInstanceRuntime},
     {"get_view_model_instance_runtime",     GetViewModelInstanceRuntime},
     {"set_properties",                      SetProperties},
-    {"set_listener",                        SetListener},
+    //{"set_listener",                        SetListener},
     {0, 0}
 };
 
