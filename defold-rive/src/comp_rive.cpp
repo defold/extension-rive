@@ -148,6 +148,7 @@ namespace dmRive
         dmArray<dmRender::HNamedConstantBuffer> m_RenderConstants; // 1:1 mapping with the render objects
         dmGraphics::HVertexBuffer               m_BlitToBackbufferVertexBuffer;
         dmGraphics::HVertexDeclaration          m_VertexDeclaration;
+        bool                                    m_DidWork;         // did we get any batch workload ?
     };
 
     dmGameObject::CreateResult CompRiveNewWorld(const dmGameObject::ComponentNewWorldParams& params)
@@ -160,6 +161,7 @@ namespace dmRive
         world->m_RenderObjects.SetCapacity(context->m_MaxInstanceCount);
         world->m_RenderConstants.SetCapacity(context->m_MaxInstanceCount);
         world->m_RenderConstants.SetSize(context->m_MaxInstanceCount);
+        world->m_DidWork = false;
 
         float bottom = 0.0f;
         float top    = 1.0f;
@@ -866,16 +868,21 @@ namespace dmRive
             case dmRender::RENDER_LIST_OPERATION_BEGIN:
             {
                 world->m_RenderObjects.SetSize(0);
+                world->m_DidWork = false;
                 break;
             }
             case dmRender::RENDER_LIST_OPERATION_BATCH:
             {
                 RenderBatch(world, params.m_Context, params.m_Buf, params.m_Begin, params.m_End);
+                world->m_DidWork = true;
                 break;
             }
             case dmRender::RENDER_LIST_OPERATION_END:
             {
-                RenderBatchEnd(world, params.m_Context);
+                if (world->m_DidWork)
+                {
+                    RenderBatchEnd(world, params.m_Context);
+                }
                 break;
             }
             default:
