@@ -21,3 +21,4 @@ bob.jar
 *.keystore*
 manifest.*
 /main/ignore
+.src

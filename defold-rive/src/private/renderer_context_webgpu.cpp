@@ -129,8 +129,12 @@ namespace dmRive
                                                       uint32_t mipLevelCount,
                                                       const uint8_t imageDataRGBA[]) override
         {
-            // TODO
-            return nullptr;
+            if (mipLevelCount < 1)
+                mipLevelCount = 1;
+
+            auto renderContextImpl = m_RenderContext->static_impl_cast<rive::gpu::RenderContextWebGPUImpl>();
+            auto texture = renderContextImpl->makeImageTexture(width, height, mipLevelCount, imageDataRGBA);
+            return texture;
         }
 
     private:
