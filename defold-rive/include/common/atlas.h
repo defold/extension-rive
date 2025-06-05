@@ -43,16 +43,23 @@ namespace dmRive {
         Region*                 m_Regions;
     };
 
-
     class AtlasNameResolver : public rive::FileAssetLoader {
     public:
-        AtlasNameResolver(HRenderContext context);
+        AtlasNameResolver(dmResource::HFactory factory, HRenderContext context);
 
         bool loadContents(rive::FileAsset& asset, rive::Span<const uint8_t> inBandBytes, rive::Factory* factory);
 
+        dmArray<rive::FileAsset*>& GetAssets() { return m_Assets; }
+
     private:
-        HRenderContext m_RiveRenderContext;
+        HRenderContext       m_RiveRenderContext;
+        dmResource::HFactory m_Factory;
+
+        dmArray<rive::FileAsset*> m_Assets;
     };
+
+    // Gets the resource as a Raw payload, and loads an image from it
+    rive::rcp<rive::RenderImage> LoadImageFromFactory(dmResource::HFactory factory, HRenderContext context, const char* name);
 
     Atlas*      CreateAtlas(const dmGameSystemDDF::TextureSet* texture_set_ddf);
     void        DestroyAtlas(Atlas* atlas);

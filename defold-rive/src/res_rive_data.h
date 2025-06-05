@@ -21,6 +21,7 @@
 namespace rive
 {
     class File;
+    class FileAsset;
 }
 
 namespace dmRive
@@ -40,7 +41,10 @@ namespace dmRive
         HRenderContext                          m_RiveRenderContext;
         std::unique_ptr<rive::ArtboardInstance> m_ArtboardDefault;
         dmArray<RiveArtboardIdList*>            m_ArtboardIdLists;
+        dmArray<rive::FileAsset*>               m_FileAssets;       // For runtime swapping
     };
+
+    dmResource::Result ResRiveDataSetAsset(dmResource::HFactory factory, RiveSceneData* resource, const char* asset_name, const char* path);
 }
 
 #endif // DM_RES_RIVE_DATA_H

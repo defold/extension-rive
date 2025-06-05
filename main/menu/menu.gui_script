@@ -17,6 +17,7 @@ local BUTTONS = {
 	{ id = "ghost", text = "Ghost UI" },
 	{ id = "layout", text = "Layouts" },
 	{ id = "egg", text = "Feathering" },
+	{ id = "outofband", text = "Out-of-band" },
  }
 local COLUMNS = 3
 local WIDTH = 220

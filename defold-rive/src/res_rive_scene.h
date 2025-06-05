@@ -22,12 +22,13 @@
 namespace dmRive
 {
     struct Atlas;
+    struct RiveSceneData;
 
     struct RiveSceneResource
     {
         dmRiveDDF::RiveSceneDesc*           m_DDF;
         dmGameSystem::TextureSetResource*   m_TextureSet;   // The atlas
-        void*                               m_Scene; // The rive::File* ptr
+        RiveSceneData*                      m_Scene;
         Atlas*                              m_Atlas;
         ShaderResources*                    m_Shaders;
     };
