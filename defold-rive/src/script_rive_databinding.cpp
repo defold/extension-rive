@@ -90,21 +90,6 @@ static int GetViewModelInstanceRuntime(lua_State* L)
     return 1;
 }
 
-
-    // /*#
-    //  * Get component user data from a url.
-    //  * @note The object referenced by the url must be in the same collection as the caller.
-    //  *
-    //  * @name GetComponentFromLua
-    //  * @param L [type:lua_State*] Lua state
-    //  * @param index [type:int] index to argument (a url)
-    //  * @param component_type [type:const char*] E.g. "factoryc". The call will fail if the found component does not have the specified extension
-    //  * @param world [type:dmGameObject::HComponentWorld*] The world associated owning the component. May be 0
-    //  * @param component [type:dmGameObject::HComponent*] The component data associated with the url. May be 0
-    //  * @param url [type:dmMessage::URL*] The resolved url. May be 0
-    //  */
-    // void GetComponentFromLua(lua_State* L, int index, const char* component_type, dmGameObject::HComponentWorld* out_world, dmGameObject::HComponent* component, dmMessage::URL* url);
-
 #define CHECK_BOOLEAN(PATH, INDEX) \
     if (!lua_isboolean(L, INDEX)) { \
         char buffer[1024]; \
@@ -220,7 +205,6 @@ static const luaL_reg RIVE_DATABIND_FUNCTIONS[] =
     {"set_view_model_instance_runtime",     SetViewModelInstanceRuntime},
     {"get_view_model_instance_runtime",     GetViewModelInstanceRuntime},
     {"set_properties",                      SetProperties},
-    //{"set_listener",                        SetListener},
     {0, 0}
 };
 
