@@ -29,7 +29,7 @@ max_debug_vertices = 50000
 opengl_version_hint = 0
 
 [collection_proxy]
-max_count = 16
+max_count = 32
 
 [shader]
 output_spirv = 1
