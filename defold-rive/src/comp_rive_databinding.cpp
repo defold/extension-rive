@@ -109,7 +109,7 @@ void DebugModelViews(RiveComponent* component)
         for (size_t j = 0; j < num_properties; ++j)
         {
             rive::PropertyData& property = pdatas[j];
-            printf("  DATA: %d '%s'\n", property.type, property.name.c_str());
+            printf("  DATA: %d '%s'\n", (int)property.type, property.name.c_str());
         }
 
         size_t num_instances = vmr->instanceCount();
