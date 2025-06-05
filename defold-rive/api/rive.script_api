@@ -309,7 +309,7 @@
 
           - name: name
             type: string, hash
-            desc: The name of the view model to instanciate
+            desc: The name of the view model to instantiate
 
         return:
           - name: handle

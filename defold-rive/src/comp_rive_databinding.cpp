@@ -74,8 +74,6 @@ static rive::ViewModelInstanceRuntime* CreateViewModelInstanceRuntimeByHash(Rive
     rive::File* file = data->m_File;
 
     rive::ViewModelRuntime* vmr = name_hash != 0 ? FindViewModelRuntimeByHash(component, name_hash) : file->viewModelByIndex(0);
-
-    printf("CreateViewModelInstanceRuntime: selected ViewModelRuntime '%s'\n", vmr->name().c_str());
     return vmr->createInstance();
 }
 
@@ -83,12 +81,10 @@ void SetViewModelInstanceRuntime(RiveComponent* component, rive::ViewModelInstan
 {
     if (component->m_StateMachineInstance)
     {
-        printf("SetViewModelInstance:  m_StateMachineInstance\n");
         component->m_StateMachineInstance->bindViewModelInstance(vmir->instance());
     }
     else
     {
-        printf("SetViewModelInstance: m_ArtboardInstance\n");
         component->m_ArtboardInstance->bindViewModelInstance(vmir->instance());
     }
 }
@@ -102,37 +98,24 @@ void DebugModelViews(RiveComponent* component)
     {
         rive::ViewModelRuntime* vmr = data->m_File->viewModelByIndex(i);
 
-        printf("NAME: '%s'\n", vmr->name().c_str());
+        dmLogInfo("NAME: '%s'\n", vmr->name().c_str());
 
         size_t num_properties = vmr->propertyCount();
         std::vector<rive::PropertyData> pdatas = vmr->properties();
         for (size_t j = 0; j < num_properties; ++j)
         {
             rive::PropertyData& property = pdatas[j];
-            printf("  DATA: %d '%s'\n", (int)property.type, property.name.c_str());
+            dmLogInfo("  DATA: %d '%s'\n", (int)property.type, property.name.c_str());
         }
 
         size_t num_instances = vmr->instanceCount();
-        printf("  #instances: %u\n", (uint32_t)num_instances);
+        dmLogInfo("  #instances: %u\n", (uint32_t)num_instances);
         std::vector<std::string> names = vmr->instanceNames();
         for (size_t j = 0; j < names.size(); ++j)
         {
-            printf("  INST: '%s'\n", names[j].c_str());
+            dmLogInfo("  INST: '%s'\n", names[j].c_str());
         }
     }
-}
-
-static void PrintModelViewInstanceRuntime(rive::ViewModelInstanceRuntime* vmir)
-{
-
-}
-
-bool PrintModelViewInstanceRuntime(RiveComponent* component, uint32_t handle)
-{
-    rive::ViewModelInstanceRuntime* vmir = FromHandle(component, handle);
-    CHECK_VMIR(vmir, handle);
-    PrintModelViewInstanceRuntime(vmir);
-    return true;
 }
 
 // Scripting api + helpers
