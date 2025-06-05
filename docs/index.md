@@ -342,6 +342,3 @@ Note! You need to export all the names from within Rive to use these functions:
 
 ## Source code
 The source code is available on [GitHub](https://github.com/defold/extension-rive)
-
-
-## API reference
