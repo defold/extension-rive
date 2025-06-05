@@ -251,7 +251,7 @@ namespace dmRive
 
     rive::rcp<rive::RenderImage> CreateRiveRenderImage(HRenderContext context, void* bytes, uint32_t byte_count)
     {
-        dmImage::HImage img          = dmImage::NewImage(bytes, byte_count, false);
+        dmImage::HImage img          = dmImage::NewImage(bytes, byte_count, true);
         DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
 
         rive::rcp<rive::gpu::Texture> texture;
