@@ -222,7 +222,6 @@ namespace dmRive {
 
         void* resource;
         uint32_t resource_size;
-        //dmResource::Result r = dmResource::Get(factory, path_buffer, &resource);
         dmResource::Result r = dmResource::GetRaw(factory, path_buffer, &resource, &resource_size);
         if (dmResource::RESULT_OK != r)
         {
@@ -254,7 +253,6 @@ namespace dmRive {
         m_Assets.Push(&_asset);
 
         bool out_of_band = inBandBytes.size() == 0;
-            if (inBandBytes.size() == 0) // out-of-band asset;
         if (_asset.is<rive::ImageAsset>())
         {
             rive::ImageAsset* asset = _asset.as<rive::ImageAsset>();

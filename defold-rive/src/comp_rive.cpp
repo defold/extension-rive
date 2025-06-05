@@ -237,7 +237,8 @@ namespace dmRive
         return m->m_Material;
     }
 
-    static inline RiveSceneData* GetRiveResource(const RiveComponent* component, const RiveModelResource* resource) {
+    static inline RiveSceneData* GetRiveResource(const RiveComponent* component, const RiveModelResource* resource)
+    {
         (void)component;
         return resource->m_Scene->m_Scene;
     }
