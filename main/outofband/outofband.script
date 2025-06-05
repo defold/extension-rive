@@ -4,15 +4,29 @@
 
 
 
+local function swap_assets(self)
+	rive.riv_swap_asset("/main/outofband/walle/walle.rivc",
+						"eve.png",
+						"/main/outofband/walle/eve.png")
+end
 
 function init(self)
-	liveupdate.add_mount("files", ".", 10, function ()
-		print("LU: mounted file provider!")
+	local mount_name = "files"
+	local mount_found = false
+	for _,mount in pairs(liveupdate.get_mounts()) do
+		if mount.name == mount_name then
+			mount_found = true
+		end
+	end
 
-		rive.riv_swap_asset("/main/outofband/walle/walle.rivc",
-							"eve.png",
-							"/main/outofband/walle/eve.png")
-	end)
+	if mount_found then
+		swap_assets(self)
+	else
+		liveupdate.add_mount(mount_name, ".", 10, function ()
+			print("LU: mounted file provider!")
+			swap_assets(self)
+		end)
+	end
 end
 
 function final(self)

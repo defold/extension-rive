@@ -18,6 +18,7 @@ package = com.defold.extensionrive
 [project]
 title = extension-rive
 bundle_exclude_resources = utils
+custom_resources = /main/outofband/walle
 dependencies#0 = https://github.com/andsve/dirtylarry/archive/master.zip
 
 [library]
