@@ -1,13 +1,9 @@
-
-
-
-
-
-
 local function swap_assets(self)
-	rive.riv_swap_asset("/main/outofband/walle/walle.rivc",
-						"eve.png",
-						"/main/outofband/walle/eve.png")
+	local url = "go_rive#rivemodel"
+	local rivc = go.get(url, "rive_file")
+	rive.riv_swap_asset(rivc, "eve.png", "/main/outofband/walle/eve.png")
+	-- no idea why they named it jpg
+	rive.riv_swap_asset(rivc, "walle.jpg", "/main/outofband/walle/walle.png")
 end
 
 function init(self)

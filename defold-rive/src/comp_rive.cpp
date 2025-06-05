@@ -67,7 +67,7 @@
 #include <dmsdk/gamesys/resources/res_meshset.h>
 #include <dmsdk/gamesys/resources/res_animationset.h>
 #include <dmsdk/gamesys/resources/res_textureset.h>
-
+#include <dmsdk/gamesys/resources/res_material.h>
 
 // Not in dmSDK yet
 namespace dmScript
@@ -111,6 +111,7 @@ namespace dmRive
     static const dmhash_t PROP_PLAYBACK_RATE      = dmHashString64("playback_rate");
     static const dmhash_t PROP_MATERIAL           = dmHashString64("material");
     static const dmhash_t MATERIAL_EXT_HASH       = dmHashString64("materialc");
+    static const dmhash_t PROP_RIVE_FILE          = dmHashString64("rive_file");
 
     static float g_DisplayFactor = 0.0f;
     static float g_OriginalWindowWidth = 0.0f;
@@ -225,8 +226,20 @@ namespace dmRive
         return 0x0;
     }
 
-    static inline dmRender::HMaterial GetMaterial(const RiveComponent* component, const RiveModelResource* resource) {
-        return component->m_Material ? component->m_Material : resource->m_Material->m_Material;
+    static inline dmGameSystem::MaterialResource* GetMaterialResource(const RiveComponent* component, const RiveModelResource* resource)
+    {
+        return component->m_Material ? component->m_Material : resource->m_Material;
+    }
+
+    static inline dmRender::HMaterial GetMaterial(const RiveComponent* component, const RiveModelResource* resource)
+    {
+        dmGameSystem::MaterialResource* m = GetMaterialResource(component, resource);
+        return m->m_Material;
+    }
+
+    static inline RiveSceneData* GetRiveResource(const RiveComponent* component, const RiveModelResource* resource) {
+        (void)component;
+        return resource->m_Scene->m_Scene;
     }
 
     static void ReHash(RiveComponent* component)
@@ -1288,9 +1301,16 @@ namespace dmRive
         }
         else if (params.m_PropertyId == PROP_MATERIAL)
         {
-            dmRender::HMaterial material = GetMaterial(component, component->m_Resource);
-            return dmGameSystem::GetResourceProperty(context->m_Factory, material, out_value);
-        } else {
+            dmGameSystem::MaterialResource* resource = GetMaterialResource(component, component->m_Resource);
+            return dmGameSystem::GetResourceProperty(context->m_Factory, resource, out_value);
+        }
+        else if (params.m_PropertyId == PROP_RIVE_FILE)
+        {
+            RiveSceneData* resource = GetRiveResource(component, component->m_Resource);
+            return dmGameSystem::GetResourceProperty(context->m_Factory, resource, out_value);
+        }
+        else
+        {
             if (component->m_StateMachineInstance)
             {
                 int index = FindStateMachineInputIndex(component, params.m_PropertyId);

@@ -30,6 +30,11 @@ namespace rive
     class Bone;
 }
 
+namespace dmGameSystem
+{
+    struct MaterialResource;
+}
+
 namespace dmRive
 {
     static const char* RIVE_MODEL_EXT = "rivemodelc";
@@ -44,9 +49,9 @@ namespace dmRive
         dmTransform::Transform                  m_Transform;
         dmVMath::Matrix4                        m_World;
         RiveModelResource*                      m_Resource;
+        dmGameSystem::MaterialResource*         m_Material;
         dmMessage::URL                          m_Listener;
         dmGameSystem::HComponentRenderConstants m_RenderConstants;
-        dmRender::HMaterial                     m_Material;
         dmScript::LuaCallbackInfo*              m_Callback;
         uint32_t                                m_CallbackId;
         rive::Mat2D                             m_InverseRendererTransform;

@@ -9,7 +9,7 @@ embedded_instances {
   ""
 }
 embedded_instances {
-  id: "go1"
+  id: "go_rive"
   data: "embedded_components {\n"
   "  id: \"rivemodel\"\n"
   "  type: \"rivemodel\"\n"

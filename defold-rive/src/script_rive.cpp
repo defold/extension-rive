@@ -420,13 +420,13 @@ namespace dmRive
     {
         DM_LUA_STACK_CHECK(L, 1);
 
-        const char* rivc_path       = luaL_checkstring(L, 1); // .rivc
+        dmhash_t rivc_path_hash     = dmScript::CheckHashOrString(L, 1); // path to .rivc
         const char* riv_asset_name  = luaL_checkstring(L, 2); // Name of asset inside the .riv file
         const char* new_asset_path  = luaL_checkstring(L, 3); // path of asset to replace with
 
         // Temporarily get a reference to the file
         dmRive::RiveSceneData* resource;
-        dmResource::Result r = dmResource::Get(g_Factory, rivc_path, (void**)&resource);
+        dmResource::Result r = dmResource::Get(g_Factory, rivc_path_hash, (void**)&resource);
         if (dmResource::RESULT_OK != r)
         {
             lua_pushboolean(L, false);
