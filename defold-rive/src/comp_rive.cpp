@@ -363,7 +363,7 @@ namespace dmRive
             }
         }
 
-        bool auto_binding = true;
+        bool auto_binding = false;
         const char* view_model_name = 0;
 
         component->m_CurrentViewModelInstanceRuntime = 0xFFFFFFFF;

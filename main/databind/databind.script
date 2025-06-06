@@ -8,16 +8,13 @@
 function init(self)
 	msg.post(".", "acquire_input_focus")
 
-	--self.url = msg.url("#progress")
-	-- self.min = 20
-	-- self.max = 80
-	-- self.current = 60
-	-- self.color = vmath.vector4(1, 1, 0, 1)
-	-- self.data = {
-	-- 	min = self.min, max = self.max, current = self.current, bar = self.color
-	-- }
 	self.url = msg.url("#modal")
-	self.handle = rive.databind.get_view_model_instance_runtime(self.url)
+	self.handle, err = rive.databind.create_view_model_instance_runtime(self.url, "") --select the first view model
+	if self.handle == nil then
+		print("ERROR:", err)
+		return
+	end
+	rive.databind.set_view_model_instance_runtime(self.url, self.handle)
 
 	self.data = {
 		menuIsOpen = true,
