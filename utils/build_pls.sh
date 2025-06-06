@@ -333,6 +333,8 @@ mkdir -p ${DEFOLDSHADERS_SOURCE_DIR}
 
 echo "*************************************************"
 
+exit 1
+
 for platform in $PLATFORMS; do
 
     echo "Building platform ${platform}"

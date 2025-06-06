@@ -24,8 +24,8 @@ platforms:
             flags:      ["-std=c++17", "-fno-rtti"]
             excludeLibs: [platform, graphics]
             excludeSymbols: [GraphicsAdapterOpenGL]
-            symbols: [GraphicsAdapterVulkan]
-            libs: [platform_vulkan, graphics_vulkan, MoltenVK]
+            symbols: []
+            libs: []
             frameworks: [Metal, IOSurface, QuartzCore]
 
     ios:
