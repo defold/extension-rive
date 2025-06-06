@@ -22,6 +22,7 @@ namespace rive
 {
     class File;
     class FileAsset;
+    class ArtboardInstance;
 }
 
 namespace dmRive

@@ -23,64 +23,12 @@
 
 #include "rive_ddf.h"
 
-namespace rive
-{
-    class StateMachineInstance;
-    class LinearAnimationInstance;
-    class Bone;
-}
-
-namespace dmGameSystem
-{
-    struct MaterialResource;
-}
-
 namespace dmRive
 {
-    static const char* RIVE_MODEL_EXT = "rivemodelc";
-
-    struct RiveModelResource;
-    struct RiveBuffer;
-
-    // Keep this private from the scripting api
-    struct RiveComponent
-    {
-        dmGameObject::HInstance                 m_Instance;
-        dmTransform::Transform                  m_Transform;
-        dmVMath::Matrix4                        m_World;
-        RiveModelResource*                      m_Resource;
-        dmGameSystem::MaterialResource*         m_Material;
-        dmMessage::URL                          m_Listener;
-        dmGameSystem::HComponentRenderConstants m_RenderConstants;
-        dmScript::LuaCallbackInfo*              m_Callback;
-        uint32_t                                m_CallbackId;
-        rive::Mat2D                             m_InverseRendererTransform;
-
-        std::unique_ptr<rive::ArtboardInstance>         m_ArtboardInstance;
-        std::unique_ptr<rive::LinearAnimationInstance>  m_AnimationInstance;
-        std::unique_ptr<rive::StateMachineInstance>     m_StateMachineInstance;
-
-        dmArray<std::unique_ptr<rive::StateMachineInstance>> m_AllSMSInstances;
-
-        dmGameObject::Playback                  m_AnimationPlayback;
-        float                                   m_AnimationPlaybackRate;
-
-        dmArray<rive::Bone*>                    m_Bones;
-        dmArray<dmGameObject::HInstance>        m_BoneGOs;
-        dmArray<dmhash_t>                       m_StateMachineInputs; // A list of the hashed names for the state machine inputs. Index corresponds 1:1 to the statemachine inputs
-
-        uint32_t                                m_VertexCount;
-        uint32_t                                m_IndexCount;
-        uint32_t                                m_MixedHash;
-        uint16_t                                m_ComponentIndex;
-        uint8_t                                 m_AnimationIndex;
-        uint8_t                                 m_Enabled : 1;
-        uint8_t                                 m_DoRender : 1;
-        uint8_t                                 m_AddedToUpdate : 1;
-        uint8_t                                 m_ReHash : 1;
-    };
-
+    /////////////////////////////////////////////////////////////////////////////////////
     // For scripting
+
+    static const char* RIVE_MODEL_EXT = "rivemodelc";
 
     struct StateMachineInputData
     {
@@ -108,12 +56,10 @@ namespace dmRive
         Type m_Type;
     };
 
+    struct RiveComponent;
+
     // Get the game object identifier
     bool CompRiveGetBoneID(RiveComponent* component, dmhash_t bone_name, dmhash_t* id);
-
-    void CompRivePointerMove(RiveComponent* component, float x, float y);
-    void CompRivePointerUp(RiveComponent* component, float x, float y);
-    void CompRivePointerDown(RiveComponent* component, float x, float y);
 
     bool CompRivePlayStateMachine(RiveComponent* component, dmRiveDDF::RivePlayAnimation* ddf, dmScript::LuaCallbackInfo* callback_info);
     bool CompRivePlayAnimation(RiveComponent* component, dmRiveDDF::RivePlayAnimation* ddf, dmScript::LuaCallbackInfo* callback_info);
@@ -121,11 +67,15 @@ namespace dmRive
     const char* CompRiveGetTextRun(RiveComponent* component, const char* name, const char* nested_artboard_path);
     bool        CompRiveSetTextRun(RiveComponent* component, const char* name, const char* text_run, const char* nested_artboard_path);
 
-    StateMachineInputData::Result CompRiveGetStateMachineInput(RiveComponent* component, const char* input_name, const char* nested_artboard_path, StateMachineInputData& data);
-    StateMachineInputData::Result CompRiveSetStateMachineInput(RiveComponent* component, const char* input_name, const char* nested_artboard_path, const StateMachineInputData& data);
-
     float CompRiveGetDisplayScaleFactor();
     void  CompRiveDebugSetBlitMode(bool value);
+
+    // state machine impl
+    StateMachineInputData::Result CompRiveGetStateMachineInput(RiveComponent* component, const char* input_name, const char* nested_artboard_path, StateMachineInputData& data);
+    StateMachineInputData::Result CompRiveSetStateMachineInput(RiveComponent* component, const char* input_name, const char* nested_artboard_path, const StateMachineInputData& data);
+    void CompRivePointerMove(RiveComponent* component, float x, float y);
+    void CompRivePointerUp(RiveComponent* component, float x, float y);
+    void CompRivePointerDown(RiveComponent* component, float x, float y);
 
     // bool CompRiveSetIKTargetInstance(RiveComponent* component, dmhash_t constraint_id, float mix, dmhash_t instance_id);
     // bool CompRiveSetIKTargetPosition(RiveComponent* component, dmhash_t constraint_id, float mix, Vectormath::Aos::Point3 position);

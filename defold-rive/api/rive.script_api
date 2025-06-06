@@ -11,7 +11,7 @@
     parameters:
       - name: url
         type: url
-        desc: The Rive model for which to play an animation
+        desc: The Rive model component for which to play an animation
 
       - name: anim_id
         type: hash
@@ -70,7 +70,7 @@
     parameters:
       - name: url
         type: url
-        desc: The Rive model for which to play an animation
+        desc: The Rive model component for which to play an animation
 
       - name: state_machine_id
         type: hash
@@ -109,7 +109,7 @@
     parameters:
       - name: url
         type: url
-        desc: The Rive model for which to cancel the animation
+        desc: The Rive model component for which to cancel the animation
 
 #*****************************************************************************************************
 
@@ -120,7 +120,7 @@
     parameters:
       - name: url
         type: url
-        desc: The Rive model to query
+        desc: The Rive model component to query
 
       - name: bone_id
         type: hash
@@ -140,7 +140,7 @@
     parameters:
       - name: url
         type: url
-        desc: The Rive model
+        desc: The Rive model component
 
       - name: x
         type: number
@@ -159,7 +159,7 @@
     parameters:
       - name: url
         type: url
-        desc: The Rive model
+        desc: The Rive model component
 
       - name: x
         type: number
@@ -178,7 +178,7 @@
     parameters:
       - name: url
         type: url
-        desc: The Rive model
+        desc: The Rive model component
 
       - name: x
         type: number
@@ -197,7 +197,7 @@
     parameters:
       - name: url
         type: url
-        desc: The Rive model for which to get the text run from
+        desc: The Rive model component for which to get the text run from
 
       - name: name
         type: string
@@ -221,7 +221,7 @@
     parameters:
       - name: url
         type: url
-        desc: The Rive model for which to set the text run for
+        desc: The Rive model component for which to set the text run for
 
       - name: name
         type: string
@@ -255,7 +255,7 @@
     parameters:
       - name: url
         type: url
-        desc: The Rive model
+        desc: The Rive model component
 
       - name: name
         type: string
@@ -279,7 +279,7 @@
     parameters:
       - name: url
         type: url
-        desc: The Rive model
+        desc: The Rive model component
 
       - name: name
         type: string
@@ -292,7 +292,6 @@
       - name: nested_artboard
         type: string
         desc: (OPTIONAL) If specified, the input will be queried for the specified nested artboard
-
 
 #*****************************************************************************************************
 
@@ -313,3 +312,89 @@
       - name: asset_path
         type: string
         desc: The name of the asset file to replace with. E.g. "/path/to/file.png"
+
+  - name: databind
+    type: table
+    desc: Functions and constants for interacting with Rive data bindings
+
+    members:
+      - name: create_view_model_instance_runtime
+        type: function
+        desc: Creates a ViewModelInstanceRuntime
+
+        parameters:
+          - name: url
+            type: url
+            desc: The Rive model component
+
+          - name: name
+            type: string, hash
+            desc: The name of the view model to instantiate
+
+        return:
+          - name: handle
+            type: integer
+            desc: The handle to the ViewModelInstanceRuntime instance
+
+          - name: error
+            type: string|nil
+            desc: The error message if something went wrong
+
+      - name: destroy_view_model_instance_runtime
+        type: function
+        desc: Releases the previously created ViewModelInstanceRuntime
+
+        parameters:
+          - name: url
+            type: url
+            desc: The Rive model component
+
+          - name: handle
+            type: integer
+            desc: The handle to the ViewModelInstanceRuntime instance
+
+      - name: set_view_model_instance_runtime
+        type: function
+        desc: Sets the current ViewModelInstanceRuntime
+
+        parameters:
+          - name: url
+            type: url
+            desc: The Rive model component
+
+          - name: handle
+            type: integer
+            desc: The handle to the ViewModelInstanceRuntime instance
+
+      - name: get_view_model_instance_runtime
+        type: function
+        desc: Gets the current ViewModelInstanceRuntime
+
+        parameters:
+          - name: url
+            type: url
+            desc: The Rive model component
+
+        return:
+          - name: handle
+            type: integer
+            desc: The handle to the currently set ViewModelInstanceRuntime instance
+
+
+      - name: set_properties
+        type: function
+        desc: Sets properties to the ViewModelInstanceRuntime instance
+
+        parameters:
+          - name: url
+            type: url
+            desc: The Rive model component
+
+          - name: handle
+            type: integer
+            desc: The handle to the currently set ViewModelInstanceRuntime instance
+
+          - name: properties
+            type: table
+            desc: A table of properties, where each key is a Rive "path", and the values are mapped to the corresponding property value type.
+

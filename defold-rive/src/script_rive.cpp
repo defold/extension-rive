@@ -26,6 +26,7 @@
 #include <dmsdk/resource/resource.h>
 
 #include "comp_rive.h"
+#include "comp_rive_private.h"
 #include "rive_ddf.h"
 #include "res_rive_data.h"
 
@@ -474,9 +475,12 @@ namespace dmRive
         {0, 0}
     };
 
+    extern void ScriptInitializeDataBinding(lua_State* L);
+
     void ScriptRegister(lua_State* L, dmResource::HFactory factory)
     {
         luaL_register(L, "rive", RIVE_FUNCTIONS);
+            ScriptInitializeDataBinding(L);
         lua_pop(L, 1);
 
         g_Factory = factory;
