@@ -108,6 +108,12 @@ embedded_instances {
   "  data: \"collection: \\\"/main/outofband/outofband.collection\\\"\\n"
   "\"\n"
   "}\n"
+  "embedded_components {\n"
+  "  id: \"databind\"\n"
+  "  type: \"collectionproxy\"\n"
+  "  data: \"collection: \\\"/main/databind/databind.collection\\\"\\n"
+  "\"\n"
+  "}\n"
   ""
 }
 embedded_instances {
