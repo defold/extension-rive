@@ -18,6 +18,7 @@ package = com.defold.extensionrive
 [project]
 title = extension-rive
 bundle_exclude_resources = utils
+custom_resources = /main/outofband/walle
 dependencies#0 = https://github.com/andsve/dirtylarry/archive/master.zip
 
 [library]
@@ -29,7 +30,7 @@ max_debug_vertices = 50000
 opengl_version_hint = 0
 
 [collection_proxy]
-max_count = 16
+max_count = 32
 
 [shader]
 output_spirv = 1

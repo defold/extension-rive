@@ -14,6 +14,7 @@
 #include <common/factory.h>
 #include <common/types.h>
 
+#include <dmsdk/dlib/dstrings.h>
 #include <dmsdk/dlib/hash.h>
 #include <dmsdk/dlib/log.h>
 #include <dmsdk/gamesys/resources/res_textureset.h>
@@ -204,35 +205,74 @@ namespace dmRive {
         }
     }
 
+    rive::rcp<rive::RenderImage> LoadImageFromFactory(dmResource::HFactory factory, HRenderContext context, const char* path)
+    {
+        rive::rcp<rive::RenderImage> image;
+        if (!factory)
+        {
+            dmLogError("No factory provided!");
+            return image;
+        }
 
-    AtlasNameResolver::AtlasNameResolver(HRenderContext context)
-    : m_RiveRenderContext(context)
+        char path_buffer[256];
+        uint32_t path_length = 0;
+        if (path[0] != '/')
+            path_buffer[path_length++] = '/';
+        path_length += dmStrlCpy(&path_buffer[path_length], path, sizeof(path_buffer)-path_length);
+
+        void* resource;
+        uint32_t resource_size;
+        dmResource::Result r = dmResource::GetRaw(factory, path_buffer, &resource, &resource_size);
+        if (dmResource::RESULT_OK != r)
+        {
+            dmLogError("Error getting file '%s': %d", path_buffer, r);
+            return image;
+        }
+
+        dmhash_t name_hash = dmHashString64(path_buffer);
+
+        image = CreateRiveRenderImage(context, resource, resource_size);
+
+        return image;
+    }
+
+    AtlasNameResolver::AtlasNameResolver(dmResource::HFactory factory, HRenderContext context)
+    : m_Factory(factory)
+    , m_RiveRenderContext(context)
     {
     }
 
     bool AtlasNameResolver::loadContents(rive::FileAsset& _asset, rive::Span<const uint8_t> inBandBytes, rive::Factory* factory)
     {
+        DEBUGLOG("loadContents");
+
+        if (m_Assets.Full())
+        {
+            m_Assets.OffsetCapacity(8);
+        }
+        m_Assets.Push(&_asset);
+
+        bool out_of_band = inBandBytes.size() == 0;
         if (_asset.is<rive::ImageAsset>())
         {
             rive::ImageAsset* asset = _asset.as<rive::ImageAsset>();
             const std::string& name = asset->name();
 
-            char* name_str     = strdup(name.c_str());
-            char* name_ext_end = strrchr(name_str, '.');
+            rive::rcp<rive::RenderImage> image;
 
-            if (name_ext_end)
+            if (out_of_band)
             {
-                name_ext_end[0] = 0;
+                image = LoadImageFromFactory(m_Factory, m_RiveRenderContext, name.c_str());
             }
 
-            DEBUGLOG("Found Asset: %s", name_str);
-            dmhash_t name_hash = dmHashString64(name_str);
+            if (!image)
+            {
+                image = CreateRiveRenderImage(m_RiveRenderContext, (void*) inBandBytes.data(), inBandBytes.size());
+                DEBUGLOG("  In band asset: file: '%s' data: %u bytes", name.c_str(), (uint32_t)inBandBytes.size());
+            }
 
-            free(name_str);
-
-            asset->renderImage(CreateRiveRenderImage(m_RiveRenderContext, (void*) inBandBytes.data(), inBandBytes.size()));
-
-            return true;
+            asset->renderImage(image);
+            return (bool)image;
         }
 
         return false;

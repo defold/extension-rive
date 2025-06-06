@@ -48,6 +48,11 @@ namespace dmGameObject
     struct PropertyDesc;
 }
 
+namespace dmGameSystem
+{
+    struct MaterialResource;
+}
+
 namespace dmRive
 {
     struct RiveModelResource;
@@ -63,7 +68,7 @@ namespace dmRive
         RiveModelResource*                      m_Resource;
         dmMessage::URL                          m_Listener;
         dmGameSystem::HComponentRenderConstants m_RenderConstants;
-        dmRender::HMaterial                     m_Material;
+        dmGameSystem::MaterialResource*         m_Material;
         dmScript::LuaCallbackInfo*              m_Callback;
         uint32_t                                m_CallbackId;
         rive::Mat2D                             m_InverseRendererTransform;

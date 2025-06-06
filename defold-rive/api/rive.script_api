@@ -293,6 +293,26 @@
         type: string
         desc: (OPTIONAL) If specified, the input will be queried for the specified nested artboard
 
+#*****************************************************************************************************
+
+  - name: riv_swap_asset
+    type: function
+    desc: Replace an asset in runtime.
+    Rive doc: https://rive.app/docs/game-runtimes/unreal/runtime-asset-swapping
+
+    parameters:
+      - name: riv_path
+        type: string,hash
+        desc: The Rive (.rivc) path. E.g. "/path/to/file.rivc"
+
+      - name: asset_name
+        type: string
+        desc: The name of the FileAsset inside the .riv file
+
+      - name: asset_path
+        type: string
+        desc: The name of the asset file to replace with. E.g. "/path/to/file.png"
+
   - name: databind
     type: table
     desc: Functions and constants for interacting with Rive data bindings
@@ -377,5 +397,4 @@
           - name: properties
             type: table
             desc: A table of properties, where each key is a Rive "path", and the values are mapped to the corresponding property value type.
-
 

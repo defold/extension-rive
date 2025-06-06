@@ -18,12 +18,15 @@
 
 // Rive includes
 #include <rive/artboard.hpp>
+#include <rive/assets/image_asset.hpp>
 #include <rive/file.hpp>
 #include <rive/animation/linear_animation_instance.hpp>
 #include <rive/animation/linear_animation.hpp>
 #include <rive/animation/state_machine.hpp>
 
+// Extension includes
 #include "res_rive_data.h"
+#include "defold/renderer.h"
 #include <common/atlas.h>
 #include <common/factory.h>
 
@@ -93,7 +96,7 @@ namespace dmRive
         rive::Span<const uint8_t> data((const uint8_t*)params->m_Buffer, params->m_BufferSize);
 
         // Creates DefoldRenderImage with a hashed name for each image resource
-        AtlasNameResolver atlas_resolver = AtlasNameResolver(render_context_res);
+        AtlasNameResolver atlas_resolver = AtlasNameResolver(params->m_Factory, render_context_res);
 
         rive::ImportResult result;
         std::unique_ptr<rive::File> file = rive::File::import(data,
@@ -108,7 +111,7 @@ namespace dmRive
         }
 
         RiveSceneData* scene_data = new RiveSceneData();
-
+        scene_data->m_FileAssets.Swap(atlas_resolver.GetAssets());
         SetupData(scene_data, file.release(), params->m_Filename, render_context_res);
 
         dmResource::SetResource(params->m_Resource, scene_data);
@@ -141,7 +144,7 @@ namespace dmRive
 
         rive::Factory* rive_factory = GetRiveFactory(render_context_res);
 
-        AtlasNameResolver atlas_resolver = AtlasNameResolver(render_context_res);
+        AtlasNameResolver atlas_resolver = AtlasNameResolver(params->m_Factory, render_context_res);
 
         rive::ImportResult result;
         std::unique_ptr<rive::File> file = rive::File::import(data,
@@ -164,6 +167,7 @@ namespace dmRive
 
         RiveSceneData* scene_data = new RiveSceneData();
 
+        scene_data->m_FileAssets.Swap(atlas_resolver.GetAssets());
         SetupData(scene_data, file.release(), params->m_Filename, render_context_res);
 
         dmResource::SetResource(params->m_Resource, scene_data);
@@ -192,6 +196,36 @@ namespace dmRive
         HRenderContext context = (HRenderContext)ResourceTypeGetContext(type);
         DeleteRenderContext(context);
         return RESOURCE_RESULT_OK;
+    }
+
+    // Scripting functions
+
+    dmResource::Result ResRiveDataSetAsset(dmResource::HFactory factory, RiveSceneData* resource, const char* asset_name, const char* path)
+    {
+        for (uint32_t i = 0; i < resource->m_FileAssets.Size(); ++i)
+        {
+            rive::FileAsset* _asset = resource->m_FileAssets[i];
+            const std::string& name = _asset->name();
+            const char* name_str = name.c_str();
+            if (strcmp(asset_name, name_str) != 0)
+                continue;
+
+            if (_asset->is<rive::ImageAsset>())
+            {
+                rive::ImageAsset* asset = _asset->as<rive::ImageAsset>();
+                rive::rcp<rive::RenderImage> image = dmRive::LoadImageFromFactory(factory, resource->m_RiveRenderContext, path);
+                if (!image)
+                {
+                    dmLogError("Failed to load asset '%s' with path '%s'", asset_name, path);
+                    return dmResource::RESULT_INVALID_DATA;
+                }
+
+                asset->renderImage(image);
+                return dmResource::RESULT_OK;
+            }
+        }
+        dmLogError("Rive scene doesn't have asset named '%s'", asset_name);
+        return dmResource::RESULT_INVALID_DATA;
     }
 }
 

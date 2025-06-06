@@ -70,11 +70,11 @@ static rive::ViewModelRuntime* FindViewModelRuntimeByHash(RiveComponent* compone
 
 static rive::ViewModelInstanceRuntime* CreateViewModelInstanceRuntimeByHash(RiveComponent* component, dmhash_t name_hash)
 {
-    dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
+    dmRive::RiveSceneData* data = component->m_Resource->m_Scene->m_Scene;
     rive::File* file = data->m_File;
 
     rive::ViewModelRuntime* vmr = name_hash != 0 ? FindViewModelRuntimeByHash(component, name_hash) : file->viewModelByIndex(0);
-    return vmr->createInstance();
+    return vmr ? vmr->createInstance() : 0;
 }
 
 void SetViewModelInstanceRuntime(RiveComponent* component, rive::ViewModelInstanceRuntime* vmir)

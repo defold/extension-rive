@@ -36,7 +36,7 @@ static int CreateViewModelInstanceRuntime(lua_State* L)
     dmhash_t name_hash = dmScript::CheckHashOrString(L, 2);
 
     uint32_t handle = dmRive::CompRiveCreateViewModelInstanceRuntime(component, name_hash);
-    if (handle)
+    if (handle != dmRive::INVALID_HANDLE)
     {
         lua_pushinteger(L, handle);
         lua_pushnil(L);
@@ -45,7 +45,7 @@ static int CreateViewModelInstanceRuntime(lua_State* L)
     {
         lua_pushnil(L);
         char msg[256];
-        dmSnPrintf(msg, sizeof(msg), "Failed to create view model instance runtime with name %s", dmHashReverseSafe64(name_hash));
+        dmSnPrintf(msg, sizeof(msg), "Failed to create view model instance runtime with name '%s'", dmHashReverseSafe64(name_hash));
         lua_pushstring(L, msg);
     }
     return 2;

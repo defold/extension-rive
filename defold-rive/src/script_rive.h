@@ -13,9 +13,11 @@
 #ifndef DM_GAMESYS_SCRIPT_RIVE_H
 #define DM_GAMESYS_SCRIPT_RIVE_H
 
+#include <dmsdk/resource/resource.h>
+
 namespace dmRive
 {
-    void ScriptRegister(lua_State* L);
+    void ScriptRegister(lua_State* L, dmResource::HFactory factory);
 }
 
 #endif // DM_GAMESYS_SCRIPT_RIVE_H

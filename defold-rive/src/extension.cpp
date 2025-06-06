@@ -1,5 +1,6 @@
 
 #include <dmsdk/sdk.h>
+#include <dmsdk/resource/resource.h>
 #include "script_rive.h"
 
 static dmExtension::Result AppInitializeRive(dmExtension::AppParams* params)
@@ -10,7 +11,8 @@ static dmExtension::Result AppInitializeRive(dmExtension::AppParams* params)
 static dmExtension::Result InitializeRive(dmExtension::Params* params)
 {
 #if !defined(DM_RIVE_UNSUPPORTED)
-    dmRive::ScriptRegister(params->m_L);
+    dmResource::HFactory factory = dmExtension::GetContextAsType<dmResource::HFactory>(params, "factory");
+    dmRive::ScriptRegister(params->m_L, factory);
     dmLogInfo("Registered Rive extension\n");
 #endif
     return dmExtension::RESULT_OK;

@@ -23,10 +23,12 @@
 #include <dmsdk/dlib/vmath.h>
 #include <dmsdk/gameobject/script.h>
 #include <dmsdk/gamesys/script.h>
+#include <dmsdk/resource/resource.h>
 
 #include "comp_rive.h"
 #include "comp_rive_private.h"
 #include "rive_ddf.h"
+#include "res_rive_data.h"
 
 #include <defold/defold_graphics.h>
 
@@ -34,6 +36,8 @@ namespace dmRive
 {
     static const char*    RIVE_EXT      = "rivc";
     static const dmhash_t RIVE_EXT_HASH = dmHashString64(RIVE_EXT);
+
+    static dmResource::HFactory g_Factory = 0;
 
     /*# Rive model API documentation
      *
@@ -413,6 +417,30 @@ namespace dmRive
         return 1;
     }
 
+    static int RiveComp_RivSwapAsset(lua_State* L)
+    {
+        DM_LUA_STACK_CHECK(L, 1);
+
+        dmhash_t rivc_path_hash     = dmScript::CheckHashOrString(L, 1); // path to .rivc
+        const char* riv_asset_name  = luaL_checkstring(L, 2); // Name of asset inside the .riv file
+        const char* new_asset_path  = luaL_checkstring(L, 3); // path of asset to replace with
+
+        // Temporarily get a reference to the file
+        dmRive::RiveSceneData* resource;
+        dmResource::Result r = dmResource::Get(g_Factory, rivc_path_hash, (void**)&resource);
+        if (dmResource::RESULT_OK != r)
+        {
+            lua_pushboolean(L, false);
+            return 1;
+        }
+
+        r = dmRive::ResRiveDataSetAsset(g_Factory, resource, riv_asset_name, new_asset_path);
+
+        lua_pushboolean(L, dmResource::RESULT_OK == r);
+        dmResource::Release(g_Factory, resource);
+        return 1;
+    }
+
     // This is an "all bets are off" mode.
     static int RiveComp_DebugSetBlitMode(lua_State* L)
     {
@@ -442,16 +470,20 @@ namespace dmRive
         {"get_state_machine_input", RiveComp_GetStateMachineInput},
         {"set_state_machine_input", RiveComp_SetStateMachineInput},
         {"debug_set_blit_mode",     RiveComp_DebugSetBlitMode},
+
+        {"riv_swap_asset",          RiveComp_RivSwapAsset},
         {0, 0}
     };
 
     extern void ScriptInitializeDataBinding(lua_State* L);
 
-    void ScriptRegister(lua_State* L)
+    void ScriptRegister(lua_State* L, dmResource::HFactory factory)
     {
         luaL_register(L, "rive", RIVE_FUNCTIONS);
             ScriptInitializeDataBinding(L);
         lua_pop(L, 1);
+
+        g_Factory = factory;
     }
 }
 

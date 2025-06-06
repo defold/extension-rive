@@ -1,0 +1,7 @@
+images {
+  image: "/main/outofband/walle/eve.png"
+}
+images {
+  image: "/main/outofband/walle/walle.png"
+}
+extrude_borders: 2

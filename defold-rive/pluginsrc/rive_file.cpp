@@ -24,7 +24,7 @@ RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char*
     dmRive::DefoldFactory* factory = new dmRive::DefoldFactory();
 
     // Creates DefoldRenderImage with a hashed name for each image resource
-    dmRive::AtlasNameResolver atlas_resolver = dmRive::AtlasNameResolver(nullptr);
+    dmRive::AtlasNameResolver atlas_resolver = dmRive::AtlasNameResolver(0, 0);
 
     rive::Span<uint8_t> data((uint8_t*)buffer, buffer_size);
 
