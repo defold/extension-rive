@@ -45,10 +45,12 @@ public:
     Draw(IAABB pixelBounds,
          const Mat2D&,
          BlendMode,
-         rcp<const Texture> imageTexture,
+         rcp<Texture> imageTexture,
+         ImageSampler imageSampler,
          Type);
 
-    const Texture* imageTexture() const { return m_imageTextureRef; }
+    Texture* imageTexture() const { return m_imageTextureRef; }
+    ImageSampler imageSampler() const { return m_imageSampler; }
     const IAABB& pixelBounds() const { return m_pixelBounds; }
     const Mat2D& matrix() const { return m_matrix; }
     BlendMode blendMode() const { return m_blendMode; }
@@ -137,7 +139,8 @@ public:
     virtual void releaseRefs();
 
 protected:
-    const Texture* const m_imageTextureRef;
+    Texture* const m_imageTextureRef;
+    const ImageSampler m_imageSampler;
     const IAABB m_pixelBounds;
     const Mat2D m_matrix;
     const BlendMode m_blendMode;
@@ -440,7 +443,8 @@ public:
                   IAABB pixelBounds,
                   const Mat2D&,
                   BlendMode,
-                  rcp<const Texture>,
+                  rcp<Texture>,
+                  const ImageSampler imageSampler,
                   float opacity);
 
     float opacity() const { return m_opacity; }
@@ -459,7 +463,8 @@ public:
     ImageMeshDraw(IAABB pixelBounds,
                   const Mat2D&,
                   BlendMode,
-                  rcp<const Texture>,
+                  rcp<Texture>,
+                  const ImageSampler imageSampler,
                   rcp<RenderBuffer> vertexBuffer,
                   rcp<RenderBuffer> uvBuffer,
                   rcp<RenderBuffer> indexBuffer,

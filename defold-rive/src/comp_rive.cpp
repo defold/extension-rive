@@ -40,7 +40,6 @@
 #include <common/bones.h>
 #include <common/vertices.h>
 #include <common/factory.h>
-#include <common/tess_renderer.h>
 
 // Defold Rive Renderer
 #include <defold/renderer.h>

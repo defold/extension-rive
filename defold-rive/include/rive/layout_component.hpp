@@ -16,7 +16,7 @@ namespace rive
 {
 class AABB;
 class KeyFrameInterpolator;
-struct LayoutData;
+class LayoutData;
 class LayoutComponentStyle;
 class LayoutConstraint;
 class Layout
@@ -189,6 +189,7 @@ public:
                               m_layout.width(),
                               m_layout.height());
     }
+    size_t numLayoutNodes() override { return 1; }
     AABB localBounds() const override
     {
         return AABB::fromLTWH(0.0f, 0.0f, m_layout.width(), m_layout.height());
@@ -222,6 +223,9 @@ public:
     float paddingRight() { return m_layoutPadding.right(); }
     float paddingTop() { return m_layoutPadding.top(); }
     float paddingBottom() { return m_layoutPadding.bottom(); }
+
+    float gapHorizontal();
+    float gapVertical();
 
     // We provide a way for nested artboards (or other objects) to override this
     // layout's width/height and unit values.

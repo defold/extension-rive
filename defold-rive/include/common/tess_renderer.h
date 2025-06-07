@@ -163,8 +163,12 @@ public:
                                 float near,
                                 float far) override;
     void drawPath(rive::RenderPath* path, rive::RenderPaint* paint) override;
-    void drawImage(const rive::RenderImage*, rive::BlendMode, float opacity) override;
+    void drawImage(const rive::RenderImage*,
+               rive::ImageSampler,
+               rive::BlendMode,
+               float opacity) override;
     void drawImageMesh(const rive::RenderImage*,
+                       rive::ImageSampler,
                        rive::rcp<rive::RenderBuffer> vertices_f32,
                        rive::rcp<rive::RenderBuffer> uvCoords_f32,
                        rive::rcp<rive::RenderBuffer> indices_u16,

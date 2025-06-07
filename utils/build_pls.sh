@@ -7,7 +7,7 @@ OUTPUT_LIB_DIR=${SCRIPT_DIR}/../defold-rive/lib
 PLATFORMS=$1
 
 if [ "" == "${PLATFORMS}" ]; then
-    PLATFORMS="x86_64-macos arm64-macos x86_64-linux x86_64-win32 x86-win32 arm64-ios x86_64-ios arm64-android js-web wasm-web wasm_pthread-web"
+    PLATFORMS="x86_64-macos arm64-macos arm64-linux x86_64-linux x86_64-win32 x86-win32 arm64-ios x86_64-ios arm64-android js-web wasm-web wasm_pthread-web"
 fi
 
 DEFAULT_SERVER_NAME=build-stage.defold.com
@@ -238,7 +238,9 @@ echo "*************************************************"
 echo "Downloading rive-cpp files"
 
 # https://github.com/rive-app/rive-runtime/commit/<sha>
-RIVECPP_VERSION=273128c9f0a0e5fe59823ee36fbcb465b5980032
+
+# We need an older version because they're update
+RIVECPP_VERSION=a78b8e0baa181e4f68bdc7316c33ba12eda6caa5
 RIVECPP_ZIP=${DOWNLOAD_DIR}/rivecpp-${RIVECPP_VERSION}.zip
 RIVECPP_URL="https://github.com/rive-app/rive-runtime/archive/${RIVECPP_VERSION}.zip"
 
@@ -292,9 +294,6 @@ mkdir -p ${RIVECPP_SOURCE_DIR}/yoga/event
 cp -r -v ${RIVE_YOGA_ORIGINAL_DIR}/yoga/*.h       ${RIVECPP_SOURCE_DIR}/yoga
 cp -r -v ${RIVE_YOGA_ORIGINAL_DIR}/yoga/event/*.h ${RIVECPP_SOURCE_DIR}/yoga/event
 
-# HACK for C++ vs Objective-C
-mv -v ${RIVECPP_SOURCE_DIR}/src/audio/audio_engine.m ${RIVECPP_SOURCE_DIR}/src/audio/audio_engine.mm
-
 # Copy text related headers
 (cd ${HARFBUZZ_ORIGINAL_DIR} && cp -v *.h ${RIVECPP_HARFBUZZ_INCLUDE_DIR})
 (cd ${SHEENBIDI_ORIGINAL_DIR}/Headers && cp -v *.h ${RIVECPP_HARFBUZZ_INCLUDE_DIR})
@@ -333,10 +332,7 @@ mkdir -p ${DEFOLDSHADERS_SOURCE_DIR}
 
 echo "*************************************************"
 
-exit 1
-
 for platform in $PLATFORMS; do
-
     echo "Building platform ${platform}"
 
     platform_ne=$platform
@@ -477,7 +473,7 @@ for platform in $PLATFORMS; do
             cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.h                              ${RIVECPP_RENDERER_SOURCE_DIR}/include/rive/renderer/gl/
 
             ;;
-        x86_64-linux)
+        arm64-linux|x86_64-linux)
             RIVE_RENDERER_DEFINES="RIVE_DESKTOP_GL RIVE_LINUX"
             RIVE_RENDERER_INCLUDES="upload/src/glad"
 

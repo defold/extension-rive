@@ -474,7 +474,7 @@ namespace dmRive
         draw_desc.m_TexCoordsCount = num_texcoords;
     }
 
-    void DefoldTessRenderer::drawImage(const rive::RenderImage* _image, rive::BlendMode blendMode, float opacity)
+    void DefoldTessRenderer::drawImage(const rive::RenderImage* _image, rive::ImageSampler sampler, rive::BlendMode blendMode, float opacity)
     {
         DefoldRenderImage* image = (DefoldRenderImage*)_image;
 
@@ -519,6 +519,7 @@ namespace dmRive
     }
 
     void DefoldTessRenderer::drawImageMesh(const rive::RenderImage* _image,
+                                          rive::ImageSampler sampler,
                                           rive::rcp<rive::RenderBuffer> vertices_f32,
                                           rive::rcp<rive::RenderBuffer> uvCoords_f32,
                                           rive::rcp<rive::RenderBuffer> indices_u16,

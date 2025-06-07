@@ -5,7 +5,8 @@
 #pragma once
 
 #include "rive/renderer/render_context_helper_impl.hpp"
-#include <map>
+#include "rive/shapes/paint/image_sampler.hpp"
+#include <unordered_map>
 #include <mutex>
 
 #ifndef RIVE_OBJC_NOP
@@ -193,7 +194,7 @@ private:
     // the given features.
     const DrawPipeline* findCompatibleDrawPipeline(gpu::DrawType,
                                                    gpu::ShaderFeatures,
-                                                   gpu::InterlockMode,
+                                                   const gpu::FlushDescriptor&,
                                                    gpu::ShaderMiscFlags);
 
     void flush(const FlushDescriptor&) override;
@@ -228,7 +229,9 @@ private:
     std::unique_ptr<AtlasPipeline> m_atlasStrokePipeline;
     id<MTLTexture> m_atlasTexture = nullptr;
 
-    std::map<uint32_t, std::unique_ptr<DrawPipeline>> m_drawPipelines;
+    id<MTLSamplerState> m_imageSamplers[ImageSampler::MAX_SAMPLER_PERMUTATIONS];
+
+    std::unordered_map<uint32_t, std::unique_ptr<DrawPipeline>> m_drawPipelines;
 
     // Vertex/index buffers for drawing path patches.
     id<MTLBuffer> m_pathPatchVertexBuffer;

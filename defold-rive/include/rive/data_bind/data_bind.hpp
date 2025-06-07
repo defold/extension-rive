@@ -10,6 +10,7 @@
 #include <stdio.h>
 namespace rive
 {
+class File;
 class DataBindContextValue;
 #ifdef WITH_RIVE_TOOLS
 class DataBind;
@@ -33,10 +34,14 @@ public:
     DataConverter* converter() const { return m_dataConverter; };
     void converter(DataConverter* value) { m_dataConverter = value; };
     ViewModelInstanceValue* source() const { return m_Source; };
+    void source(ViewModelInstanceValue* value);
+    void clearSource();
     bool toSource();
     bool toTarget();
     bool advance(float elapsedTime);
     void suppressDirt(bool value) { m_suppressDirt = value; };
+    void file(File* value) { m_file = value; };
+    File* file() const { return m_file; };
 
 protected:
     ComponentDirt m_Dirt = ComponentDirt::Filthy;
@@ -47,6 +52,7 @@ protected:
     DataType outputType();
     bool bindsOnce();
     bool m_suppressDirt = false;
+    File* m_file;
 #ifdef WITH_RIVE_TOOLS
 public:
     void onChanged(DataBindChanged callback) { m_changedCallback = callback; }

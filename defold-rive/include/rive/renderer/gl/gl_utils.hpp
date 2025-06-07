@@ -6,6 +6,7 @@
 
 #include "rive/renderer/gl/gles3.hpp"
 #include "rive/math/aabb.hpp"
+#include "rive/shapes/paint/image_sampler.hpp"
 #include <cstddef>
 #include <utility>
 
@@ -86,6 +87,7 @@ public:
     ~Texture() { reset(0); }
 
     static Texture Zero() { return Texture(0); }
+    static Texture Adopt(GLuint id) { return Texture(id); }
 
 private:
     explicit Texture(GLuint adoptedID) : GLObject(adoptedID) {}
@@ -236,6 +238,7 @@ private:
 };
 
 void SetTexture2DSamplingParams(GLenum minFilter, GLenum magFilter);
+void SetTexture2DSamplingParams(rive::ImageSampler);
 
 void BlitFramebuffer(rive::IAABB bounds,
                      uint32_t renderTargetHeight,
