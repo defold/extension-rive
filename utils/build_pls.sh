@@ -7,7 +7,7 @@ OUTPUT_LIB_DIR=${SCRIPT_DIR}/../defold-rive/lib
 PLATFORMS=$1
 
 if [ "" == "${PLATFORMS}" ]; then
-    PLATFORMS="x86_64-macos arm64-macos x86_64-linux x86_64-win32 x86-win32 arm64-ios x86_64-ios arm64-android js-web wasm-web wasm_pthread-web"
+    PLATFORMS="x86_64-macos arm64-macos arm64-linux x86_64-linux x86_64-win32 x86-win32 arm64-ios x86_64-ios arm64-android js-web wasm-web wasm_pthread-web"
 fi
 
 DEFAULT_SERVER_NAME=build-stage.defold.com
@@ -473,7 +473,7 @@ for platform in $PLATFORMS; do
             cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.h                              ${RIVECPP_RENDERER_SOURCE_DIR}/include/rive/renderer/gl/
 
             ;;
-        x86_64-linux)
+        arm64-linux|x86_64-linux)
             RIVE_RENDERER_DEFINES="RIVE_DESKTOP_GL RIVE_LINUX"
             RIVE_RENDERER_INCLUDES="upload/src/glad"
 
