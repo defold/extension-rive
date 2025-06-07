@@ -51,3 +51,8 @@ platforms:
             excludeDynamicLibs: [GLESv2, GLESv1_CM]
             dynamicLibs:        [GLESv3]
             flags:              ["-std=c++17", "-fno-rtti"]
+
+    armv7-android:
+        context:
+            defines:            ["DM_UNSUPPORTED_PLATFORM"]
+

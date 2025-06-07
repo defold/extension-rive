@@ -1,4 +1,8 @@
 
+#if defined(DM_UNSUPPORTED_PLATFORM)
+    #error "This platform is not supported"
+#endif
+
 #include <dmsdk/sdk.h>
 #include <dmsdk/resource/resource.h>
 #include "script_rive.h"
