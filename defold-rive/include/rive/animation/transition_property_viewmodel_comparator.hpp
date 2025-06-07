@@ -31,8 +31,10 @@ public:
         }
         return T::defaultValue;
     };
+    float valueToFloat(const StateMachineInstance* stateMachineInstance);
     void useInLayer(const StateMachineInstance* stateMachineInstance,
                     StateMachineLayerInstance* layerInstance) const override;
+    DataType instanceDataType(const StateMachineInstance* stateMachineInstance);
 
 protected:
     BindableProperty* m_bindableProperty;

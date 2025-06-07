@@ -12,6 +12,7 @@
 #include "rive/shapes/paint/blend_mode.hpp"
 #include "rive/shapes/paint/color.hpp"
 #include "rive/renderer/trivial_block_allocator.hpp"
+#include "rive/shapes/paint/image_sampler.hpp"
 
 namespace rive
 {
@@ -974,14 +975,16 @@ struct DrawBatch
               gpu::ShaderMiscFlags shaderMiscFlags_,
               uint32_t elementCount_,
               uint32_t baseElement_,
-              rive::BlendMode blendMode,
-              BarrierFlags barriers_) :
+              rive::BlendMode blendMode_,
+              rive::ImageSampler imageSampler_,
+              BarrierFlags barrierFlags_) :
         drawType(drawType_),
         shaderMiscFlags(shaderMiscFlags_),
         elementCount(elementCount_),
         baseElement(baseElement_),
-        firstBlendMode(blendMode),
-        barriers(barriers_)
+        firstBlendMode(blendMode_),
+        barriers(barrierFlags_),
+        imageSampler(imageSampler_)
     {}
 
     const DrawType drawType;
@@ -996,7 +999,8 @@ struct DrawBatch
 
     // DrawType::imageRect and DrawType::imageMesh.
     uint32_t imageDrawDataOffset = 0;
-    const Texture* imageTexture = nullptr;
+    Texture* imageTexture = nullptr;
+    const ImageSampler imageSampler = ImageSampler::LinearClamp();
 
     // DrawType::imageMesh.
     RenderBuffer* vertexBuffer;
@@ -1094,6 +1098,13 @@ struct FlushDescriptor
     bool clockwiseFillOverride = false;
     bool hasTriangleVertices = false;
     bool wireframe = false;
+#ifdef WITH_RIVE_TOOLS
+    // Synthesize compilation failures to make sure the device handles them
+    // gracefully. (e.g., by falling back on an uber shader or at least not
+    // crashing.) Valid compilations may fail in the real world if the device is
+    // pressed for resources or in a bad state.
+    bool synthesizeCompilationFailures = false;
+#endif
 
     // Command buffer that rendering commands will be added to.
     //  - VkCommandBuffer on Vulkan.
@@ -1115,18 +1126,6 @@ struct FlushDescriptor
     // renderTarget.
     const BlockAllocatedLinkedList<DrawBatch>* drawList = nullptr;
 };
-
-// Returns the smallest number that can be added to 'value', such that 'value %
-// alignment' == 0.
-template <uint32_t Alignment>
-RIVE_ALWAYS_INLINE uint32_t PaddingToAlignUp(size_t value)
-{
-    constexpr size_t maxMultipleOfAlignment =
-        std::numeric_limits<size_t>::max() / Alignment * Alignment;
-    uint32_t padding = (maxMultipleOfAlignment - value) % Alignment;
-    assert((value + padding) % Alignment == 0);
-    return padding;
-}
 
 // Returns the area of the (potentially non-rectangular) quadrilateral that
 // results from transforming the given bounds by the given matrix.

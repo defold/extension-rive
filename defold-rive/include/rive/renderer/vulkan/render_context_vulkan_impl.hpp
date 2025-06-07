@@ -9,10 +9,10 @@
 #include <chrono>
 #include <unordered_map>
 #include <vulkan/vulkan.h>
+#include "rive/shapes/paint/image_sampler.hpp"
 
 namespace rive::gpu
 {
-class TextureVulkanImpl;
 class RenderTargetVulkanImpl;
 class DrawShaderVulkan;
 
@@ -165,12 +165,12 @@ private:
     std::chrono::steady_clock::time_point m_localEpoch =
         std::chrono::steady_clock::now();
 
-    // Immutable samplers.
+    // Samplers.
     VkSampler m_linearSampler;
-    VkSampler m_mipmapSampler;
+    VkSampler m_imageSamplers[ImageSampler::MAX_SAMPLER_PERMUTATIONS];
 
     // Bound when there is not an image paint.
-    rcp<TextureVulkanImpl> m_nullImageTexture;
+    rcp<vkutil::Texture2D> m_nullImageTexture;
 
     // With the exception of PLS texture bindings, which differ by interlock
     // mode, all other shaders use the same shared descriptor set layouts.
@@ -179,7 +179,6 @@ private:
     VkDescriptorSetLayout m_immutableSamplerDescriptorSetLayout;
     VkDescriptorSetLayout m_emptyDescriptorSetLayout; // For when a set isn't
                                                       // used by a shader.
-
     VkDescriptorPool m_staticDescriptorPool; // For descriptorSets that never
                                              // change between frames.
     VkDescriptorSet m_nullImageDescriptorSet;
@@ -190,23 +189,20 @@ private:
     // Renders color ramps to the gradient texture.
     class ColorRampPipeline;
     std::unique_ptr<ColorRampPipeline> m_colorRampPipeline;
-    rcp<vkutil::Texture> m_gradientTexture;
-    rcp<vkutil::TextureView> m_gradTextureView;
+    rcp<vkutil::Texture2D> m_gradTexture;
     rcp<vkutil::Framebuffer> m_gradTextureFramebuffer;
 
     // Renders tessellated vertices to the tessellation texture.
     class TessellatePipeline;
     std::unique_ptr<TessellatePipeline> m_tessellatePipeline;
     rcp<vkutil::Buffer> m_tessSpanIndexBuffer;
-    rcp<vkutil::Texture> m_tessVertexTexture;
-    rcp<vkutil::TextureView> m_tessVertexTextureView;
+    rcp<vkutil::Texture2D> m_tessTexture;
     rcp<vkutil::Framebuffer> m_tessTextureFramebuffer;
 
     // Renders feathers to the atlas.
     class AtlasPipeline;
     std::unique_ptr<AtlasPipeline> m_atlasPipeline;
-    rcp<vkutil::Texture> m_atlasTexture;
-    rcp<vkutil::TextureView> m_atlasTextureView;
+    rcp<vkutil::Texture2D> m_atlasTexture;
     rcp<vkutil::Framebuffer> m_atlasFramebuffer;
 
     // Coverage buffer used by shaders in clockwiseAtomic mode.
@@ -264,7 +260,7 @@ private:
     std::unordered_map<uint64_t, std::unique_ptr<DrawPipeline>> m_drawPipelines;
 
     // Gaussian integral table for feathering.
-    rcp<TextureVulkanImpl> m_featherTexture;
+    rcp<vkutil::Texture2D> m_featherTexture;
 
     rcp<vkutil::Buffer> m_pathPatchVertexBuffer;
     rcp<vkutil::Buffer> m_pathPatchIndexBuffer;

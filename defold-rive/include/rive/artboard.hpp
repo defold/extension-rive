@@ -18,6 +18,7 @@
 #include "rive/event.hpp"
 #include "rive/audio/audio_engine.hpp"
 #include "rive/math/raw_path.hpp"
+#include "rive/typed_children.hpp"
 
 #include <queue>
 #include <unordered_set>
@@ -79,6 +80,7 @@ private:
     bool m_IsInstance = false;
     bool m_FrameOrigin = true;
     std::unordered_set<LayoutComponent*> m_dirtyLayout;
+    bool m_isCleaningDirtyLayouts = false;
     float m_originalWidth = 0;
     float m_originalHeight = 0;
     bool m_updatesOwnLayout = true;
@@ -160,7 +162,7 @@ public:
     void markLayoutDirty(LayoutComponent* layoutComponent);
     void cleanLayout(LayoutComponent* layoutComponent);
 
-    void* takeLayoutNode();
+    LayoutData* takeLayoutData();
     bool syncStyleChanges() override;
     bool canHaveOverrides() override { return true; }
 
@@ -191,6 +193,12 @@ public:
 #endif
 
     const std::vector<Core*>& objects() const { return m_Objects; }
+    template <typename T> TypedChildren<T> objects()
+    {
+        return TypedChildren<T>(
+            Span<Core*>(m_Objects.data(), m_Objects.size()));
+    }
+
     const std::vector<NestedArtboard*> nestedArtboards() const
     {
         return m_NestedArtboards;

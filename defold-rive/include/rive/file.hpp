@@ -51,7 +51,7 @@ public:
     /// Minor version number supported by the runtime.
     static const int minorVersion = 0;
 
-    File(Factory*, FileAssetLoader*);
+    File(Factory*, rcp<FileAssetLoader>);
 
 public:
     ~File();
@@ -64,9 +64,17 @@ public:
     /// cannot be found in-band.
     /// @returns a pointer to the file, or null on failure.
     static std::unique_ptr<File> import(Span<const uint8_t> data,
-                                        Factory*,
+                                        Factory* factory,
                                         ImportResult* result = nullptr,
-                                        FileAssetLoader* assetLoader = nullptr);
+                                        FileAssetLoader* assetLoader = nullptr)
+    {
+        return import(data, factory, result, ref_rcp(assetLoader));
+    }
+
+    static std::unique_ptr<File> import(Span<const uint8_t> data,
+                                        Factory*,
+                                        ImportResult* result,
+                                        rcp<FileAssetLoader> assetLoader);
 
     /// @returns the file's backboard. All files have exactly one backboard.
     Backboard* backboard() const { return m_backboard; }
@@ -124,6 +132,7 @@ public:
 
     size_t viewModelCount() const { return m_ViewModels.size(); }
     ViewModel* viewModel(std::string name);
+    ViewModel* viewModel(size_t index);
     ViewModelRuntime* defaultArtboardViewModel(Artboard* artboard) const;
     ViewModelRuntime* viewModelByIndex(size_t index) const;
     ViewModelRuntime* viewModelByName(std::string name) const;
@@ -139,6 +148,7 @@ public:
     void completeViewModelInstance(
         rcp<ViewModelInstance> viewModelInstance) const;
     const std::vector<DataEnum*>& enums() const;
+    FileAsset* asset(size_t index);
 
     std::vector<Artboard*> artboards() { return m_artboards; };
 
@@ -152,6 +162,13 @@ public:
         Span<const uint8_t> data,
         std::set<uint16_t> typeKeys,
         ImportResult* result = nullptr);
+#endif
+
+#ifdef TESTING
+    FileAssetLoader* testing_getAssetLoader() const
+    {
+        return m_assetLoader.get();
+    }
 #endif
 
 private:
@@ -182,21 +199,21 @@ private:
     /// reference to instances created by users.
     std::vector<ViewModelInstance*> m_ViewModelInstances;
 
-    mutable std::vector<ViewModelRuntime*> m_viewModelRuntimes;
+    mutable std::vector<rcp<ViewModelRuntime>> m_viewModelRuntimes;
     std::vector<DataEnum*> m_Enums;
 
     Factory* m_factory;
 
     /// The helper used to load assets when they're not provided in-band
     /// with the file.
-    FileAssetLoader* m_assetLoader;
+    rcp<FileAssetLoader> m_assetLoader;
 
     rcp<ViewModelInstance> copyViewModelInstance(
         ViewModelInstance* viewModelInstance,
         std::unordered_map<ViewModelInstance*, rcp<ViewModelInstance>>
             instancesMap) const;
 
-    ViewModelRuntime* createViewModelRuntime(ViewModel* viewModel) const;
+    rcp<ViewModelRuntime> createViewModelRuntime(ViewModel* viewModel) const;
 
     uint32_t findViewModelId(ViewModel* search) const;
 };
