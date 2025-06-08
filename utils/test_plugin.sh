@@ -7,16 +7,16 @@ CLASS_NAME=com.dynamo.bob.pipeline.Rive
 JAR=./defold-rive/plugins/share/plugin${LIBNAME}.jar
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-pushd $SCRIPT_DIR/..
+#pushd $SCRIPT_DIR/..
 
 set -e
 
-PLUGIN_PLATFORM_DIR=$(realpath ./defold-rive/plugins/lib/x86_64-linux)
+PLUGIN_PLATFORM_DIR=$(realpath ${SCRIPT_DIR}/../defold-rive/plugins/lib/x86_64-linux)
 if [ "Darwin" == "$(uname)" ]; then
     if [ "arm64" == "$(arch)" ]; then
-        PLUGIN_PLATFORM_DIR=$(realpath ./defold-rive/plugins/lib/arm64-osx)
+        PLUGIN_PLATFORM_DIR=$(realpath ${SCRIPT_DIR}/../defold-rive/plugins/lib/arm64-osx)
     else
-        PLUGIN_PLATFORM_DIR=$(realpath ./defold-rive/plugins/lib/x86_64-osx)
+        PLUGIN_PLATFORM_DIR=$(realpath ${SCRIPT_DIR}/../defold-rive/plugins/lib/x86_64-osx)
     fi
 fi
 
