@@ -309,9 +309,20 @@
         type: string
         desc: The name of the FileAsset inside the .riv file
 
-      - name: asset_path
-        type: string
-        desc: The name of the asset file to replace with. E.g. "/path/to/file.png"
+      - name: options
+        type: table
+        desc: A table of options containing
+
+        members:
+
+          - name: path
+            type: string
+            desc: The path of the asset file to replace with. E.g. "/path/to/file.png"
+
+          - name: payload
+            type: string
+            desc: The payload of the asset file to replace with. E.g. a .png binary file.
+                  Takes precedence over the `path` option.
 
   - name: databind
     type: table

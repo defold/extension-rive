@@ -200,32 +200,71 @@ namespace dmRive
 
     // Scripting functions
 
-    dmResource::Result ResRiveDataSetAsset(dmResource::HFactory factory, RiveSceneData* resource, const char* asset_name, const char* path)
+    static rive::FileAsset* FindAsset(RiveSceneData* resource, const char* asset_name)
     {
         for (uint32_t i = 0; i < resource->m_FileAssets.Size(); ++i)
         {
             rive::FileAsset* _asset = resource->m_FileAssets[i];
             const std::string& name = _asset->name();
             const char* name_str = name.c_str();
-            if (strcmp(asset_name, name_str) != 0)
-                continue;
-
-            if (_asset->is<rive::ImageAsset>())
-            {
-                rive::ImageAsset* asset = _asset->as<rive::ImageAsset>();
-                rive::rcp<rive::RenderImage> image = dmRive::LoadImageFromFactory(factory, resource->m_RiveRenderContext, path);
-                if (!image)
-                {
-                    dmLogError("Failed to load asset '%s' with path '%s'", asset_name, path);
-                    return dmResource::RESULT_INVALID_DATA;
-                }
-
-                asset->renderImage(image);
-                return dmResource::RESULT_OK;
-            }
+            if (strcmp(asset_name, name_str) == 0)
+                return _asset;
         }
-        dmLogError("Rive scene doesn't have asset named '%s'", asset_name);
-        return dmResource::RESULT_INVALID_DATA;
+        return 0;
+    }
+
+    dmResource::Result ResRiveDataSetAssetFromMemory(RiveSceneData* resource, const char* asset_name, void* payload, uint32_t payload_size)
+    {
+        rive::FileAsset* _asset = FindAsset(resource, asset_name);
+        if (!_asset)
+        {
+            dmLogError("Rive scene doesn't have asset named '%s'", asset_name);
+            return dmResource::RESULT_INVALID_DATA;
+        }
+
+        if (_asset->is<rive::ImageAsset>())
+        {
+            rive::ImageAsset* asset = _asset->as<rive::ImageAsset>();
+            rive::rcp<rive::RenderImage> image = dmRive::LoadImageFromMemory(resource->m_RiveRenderContext, payload, payload_size);
+            if (!image)
+            {
+                dmLogError("Failed to load asset '%s' from payload.", asset_name);
+                return dmResource::RESULT_INVALID_DATA;
+            }
+
+            asset->renderImage(image);
+            return dmResource::RESULT_OK;
+        }
+
+        dmLogError("We currently don't support swapping the asset type of '%s'", asset_name);
+        return dmResource::RESULT_NOT_SUPPORTED;
+    }
+
+    dmResource::Result ResRiveDataSetAsset(dmResource::HFactory factory, RiveSceneData* resource, const char* asset_name, const char* path)
+    {
+        rive::FileAsset* _asset = FindAsset(resource, asset_name);
+        if (!_asset)
+        {
+            dmLogError("Rive scene doesn't have asset named '%s'", asset_name);
+            return dmResource::RESULT_INVALID_DATA;
+        }
+
+        if (_asset->is<rive::ImageAsset>())
+        {
+            rive::ImageAsset* asset = _asset->as<rive::ImageAsset>();
+            rive::rcp<rive::RenderImage> image = dmRive::LoadImageFromFactory(factory, resource->m_RiveRenderContext, path);
+            if (!image)
+            {
+                dmLogError("Failed to load asset '%s' with path '%s'", asset_name, path);
+                return dmResource::RESULT_INVALID_DATA;
+            }
+
+            asset->renderImage(image);
+            return dmResource::RESULT_OK;
+        }
+
+        dmLogError("We currently don't support swapping the asset type of '%s'", asset_name);
+        return dmResource::RESULT_NOT_SUPPORTED;
     }
 }
 

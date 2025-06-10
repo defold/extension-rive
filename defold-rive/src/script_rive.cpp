@@ -417,28 +417,77 @@ namespace dmRive
         return 1;
     }
 
+    const char* GetString(lua_State* L, int index, const char* key, uint32_t* out_length)
+    {
+        const char* result = 0;
+        lua_getfield(L, -1, key);
+        if (lua_isstring(L, -1))
+        {
+            size_t len = 0;
+            result = lua_tolstring(L, index, &len);
+            if (out_length)
+                *out_length = (uint32_t)len;
+        }
+        lua_pop(L, 1);
+        return result;
+    }
+
     static int RiveComp_RivSwapAsset(lua_State* L)
     {
-        DM_LUA_STACK_CHECK(L, 1);
+        DM_LUA_STACK_CHECK(L, 0);
 
         dmhash_t rivc_path_hash     = dmScript::CheckHashOrString(L, 1); // path to .rivc
         const char* riv_asset_name  = luaL_checkstring(L, 2); // Name of asset inside the .riv file
-        const char* new_asset_path  = luaL_checkstring(L, 3); // path of asset to replace with
+
+        const char* path = 0;
+        const char* payload = 0;
+        uint32_t payload_size = 0;
+
+        luaL_checktype(L, 3, LUA_TTABLE);
+        lua_pushvalue(L, 3);
+
+            path = GetString(L, -1, "path", 0);
+            payload = GetString(L, -1, "payload", &payload_size);
+
+        lua_pop(L, 1);
+
+        if (path == 0 && (payload == 0 || payload_size == 0))
+        {
+            return DM_LUA_ERROR("You must specify either a path or a payload");
+        }
 
         // Temporarily get a reference to the file
         dmRive::RiveSceneData* resource;
         dmResource::Result r = dmResource::Get(g_Factory, rivc_path_hash, (void**)&resource);
         if (dmResource::RESULT_OK != r)
         {
-            lua_pushboolean(L, false);
-            return 1;
+            return DM_LUA_ERROR("Resource was not found: '%s'", dmHashReverseSafe64(rivc_path_hash));
         }
 
-        r = dmRive::ResRiveDataSetAsset(g_Factory, resource, riv_asset_name, new_asset_path);
+        if (payload)
+            r = dmRive::ResRiveDataSetAssetFromMemory(resource, riv_asset_name, (void*)payload, payload_size);
+        else
+            r = dmRive::ResRiveDataSetAsset(g_Factory, resource, riv_asset_name, path);
 
-        lua_pushboolean(L, dmResource::RESULT_OK == r);
+        if (dmResource::RESULT_OK != r)
+        {
+            if (dmResource::RESULT_NOT_SUPPORTED == r)
+            {
+                return DM_LUA_ERROR("Asset type not supported: '%s'", riv_asset_name);
+            }
+
+            if (payload)
+            {
+                return DM_LUA_ERROR("Failed to load payload for asset: '%s'", riv_asset_name);
+            }
+            else
+            {
+                return DM_LUA_ERROR("Failed to load asset: '%s' with path: '%s'", riv_asset_name, path);
+            }
+        }
+
         dmResource::Release(g_Factory, resource);
-        return 1;
+        return 0;
     }
 
     // This is an "all bets are off" mode.

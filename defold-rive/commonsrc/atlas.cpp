@@ -205,13 +205,17 @@ namespace dmRive {
         }
     }
 
+    rive::rcp<rive::RenderImage> LoadImageFromMemory(HRenderContext context, void* resource, uint32_t resource_size)
+    {
+        return CreateRiveRenderImage(context, resource, resource_size);
+    }
+
     rive::rcp<rive::RenderImage> LoadImageFromFactory(dmResource::HFactory factory, HRenderContext context, const char* path)
     {
-        rive::rcp<rive::RenderImage> image;
         if (!factory)
         {
             dmLogError("No factory provided!");
-            return image;
+            return rive::rcp<rive::RenderImage>();
         }
 
         char path_buffer[256];
@@ -226,14 +230,10 @@ namespace dmRive {
         if (dmResource::RESULT_OK != r)
         {
             dmLogError("Error getting file '%s': %d", path_buffer, r);
-            return image;
+            return rive::rcp<rive::RenderImage>();
         }
 
-        dmhash_t name_hash = dmHashString64(path_buffer);
-
-        image = CreateRiveRenderImage(context, resource, resource_size);
-
-        return image;
+        return LoadImageFromMemory(context, resource, resource_size);
     }
 
     AtlasNameResolver::AtlasNameResolver(dmResource::HFactory factory, HRenderContext context)

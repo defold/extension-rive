@@ -1,10 +1,26 @@
+-- There are multiple ways to load an image file.
+-- Note however that, for the "Runtime Asset Swap" feature, it's necessary to provide the raw data as-is.
+--   * Load it via our resource system:
+--     * Path needs to be mounted (archive file, zip file, loose file)
+--     * Included as "custom resource"
+--     * Download using http, to a specific path available to the resource system
+--   * Pass the payload directly to the rive.riv_swap_asset() function
+
+local URL = "https://defold.com/images/logo/defold/logo_with_text/logo-ver-classic-white-160.png"
+
+-- path to your dlc files. For simplicity, this is at the root of the project
+local DLC_FILES = "."
+
+
+local RIVE_MODEL = "go_rive#rivemodel"
+
 local function swap_assets(self)
-	local url = "go_rive#rivemodel"
-	local rivc = go.get(url, "rive_file")
-	rive.riv_swap_asset(rivc, "eve.png", "/main/outofband/walle/eve.png")
+	local rivc = go.get(RIVE_MODEL, "rive_file")
+	rive.riv_swap_asset(rivc, "eve.png", { path = "/main/outofband/walle/eve.png" })
 	-- no idea why they named it jpg
-	rive.riv_swap_asset(rivc, "walle.jpg", "/main/outofband/walle/walle.png")
+	rive.riv_swap_asset(rivc, "walle.jpg", { path = "/main/outofband/walle/walle.png" })
 end
+
 
 function init(self)
 	local mount_name = "files"
@@ -18,9 +34,22 @@ function init(self)
 	if mount_found then
 		swap_assets(self)
 	else
-		liveupdate.add_mount(mount_name, ".", 10, function ()
+		liveupdate.add_mount(mount_name, DLC_FILES, 10, function ()
 			print("LU: mounted file provider!")
 			swap_assets(self)
+
+			-- Note that there is also the option to save the file to a specific path
+			-- If no path is specified, it will be stored in the http cache
+			timer.delay(1.0, false, function()
+				print("HTTP REQUEST", URL)
+				http.request(URL, "GET", function (self, _id, response)
+					print("  response.status:", response.status)
+					if response.status == 200 or response.status == 206 then
+						local rivc = go.get(RIVE_MODEL, "rive_file")
+						rive.riv_swap_asset(rivc, "walle.jpg", { payload = response.response })
+					end
+					end)
+				end)
 		end)
 	end
 end
