@@ -240,7 +240,7 @@ echo "Downloading rive-cpp files"
 # https://github.com/rive-app/rive-runtime/commit/<sha>
 
 # We need an older version because they're update
-RIVECPP_VERSION=a78b8e0baa181e4f68bdc7316c33ba12eda6caa5
+RIVECPP_VERSION=e3a13dd3283a6678425d4b5f351de56945bb73f2
 RIVECPP_ZIP=${DOWNLOAD_DIR}/rivecpp-${RIVECPP_VERSION}.zip
 RIVECPP_URL="https://github.com/rive-app/rive-runtime/archive/${RIVECPP_VERSION}.zip"
 
@@ -609,6 +609,14 @@ for platform in $PLATFORMS; do
     fi
 
     build_library rive_renderer $platform $platform_ne ${RIVECPP_RENDERER_SOURCE_DIR} ${BUILD}
+
+
+    case ${platform} in
+        wasm-web|wasm_pthread-web)
+            RIVE_RENDERER_DEFINES="RIVE_WEBGPU RIVE_WAGYU"
+
+            build_library rive_renderer_wagyu $platform $platform_ne ${RIVECPP_RENDERER_SOURCE_DIR} ${BUILD}
+    esac
 
     echo "************************************************************"
     echo "RIVE SHADERS ${platform}"
