@@ -44,7 +44,7 @@ function init(self)
 				print("HTTP REQUEST", URL)
 				http.request(URL, "GET", function (self, _id, response)
 					print("  response.status:", response.status)
-					if response.status == 200 or response.status == 206 then
+					if response.status == 200 or response.status == 206 or response.status == 304 then
 						local rivc = go.get(RIVE_MODEL, "rive_file")
 						rive.riv_swap_asset(rivc, "walle.jpg", { payload = response.response })
 					end
