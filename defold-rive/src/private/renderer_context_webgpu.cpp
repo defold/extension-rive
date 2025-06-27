@@ -35,7 +35,7 @@ namespace dmRive
 
 #ifdef RIVE_WAGYU
                 .plsType = rive::gpu::RenderContextWebGPUImpl::PixelLocalStorageType::EXT_shader_pixel_local_storage,
-                //.disableStorageBuffers = true,
+                .disableStorageBuffers = true,
 #endif
                 .invertRenderTargetY = true,
                 // .invertRenderTargetFrontFace = true,

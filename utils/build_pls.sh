@@ -613,10 +613,13 @@ for platform in $PLATFORMS; do
 
     case ${platform} in
         wasm-web|wasm_pthread-web)
-            RIVE_RENDERER_DEFINES="RIVE_WEBGPU RIVE_WAGYU"
+            RIVE_RENDERER_DEFINES="RIVE_WEBGL RIVE_WEBGPU RIVE_WAGYU"
 
             # We temporarily remove the WebGL support until they've fixed their includes
-            rm -rf ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl
+
+            if [ "${RIVE_RENDERER_DEFINES}" != "" ]; then
+                export DEFINES="${RIVE_RENDERER_DEFINES}"
+            fi
 
             build_library rive_renderer_wagyu $platform $platform_ne ${RIVECPP_RENDERER_SOURCE_DIR} ${BUILD}
     esac
