@@ -151,6 +151,7 @@ SOURCE_DIR=./build/pls
 echo "*************************************************"
 echo "Downloading harfbuzz files"
 
+#NOTE: If you update this, make sure to update the copy_harfbuzz.sh as well
 HARFBUZZ_VERSION=11.2.1
 HARFBUZZ_ZIP=${DOWNLOAD_DIR}/harfbuzz-${HARFBUZZ_VERSION}.zip
 HARFBUZZ_URL=https://github.com/harfbuzz/harfbuzz/archive/refs/tags/${HARFBUZZ_VERSION}.zip

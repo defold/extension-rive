@@ -33,15 +33,26 @@ function copyfile2() {
     fi
 }
 
-# This is copied from the rive-cpp/dependencies/premake5_harfbuzz.lua
-# (version harfbuzz 6.0.0)
+# This is copied from the rive-cpp/dependencies/premake5_harfbuzz_v2.lua
+# (version harfbuzz 11.2.1)
 
 echo "// generated do not edit" > ${TARGET}/config.h
+echo "#define RELEASE" >> ${TARGET}/config.h
+echo "#define NDEBUG" >> ${TARGET}/config.h
 echo "#define HAVE_OT" >> ${TARGET}/config.h
 echo "#define HB_NO_FALLBACK_SHAPE" >> ${TARGET}/config.h
 echo "#define HB_NO_WIN1256" >> ${TARGET}/config.h
-echo "#define RELEASE" >> ${TARGET}/config.h
-echo "#define NDEBUG" >> ${TARGET}/config.h
+echo "#define HB_NO_EXTERN_HELPERS" >> ${TARGET}/config.h
+echo "#define HB_DISABLE_DEPRECATED" >> ${TARGET}/config.h
+echo "#define HB_NO_COLOR" >> ${TARGET}/config.h
+echo "#define HB_NO_BITMAP" >> ${TARGET}/config.h
+echo "#define HB_NO_BUFFER_SERIALIZE" >> ${TARGET}/config.h
+echo "#define HB_NO_SETLOCALE" >> ${TARGET}/config.h
+echo "#define HB_NO_VERTICAL" >> ${TARGET}/config.h
+echo "#define HB_NO_LAYOUT_COLLECT_GLYPHS" >> ${TARGET}/config.h
+echo "#define HB_NO_LAYOUT_RARELY_USED" >> ${TARGET}/config.h
+echo "#define HB_NO_LAYOUT_UNUSED" >> ${TARGET}/config.h
+echo "#define HB_NO_OT_FONT_GLYPH_NAMES" >> ${TARGET}/config.h
 
 pushd ${SOURCE}
 
@@ -60,14 +71,12 @@ popd
 
 copyfile 'hb-aat-layout.cc'
 copyfile 'hb-aat-map.cc'
-copyfile 'hb-aat.h'
 copyfile 'hb-blob.cc'
 copyfile 'hb-buffer-serialize.cc'
 copyfile 'hb-buffer-verify.cc'
 copyfile 'hb-buffer.cc'
 copyfile 'hb-common.cc'
 copyfile 'hb-draw.cc'
-copyfile 'hb-draw.h'
 copyfile 'hb-face.cc'
 copyfile 'hb-font.cc'
 copyfile 'hb-map.cc'
@@ -75,18 +84,14 @@ copyfile 'hb-number.cc'
 copyfile 'hb-ot-cff1-table.cc'
 copyfile 'hb-ot-cff2-table.cc'
 copyfile 'hb-ot-color.cc'
-copyfile 'hb-ot-color.h'
-copyfile 'hb-ot-deprecated.h'
 copyfile 'hb-ot-face.cc'
 copyfile 'hb-ot-font.cc'
 copyfile 'hb-ot-layout.cc'
 copyfile 'hb-ot-map.cc'
 copyfile 'hb-ot-math.cc'
 copyfile 'hb-ot-meta.cc'
-copyfile 'hb-ot-meta.h'
 copyfile 'hb-ot-metrics.cc'
 copyfile 'hb-ot-name.cc'
-copyfile 'hb-ot-name.h'
 copyfile 'hb-ot-shaper-arabic.cc'
 copyfile 'hb-ot-shaper-default.cc'
 copyfile 'hb-ot-shaper-hangul.cc'
@@ -115,12 +120,11 @@ copyfile 'hb-subset-cff2.cc'
 copyfile 'hb-subset-input.cc'
 copyfile 'hb-subset-plan.cc'
 copyfile 'hb-subset-repacker.cc'
-copyfile 'hb-subset-repacker.h'
 copyfile 'hb-subset.cc'
 copyfile 'hb-ucd.cc'
 copyfile 'hb-unicode.cc'
+copyfile 'graph/gsubgpos-context.cc'
+copyfile 'hb-paint.cc'
 copyfile 'hb-paint-extents.cc'
 copyfile 'hb-outline.cc'
-copyfile 'hb-paint.cc'
-copyfile 'graph/gsubgpos-context.cc'
 copyfile 'hb-style.cc'
