@@ -240,7 +240,6 @@ echo "Downloading rive-cpp files"
 
 # https://github.com/rive-app/rive-runtime/commit/<sha>
 
-# We need an older version because they're update
 RIVECPP_VERSION=a1eb32be926e809db94294ce2bc7a1ee513b95ca
 RIVECPP_ZIP=${DOWNLOAD_DIR}/rivecpp-${RIVECPP_VERSION}.zip
 RIVECPP_URL="https://github.com/rive-app/rive-runtime/archive/${RIVECPP_VERSION}.zip"
