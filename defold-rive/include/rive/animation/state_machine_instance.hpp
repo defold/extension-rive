@@ -55,7 +55,9 @@ class StateMachineInstance : public Scene,
 private:
     /// Provide a hitListener if you want to process a down or an up for the
     /// pointer position too.
-    HitResult updateListeners(Vec2D position, ListenerType hitListener);
+    HitResult updateListeners(Vec2D position,
+                              ListenerType hitListener,
+                              float timeStamp = 0);
 
     template <typename SMType, typename InstType>
     InstType* getNamedInput(const std::string& name) const;
@@ -105,6 +107,7 @@ public:
     void bindViewModelInstance(
         rcp<ViewModelInstance> viewModelInstance) override;
     void dataContext(DataContext* dataContext);
+    DataContext* dataContext() { return m_DataContext; };
 
     size_t currentAnimationCount() const;
     const LinearAnimationInstance* currentAnimationByIndex(size_t index) const;
@@ -121,7 +124,7 @@ public:
     bool advanceAndApply(float secs) override;
     void advancedDataContext();
     std::string name() const override;
-    HitResult pointerMove(Vec2D position) override;
+    HitResult pointerMove(Vec2D position, float timeStamp = 0) override;
     HitResult pointerDown(Vec2D position) override;
     HitResult pointerUp(Vec2D position) override;
     HitResult pointerExit(Vec2D position) override;
@@ -170,6 +173,8 @@ public:
     DataBind* bindableDataBindToTarget(
         BindableProperty* bindableProperty) const;
     bool hasListeners() { return m_hitComponents.size() > 0; }
+    void clearDataContext();
+    void internalDataContext(DataContext* dataContext);
 #ifdef TESTING
     size_t hitComponentsCount() { return m_hitComponents.size(); };
     HitComponent* hitComponent(size_t index)
@@ -203,8 +208,7 @@ private:
     std::unordered_map<BindableProperty*, DataBind*>
         m_bindableDataBindsToSource;
     uint8_t m_drawOrderChangeCounter = 0;
-    void internalDataContext(DataContext* dataContext);
-    void clearDataContext();
+    void unbind();
 
 #ifdef WITH_RIVE_TOOLS
 public:
@@ -228,7 +232,8 @@ public:
     virtual ~HitComponent() {}
     virtual HitResult processEvent(Vec2D position,
                                    ListenerType hitType,
-                                   bool canHit) = 0;
+                                   bool canHit,
+                                   float timeStamp = 0) = 0;
     virtual void prepareEvent(Vec2D position, ListenerType hitType) = 0;
     virtual bool hitTest(Vec2D position) const = 0;
 #ifdef TESTING

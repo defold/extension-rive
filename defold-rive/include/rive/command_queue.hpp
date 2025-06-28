@@ -40,8 +40,11 @@ class ArtboardInstance;
 class StateMachineInstance;
 class CommandServer;
 
+RIVE_DEFINE_HANDLE(FontHandle);
 RIVE_DEFINE_HANDLE(FileHandle);
 RIVE_DEFINE_HANDLE(ArtboardHandle);
+RIVE_DEFINE_HANDLE(AudioSourceHandle);
+RIVE_DEFINE_HANDLE(RenderImageHandle);
 RIVE_DEFINE_HANDLE(StateMachineHandle);
 RIVE_DEFINE_HANDLE(ViewModelInstanceHandle);
 RIVE_DEFINE_HANDLE(DrawKey);
@@ -49,6 +52,12 @@ RIVE_DEFINE_HANDLE(DrawKey);
 // Function poimter that gets called back from the server thread.
 using CommandServerCallback = std::function<void(CommandServer*)>;
 using CommandServerDrawCallback = std::function<void(DrawKey, CommandServer*)>;
+
+struct ViewModelEnum
+{
+    std::string name;
+    std::vector<std::string> enumerants;
+};
 
 // Client-side recorder for commands that will be executed by a
 // CommandServer.
@@ -94,7 +103,11 @@ public:
         : public CommandQueue::ListenerBase<FileListener, FileHandle>
     {
     public:
+        virtual void onFileError(const FileHandle, std::string error) {}
+
         virtual void onFileDeleted(const FileHandle, uint64_t requestId) {}
+
+        virtual void onFileLoaded(const FileHandle, uint64_t requestId) {}
 
         virtual void onArtboardsListed(const FileHandle,
                                        uint64_t requestId,
@@ -119,12 +132,56 @@ public:
             std::string viewModelName,
             std::vector<PropertyData> properties)
         {}
+
+        virtual void onViewModelEnumsListed(const FileHandle,
+                                            uint64_t requestId,
+                                            std::vector<ViewModelEnum> enums)
+        {}
+    };
+
+    class RenderImageListener
+        : public CommandQueue::ListenerBase<RenderImageListener,
+                                            RenderImageHandle>
+    {
+    public:
+        virtual void onRenderImageError(const RenderImageHandle,
+                                        std::string error)
+        {}
+
+        virtual void onRenderImageDeleted(const RenderImageHandle,
+                                          uint64_t requestId)
+        {}
+    };
+
+    class AudioSourceListener
+        : public CommandQueue::ListenerBase<AudioSourceListener,
+                                            AudioSourceHandle>
+    {
+    public:
+        virtual void onAudioSourceError(const AudioSourceHandle,
+                                        std::string error)
+        {}
+
+        virtual void onAudioSourceDeleted(const AudioSourceHandle,
+                                          uint64_t requestId)
+        {}
+    };
+
+    class FontListener
+        : public CommandQueue::ListenerBase<FontListener, FontHandle>
+    {
+    public:
+        virtual void onFontError(const FontHandle, std::string error) {}
+
+        virtual void onFontDeleted(const FontHandle, uint64_t requestId) {}
     };
 
     class ArtboardListener
         : public CommandQueue::ListenerBase<ArtboardListener, ArtboardHandle>
     {
     public:
+        virtual void onArtboardError(const ArtboardHandle, std::string error) {}
+
         virtual void onArtboardDeleted(const ArtboardHandle, uint64_t requestId)
         {}
 
@@ -159,6 +216,10 @@ public:
                                             ViewModelInstanceHandle>
     {
     public:
+        virtual void onViewModelInstanceError(const ViewModelInstanceHandle,
+                                              std::string error)
+        {}
+
         virtual void onViewModelDeleted(const ViewModelInstanceHandle,
                                         uint64_t requestId)
         {}
@@ -167,6 +228,12 @@ public:
                                              ViewModelInstanceData,
                                              uint64_t requestId)
         {}
+
+        virtual void onViewModelListSizeReceived(const ViewModelInstanceHandle,
+                                                 std::string path,
+                                                 size_t size,
+                                                 uint64_t requestId)
+        {}
     };
 
     class StateMachineListener
@@ -174,6 +241,10 @@ public:
                                             StateMachineHandle>
     {
     public:
+        virtual void onStateMachineError(const StateMachineHandle,
+                                         std::string error)
+        {}
+
         virtual void onStateMachineDeleted(const StateMachineHandle,
                                            uint64_t requestId)
         {}
@@ -188,18 +259,24 @@ public:
     ~CommandQueue();
 
     FileHandle loadFile(std::vector<uint8_t> rivBytes,
-                        rcp<FileAssetLoader>,
                         FileListener* listener = nullptr,
                         uint64_t requestId = 0);
 
-    FileHandle loadFile(std::vector<uint8_t> rivBytes,
-                        FileListener* listener = nullptr,
-                        uint64_t requestId = 0)
-    {
-        return loadFile(std::move(rivBytes), nullptr, listener, requestId);
-    }
-
     void deleteFile(FileHandle, uint64_t requestId = 0);
+
+    void addGlobalImageAsset(std::string name,
+                             RenderImageHandle,
+                             uint64_t requestId = 0);
+    void addGlobalFontAsset(std::string name,
+                            FontHandle,
+                            uint64_t requestId = 0);
+    void addGlobalAudioAsset(std::string name,
+                             AudioSourceHandle,
+                             uint64_t requestId = 0);
+
+    void removeGlobalImageAsset(std::string name, uint64_t requestId = 0);
+    void removeGlobalFontAsset(std::string name, uint64_t requestId = 0);
+    void removeGlobalAudioAsset(std::string name, uint64_t requestId = 0);
 
     ArtboardHandle instantiateArtboardNamed(
         FileHandle,
@@ -274,6 +351,17 @@ public:
         ViewModelInstanceListener* listener = nullptr,
         uint64_t requestId = 0);
 
+    ViewModelInstanceHandle referenceListViewModelInstance(
+        ViewModelInstanceHandle,
+        std::string path,
+        int index,
+        ViewModelInstanceListener* listener = nullptr,
+        uint64_t requestId = 0);
+
+    void fireViewModelTrigger(ViewModelInstanceHandle,
+                              std::string path,
+                              uint64_t requestId = 0);
+
     void setViewModelInstanceBool(ViewModelInstanceHandle,
                                   std::string path,
                                   bool value,
@@ -294,10 +382,66 @@ public:
                                     std::string path,
                                     std::string value,
                                     uint64_t requestId = 0);
+    void setViewModelInstanceImage(ViewModelInstanceHandle,
+                                   std::string path,
+                                   RenderImageHandle value,
+                                   uint64_t requestId = 0);
     void setViewModelInstanceNestedViewModel(ViewModelInstanceHandle,
                                              std::string path,
                                              ViewModelInstanceHandle value,
                                              uint64_t requestId = 0);
+    void insertViewModelInstanceListViewModel(ViewModelInstanceHandle,
+                                              std::string path,
+                                              ViewModelInstanceHandle value,
+                                              int index,
+                                              uint64_t requestId = 0);
+
+    void appendViewModelInstanceListViewModel(ViewModelInstanceHandle handle,
+                                              std::string path,
+                                              ViewModelInstanceHandle value,
+                                              uint64_t requestId = 0)
+    {
+        insertViewModelInstanceListViewModel(handle,
+                                             std::move(path),
+                                             value,
+                                             -1,
+                                             requestId);
+    }
+
+    void removeViewModelInstanceListViewModel(
+        ViewModelInstanceHandle,
+        std::string path,
+        int index,
+        ViewModelInstanceHandle value = RIVE_NULL_HANDLE,
+        uint64_t requestId = 0);
+
+    void removeViewModelInstanceListViewModel(ViewModelInstanceHandle handle,
+                                              std::string path,
+                                              ViewModelInstanceHandle value,
+                                              uint64_t requestId = 0)
+    {
+        removeViewModelInstanceListViewModel(handle,
+                                             std::move(path),
+                                             -1,
+                                             value,
+                                             requestId);
+    }
+
+    void swapViewModelInstanceListValues(ViewModelInstanceHandle handle,
+                                         std::string path,
+                                         int indexa,
+                                         int indexb,
+                                         uint64_t requestId = 0);
+
+    void subscribeToViewModelProperty(ViewModelInstanceHandle handle,
+                                      std::string path,
+                                      DataType type,
+                                      uint64_t requestId = 0);
+
+    void unsubscribeToViewModelProperty(ViewModelInstanceHandle handle,
+                                        std::string path,
+                                        DataType type,
+                                        uint64_t requestId = 0);
 
     void deleteViewModelInstance(ViewModelInstanceHandle,
                                  uint64_t requestId = 0);
@@ -346,6 +490,24 @@ public:
 
     void deleteStateMachine(StateMachineHandle, uint64_t requestId = 0);
 
+    RenderImageHandle decodeImage(std::vector<uint8_t> imageEncodedBytes,
+                                  RenderImageListener* listener = nullptr,
+                                  uint64_t requestId = 0);
+
+    void deleteImage(RenderImageHandle, uint64_t requestId = 0);
+
+    AudioSourceHandle decodeAudio(std::vector<uint8_t> imageEncodedBytes,
+                                  AudioSourceListener* listener = nullptr,
+                                  uint64_t requestId = 0);
+
+    void deleteAudio(AudioSourceHandle, uint64_t requestId = 0);
+
+    FontHandle decodeFont(std::vector<uint8_t> imageEncodedBytes,
+                          FontListener* listener = nullptr,
+                          uint64_t requestId = 0);
+
+    void deleteFont(FontHandle, uint64_t requestId = 0);
+
     // Create unique draw key for draw.
     DrawKey createDrawKey();
 
@@ -374,6 +536,7 @@ public:
 
     void requestViewModelNames(FileHandle, uint64_t requestId = 0);
     void requestArtboardNames(FileHandle, uint64_t requestId = 0);
+    void requestViewModelEnums(FileHandle, uint64_t requestId = 0);
     void requestViewModelPropertyDefinitions(FileHandle,
                                              std::string viewModelName,
                                              uint64_t requestId = 0);
@@ -402,6 +565,10 @@ public:
                                         std::string path,
                                         uint64_t requestId = 0);
 
+    void requestViewModelInstanceListSize(ViewModelInstanceHandle,
+                                          std::string path,
+                                          uint64_t requestId = 0);
+
     void requestStateMachineNames(ArtboardHandle, uint64_t requestId = 0);
 
     // Consume all messages received from the server.
@@ -413,6 +580,29 @@ private:
         assert(listener);
         assert(m_fileListeners.find(handle) == m_fileListeners.end());
         m_fileListeners.insert({handle, listener});
+    }
+
+    void registerListener(RenderImageHandle handle,
+                          RenderImageListener* listener)
+    {
+        assert(listener);
+        assert(m_imageListeners.find(handle) == m_imageListeners.end());
+        m_imageListeners.insert({handle, listener});
+    }
+
+    void registerListener(AudioSourceHandle handle,
+                          AudioSourceListener* listener)
+    {
+        assert(listener);
+        assert(m_audioListeners.find(handle) == m_audioListeners.end());
+        m_audioListeners.insert({handle, listener});
+    }
+
+    void registerListener(FontHandle handle, FontListener* listener)
+    {
+        assert(listener);
+        assert(m_fontListeners.find(handle) == m_fontListeners.end());
+        m_fontListeners.insert({handle, listener});
     }
 
     void registerListener(ArtboardHandle handle, ArtboardListener* listener)
@@ -448,6 +638,23 @@ private:
         m_fileListeners.erase(handle);
     }
 
+    void unregisterListener(RenderImageHandle handle,
+                            RenderImageListener* listener)
+    {
+        m_imageListeners.erase(handle);
+    }
+
+    void unregisterListener(AudioSourceHandle handle,
+                            AudioSourceListener* listener)
+    {
+        m_audioListeners.erase(handle);
+    }
+
+    void unregisterListener(FontHandle handle, FontListener* listener)
+    {
+        m_fontListeners.erase(handle);
+    }
+
     void unregisterListener(ArtboardHandle handle, ArtboardListener* listener)
     {
         m_artboardListeners.erase(handle);
@@ -469,14 +676,32 @@ private:
     {
         loadFile,
         deleteFile,
+        decodeImage,
+        decodeAudio,
+        decodeFont,
+        deleteImage,
+        deleteAudio,
+        deleteFont,
+        addImageFileAsset,
+        addAudioFileAsset,
+        addFontFileAsset,
+        removeImageFileAsset,
+        removeAudioFileAsset,
+        removeFontFileAsset,
         instantiateArtboard,
         deleteArtboard,
         instantiateViewModel,
         refNestedViewModel,
+        refListViewModel,
         instantiateBlankViewModel,
         instantiateViewModelForArtboard,
         instantiateBlankViewModelForArtboard,
         setViewModelInstanceValue,
+        addViewModelListValue,
+        removeViewModelListValue,
+        swapViewModelListValue,
+        subscribeViewModelProperty,
+        unsubscribeViewModelProperty,
         deleteViewModel,
         instantiateStateMachine,
         deleteStateMachine,
@@ -494,36 +719,55 @@ private:
         // how we achieve that.
         commandLoopBreak,
         // messages
+        listViewModelEnums,
         listArtboards,
         listStateMachines,
         listViewModels,
         listViewModelInstanceNames,
         listViewModelProperties,
-        listViewModelPropertieValue
+        listViewModelPropertyValue,
+        getViewModelListSize
     };
 
     enum class Message
     {
         // Same as commandLoopBreak for processMessages
         messageLoopBreak,
+        viewModelEnumsListed,
         artboardsListed,
         stateMachinesListed,
         viewModelsListend,
         viewModelInstanceNamesListed,
         viewModelPropertiesListed,
         viewModelPropertyValueReceived,
+        viewModelListSizeReceived,
+        fileLoaded,
         fileDeleted,
+        imageDeleted,
+        audioDeleted,
+        fontDeleted,
         artboardDeleted,
         viewModelDeleted,
         stateMachineDeleted,
-        stateMachineSettled
+        stateMachineSettled,
+        fileError,
+        artboardError,
+        viewModelError,
+        imageError,
+        audioError,
+        fontError,
+        stateMachineError
     };
 
     friend class CommandServer;
 
     uint64_t m_currentFileHandleIdx = 0;
+    uint64_t m_currentListHandleIdx = 0;
+    uint64_t m_currentFontHandleIdx = 0;
     uint64_t m_currentArtboardHandleIdx = 0;
     uint64_t m_currentViewModelHandleIdx = 0;
+    uint64_t m_currentRenderImageHandleIdx = 0;
+    uint64_t m_currentAudioSourceHandleIdx = 0;
     uint64_t m_currentStateMachineHandleIdx = 0;
     uint64_t m_currentDrawKeyIdx = 0;
 
@@ -543,6 +787,11 @@ private:
 
     // Listeners
     std::unordered_map<FileHandle, FileListener*> m_fileListeners;
+    std::unordered_map<RenderImageHandle, RenderImageListener*>
+        m_imageListeners;
+    std::unordered_map<AudioSourceHandle, AudioSourceListener*>
+        m_audioListeners;
+    std::unordered_map<FontHandle, FontListener*> m_fontListeners;
     std::unordered_map<ArtboardHandle, ArtboardListener*> m_artboardListeners;
     std::unordered_map<ViewModelInstanceHandle, ViewModelInstanceListener*>
         m_viewModelListeners;

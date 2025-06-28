@@ -1,15 +1,15 @@
-#ifndef _RIVE_TEXT_STYLE_PAINT_BASE_HPP_
-#define _RIVE_TEXT_STYLE_PAINT_BASE_HPP_
-#include "rive/text/text_style.hpp"
+#ifndef _RIVE_TRANSITION_SELF_COMPARATOR_BASE_HPP_
+#define _RIVE_TRANSITION_SELF_COMPARATOR_BASE_HPP_
+#include "rive/animation/transition_comparator.hpp"
 namespace rive
 {
-class TextStylePaintBase : public TextStyle
+class TransitionSelfComparatorBase : public TransitionComparator
 {
 protected:
-    typedef TextStyle Super;
+    typedef TransitionComparator Super;
 
 public:
-    static const uint16_t typeKey = 137;
+    static const uint16_t typeKey = 593;
 
     /// Helper to quickly determine if a core object extends another without
     /// RTTI at runtime.
@@ -17,10 +17,8 @@ public:
     {
         switch (typeKey)
         {
-            case TextStylePaintBase::typeKey:
-            case TextStyleBase::typeKey:
-            case ContainerComponentBase::typeKey:
-            case ComponentBase::typeKey:
+            case TransitionSelfComparatorBase::typeKey:
+            case TransitionComparatorBase::typeKey:
                 return true;
             default:
                 return false;
