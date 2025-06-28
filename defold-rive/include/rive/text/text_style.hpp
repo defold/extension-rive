@@ -5,6 +5,7 @@
 #include "rive/assets/file_asset.hpp"
 #include "rive/assets/font_asset.hpp"
 #include "rive/text/text_interface.hpp"
+#include "rive/text/text_variation_helper.hpp"
 
 namespace rive
 {
@@ -26,11 +27,9 @@ public:
     TextStyle();
     void buildDependencies() override;
     const rcp<Font> font() const;
-    void setAsset(FileAsset*) override;
+    void setAsset(rcp<FileAsset>) override;
     uint32_t assetId() override;
     StatusCode import(ImportStack& importStack) override;
-
-    FontAsset* fontAsset() const { return (FontAsset*)m_fileAsset; }
 
     Core* clone() const override;
     void addVariation(TextStyleAxis* axis);
@@ -44,6 +43,7 @@ protected:
     void fontSizeChanged() override;
     void lineHeightChanged() override;
     void letterSpacingChanged() override;
+    FontAsset* fontAsset() const { return (FontAsset*)m_fileAsset.get(); }
 
 private:
     std::unique_ptr<TextVariationHelper> m_variationHelper;

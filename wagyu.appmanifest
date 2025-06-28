@@ -1,0 +1,10 @@
+platforms:
+  wasm-web:
+    context:
+      defines: ["DM_RIVE_USE_OPENGL", "RIVE_WEBGL", "RIVE_WEBGPU", "RIVE_WAGYU"]
+      symbols: [GraphicsAdapterWebGPU]
+      excludeLibs: [rive_renderer]
+      libs: [graphics_webgpu]
+      flags: ["-std=c++17", "-fno-rtti"]
+      linkFlags: ['-lexports.js', '-lrive_renderer_wagyu_gl']
+      emscriptenLinkFlags: [USE_WEBGPU=1, 'ERROR_ON_UNDEFINED_SYMBOLS=0']

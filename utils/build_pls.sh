@@ -151,7 +151,8 @@ SOURCE_DIR=./build/pls
 echo "*************************************************"
 echo "Downloading harfbuzz files"
 
-HARFBUZZ_VERSION=8.3.0
+#NOTE: If you update this, make sure to update the copy_harfbuzz.sh as well
+HARFBUZZ_VERSION=11.2.1
 HARFBUZZ_ZIP=${DOWNLOAD_DIR}/harfbuzz-${HARFBUZZ_VERSION}.zip
 HARFBUZZ_URL=https://github.com/harfbuzz/harfbuzz/archive/refs/tags/${HARFBUZZ_VERSION}.zip
 HARFBUZZ_ORIGINAL_DIR=${DOWNLOAD_DIR}/harfbuzz/harfbuzz-${HARFBUZZ_VERSION}/src
@@ -239,8 +240,7 @@ echo "Downloading rive-cpp files"
 
 # https://github.com/rive-app/rive-runtime/commit/<sha>
 
-# We need an older version because they're update
-RIVECPP_VERSION=a78b8e0baa181e4f68bdc7316c33ba12eda6caa5
+RIVECPP_VERSION=a1eb32be926e809db94294ce2bc7a1ee513b95ca
 RIVECPP_ZIP=${DOWNLOAD_DIR}/rivecpp-${RIVECPP_VERSION}.zip
 RIVECPP_URL="https://github.com/rive-app/rive-runtime/archive/${RIVECPP_VERSION}.zip"
 
@@ -610,6 +610,20 @@ for platform in $PLATFORMS; do
 
     build_library rive_renderer $platform $platform_ne ${RIVECPP_RENDERER_SOURCE_DIR} ${BUILD}
 
+
+    case ${platform} in
+        wasm-web|wasm_pthread-web)
+            RIVE_RENDERER_DEFINES="RIVE_WEBGL RIVE_WEBGPU RIVE_WAGYU"
+
+            # We temporarily remove the WebGL support until they've fixed their includes
+
+            if [ "${RIVE_RENDERER_DEFINES}" != "" ]; then
+                export DEFINES="${RIVE_RENDERER_DEFINES}"
+            fi
+
+            build_library rive_renderer_wagyu_gl $platform $platform_ne ${RIVECPP_RENDERER_SOURCE_DIR} ${BUILD}
+    esac
+
     echo "************************************************************"
     echo "RIVE SHADERS ${platform}"
     echo "************************************************************"
@@ -619,7 +633,7 @@ for platform in $PLATFORMS; do
     generate_cpp_sources ${platform} ${DEFOLDSHADERS_INPUT_DIR}/rivemodel_blit.vp ${DEFOLDSHADERS_INPUT_DIR}/rivemodel_blit.fp ${DEFOLDSHADERS_SOURCE_DIR}/rivemodel_blit.spc
     build_library riveshaders $platform $platform_ne ${DEFOLDSHADERS_SOURCE_DIR} ${BUILD}
 
-    # TODO: Fix this (paths are wrong)
+    # # TODO: Fix this (paths are wrong)
     # mkdir -p ${DEFOLDSHADERS_INCLUDE_DIR}
     # rm -v ${DEFOLDSHADERS_INCLUDE_DIR}/*.gen.h
     # cp -v ${DEFOLDSHADERS_SOURCE_DIR}/*.gen.h ${DEFOLDSHADERS_INCLUDE_DIR}

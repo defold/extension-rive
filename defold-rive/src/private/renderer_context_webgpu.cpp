@@ -32,8 +32,11 @@ namespace dmRive
             m_Queue = wgpu::Queue::Acquire(webgpu_queue);
 
             rive::gpu::RenderContextWebGPUImpl::ContextOptions contextOptions = {
+
+#ifdef RIVE_WAGYU
                 .plsType = rive::gpu::RenderContextWebGPUImpl::PixelLocalStorageType::EXT_shader_pixel_local_storage,
                 .disableStorageBuffers = true,
+#endif
                 .invertRenderTargetY = true,
                 // .invertRenderTargetFrontFace = true,
             };
