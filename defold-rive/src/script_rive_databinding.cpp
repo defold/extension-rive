@@ -94,7 +94,7 @@ static int GetViewModelInstanceRuntime(lua_State* L)
     if (!lua_isboolean(L, INDEX)) { \
         char buffer[1024]; \
         lua_pushvalue(L, INDEX); \
-        dmSnPrintf(buffer, sizeof(buffer), "Property '%s' is not a boolesn: '%s'", PATH, lua_tostring(L, -1)); \
+        dmSnPrintf(buffer, sizeof(buffer), "Property '%s' is not a boolean: '%s'", PATH, lua_tostring(L, -1)); \
         lua_pop(L, lua_gettop(L) - top); \
         return DM_LUA_ERROR("%s", buffer); \
     }
