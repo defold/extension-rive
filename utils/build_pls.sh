@@ -240,7 +240,7 @@ echo "Downloading rive-cpp files"
 
 # https://github.com/rive-app/rive-runtime/commit/<sha>
 
-RIVECPP_VERSION=a1eb32be926e809db94294ce2bc7a1ee513b95ca
+RIVECPP_VERSION=24c6b5db10b458f179a8abc3b91d2824ecd96042
 RIVECPP_ZIP=${DOWNLOAD_DIR}/rivecpp-${RIVECPP_VERSION}.zip
 RIVECPP_URL="https://github.com/rive-app/rive-runtime/archive/${RIVECPP_VERSION}.zip"
 
@@ -350,15 +350,6 @@ for platform in $PLATFORMS; do
     BUILD=$(realpath ${BUILD})
 
     echo "************************************************************"
-    echo "RIVE CPP ${platform}"
-    echo "************************************************************"
-
-    export CXXFLAGS="-std=c++17 -fno-rtti -fno-exceptions"
-    export DEFINES="WITH_RIVE_TEXT WITH_RIVE_LAYOUT _RIVE_INTERNAL_ YOGA_EXPORT="
-    unset INCLUDES
-    build_library rive $platform $platform_ne ${RIVECPP_SOURCE_DIR} ${BUILD}
-
-    echo "************************************************************"
     echo "YOGA ${platform}"
     echo "************************************************************"
 
@@ -385,6 +376,15 @@ for platform in $PLATFORMS; do
     export CXXFLAGS="-x c"
     unset DEFINES
     build_library sheenbidi $platform $platform_ne ${SHEENBIDI_SOURCE_DIR} ${BUILD}
+
+    echo "************************************************************"
+    echo "RIVE CPP ${platform}"
+    echo "************************************************************"
+
+    export CXXFLAGS="-std=c++17 -fno-rtti -fno-exceptions"
+    export DEFINES="WITH_RIVE_TEXT WITH_RIVE_LAYOUT _RIVE_INTERNAL_ YOGA_EXPORT="
+    unset INCLUDES
+    build_library rive $platform $platform_ne ${RIVECPP_SOURCE_DIR} ${BUILD}
 
     echo "************************************************************"
     echo "TESS2 ${platform}"
