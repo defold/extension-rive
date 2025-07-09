@@ -14,6 +14,10 @@
 
 #include <webgpu/webgpu_cpp.h>
 
+#ifdef RIVE_WAGYU
+#include <rive/renderer/webgpu/webgpu_wagyu.h>
+#endif
+
 namespace dmRive
 {
     class DefoldRiveRendererWebGPU : public IDefoldRiveRenderer
@@ -26,20 +30,50 @@ namespace dmRive
 
             WGPUDevice webgpu_device = dmGraphics::WebGPUGetDevice(graphics_context);
             WGPUQueue webgpu_queue = dmGraphics::WebGPUGetQueue(graphics_context);
+            // Part of Defold 1.10.4!!!
+            WGPUAdapter webgpu_adapter = dmGraphics::WebGPUGetAdapter(graphics_context);
 
             m_BackingTexture = 0;
             m_Device = wgpu::Device::Acquire(webgpu_device);
             m_Queue = wgpu::Queue::Acquire(webgpu_queue);
 
-            rive::gpu::RenderContextWebGPUImpl::ContextOptions contextOptions = {
+            rive::gpu::RenderContextWebGPUImpl::ContextOptions contextOptions;
 
 #ifdef RIVE_WAGYU
-                .plsType = rive::gpu::RenderContextWebGPUImpl::PixelLocalStorageType::EXT_shader_pixel_local_storage,
-                .disableStorageBuffers = true,
+            // Mostly copied from the webgpu_player.cpp
+            WGPUBackendType backend = wgpuWagyuAdapterGetBackend(webgpu_adapter);
+            if (backend == WGPUBackendType_Vulkan)
+            {
+                dmLogInfo("Rive extension using WGPUBackendType_Vulkan");
+
+                WGPUWagyuStringArray deviceExtensions = WGPU_WAGYU_STRING_ARRAY_INIT;
+                wgpuWagyuDeviceGetExtensions(m_Device.Get(), &deviceExtensions);
+                for (size_t i = 0; i < deviceExtensions.stringCount; i++)
+                {
+                    if (backend == WGPUBackendType_Vulkan &&
+                        !strcmp(deviceExtensions.strings[i].data, "VK_EXT_rasterization_order_attachment_access"))
+                    {
+                        contextOptions.plsType = rive::gpu::RenderContextWebGPUImpl::PixelLocalStorageType::subpassLoad;
+                        break;
+                    }
+                }
+            }
+            else if (backend == WGPUBackendType_OpenGLES)
+            {
+                dmLogInfo("Rive extension using WGPUBackendType_OpenGLES");
+                // TODO: search for "GL_EXT_shader_pixel_local_storage".
+                // wgpuWagyuDeviceGetExtensions currently returns nothing in the GL
+                // backend.
+                contextOptions.plsType = rive::gpu::RenderContextWebGPUImpl::PixelLocalStorageType::EXT_shader_pixel_local_storage;
+                // TODO: Disable storage buffers if the hardware doesn't support 4 in
+                // the vertex shader:
+                // contextOptions.disableStorageBuffers =
+                //     GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS < 4;
+
+                contextOptions.disableStorageBuffers = true;
+            }
 #endif
-                .invertRenderTargetY = true,
-                // .invertRenderTargetFrontFace = true,
-            };
+            contextOptions.invertRenderTargetY = true;
 
             dmLogInfo("Before creating WebGPU context.");
 
