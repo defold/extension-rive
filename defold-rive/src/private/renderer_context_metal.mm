@@ -43,46 +43,52 @@ namespace dmRive
 
         void Flush() override
         {
-            id<MTLCommandBuffer> flushCommandBuffer = [m_Queue commandBuffer];
-            m_RenderContext->flush({
-                .renderTarget = m_RenderTarget.get(),
-                .externalCommandBuffer = (__bridge void*) flushCommandBuffer
-            });
+            @autoreleasepool {
+                id<MTLCommandBuffer> flushCommandBuffer = [m_Queue commandBuffer];
+                m_RenderContext->flush({
+                    .renderTarget = m_RenderTarget.get(),
+                    .externalCommandBuffer = (__bridge void*) flushCommandBuffer
+                });
 
-            [flushCommandBuffer commit];
+                [flushCommandBuffer commit];
+            }
         }
 
         void OnSizeChanged(uint32_t width, uint32_t height, uint32_t sample_count, bool do_final_blit) override
         {
-            // For now we can only output the result if we blit it to the backbuffer via an extra DC
-            assert(do_final_blit);
+            @autoreleasepool {
+                // For now we can only output the result if we blit it to the backbuffer via an extra DC
+                assert(do_final_blit);
 
-            auto renderContextImpl = m_RenderContext->static_impl_cast<rive::gpu::RenderContextMetalImpl>();
-            m_RenderTarget         = renderContextImpl->makeRenderTarget(MTLPixelFormatBGRA8Unorm, width, height);
+                auto renderContextImpl = m_RenderContext->static_impl_cast<rive::gpu::RenderContextMetalImpl>();
+                m_RenderTarget         = renderContextImpl->makeRenderTarget(MTLPixelFormatBGRA8Unorm, width, height);
 
-            dmGraphics::TextureParams tp = {};
-            tp.m_Width                   = width;
-            tp.m_Height                  = height;
-            tp.m_Depth                   = 1;
-            tp.m_Format                  = dmGraphics::TEXTURE_FORMAT_BGRA8U;
+                dmGraphics::TextureParams tp = {};
+                tp.m_Width                   = width;
+                tp.m_Height                  = height;
+                tp.m_Depth                   = 1;
+                tp.m_Format                  = dmGraphics::TEXTURE_FORMAT_BGRA8U;
 
-            dmGraphics::SetTexture(m_BackingTexture, tp);
+                dmGraphics::SetTexture(m_BackingTexture, tp);
 
-            void* opaque_backing_texture = dmGraphics::VulkanTextureToMetal(m_GraphicsContext, m_BackingTexture);
-            assert(opaque_backing_texture);
-            id<MTLTexture> mtl_texture = (__bridge id<MTLTexture>) opaque_backing_texture;
-            m_RenderTarget->setTargetTexture(mtl_texture);
+                void* opaque_backing_texture = dmGraphics::VulkanTextureToMetal(m_GraphicsContext, m_BackingTexture);
+                assert(opaque_backing_texture);
+                id<MTLTexture> mtl_texture = (__bridge id<MTLTexture>) opaque_backing_texture;
+                m_RenderTarget->setTargetTexture(mtl_texture);
+            }
         }
 
         void SetGraphicsContext(dmGraphics::HContext graphics_context) override
         {
-            m_GraphicsContext = graphics_context;
+            @autoreleasepool {
+                m_GraphicsContext = graphics_context;
 
-            // Update command queue
-            void* cmd_queue = dmGraphics::VulkanGraphicsCommandQueueToMetal(graphics_context);
-            assert(cmd_queue);
-            m_Queue = (__bridge id<MTLCommandQueue>) cmd_queue;
-            m_BackingTexture = dmGraphics::NewTexture(m_GraphicsContext, {});
+                // Update command queue
+                void* cmd_queue = dmGraphics::VulkanGraphicsCommandQueueToMetal(graphics_context);
+                assert(cmd_queue);
+                m_Queue = (__bridge id<MTLCommandQueue>) cmd_queue;
+                m_BackingTexture = dmGraphics::NewTexture(m_GraphicsContext, {});
+            }
         }
 
         void SetRenderTargetTexture(dmGraphics::HTexture texture) override
@@ -100,13 +106,15 @@ namespace dmRive
                                                       uint32_t mipLevelCount,
                                                       const uint8_t imageDataRGBA[]) override
         {
-            auto renderContextImpl = m_RenderContext->static_impl_cast<rive::gpu::RenderContextMetalImpl>();
-            // OpenGL vs Metal difference..
-            if (mipLevelCount < 1)
-            {
-                mipLevelCount = 1;
+            @autoreleasepool {
+                auto renderContextImpl = m_RenderContext->static_impl_cast<rive::gpu::RenderContextMetalImpl>();
+                // OpenGL vs Metal difference..
+                if (mipLevelCount < 1)
+                {
+                    mipLevelCount = 1;
+                }
+                return renderContextImpl->makeImageTexture(width, height, mipLevelCount, imageDataRGBA);
             }
-            return renderContextImpl->makeImageTexture(width, height, mipLevelCount, imageDataRGBA);
         }
 
     private:
