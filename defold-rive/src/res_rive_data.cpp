@@ -19,6 +19,7 @@
 // Rive includes
 #include <rive/artboard.hpp>
 #include <rive/assets/image_asset.hpp>
+#include <rive/assets/font_asset.hpp>
 #include <rive/file.hpp>
 #include <rive/animation/linear_animation_instance.hpp>
 #include <rive/animation/linear_animation.hpp>
@@ -28,6 +29,7 @@
 #include "res_rive_data.h"
 #include "defold/renderer.h"
 #include <common/atlas.h>
+#include <common/font.h>
 #include <common/factory.h>
 
 namespace dmRive
@@ -235,6 +237,19 @@ namespace dmRive
             asset->renderImage(image);
             return dmResource::RESULT_OK;
         }
+        else if (_asset->is<rive::FontAsset>())
+        {
+            rive::FontAsset* asset = _asset->as<rive::FontAsset>();
+            rive::rcp<rive::Font> font = dmRive::LoadFontFromMemory(resource->m_RiveRenderContext, payload, payload_size);
+            if (!font)
+            {
+                dmLogError("Failed to load font asset '%s' from payload.", asset_name);
+                return dmResource::RESULT_INVALID_DATA;
+            }
+
+            asset->font(font);
+            return dmResource::RESULT_OK;
+        }
 
         dmLogError("We currently don't support swapping the asset type of '%s'", asset_name);
         return dmResource::RESULT_NOT_SUPPORTED;
@@ -260,6 +275,19 @@ namespace dmRive
             }
 
             asset->renderImage(image);
+            return dmResource::RESULT_OK;
+        }
+        else if (_asset->is<rive::FontAsset>())
+        {
+            rive::FontAsset* asset = _asset->as<rive::FontAsset>();
+            rive::rcp<rive::Font> font = dmRive::LoadFontFromFactory(factory, resource->m_RiveRenderContext, path);
+            if (!font)
+            {
+                dmLogError("Failed to load font asset '%s' with path '%s'", asset_name, path);
+                return dmResource::RESULT_INVALID_DATA;
+            }
+
+            asset->font(font);
             return dmResource::RESULT_OK;
         }
 
