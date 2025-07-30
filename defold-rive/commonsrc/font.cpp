@@ -41,7 +41,7 @@ namespace dmRive {
             return rive::rcp<rive::Font>();
         }
 
-        char path_buffer[256];
+        char path_buffer[2048];
         uint32_t path_length = 0;
         if (path[0] != '/')
             path_buffer[path_length++] = '/';
