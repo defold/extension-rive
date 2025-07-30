@@ -16,6 +16,11 @@
 
 #ifdef RIVE_WAGYU
 #include <rive/renderer/webgpu/webgpu_wagyu.h>
+#include <emscripten/emscripten.h>
+EM_JS(bool, wagyuShouldDisableStorageBuffers, (), {
+    const version = globalThis.nrdp?.version || navigator.getNrdpVersion();
+    return Boolean(version.libraries.opengl.options.limits.GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS < 4);
+});
 #endif
 
 namespace dmRive
@@ -45,13 +50,11 @@ namespace dmRive
             if (backend == WGPUBackendType_Vulkan)
             {
                 dmLogInfo("Rive extension using WGPUBackendType_Vulkan");
-
                 WGPUWagyuStringArray deviceExtensions = WGPU_WAGYU_STRING_ARRAY_INIT;
                 wgpuWagyuDeviceGetExtensions(m_Device.Get(), &deviceExtensions);
                 for (size_t i = 0; i < deviceExtensions.stringCount; i++)
                 {
-                    if (backend == WGPUBackendType_Vulkan &&
-                        !strcmp(deviceExtensions.strings[i].data, "VK_EXT_rasterization_order_attachment_access"))
+                    if (!strcmp(deviceExtensions.strings[i].data, "VK_EXT_rasterization_order_attachment_access"))
                     {
                         contextOptions.plsType = rive::gpu::RenderContextWebGPUImpl::PixelLocalStorageType::subpassLoad;
                         break;
@@ -61,16 +64,17 @@ namespace dmRive
             else if (backend == WGPUBackendType_OpenGLES)
             {
                 dmLogInfo("Rive extension using WGPUBackendType_OpenGLES");
-                // TODO: search for "GL_EXT_shader_pixel_local_storage".
-                // wgpuWagyuDeviceGetExtensions currently returns nothing in the GL
-                // backend.
-                contextOptions.plsType = rive::gpu::RenderContextWebGPUImpl::PixelLocalStorageType::EXT_shader_pixel_local_storage;
-                // TODO: Disable storage buffers if the hardware doesn't support 4 in
-                // the vertex shader:
-                // contextOptions.disableStorageBuffers =
-                //     GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS < 4;
-
-                contextOptions.disableStorageBuffers = true;
+                WGPUWagyuStringArray deviceExtensions = WGPU_WAGYU_STRING_ARRAY_INIT;
+                wgpuWagyuAdapterGetExtensions(webgpu_adapter, &deviceExtensions);
+                for (size_t i = 0; i < deviceExtensions.stringCount; i++)
+                {
+                    if (!strcmp(deviceExtensions.strings[i].data, "GL_EXT_shader_pixel_local_storage"))
+                    {
+                        contextOptions.plsType = rive::gpu::RenderContextWebGPUImpl::PixelLocalStorageType::EXT_shader_pixel_local_storage;
+                        break;
+                    }
+                }
+                contextOptions.disableStorageBuffers = wagyuShouldDisableStorageBuffers();
             }
 #endif
             contextOptions.invertRenderTargetY = true;
