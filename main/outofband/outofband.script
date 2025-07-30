@@ -7,12 +7,14 @@
 --   * Pass the payload directly to the rive.riv_swap_asset() function
 
 local URL = "https://defold.com/images/logo/defold/logo_with_text/logo-ver-classic-white-160.png"
+local URL_FONT = "http://themes.googleusercontent.com/static/fonts/abeezee/v1/JYPhMn-3Xw-JGuyB-fEdNA.ttf"
 
 -- path to your dlc files. For simplicity, this is at the root of the project
 local DLC_FILES = "."
 
 
 local RIVE_MODEL = "go_rive#rivemodel"
+local RIVE_MODEL_2 = "go_rive2#referencedfontassets"
 
 local function swap_assets(self)
 	local rivc = go.get(RIVE_MODEL, "rive_file")
@@ -52,6 +54,18 @@ function init(self)
 				end)
 		end)
 	end
+
+	rive.riv_swap_asset(go.get(RIVE_MODEL_2, "rive_file"), "Inter", { path = "/main/outofband/font/Inter-referenced.ttf" })
+	timer.delay(1.0, false, function()
+		print("HTTP REQUEST", URL_FONT)
+		http.request(URL_FONT, "GET", function (self, _id, response)
+			print("  response.status:", response.status)
+			if response.status == 200 or response.status == 206 or response.status == 304 then
+				local rivc = go.get(RIVE_MODEL_2, "rive_file")
+				rive.riv_swap_asset(rivc, "Inter", { payload = response.response })
+			end
+		end)
+	end)
 end
 
 function final(self)

@@ -1,0 +1,6 @@
+scene: "/main/outofband/font/referencedfontassets.rivescene"
+default_animation: ""
+material: "/defold-rive/assets/rivemodel.material"
+artboard: "Main"
+coordinate_system: COORDINATE_SYSTEM_RIVE
+artboard_fit: FIT_LAYOUT
