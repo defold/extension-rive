@@ -8,8 +8,7 @@
 #include <rive/math/mat2d.hpp>
 #include <rive/renderer.hpp>
 
-// Common source
-#include <common/tess_renderer.h>
+#include <common/common.h>
 
 namespace rive
 {
