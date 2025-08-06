@@ -6,7 +6,7 @@ platforms:
             defines:    []
             symbols:    ["ResourceTypeRiveScene", "ResourceTypeRiveModel", "ResourceTypeRiveData", "ComponentTypeRive"]
 
-    x86_64-linux:
+    linux:
         context:
             flags:      ["-std=c++17", "-fno-rtti"]
             defines:    ["DM_RIVE_USE_OPENGL", "RIVE_LINUX", "RIVE_DESKTOP_GL"]
