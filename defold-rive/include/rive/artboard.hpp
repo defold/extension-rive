@@ -2,6 +2,7 @@
 #define _RIVE_ARTBOARD_HPP_
 
 #include "rive/advance_flags.hpp"
+#include "rive/resetting_component.hpp"
 #include "rive/animation/linear_animation.hpp"
 #include "rive/animation/state_machine.hpp"
 #include "rive/core_context.hpp"
@@ -19,6 +20,7 @@
 #include "rive/audio/audio_engine.hpp"
 #include "rive/math/raw_path.hpp"
 #include "rive/typed_children.hpp"
+#include "rive/virtualizing_component.hpp"
 
 #include <queue>
 #include <unordered_set>
@@ -49,9 +51,15 @@ class SMITrigger;
 
 #ifdef WITH_RIVE_TOOLS
 typedef void (*ArtboardCallback)(void*);
+typedef uint8_t (*TestBoundsCallback)(void*, float, float, bool);
+typedef uint8_t (*IsAncestorCallback)(void*, uint16_t);
+typedef float (*RootTransformCallback)(void*, float, float, bool);
 #endif
 
-class Artboard : public ArtboardBase, public CoreContext
+class Artboard : public ArtboardBase,
+                 public CoreContext,
+                 public Virtualizable,
+                 public ResettingComponent
 {
     friend class File;
     friend class ArtboardImporter;
@@ -95,6 +103,10 @@ private:
     // state machine controllers to sort their hittable components when they are
     // out of sync
     uint8_t m_drawOrderChangeCounter = 0;
+#ifdef WITH_RIVE_TOOLS
+    uint16_t m_artboardId = 0;
+#endif
+    const Artboard* m_artboardSource = nullptr;
 
 #ifdef EXTERNAL_RIVE_AUDIO_ENGINE
     rcp<AudioEngine> m_audioEngine;
@@ -115,6 +127,7 @@ public:
     {
         return worldTransform();
     }
+    Component* virtualizableComponent() override { return this; }
 
 private:
 #ifdef TESTING
@@ -132,6 +145,17 @@ public:
     StatusCode initialize();
 
     Core* resolve(uint32_t id) const override;
+#ifdef WITH_RIVE_TOOLS
+    void artboardId(uint16_t id) { m_artboardId = id; }
+    uint16_t artboardId() const { return m_artboardId; }
+#endif
+
+    void artboardSource(const Artboard* artboard)
+    {
+        m_artboardSource = artboard;
+    }
+    const Artboard* artboardSource() const { return m_artboardSource; }
+    bool isAncestor(const Artboard* artboard);
 
     /// Find the id of a component in the artboard the object in the artboard.
     /// The artboard itself has id 0 so we use that as a flag for not found.
@@ -142,6 +166,10 @@ public:
     // EXPERIMENTAL -- for internal testing only for now.
     // DO NOT RELY ON THIS as it may change/disappear in the future.
     Core* hitTest(HitInfo*, const Mat2D&) override;
+
+    bool hitTestPoint(const Vec2D& position, bool skipOnUnclipped) override;
+
+    Vec2D rootTransform(const Vec2D&);
 
     void onComponentDirty(Component* component);
 
@@ -174,6 +202,7 @@ public:
                          AdvanceFlags flags = AdvanceFlags::AdvanceNested |
                                               AdvanceFlags::Animate |
                                               AdvanceFlags::NewFrame);
+    void reset() override;
     uint8_t drawOrderChangeCounter() { return m_drawOrderChangeCounter; }
     Drawable* firstDrawable() { return m_FirstDrawable; };
 
@@ -280,6 +309,20 @@ public:
         return nullptr;
     }
 
+    int objectIndex(Core* component) const
+    {
+        int count = 0;
+        for (auto object : m_Objects)
+        {
+            if (object == component)
+            {
+                return count;
+            }
+            count++;
+        }
+        return -1;
+    }
+
     template <typename T = Component> std::vector<T*> find()
     {
         std::vector<T*> results;
@@ -324,6 +367,11 @@ public:
         artboardClone->m_IsInstance = true;
         artboardClone->m_originalWidth = m_originalWidth;
         artboardClone->m_originalHeight = m_originalHeight;
+#ifdef WITH_RIVE_TOOLS
+        artboardClone->m_artboardId = m_artboardId;
+#endif
+        artboardClone->m_artboardSource =
+            isInstance() ? m_artboardSource : this;
         cloneObjectDataBinds(this, artboardClone.get(), artboardClone.get());
 
         std::vector<Core*>& cloneObjects = artboardClone->m_Objects;
@@ -414,6 +462,9 @@ private:
 #ifdef WITH_RIVE_TOOLS
     ArtboardCallback m_layoutChangedCallback = nullptr;
     ArtboardCallback m_layoutDirtyCallback = nullptr;
+    TestBoundsCallback m_testBoundsCallback = nullptr;
+    IsAncestorCallback m_isAncestorCallback = nullptr;
+    RootTransformCallback m_rootTransformCallback = nullptr;
 
 public:
     void* callbackUserData;
@@ -425,6 +476,18 @@ public:
     {
         m_layoutDirtyCallback = callback;
         addDirt(ComponentDirt::Components);
+    }
+    void onTestBounds(TestBoundsCallback callback)
+    {
+        m_testBoundsCallback = callback;
+    }
+    void onIsAncestor(IsAncestorCallback callback)
+    {
+        m_isAncestorCallback = callback;
+    }
+    void onRootTransform(RootTransformCallback callback)
+    {
+        m_rootTransformCallback = callback;
     }
 #endif
 };

@@ -8,6 +8,7 @@
 #include "rive/hit_info.hpp"
 #include "rive/span.hpp"
 #include "rive/advancing_component.hpp"
+#include "rive/resetting_component.hpp"
 #include "rive/viewmodel/viewmodel_instance_artboard.hpp"
 #include <stdio.h>
 
@@ -22,6 +23,7 @@ class StateMachineInstance;
 class File;
 class NestedArtboard : public NestedArtboardBase,
                        public AdvancingComponent,
+                       public ResettingComponent,
                        public ArtboardHost
 {
 protected:
@@ -101,7 +103,12 @@ public:
     bool advanceComponent(float elapsedSeconds,
                           AdvanceFlags flags = AdvanceFlags::Animate |
                                                AdvanceFlags::NewFrame) override;
+    void reset() override;
     Artboard* parentArtboard() override { return artboard(); }
+    Vec2D hostTransformPoint(const Vec2D&, ArtboardInstance*) override;
+    bool hitTestHost(const Vec2D& position,
+                     bool skipOnUnclipped,
+                     ArtboardInstance* artboard) override;
     void markHostTransformDirty() override { markTransformDirty(); }
     void file(File*) override;
     File* file() const override;

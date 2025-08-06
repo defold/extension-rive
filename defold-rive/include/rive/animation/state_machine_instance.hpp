@@ -96,6 +96,8 @@ public:
     // Returns true when the StateMachineInstance has more data to process.
     bool needsAdvance() const;
 
+    void resetState();
+
     // Returns a pointer to the instance's stateMachine
     const StateMachine* stateMachine() const { return m_machine; }
 
@@ -123,11 +125,16 @@ public:
 
     bool advanceAndApply(float secs) override;
     void advancedDataContext();
+    void reset();
     std::string name() const override;
     HitResult pointerMove(Vec2D position, float timeStamp = 0) override;
     HitResult pointerDown(Vec2D position) override;
     HitResult pointerUp(Vec2D position) override;
     HitResult pointerExit(Vec2D position) override;
+    HitResult dragStart(Vec2D position,
+                        float timeStamp = 0,
+                        bool disablePointer = true);
+    HitResult dragEnd(Vec2D position, float timeStamp = 0);
     bool tryChangeState();
     bool hitTest(Vec2D position) const;
 
@@ -188,6 +195,8 @@ public:
     const LayerState* layerState(size_t index);
 #endif
     void updateDataBinds();
+    void enablePointerEvents();
+    void disablePointerEvents();
 
 private:
     std::vector<EventReport> m_reportedEvents;
@@ -209,6 +218,7 @@ private:
         m_bindableDataBindsToSource;
     uint8_t m_drawOrderChangeCounter = 0;
     void unbind();
+    void removeEventListeners();
 
 #ifdef WITH_RIVE_TOOLS
 public:
@@ -236,6 +246,8 @@ public:
                                    float timeStamp = 0) = 0;
     virtual void prepareEvent(Vec2D position, ListenerType hitType) = 0;
     virtual bool hitTest(Vec2D position) const = 0;
+    virtual void enablePointerEvents() {}
+    virtual void disablePointerEvents() {}
 #ifdef TESTING
     int earlyOutCount = 0;
 #endif
