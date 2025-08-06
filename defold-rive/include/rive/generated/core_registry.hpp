@@ -178,6 +178,7 @@
 #include "rive/event.hpp"
 #include "rive/foreground_layout_drawable.hpp"
 #include "rive/joystick.hpp"
+#include "rive/layout/artboard_component_list_override.hpp"
 #include "rive/layout/axis.hpp"
 #include "rive/layout/axis_x.hpp"
 #include "rive/layout/axis_y.hpp"
@@ -415,6 +416,8 @@ public:
                 return new NSlicer();
             case NSlicedNodeBase::typeKey:
                 return new NSlicedNode();
+            case ArtboardComponentListOverrideBase::typeKey:
+                return new ArtboardComponentListOverride();
             case ListenerFireEventBase::typeKey:
                 return new ListenerFireEvent();
             case TransitionSelfComparatorBase::typeKey:
@@ -1043,6 +1046,30 @@ public:
                 object->as<LayoutComponentStyleBase>()->maxHeightUnitsValue(
                     value);
                 break;
+            case ArtboardComponentListOverrideBase::artboardIdPropertyKey:
+                object->as<ArtboardComponentListOverrideBase>()->artboardId(
+                    value);
+                break;
+            case ArtboardComponentListOverrideBase::
+                instanceWidthUnitsValuePropertyKey:
+                object->as<ArtboardComponentListOverrideBase>()
+                    ->instanceWidthUnitsValue(value);
+                break;
+            case ArtboardComponentListOverrideBase::
+                instanceHeightUnitsValuePropertyKey:
+                object->as<ArtboardComponentListOverrideBase>()
+                    ->instanceHeightUnitsValue(value);
+                break;
+            case ArtboardComponentListOverrideBase::
+                instanceWidthScaleTypePropertyKey:
+                object->as<ArtboardComponentListOverrideBase>()
+                    ->instanceWidthScaleType(value);
+                break;
+            case ArtboardComponentListOverrideBase::
+                instanceHeightScaleTypePropertyKey:
+                object->as<ArtboardComponentListOverrideBase>()
+                    ->instanceHeightScaleType(value);
+                break;
             case ListenerFireEventBase::eventIdPropertyKey:
                 object->as<ListenerFireEventBase>()->eventId(value);
                 break;
@@ -1535,6 +1562,12 @@ public:
             case ScrollConstraintBase::snapPropertyKey:
                 object->as<ScrollConstraintBase>()->snap(value);
                 break;
+            case ScrollConstraintBase::virtualizePropertyKey:
+                object->as<ScrollConstraintBase>()->virtualize(value);
+                break;
+            case ScrollConstraintBase::infinitePropertyKey:
+                object->as<ScrollConstraintBase>()->infinite(value);
+                break;
             case ScrollBarConstraintBase::autoSizePropertyKey:
                 object->as<ScrollBarConstraintBase>()->autoSize(value);
                 break;
@@ -1726,6 +1759,12 @@ public:
             case NodeBase::computedWorldYPropertyKey:
                 object->as<NodeBase>()->computedWorldY(value);
                 break;
+            case NodeBase::computedRootXPropertyKey:
+                object->as<NodeBase>()->computedRootX(value);
+                break;
+            case NodeBase::computedRootYPropertyKey:
+                object->as<NodeBase>()->computedRootY(value);
+                break;
             case NodeBase::computedWidthPropertyKey:
                 object->as<NodeBase>()->computedWidth(value);
                 break;
@@ -1849,6 +1888,14 @@ public:
                 break;
             case NSlicedNodeBase::heightPropertyKey:
                 object->as<NSlicedNodeBase>()->height(value);
+                break;
+            case ArtboardComponentListOverrideBase::instanceWidthPropertyKey:
+                object->as<ArtboardComponentListOverrideBase>()->instanceWidth(
+                    value);
+                break;
+            case ArtboardComponentListOverrideBase::instanceHeightPropertyKey:
+                object->as<ArtboardComponentListOverrideBase>()->instanceHeight(
+                    value);
                 break;
             case NestedLinearAnimationBase::mixPropertyKey:
                 object->as<NestedLinearAnimationBase>()->mix(value);
@@ -2493,6 +2540,25 @@ public:
             case LayoutComponentStyleBase::maxHeightUnitsValuePropertyKey:
                 return object->as<LayoutComponentStyleBase>()
                     ->maxHeightUnitsValue();
+            case ArtboardComponentListOverrideBase::artboardIdPropertyKey:
+                return object->as<ArtboardComponentListOverrideBase>()
+                    ->artboardId();
+            case ArtboardComponentListOverrideBase::
+                instanceWidthUnitsValuePropertyKey:
+                return object->as<ArtboardComponentListOverrideBase>()
+                    ->instanceWidthUnitsValue();
+            case ArtboardComponentListOverrideBase::
+                instanceHeightUnitsValuePropertyKey:
+                return object->as<ArtboardComponentListOverrideBase>()
+                    ->instanceHeightUnitsValue();
+            case ArtboardComponentListOverrideBase::
+                instanceWidthScaleTypePropertyKey:
+                return object->as<ArtboardComponentListOverrideBase>()
+                    ->instanceWidthScaleType();
+            case ArtboardComponentListOverrideBase::
+                instanceHeightScaleTypePropertyKey:
+                return object->as<ArtboardComponentListOverrideBase>()
+                    ->instanceHeightScaleType();
             case ListenerFireEventBase::eventIdPropertyKey:
                 return object->as<ListenerFireEventBase>()->eventId();
             case LayerStateBase::flagsPropertyKey:
@@ -2845,6 +2911,10 @@ public:
                 return object->as<FollowPathConstraintBase>()->offset();
             case ScrollConstraintBase::snapPropertyKey:
                 return object->as<ScrollConstraintBase>()->snap();
+            case ScrollConstraintBase::virtualizePropertyKey:
+                return object->as<ScrollConstraintBase>()->virtualize();
+            case ScrollConstraintBase::infinitePropertyKey:
+                return object->as<ScrollConstraintBase>()->infinite();
             case ScrollBarConstraintBase::autoSizePropertyKey:
                 return object->as<ScrollBarConstraintBase>()->autoSize();
             case AxisBase::normalizedPropertyKey:
@@ -2984,6 +3054,10 @@ public:
                 return object->as<NodeBase>()->computedWorldX();
             case NodeBase::computedWorldYPropertyKey:
                 return object->as<NodeBase>()->computedWorldY();
+            case NodeBase::computedRootXPropertyKey:
+                return object->as<NodeBase>()->computedRootX();
+            case NodeBase::computedRootYPropertyKey:
+                return object->as<NodeBase>()->computedRootY();
             case NodeBase::computedWidthPropertyKey:
                 return object->as<NodeBase>()->computedWidth();
             case NodeBase::computedHeightPropertyKey:
@@ -3067,6 +3141,12 @@ public:
                 return object->as<NSlicedNodeBase>()->width();
             case NSlicedNodeBase::heightPropertyKey:
                 return object->as<NSlicedNodeBase>()->height();
+            case ArtboardComponentListOverrideBase::instanceWidthPropertyKey:
+                return object->as<ArtboardComponentListOverrideBase>()
+                    ->instanceWidth();
+            case ArtboardComponentListOverrideBase::instanceHeightPropertyKey:
+                return object->as<ArtboardComponentListOverrideBase>()
+                    ->instanceHeight();
             case NestedLinearAnimationBase::mixPropertyKey:
                 return object->as<NestedLinearAnimationBase>()->mix();
             case NestedSimpleAnimationBase::speedPropertyKey:
@@ -3431,6 +3511,15 @@ public:
             case LayoutComponentStyleBase::minHeightUnitsValuePropertyKey:
             case LayoutComponentStyleBase::maxWidthUnitsValuePropertyKey:
             case LayoutComponentStyleBase::maxHeightUnitsValuePropertyKey:
+            case ArtboardComponentListOverrideBase::artboardIdPropertyKey:
+            case ArtboardComponentListOverrideBase::
+                instanceWidthUnitsValuePropertyKey:
+            case ArtboardComponentListOverrideBase::
+                instanceHeightUnitsValuePropertyKey:
+            case ArtboardComponentListOverrideBase::
+                instanceWidthScaleTypePropertyKey:
+            case ArtboardComponentListOverrideBase::
+                instanceHeightScaleTypePropertyKey:
             case ListenerFireEventBase::eventIdPropertyKey:
             case LayerStateBase::flagsPropertyKey:
             case TransitionValueTriggerComparatorBase::valuePropertyKey:
@@ -3589,6 +3678,8 @@ public:
             case FollowPathConstraintBase::orientPropertyKey:
             case FollowPathConstraintBase::offsetPropertyKey:
             case ScrollConstraintBase::snapPropertyKey:
+            case ScrollConstraintBase::virtualizePropertyKey:
+            case ScrollConstraintBase::infinitePropertyKey:
             case ScrollBarConstraintBase::autoSizePropertyKey:
             case AxisBase::normalizedPropertyKey:
             case LayoutComponentStyleBase::intrinsicallySizedValuePropertyKey:
@@ -3651,6 +3742,8 @@ public:
             case NodeBase::computedLocalYPropertyKey:
             case NodeBase::computedWorldXPropertyKey:
             case NodeBase::computedWorldYPropertyKey:
+            case NodeBase::computedRootXPropertyKey:
+            case NodeBase::computedRootYPropertyKey:
             case NodeBase::computedWidthPropertyKey:
             case NodeBase::computedHeightPropertyKey:
             case NestedArtboardLayoutBase::instanceWidthPropertyKey:
@@ -3692,6 +3785,8 @@ public:
             case NSlicedNodeBase::initialHeightPropertyKey:
             case NSlicedNodeBase::widthPropertyKey:
             case NSlicedNodeBase::heightPropertyKey:
+            case ArtboardComponentListOverrideBase::instanceWidthPropertyKey:
+            case ArtboardComponentListOverrideBase::instanceHeightPropertyKey:
             case NestedLinearAnimationBase::mixPropertyKey:
             case NestedSimpleAnimationBase::speedPropertyKey:
             case AdvanceableStateBase::speedPropertyKey:
@@ -4018,6 +4113,20 @@ public:
                 return object->is<LayoutComponentStyleBase>();
             case LayoutComponentStyleBase::maxHeightUnitsValuePropertyKey:
                 return object->is<LayoutComponentStyleBase>();
+            case ArtboardComponentListOverrideBase::artboardIdPropertyKey:
+                return object->is<ArtboardComponentListOverrideBase>();
+            case ArtboardComponentListOverrideBase::
+                instanceWidthUnitsValuePropertyKey:
+                return object->is<ArtboardComponentListOverrideBase>();
+            case ArtboardComponentListOverrideBase::
+                instanceHeightUnitsValuePropertyKey:
+                return object->is<ArtboardComponentListOverrideBase>();
+            case ArtboardComponentListOverrideBase::
+                instanceWidthScaleTypePropertyKey:
+                return object->is<ArtboardComponentListOverrideBase>();
+            case ArtboardComponentListOverrideBase::
+                instanceHeightScaleTypePropertyKey:
+                return object->is<ArtboardComponentListOverrideBase>();
             case ListenerFireEventBase::eventIdPropertyKey:
                 return object->is<ListenerFireEventBase>();
             case LayerStateBase::flagsPropertyKey:
@@ -4327,6 +4436,10 @@ public:
                 return object->is<FollowPathConstraintBase>();
             case ScrollConstraintBase::snapPropertyKey:
                 return object->is<ScrollConstraintBase>();
+            case ScrollConstraintBase::virtualizePropertyKey:
+                return object->is<ScrollConstraintBase>();
+            case ScrollConstraintBase::infinitePropertyKey:
+                return object->is<ScrollConstraintBase>();
             case ScrollBarConstraintBase::autoSizePropertyKey:
                 return object->is<ScrollBarConstraintBase>();
             case AxisBase::normalizedPropertyKey:
@@ -4447,6 +4560,10 @@ public:
                 return object->is<NodeBase>();
             case NodeBase::computedWorldYPropertyKey:
                 return object->is<NodeBase>();
+            case NodeBase::computedRootXPropertyKey:
+                return object->is<NodeBase>();
+            case NodeBase::computedRootYPropertyKey:
+                return object->is<NodeBase>();
             case NodeBase::computedWidthPropertyKey:
                 return object->is<NodeBase>();
             case NodeBase::computedHeightPropertyKey:
@@ -4529,6 +4646,10 @@ public:
                 return object->is<NSlicedNodeBase>();
             case NSlicedNodeBase::heightPropertyKey:
                 return object->is<NSlicedNodeBase>();
+            case ArtboardComponentListOverrideBase::instanceWidthPropertyKey:
+                return object->is<ArtboardComponentListOverrideBase>();
+            case ArtboardComponentListOverrideBase::instanceHeightPropertyKey:
+                return object->is<ArtboardComponentListOverrideBase>();
             case NestedLinearAnimationBase::mixPropertyKey:
                 return object->is<NestedLinearAnimationBase>();
             case NestedSimpleAnimationBase::speedPropertyKey:

@@ -39,49 +39,16 @@ namespace dmRive
             WGPUAdapter webgpu_adapter = dmGraphics::WebGPUGetAdapter(graphics_context);
 
             m_BackingTexture = 0;
+            m_Adapter = wgpu::Adapter::Acquire(webgpu_adapter);
             m_Device = wgpu::Device::Acquire(webgpu_device);
             m_Queue = wgpu::Queue::Acquire(webgpu_queue);
 
             rive::gpu::RenderContextWebGPUImpl::ContextOptions contextOptions;
-
-#ifdef RIVE_WAGYU
-            // Mostly copied from the webgpu_player.cpp
-            WGPUBackendType backend = wgpuWagyuAdapterGetBackend(webgpu_adapter);
-            if (backend == WGPUBackendType_Vulkan)
-            {
-                dmLogInfo("Rive extension using WGPUBackendType_Vulkan");
-                WGPUWagyuStringArray deviceExtensions = WGPU_WAGYU_STRING_ARRAY_INIT;
-                wgpuWagyuDeviceGetExtensions(m_Device.Get(), &deviceExtensions);
-                for (size_t i = 0; i < deviceExtensions.stringCount; i++)
-                {
-                    if (!strcmp(deviceExtensions.strings[i].data, "VK_EXT_rasterization_order_attachment_access"))
-                    {
-                        contextOptions.plsType = rive::gpu::RenderContextWebGPUImpl::PixelLocalStorageType::subpassLoad;
-                        break;
-                    }
-                }
-            }
-            else if (backend == WGPUBackendType_OpenGLES)
-            {
-                dmLogInfo("Rive extension using WGPUBackendType_OpenGLES");
-                WGPUWagyuStringArray deviceExtensions = WGPU_WAGYU_STRING_ARRAY_INIT;
-                wgpuWagyuAdapterGetExtensions(webgpu_adapter, &deviceExtensions);
-                for (size_t i = 0; i < deviceExtensions.stringCount; i++)
-                {
-                    if (!strcmp(deviceExtensions.strings[i].data, "GL_EXT_shader_pixel_local_storage"))
-                    {
-                        contextOptions.plsType = rive::gpu::RenderContextWebGPUImpl::PixelLocalStorageType::EXT_shader_pixel_local_storage;
-                        break;
-                    }
-                }
-                contextOptions.disableStorageBuffers = wagyuShouldDisableStorageBuffers();
-            }
-#endif
             contextOptions.invertRenderTargetY = true;
 
             dmLogInfo("Before creating WebGPU context.");
 
-            m_RenderContext = rive::gpu::RenderContextWebGPUImpl::MakeContext(m_Device, m_Queue, contextOptions);
+            m_RenderContext = rive::gpu::RenderContextWebGPUImpl::MakeContext(m_Adapter, m_Device, m_Queue, contextOptions);
 
             dmLogInfo("After creating WebGPU context.");
         }
@@ -186,6 +153,7 @@ namespace dmRive
         dmGraphics::HTexture                      m_BackingTexture;
 
         WGPUDevice                                m_BackendDevice;
+        wgpu::Adapter                             m_Adapter;
         wgpu::Device                              m_Device;
         wgpu::Queue                               m_Queue;
         wgpu::TextureView                         m_BackingTextureView;
