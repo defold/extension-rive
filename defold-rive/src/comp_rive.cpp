@@ -625,7 +625,7 @@ namespace dmRive
 
             const Matrix4& go_world = dmGameObject::GetWorldMatrix(c->m_Instance);
             const Matrix4 local = dmTransform::ToMatrix4(c->m_Transform);
-            c->m_World = dmTransform::MulNoScaleZ(go_world, local);
+            c->m_World = go_world * local;
         }
     }
 
