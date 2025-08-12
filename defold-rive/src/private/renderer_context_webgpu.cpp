@@ -98,7 +98,7 @@ namespace dmRive
             default_texture_creation_params.m_Width          = width;
             default_texture_creation_params.m_Height         = height;
             default_texture_creation_params.m_Depth          = 1;
-            default_texture_creation_params.m_UsageHintBits  = dmGraphics::TEXTURE_USAGE_FLAG_SAMPLE | dmGraphics::TEXTURE_USAGE_FLAG_COLOR;
+            default_texture_creation_params.m_UsageHintBits  = dmGraphics::TEXTURE_USAGE_FLAG_SAMPLE | dmGraphics::TEXTURE_USAGE_FLAG_COLOR | dmGraphics::TEXTURE_USAGE_FLAG_INPUT;
             default_texture_creation_params.m_OriginalWidth  = default_texture_creation_params.m_Width;
             default_texture_creation_params.m_OriginalHeight = default_texture_creation_params.m_Height;
 
