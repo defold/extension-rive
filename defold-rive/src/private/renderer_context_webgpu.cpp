@@ -86,7 +86,7 @@ namespace dmRive
         {
             dmLogInfo("Before creating RT");
             auto renderContextImpl = m_RenderContext->static_impl_cast<rive::gpu::RenderContextWebGPUImpl>();
-            m_RenderTarget         = renderContextImpl->makeRenderTarget(wgpu::TextureFormat::BGRA8Unorm, width, height);
+            m_RenderTarget         = renderContextImpl->makeRenderTarget(wgpu::TextureFormat::RGBA8Unorm, width, height);
             dmLogInfo("After creating RT");
 
             if (m_BackingTexture)
