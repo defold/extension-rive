@@ -86,7 +86,7 @@ namespace dmRive
         {
             dmLogInfo("Before creating RT");
             auto renderContextImpl = m_RenderContext->static_impl_cast<rive::gpu::RenderContextWebGPUImpl>();
-            m_RenderTarget         = renderContextImpl->makeRenderTarget(wgpu::TextureFormat::BGRA8Unorm, width, height);
+            m_RenderTarget         = renderContextImpl->makeRenderTarget(wgpu::TextureFormat::RGBA8Unorm, width, height);
             dmLogInfo("After creating RT");
 
             if (m_BackingTexture)
@@ -98,7 +98,7 @@ namespace dmRive
             default_texture_creation_params.m_Width          = width;
             default_texture_creation_params.m_Height         = height;
             default_texture_creation_params.m_Depth          = 1;
-            default_texture_creation_params.m_UsageHintBits  = dmGraphics::TEXTURE_USAGE_FLAG_SAMPLE | dmGraphics::TEXTURE_USAGE_FLAG_COLOR;
+            default_texture_creation_params.m_UsageHintBits  = dmGraphics::TEXTURE_USAGE_FLAG_SAMPLE | dmGraphics::TEXTURE_USAGE_FLAG_COLOR | dmGraphics::TEXTURE_USAGE_FLAG_INPUT;
             default_texture_creation_params.m_OriginalWidth  = default_texture_creation_params.m_Width;
             default_texture_creation_params.m_OriginalHeight = default_texture_creation_params.m_Height;
 
