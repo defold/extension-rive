@@ -240,7 +240,7 @@ echo "Downloading rive-cpp files"
 
 # https://github.com/rive-app/rive-runtime/commit/<sha>
 
-RIVECPP_VERSION=3f6e5319f6998d54cd756faf5f82e4e05e4f23b9
+RIVECPP_VERSION=ab86fa10752dd8b3b68b91e9ea2c99ce6eda4786
 RIVECPP_ZIP=${DOWNLOAD_DIR}/rivecpp-${RIVECPP_VERSION}.zip
 RIVECPP_URL="https://github.com/rive-app/rive-runtime/archive/${RIVECPP_VERSION}.zip"
 
