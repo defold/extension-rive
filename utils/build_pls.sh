@@ -8,7 +8,7 @@ OUTPUT_LIB_DIR=${SCRIPT_DIR}/../defold-rive/lib
 RIVE_DIR=
 PLATFORMS=
 
-while [ "$#" -gt "1" ]; do
+while [ "$#" -ge "1" ]; do
     arg="$1"
     if [ "$arg" = "--rive" ]; then
         shift
