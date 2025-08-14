@@ -1,10 +1,24 @@
 #! /usr/bin/env bash
+set -x
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 OUTPUT_LIB_DIR=${SCRIPT_DIR}/../defold-rive/lib
 
-PLATFORMS=$1
+RIVE_DIR=
+PLATFORMS=
+
+while [ "$#" -ge "1" ]; do
+    arg="$1"
+    if [ "$arg" = "--rive" ]; then
+        shift
+        RIVE_DIR="$1"
+    else
+        PLATFORMS="$PLATFORMS $1"
+    fi
+    shift
+done
+
 
 if [ "" == "${PLATFORMS}" ]; then
     PLATFORMS="x86_64-macos arm64-macos arm64-linux x86_64-linux x86_64-win32 x86-win32 arm64-ios x86_64-ios arm64-android js-web wasm-web wasm_pthread-web"
@@ -235,23 +249,28 @@ EARCUT_SOURCE_DIR=${SOURCE_DIR}/earcut/src
 
 download_zip ${EARCUT_ZIP} ${DOWNLOAD_DIR}/earcut ${EARCUT_URL}
 
-echo "*************************************************"
-echo "Downloading rive-cpp files"
+if [ -z "$RIVE_DIR" ]; then
+    echo "*************************************************"
+    echo "Downloading rive-cpp files"
 
-# https://github.com/rive-app/rive-runtime/commit/<sha>
+    # https://github.com/rive-app/rive-runtime/commit/<sha>
 
-RIVECPP_VERSION=ab86fa10752dd8b3b68b91e9ea2c99ce6eda4786
-RIVECPP_ZIP=${DOWNLOAD_DIR}/rivecpp-${RIVECPP_VERSION}.zip
-RIVECPP_URL="https://github.com/rive-app/rive-runtime/archive/${RIVECPP_VERSION}.zip"
+    RIVECPP_VERSION=ab86fa10752dd8b3b68b91e9ea2c99ce6eda4786
+    RIVECPP_ZIP=${DOWNLOAD_DIR}/rivecpp-${RIVECPP_VERSION}.zip
+    RIVECPP_URL="https://github.com/rive-app/rive-runtime/archive/${RIVECPP_VERSION}.zip"
 
-RIVECPP_ORIGINAL_DIR=${DOWNLOAD_DIR}/rivecpp/rive-runtime-${RIVECPP_VERSION}
+    download_zip ${RIVECPP_ZIP} ${DOWNLOAD_DIR}/rivecpp ${RIVECPP_URL}
+    RIVECPP_ORIGINAL_DIR=${DOWNLOAD_DIR}/rivecpp/rive-runtime-${RIVECPP_VERSION}
+else
+    RIVECPP_ORIGINAL_DIR=${RIVE_DIR}
+fi
+
 RIVECPP_SOURCE_DIR=${SOURCE_DIR}/rivecpp/src
 RIVECPP_TESS_SOURCE_DIR=${SOURCE_DIR}/rivecpp-tess/src
 RIVECPP_RENDERER_SOURCE_DIR=${SOURCE_DIR}/rivecpp-renderer/src
 RIVECPP_HARFBUZZ_INCLUDE_DIR=${RIVECPP_SOURCE_DIR}/src/text
 RIVECPP_RENDERER_SHADER_DIR=${RIVECPP_RENDERER_SOURCE_DIR}/src/
 
-download_zip ${RIVECPP_ZIP} ${DOWNLOAD_DIR}/rivecpp ${RIVECPP_URL}
 
 # Platforms can include different files in the renderer, so to make sure we don't build the wrong thing we remove all before building
 rm -rf ${RIVECPP_RENDERER_SOURCE_DIR}
