@@ -170,45 +170,11 @@ bool CompRiveDestroyViewModelInstanceRuntime(RiveComponent* component, uint32_t 
 // **************************************************************************************************************
 // PROPERTIES
 
-// NOTE: This is incredibly inefficient, but in the light of a missing accessor function,
-// I'll keep it this way, as it's unclear when the "properies()" result is updated.
-// I don't wish to store info thay may grow stale. /MAWE
 static rive::DataType GetDataType(rive::ViewModelInstanceRuntime* vmir, const char* path)
 {
-    // We check the rare occurrences first, as we can do correct type checking for the Lua types
-    // in the scripting api
-    rive::ViewModelInstanceTriggerRuntime* prop_trigger = vmir->propertyTrigger(path);
-    if (prop_trigger)
-        return rive::DataType::trigger;
-
-    rive::ViewModelInstanceEnumRuntime* prop_enum = vmir->propertyEnum(path);
-    if (prop_enum)
-        return rive::DataType::enumType;
-
-    rive::ViewModelInstanceRuntime* prop_vmir = vmir->propertyViewModel(path);
-    if (prop_vmir)
-        return rive::DataType::viewModel;
-
-    rive::ViewModelInstanceListRuntime* prop_list = vmir->propertyList(path);
-    if (prop_list)
-        return rive::DataType::list;
-
-    rive::ViewModelInstanceColorRuntime* prop_color = vmir->propertyColor(path);
-    if (prop_color)
-        return rive::DataType::color;
-
-    rive::ViewModelInstanceNumberRuntime* prop_number = vmir->propertyNumber(path);
-    if (prop_number)
-        return rive::DataType::number;
-
-    rive::ViewModelInstanceStringRuntime* prop_string = vmir->propertyString(path);
-    if (prop_string)
-        return rive::DataType::string;
-
-    rive::ViewModelInstanceBooleanRuntime* prop_boolean = vmir->propertyBoolean(path);
-    if (prop_boolean)
-        return rive::DataType::boolean;
-
+    rive::ViewModelInstanceValueRuntime* prop = vmir->property(path);
+    if (prop)
+        return prop->dataType();
     return rive::DataType::none;
 };
 
