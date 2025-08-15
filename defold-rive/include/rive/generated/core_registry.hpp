@@ -53,7 +53,9 @@
 #include "rive/animation/state_machine.hpp"
 #include "rive/animation/state_machine_bool.hpp"
 #include "rive/animation/state_machine_component.hpp"
+#include "rive/animation/state_machine_fire_action.hpp"
 #include "rive/animation/state_machine_fire_event.hpp"
+#include "rive/animation/state_machine_fire_trigger.hpp"
 #include "rive/animation/state_machine_input.hpp"
 #include "rive/animation/state_machine_layer.hpp"
 #include "rive/animation/state_machine_layer_component.hpp"
@@ -126,9 +128,11 @@
 #include "rive/custom_property.hpp"
 #include "rive/custom_property_boolean.hpp"
 #include "rive/custom_property_color.hpp"
+#include "rive/custom_property_enum.hpp"
 #include "rive/custom_property_group.hpp"
 #include "rive/custom_property_number.hpp"
 #include "rive/custom_property_string.hpp"
+#include "rive/custom_property_trigger.hpp"
 #include "rive/data_bind/bindable_property.hpp"
 #include "rive/data_bind/bindable_property_artboard.hpp"
 #include "rive/data_bind/bindable_property_asset.hpp"
@@ -422,6 +426,8 @@ public:
                 return new ListenerFireEvent();
             case TransitionSelfComparatorBase::typeKey:
                 return new TransitionSelfComparator();
+            case StateMachineFireTriggerBase::typeKey:
+                return new StateMachineFireTrigger();
             case TransitionValueTriggerComparatorBase::typeKey:
                 return new TransitionValueTriggerComparator();
             case KeyFrameUintBase::typeKey:
@@ -734,6 +740,8 @@ public:
                 return new Text();
             case TextValueRunBase::typeKey:
                 return new TextValueRun();
+            case CustomPropertyEnumBase::typeKey:
+                return new CustomPropertyEnum();
             case CustomPropertyStringBase::typeKey:
                 return new CustomPropertyString();
             case FolderBase::typeKey:
@@ -748,6 +756,8 @@ public:
                 return new FileAssetContents();
             case AudioEventBase::typeKey:
                 return new AudioEvent();
+            case CustomPropertyTriggerBase::typeKey:
+                return new CustomPropertyTrigger();
         }
         return nullptr;
     }
@@ -1076,6 +1086,9 @@ public:
             case LayerStateBase::flagsPropertyKey:
                 object->as<LayerStateBase>()->flags(value);
                 break;
+            case StateMachineFireActionBase::occursValuePropertyKey:
+                object->as<StateMachineFireActionBase>()->occursValue(value);
+                break;
             case TransitionValueTriggerComparatorBase::valuePropertyKey:
                 object->as<TransitionValueTriggerComparatorBase>()->value(
                     value);
@@ -1182,9 +1195,6 @@ public:
                 break;
             case StateMachineFireEventBase::eventIdPropertyKey:
                 object->as<StateMachineFireEventBase>()->eventId(value);
-                break;
-            case StateMachineFireEventBase::occursValuePropertyKey:
-                object->as<StateMachineFireEventBase>()->occursValue(value);
                 break;
             case LinearAnimationBase::fpsPropertyKey:
                 object->as<LinearAnimationBase>()->fps(value);
@@ -1419,11 +1429,20 @@ public:
             case TextValueRunBase::styleIdPropertyKey:
                 object->as<TextValueRunBase>()->styleId(value);
                 break;
+            case CustomPropertyEnumBase::propertyValuePropertyKey:
+                object->as<CustomPropertyEnumBase>()->propertyValue(value);
+                break;
+            case CustomPropertyEnumBase::enumIdPropertyKey:
+                object->as<CustomPropertyEnumBase>()->enumId(value);
+                break;
             case FileAssetBase::assetIdPropertyKey:
                 object->as<FileAssetBase>()->assetId(value);
                 break;
             case AudioEventBase::assetIdPropertyKey:
                 object->as<AudioEventBase>()->assetId(value);
+                break;
+            case CustomPropertyTriggerBase::propertyValuePropertyKey:
+                object->as<CustomPropertyTriggerBase>()->propertyValue(value);
                 break;
         }
     }
@@ -2318,6 +2337,9 @@ public:
             case EventBase::triggerPropertyKey:
                 object->as<EventBase>()->trigger(value);
                 break;
+            case CustomPropertyTriggerBase::firePropertyKey:
+                object->as<CustomPropertyTriggerBase>()->fire(value);
+                break;
         }
     }
     static uint32_t getUint(Core* object, int propertyKey)
@@ -2563,6 +2585,8 @@ public:
                 return object->as<ListenerFireEventBase>()->eventId();
             case LayerStateBase::flagsPropertyKey:
                 return object->as<LayerStateBase>()->flags();
+            case StateMachineFireActionBase::occursValuePropertyKey:
+                return object->as<StateMachineFireActionBase>()->occursValue();
             case TransitionValueTriggerComparatorBase::valuePropertyKey:
                 return object->as<TransitionValueTriggerComparatorBase>()
                     ->value();
@@ -2638,8 +2662,6 @@ public:
                 return object->as<StateTransitionBase>()->randomWeight();
             case StateMachineFireEventBase::eventIdPropertyKey:
                 return object->as<StateMachineFireEventBase>()->eventId();
-            case StateMachineFireEventBase::occursValuePropertyKey:
-                return object->as<StateMachineFireEventBase>()->occursValue();
             case LinearAnimationBase::fpsPropertyKey:
                 return object->as<LinearAnimationBase>()->fps();
             case LinearAnimationBase::durationPropertyKey:
@@ -2800,10 +2822,16 @@ public:
                 return object->as<TextBase>()->verticalAlignValue();
             case TextValueRunBase::styleIdPropertyKey:
                 return object->as<TextValueRunBase>()->styleId();
+            case CustomPropertyEnumBase::propertyValuePropertyKey:
+                return object->as<CustomPropertyEnumBase>()->propertyValue();
+            case CustomPropertyEnumBase::enumIdPropertyKey:
+                return object->as<CustomPropertyEnumBase>()->enumId();
             case FileAssetBase::assetIdPropertyKey:
                 return object->as<FileAssetBase>()->assetId();
             case AudioEventBase::assetIdPropertyKey:
                 return object->as<AudioEventBase>()->assetId();
+            case CustomPropertyTriggerBase::propertyValuePropertyKey:
+                return object->as<CustomPropertyTriggerBase>()->propertyValue();
         }
         return 0;
     }
@@ -3522,6 +3550,7 @@ public:
                 instanceHeightScaleTypePropertyKey:
             case ListenerFireEventBase::eventIdPropertyKey:
             case LayerStateBase::flagsPropertyKey:
+            case StateMachineFireActionBase::occursValuePropertyKey:
             case TransitionValueTriggerComparatorBase::valuePropertyKey:
             case KeyFrameBase::framePropertyKey:
             case InterpolatingKeyFrameBase::interpolationTypePropertyKey:
@@ -3557,7 +3586,6 @@ public:
             case StateTransitionBase::interpolatorIdPropertyKey:
             case StateTransitionBase::randomWeightPropertyKey:
             case StateMachineFireEventBase::eventIdPropertyKey:
-            case StateMachineFireEventBase::occursValuePropertyKey:
             case LinearAnimationBase::fpsPropertyKey:
             case LinearAnimationBase::durationPropertyKey:
             case LinearAnimationBase::loopValuePropertyKey:
@@ -3634,8 +3662,11 @@ public:
             case TextBase::wrapValuePropertyKey:
             case TextBase::verticalAlignValuePropertyKey:
             case TextValueRunBase::styleIdPropertyKey:
+            case CustomPropertyEnumBase::propertyValuePropertyKey:
+            case CustomPropertyEnumBase::enumIdPropertyKey:
             case FileAssetBase::assetIdPropertyKey:
             case AudioEventBase::assetIdPropertyKey:
+            case CustomPropertyTriggerBase::propertyValuePropertyKey:
                 return CoreUintType::id;
             case ViewModelComponentBase::namePropertyKey:
             case DataEnumCustomBase::namePropertyKey:
@@ -3925,6 +3956,8 @@ public:
             case ExportAudioBase::volumePropertyKey:
                 return CoreDoubleType::id;
             case NestedArtboardBase::dataBindPathIdsPropertyKey:
+            case StateMachineFireTriggerBase::viewModelPathIdsPropertyKey:
+            case StateMachineListenerBase::viewModelPathIdsPropertyKey:
             case MeshBase::triangleIndexBytesPropertyKey:
             case DataConverterOperationViewModelBase::sourcePathIdsPropertyKey:
             case DataBindContextBase::sourcePathIdsPropertyKey:
@@ -3941,6 +3974,7 @@ public:
         {
             case NestedTriggerBase::firePropertyKey:
             case EventBase::triggerPropertyKey:
+            case CustomPropertyTriggerBase::firePropertyKey:
                 return true;
             default:
                 return false;
@@ -4131,6 +4165,8 @@ public:
                 return object->is<ListenerFireEventBase>();
             case LayerStateBase::flagsPropertyKey:
                 return object->is<LayerStateBase>();
+            case StateMachineFireActionBase::occursValuePropertyKey:
+                return object->is<StateMachineFireActionBase>();
             case TransitionValueTriggerComparatorBase::valuePropertyKey:
                 return object->is<TransitionValueTriggerComparatorBase>();
             case KeyFrameBase::framePropertyKey:
@@ -4199,8 +4235,6 @@ public:
             case StateTransitionBase::randomWeightPropertyKey:
                 return object->is<StateTransitionBase>();
             case StateMachineFireEventBase::eventIdPropertyKey:
-                return object->is<StateMachineFireEventBase>();
-            case StateMachineFireEventBase::occursValuePropertyKey:
                 return object->is<StateMachineFireEventBase>();
             case LinearAnimationBase::fpsPropertyKey:
                 return object->is<LinearAnimationBase>();
@@ -4354,10 +4388,16 @@ public:
                 return object->is<TextBase>();
             case TextValueRunBase::styleIdPropertyKey:
                 return object->is<TextValueRunBase>();
+            case CustomPropertyEnumBase::propertyValuePropertyKey:
+                return object->is<CustomPropertyEnumBase>();
+            case CustomPropertyEnumBase::enumIdPropertyKey:
+                return object->is<CustomPropertyEnumBase>();
             case FileAssetBase::assetIdPropertyKey:
                 return object->is<FileAssetBase>();
             case AudioEventBase::assetIdPropertyKey:
                 return object->is<AudioEventBase>();
+            case CustomPropertyTriggerBase::propertyValuePropertyKey:
+                return object->is<CustomPropertyTriggerBase>();
             case ViewModelComponentBase::namePropertyKey:
                 return object->is<ViewModelComponentBase>();
             case DataEnumCustomBase::namePropertyKey:
@@ -4926,6 +4966,8 @@ public:
                 return object->is<NestedTriggerBase>();
             case EventBase::triggerPropertyKey:
                 return object->is<EventBase>();
+            case CustomPropertyTriggerBase::firePropertyKey:
+                return object->is<CustomPropertyTriggerBase>();
         }
         return false;
     }
