@@ -1,5 +1,6 @@
 [bootstrap]
-main_collection = /main/loader.collectionc
+_main_collection = /main/loader.collectionc
+main_collection = /main/egg/egg.collectionc
 render = /defold-rive/lua/rive.renderc
 
 [script]
@@ -28,6 +29,10 @@ include_dirs = defold-rive
 max_draw_calls = 1024
 max_debug_vertices = 50000
 opengl_version_hint = 0
+
+[native_extension]
+_app_manifest = /wagyu.appmanifest
+app_manifest = /chris.appmanifest
 
 [collection_proxy]
 max_count = 32
