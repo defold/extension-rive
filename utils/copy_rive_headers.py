@@ -35,8 +35,10 @@ def rmtree(path):
 
 def get_version(path, pattern):
     PATTERN=pattern+'='
+    assert(os.path.exists(path))
     with open(path, 'r') as f:
         for line in f.readlines():
+            line = line.strip()
             if line.startswith(PATTERN):
                 tokens = line.split('=')
                 return tokens[1].strip()
@@ -52,6 +54,7 @@ DEFOLD_TARGET_DIR="./defold-rive/include/defold"
 rmtree(TARGET_DIR)
 
 RIVE_RUNTIME_VERSION = get_version('./utils/build_pls.sh', 'RIVECPP_VERSION')
+assert(RIVE_RUNTIME_VERSION is not None)
 
 copy_folder(f"./build/pls/deps/rivecpp/rive-runtime-{RIVE_RUNTIME_VERSION}/include/rive", TARGET_DIR)
 copy_folder(f"./build/pls/deps/rivecpp/rive-runtime-{RIVE_RUNTIME_VERSION}/renderer/include/rive", TARGET_DIR)
