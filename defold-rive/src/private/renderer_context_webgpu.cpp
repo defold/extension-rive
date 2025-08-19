@@ -14,15 +14,6 @@
 
 #include <webgpu/webgpu_cpp.h>
 
-#ifdef RIVE_WAGYU
-#include <rive/renderer/webgpu/webgpu_wagyu.h>
-#include <emscripten/emscripten.h>
-EM_JS(bool, wagyuShouldDisableStorageBuffers, (), {
-    const version = globalThis.nrdp?.version || navigator.getNrdpVersion();
-    return Boolean(version.libraries.opengl.options.limits.GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS < 4);
-});
-#endif
-
 namespace dmRive
 {
     class DefoldRiveRendererWebGPU : public IDefoldRiveRenderer

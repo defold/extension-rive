@@ -585,7 +585,7 @@ for platform in $PLATFORMS; do
             ;;
 
         wasm-web|wasm_pthread-web|js-web)
-            RIVE_RENDERER_DEFINES="RIVE_WEBGL RIVE_WEBGPU"
+            RIVE_RENDERER_DEFINES="RIVE_WEBGL RIVE_WEBGPU=1"
 
             # NOTE: To build WebGL, you have to do the following manual steps:
             #   * Don't pass a DEFOLDSDK to bob when building, you need to use a local dynamo home SDK
@@ -632,15 +632,21 @@ for platform in $PLATFORMS; do
 
     case ${platform} in
         wasm-web|wasm_pthread-web)
-            RIVE_RENDERER_DEFINES="RIVE_WEBGL RIVE_WEBGPU RIVE_WAGYU"
-
+            #wagyu1
+            RIVE_RENDERER_DEFINES="RIVE_WEBGL RIVE_WEBGPU=1 RIVE_WAGYU"
             # We temporarily remove the WebGL support until they've fixed their includes
-
             if [ "${RIVE_RENDERER_DEFINES}" != "" ]; then
                 export DEFINES="${RIVE_RENDERER_DEFINES}"
             fi
-
             build_library rive_renderer_wagyu_gl $platform $platform_ne ${RIVECPP_RENDERER_SOURCE_DIR} ${BUILD}
+
+            #wagyu2
+            RIVE_RENDERER_DEFINES="RIVE_WEBGPU=2 RIVE_WAGYU"
+            # We temporarily remove the WebGL support until they've fixed their includes
+            if [ "${RIVE_RENDERER_DEFINES}" != "" ]; then
+                export DEFINES="${RIVE_RENDERER_DEFINES}"
+            fi
+            build_library rive_renderer_wagyu $platform $platform_ne ${RIVECPP_RENDERER_SOURCE_DIR} ${BUILD}
     esac
 
     echo "************************************************************"
