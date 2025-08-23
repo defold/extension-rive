@@ -474,7 +474,7 @@ for platform in $PLATFORMS; do
             mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders
             mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders
             mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl
-            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/glad
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src/glad
 
             cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/out/generated/*.*           ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/
             cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/*.glsl                      ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders/
@@ -488,10 +488,11 @@ for platform in $PLATFORMS; do
 
             cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_webgl.cpp             ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
             cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_rw_texture.cpp        ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
-            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.*                              ${RIVECPP_RENDERER_SOURCE_DIR}/glad
-            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.h                              ${RIVECPP_RENDERER_SOURCE_DIR}/include/rive/renderer/gl/
 
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.*                              ${RIVECPP_RENDERER_SOURCE_DIR}/src/glad
+            cp -v -r ${RIVECPP_ORIGINAL_DIR}/renderer/glad/include/                      ${RIVECPP_RENDERER_SOURCE_DIR}/include
             ;;
+
         arm64-linux|x86_64-linux)
             RIVE_RENDERER_DEFINES="RIVE_DESKTOP_GL RIVE_LINUX"
             RIVE_RENDERER_INCLUDES="upload/src/glad"
@@ -503,7 +504,7 @@ for platform in $PLATFORMS; do
             mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders
             mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders
             mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl
-            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/glad
+            mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src/glad
 
             cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/out/generated/*.*           ${RIVECPP_RENDERER_SOURCE_DIR}/include/generated/shaders/
             cp -v ${RIVECPP_RENDERER_SOURCE_DIR}/src/shaders/*.glsl                      ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders/
@@ -518,8 +519,9 @@ for platform in $PLATFORMS; do
 
             cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_webgl.cpp             ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
             cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_rw_texture.cpp        ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
-            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.*                              ${RIVECPP_RENDERER_SOURCE_DIR}/glad
-            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.h                              ${RIVECPP_RENDERER_SOURCE_DIR}/include/rive/renderer/gl/
+
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.*                              ${RIVECPP_RENDERER_SOURCE_DIR}/src/glad
+            cp -v -r ${RIVECPP_ORIGINAL_DIR}/renderer/glad/include/                      ${RIVECPP_RENDERER_SOURCE_DIR}/include
             ;;
 
         x86_64-macos|arm64-macos)
