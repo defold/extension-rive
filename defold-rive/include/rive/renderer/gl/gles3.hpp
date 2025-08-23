@@ -13,6 +13,8 @@
 #define GL_SHADER_PIXEL_LOCAL_STORAGE_EXT 0x8F64
 #define GL_FRAMEBUFFER_FETCH_NONCOHERENT_QCOM 0x96A2
 #define glFramebufferFetchBarrierQCOM(...) RIVE_UNREACHABLE()
+#define glFramebufferPixelLocalStorageSizeEXT(...) RIVE_UNREACHABLE()
+#define glClearPixelLocalStorageuiEXT(...) RIVE_UNREACHABLE()
 #endif
 
 #ifdef RIVE_ANDROID
@@ -101,6 +103,12 @@ extern void glProvokingVertexANGLE(GLenum provokeMode);
 #define GL_CLIP_DISTANCE3_EXT 0x3003
 #endif
 
+#ifndef GL_KHR_parallel_shader_compile
+#define GL_KHR_parallel_shader_compile 1
+#define GL_MAX_SHADER_COMPILER_THREADS_KHR 0x91B0
+#define GL_COMPLETION_STATUS_KHR 0x91B1
+#endif
+
 #endif // RIVE_WEBGL
 
 #if defined(RIVE_ANDROID) || defined(RIVE_WEBGL)
@@ -153,6 +161,7 @@ struct GLCapabilities
     bool ARB_shader_storage_buffer_object : 1;
     bool KHR_blend_equation_advanced : 1;
     bool KHR_blend_equation_advanced_coherent : 1;
+    bool KHR_parallel_shader_compile : 1;
     bool EXT_base_instance : 1;
     bool EXT_clip_cull_distance : 1;
     bool EXT_color_buffer_half_float : 1;
@@ -160,23 +169,40 @@ struct GLCapabilities
     bool EXT_multisampled_render_to_texture : 1;
     bool EXT_shader_framebuffer_fetch : 1;
     bool EXT_shader_pixel_local_storage : 1;
+    bool EXT_shader_pixel_local_storage2 : 1;
     bool INTEL_fragment_shader_ordering : 1;
     bool QCOM_shader_framebuffer_fetch_noncoherent : 1;
 };
 
 #ifdef RIVE_ANDROID
-// Android doesn't load extension functions for us.
+// EXT_base_instance.
 extern PFNGLDRAWARRAYSINSTANCEDBASEINSTANCEEXTPROC
     glDrawArraysInstancedBaseInstanceEXT;
 extern PFNGLDRAWELEMENTSINSTANCEDBASEINSTANCEEXTPROC
     glDrawElementsInstancedBaseInstanceEXT;
 extern PFNGLDRAWELEMENTSINSTANCEDBASEVERTEXBASEINSTANCEEXTPROC
     glDrawElementsInstancedBaseVertexBaseInstanceEXT;
+
+// QCOM_shader_framebuffer_fetch_noncoherent.
 extern PFNGLFRAMEBUFFERFETCHBARRIERQCOMPROC glFramebufferFetchBarrierQCOM;
+
+// EXT_multisampled_render_to_texture.
 extern PFNGLFRAMEBUFFERTEXTURE2DMULTISAMPLEEXTPROC
     glFramebufferTexture2DMultisampleEXT;
 extern PFNGLRENDERBUFFERSTORAGEMULTISAMPLEEXTPROC
     glRenderbufferStorageMultisampleEXT;
+
+// KHR_blend_equation_advanced.
 extern PFNGLBLENDBARRIERKHRPROC glBlendBarrierKHR;
+
+// EXT_shader_pixel_local_storage2.
+extern PFNGLFRAMEBUFFERPIXELLOCALSTORAGESIZEEXTPROC
+    glFramebufferPixelLocalStorageSizeEXT;
+extern PFNGLCLEARPIXELLOCALSTORAGEUIEXTPROC glClearPixelLocalStorageuiEXT;
+
+// KHR_parallel_shader_compilation
+extern PFNGLMAXSHADERCOMPILERTHREADSKHRPROC glMaxShaderCompilerThreadsKHR;
+
+// Android doesn't load extension functions for us.
 void LoadGLESExtensions(const GLCapabilities&);
 #endif
