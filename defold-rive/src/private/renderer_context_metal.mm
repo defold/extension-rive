@@ -20,7 +20,7 @@ namespace dmRive
         DefoldRiveRendererMetal()
         {
             rive::gpu::RenderContextMetalImpl::ContextOptions metalOptions;
-            metalOptions.synchronousShaderCompilations = true;
+            metalOptions.shaderCompilationMode = rive::gpu::ShaderCompilationMode::alwaysSynchronous;
             metalOptions.disableFramebufferReads = true;
 
             m_RenderContext = rive::gpu::RenderContextMetalImpl::MakeContext(m_GPU, metalOptions);

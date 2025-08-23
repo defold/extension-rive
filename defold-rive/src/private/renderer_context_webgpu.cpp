@@ -3,6 +3,16 @@
 
 #include "renderer_context.h"
 
+#if RIVE_WEBGPU == 1
+    #include <rive/renderer/webgpu/wagyu-port/old/include/webgpu/webgpu.h>
+    #include <rive/renderer/webgpu/wagyu-port/old/include/webgpu/webgpu_cpp.h>
+#elif RIVE_WEBGPU == 2
+    #include <rive/renderer/webgpu/wagyu-port/new/include/webgpu/webgpu.h>
+    #include <rive/renderer/webgpu/wagyu-port/new/include/webgpu/webgpu_cpp.h>
+#else
+    #error "Unsupported value for RIVE_WEBGPU!"
+#endif
+
 #include <rive/renderer/rive_renderer.hpp>
 #include <rive/renderer/texture.hpp>
 #include <rive/renderer/webgpu/render_context_webgpu_impl.hpp>
@@ -13,15 +23,6 @@
 #include <defold/defold_graphics.h>
 
 #include <webgpu/webgpu_cpp.h>
-
-#ifdef RIVE_WAGYU
-#include <rive/renderer/webgpu/webgpu_wagyu.h>
-#include <emscripten/emscripten.h>
-EM_JS(bool, wagyuShouldDisableStorageBuffers, (), {
-    const version = globalThis.nrdp?.version || navigator.getNrdpVersion();
-    return Boolean(version.libraries.opengl.options.limits.GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS < 4);
-});
-#endif
 
 namespace dmRive
 {
@@ -46,7 +47,7 @@ namespace dmRive
             rive::gpu::RenderContextWebGPUImpl::ContextOptions contextOptions;
             contextOptions.invertRenderTargetY = true;
 
-            dmLogInfo("Before creating WebGPU context.");
+            dmLogInfo("Before creating WebGPU context. (RIVE_WEBGPU=%d)", RIVE_WEBGPU);
 
             m_RenderContext = rive::gpu::RenderContextWebGPUImpl::MakeContext(m_Adapter, m_Device, m_Queue, contextOptions);
 

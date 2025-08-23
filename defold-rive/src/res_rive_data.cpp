@@ -101,7 +101,7 @@ namespace dmRive
         AtlasNameResolver atlas_resolver = AtlasNameResolver(params->m_Factory, render_context_res);
 
         rive::ImportResult result;
-        std::unique_ptr<rive::File> file = rive::File::import(data,
+        rive::rcp<rive::File> file = rive::File::import(data,
                                                         rive_factory,
                                                         &result,
                                                         (rive::FileAssetLoader*) &atlas_resolver);
@@ -149,7 +149,7 @@ namespace dmRive
         AtlasNameResolver atlas_resolver = AtlasNameResolver(params->m_Factory, render_context_res);
 
         rive::ImportResult result;
-        std::unique_ptr<rive::File> file = rive::File::import(data,
+        rive::rcp<rive::File> file = rive::File::import(data,
                                                         rive_factory,
                                                         &result,
                                                         &atlas_resolver);
