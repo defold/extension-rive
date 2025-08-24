@@ -6,6 +6,7 @@
 #include "rive/resetting_component.hpp"
 #include "rive/animation/state_machine_instance.hpp"
 #include "rive/artboard.hpp"
+#include "rive/constraints/constrainable_list.hpp"
 #include "rive/property_recorder.hpp"
 #include "rive/artboard_host.hpp"
 #include "rive/data_bind/data_bind_list_item_consumer.hpp"
@@ -17,6 +18,7 @@
 namespace rive
 {
 class File;
+class LayoutComponent;
 class ScrollConstraint;
 
 class ArtboardComponentList : public ArtboardComponentListBase,
@@ -25,7 +27,8 @@ class ArtboardComponentList : public ArtboardComponentListBase,
                               public ResettingComponent,
                               public LayoutNodeProvider,
                               public DataBindListItemConsumer,
-                              public VirtualizingComponent
+                              public VirtualizingComponent,
+                              public ConstrainableList
 {
 private:
     std::vector<rcp<ViewModelInstanceListItem>> m_listItems;
@@ -53,8 +56,8 @@ public:
     {
         return this->as<TransformComponent>();
     }
-    void updateList(int propertyKey,
-                    std::vector<rcp<ViewModelInstanceListItem>>* list) override;
+    void updateWorldTransform() override;
+    void updateList(std::vector<rcp<ViewModelInstanceListItem>>* list) override;
     void draw(Renderer* renderer) override;
     Core* hitTest(HitInfo*, const Mat2D&) override;
     void update(ComponentDirt value) override;
@@ -108,8 +111,12 @@ public:
     float gap();
     void syncLayoutChildren();
     bool mainAxisIsRow();
+    LayoutComponent* layoutParent();
+    const Mat2D& listTransform() override;
+    void listItemTransforms(std::vector<Mat2D*>& transforms) override;
 
 private:
+    void updateArtboardsWorldTransform();
     void disposeListItem(const rcp<ViewModelInstanceListItem>& listItem);
     std::unique_ptr<ArtboardInstance> createArtboard(
         Component* target,
@@ -141,7 +148,8 @@ private:
         m_stateMachinesPool;
     std::unordered_map<Artboard*, std::unique_ptr<PropertyRecorder>>
         m_propertyRecordersMap;
-    std::unordered_map<ArtboardInstance*, Vec2D> m_artboardPositions;
+    std::unordered_map<ArtboardInstance*, Mat2D> m_artboardTransforms;
+    Vec2D artboardPosition(ArtboardInstance* artboard);
 
     File* m_file = nullptr;
     std::vector<Vec2D> m_artboardSizes;

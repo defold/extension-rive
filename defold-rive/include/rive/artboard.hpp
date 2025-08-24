@@ -129,6 +129,8 @@ public:
         return worldTransform();
     }
     Component* virtualizableComponent() override { return this; }
+    bool updatesOwnLayout() { return m_updatesOwnLayout; }
+    StatusCode onAddedClean(CoreContext* context) override;
 
 private:
 #ifdef TESTING
@@ -168,7 +170,9 @@ public:
     // DO NOT RELY ON THIS as it may change/disappear in the future.
     Core* hitTest(HitInfo*, const Mat2D&) override;
 
-    bool hitTestPoint(const Vec2D& position, bool skipOnUnclipped) override;
+    bool hitTestPoint(const Vec2D& position,
+                      bool skipOnUnclipped,
+                      bool isPrimaryHit) override;
 
     Vec2D rootTransform(const Vec2D&);
 
@@ -193,6 +197,8 @@ public:
 
     LayoutData* takeLayoutData();
     bool syncStyleChanges() override;
+    void syncStyleChangesWithUpdate(bool forceUpdate = false);
+    void calculateLayout();
     bool canHaveOverrides() override { return true; }
 
     bool advance(float elapsedSeconds,
@@ -250,7 +256,10 @@ public:
     float layoutX() const;
     float layoutY() const;
     AABB bounds() const;
+    AABB worldBounds() const override;
     Vec2D origin() const;
+    void xChanged() override;
+    void yChanged() override;
 
     // Can we hide these from the public? (they use playable)
     bool isTranslucent() const;

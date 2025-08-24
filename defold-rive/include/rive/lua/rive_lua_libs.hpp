@@ -10,6 +10,7 @@
 #include "rive/viewmodel/viewmodel_instance_value.hpp"
 #include "rive/viewmodel/viewmodel_instance_viewmodel.hpp"
 #include "rive/viewmodel/viewmodel_instance_number.hpp"
+#include "rive/viewmodel/viewmodel_instance_trigger.hpp"
 #include "rive/viewmodel/viewmodel.hpp"
 
 #include <unordered_map>
@@ -98,8 +99,10 @@ enum class LuaAtoms : int16_t
     // Scripted Properties
     value,
     getNumber,
+    getTrigger,
     addListener,
-    removeListener
+    removeListener,
+    fire
 };
 
 struct ScriptedMat2D
@@ -319,6 +322,8 @@ public:
 
     const lua_State* state() const { return m_state; }
 
+    ViewModelInstanceValue* instanceValue() { return m_instanceValue.get(); }
+
 private:
     std::vector<ScriptedListener> m_listeners;
 
@@ -354,6 +359,15 @@ public:
 
     int pushValue();
     void setValue(float value);
+};
+
+class ScriptedPropertyTrigger : public ScriptedProperty
+{
+public:
+    ScriptedPropertyTrigger(lua_State* L, rcp<ViewModelInstanceTrigger> value);
+    static constexpr uint8_t luaTag = LUA_T_COUNT + 12;
+    static constexpr const char* luaName = "PropertyTrigger";
+    static constexpr bool hasMetatable = true;
 };
 
 // Make
@@ -445,30 +459,46 @@ inline void lua_pushvec2d(lua_State* L, Vec2D vec)
 
 int luaopen_rive(lua_State* L);
 
-struct ScriptingContext
+class ScriptingContext
 {
-    Factory* factory;
+public:
+    ScriptingContext(Factory* factory) : m_factory(factory) {}
+    Factory* factory() const { return m_factory; }
+
+    virtual void printBeginLine(lua_State* state) = 0;
+    virtual void print(Span<const char> data) = 0;
+    virtual void printEndLine() = 0;
+
+private:
+    Factory* m_factory;
 };
 
 class ScriptingVM
 {
 public:
-    ScriptingVM(Factory* factory);
+    ScriptingVM(ScriptingContext* context);
     ~ScriptingVM();
 
-    ScriptingContext& context() { return m_context; }
+    // ScriptingContext& context() { return m_context; }
     lua_State* state() { return m_state; }
 
     static void init(lua_State* state, ScriptingContext* context);
     static bool registerModule(lua_State* state,
                                const char* name,
                                Span<uint8_t> bytecode);
-
+    static void unregisterModule(lua_State* state, const char* name);
     bool registerModule(const char* name, Span<uint8_t> bytecode);
+    void unregisterModule(const char* name);
+
+    static bool registerScript(lua_State* state,
+                               const char* name,
+                               Span<uint8_t> bytecode);
+
+    bool registerScript(const char* name, Span<uint8_t> bytecode);
 
 private:
     lua_State* m_state;
-    ScriptingContext m_context;
+    ScriptingContext* m_context;
 };
 
 } // namespace rive
