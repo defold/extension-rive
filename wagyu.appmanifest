@@ -7,5 +7,4 @@ platforms:
       libs: [graphics_webgpu_wagyu]
       flags: ["-std=c++17", "-fno-rtti"]
       linkFlags: ['-lexports.js', '-lrive_renderer_wagyu']
-      emscriptenLinkFlags: ['ERROR_ON_UNDEFINED_SYMBOLS=0']
-      externalJsPorts: ["ext/wagyu-port/new/wagyu-port.py:extensions=true"]
+      externalJsPorts: ["ext/wagyu-port/new/webgpu-port.py:wagyu=true"]
