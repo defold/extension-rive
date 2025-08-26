@@ -3,9 +3,8 @@ platforms:
     context:
       defines: ["DM_RIVE_USE_OPENGL", "RIVE_WEBGL", "RIVE_WEBGPU=1", "RIVE_WAGYU"]
       symbols: [GraphicsAdapterWebGPU]
-      excludeJsLibs: [".*library_webgpu_.*.js"]
-      excludeLibs: [rive_renderer, graphics_webgpu_wagyu]
+      excludeLibs: [rive_renderer, graphics_webgpu_wagyu, rive_renderer_wagyu]
       libs: [graphics_webgpu]
       flags: ["-std=c++17", "-fno-rtti"]
       linkFlags: ['-lexports.js', '-lrive_renderer_wagyu_gl']
-      emscriptenLinkFlags: [USE_WEBGPU=1, 'ERROR_ON_UNDEFINED_SYMBOLS=0']
+      emscriptenLinkFlags: [USE_WEBGPU=1, 'ERROR_ON_UNDEFINED_SYMBOLS=0', ASYNCIFY=1, ASYNCIFY_IGNORE_INDIRECT=1, 'ASYNCIFY_ADD=["main","dmEngineCreate(*)","requestDeviceCallback(*)","WebGPUConfigure(*)","instanceRequestAdapterCallback(*)"]' ]
