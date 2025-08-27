@@ -654,7 +654,7 @@ for platform in $PLATFORMS; do
 
             ##########################################################################
             echo "Building RIVE_WEBGPU=2"
-            RIVE_RENDERER_DEFINES="RIVE_WEBGPU=2 RIVE_WAGYU"
+            RIVE_RENDERER_DEFINES="RIVE_WEBGL RIVE_WEBGPU=2 RIVE_WAGYU"
 
             if [ "${RIVE_RENDERER_DEFINES}" != "" ]; then
                 export DEFINES="${RIVE_RENDERER_DEFINES}"
