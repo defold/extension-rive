@@ -660,7 +660,6 @@ for platform in $PLATFORMS; do
                 export DEFINES="${RIVE_RENDERER_DEFINES}"
             fi
 
-            rm ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/*.*
             rm ${RIVECPP_RENDERER_SOURCE_DIR}/src/webgpu/webgpu_compat.h
             cp -v ${SCRIPT_DIR}/../defold-rive/include/rive/renderer/webgpu/wagyu-port/new/include/webgpu/*.*     ${RIVECPP_RENDERER_SOURCE_DIR}/include/webgpu/
             build_library rive_renderer_wagyu $platform $platform_ne ${RIVECPP_RENDERER_SOURCE_DIR} ${BUILD}
