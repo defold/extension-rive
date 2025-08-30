@@ -1296,8 +1296,17 @@ namespace dmRive
         rivectx->m_RenderContext    = *(dmRender::HRenderContext*)ctx->m_Contexts.Get(dmHashString64("render"));
         rivectx->m_MaxInstanceCount = dmConfigFile::GetInt(ctx->m_Config, "rive.max_instance_count", 128);
 
-        g_RenderBeginParams.m_DoFinalBlit       = true;
+        g_RenderBeginParams.m_DoFinalBlit       = dmConfigFile::GetInt(ctx->m_Config, "rive.render_to_texture", 1);
         g_RenderBeginParams.m_BackbufferSamples = dmConfigFile::GetInt(ctx->m_Config, "display.samples", 0);
+
+        if (g_RenderBeginParams.m_DoFinalBlit)
+        {
+            dmLogWarning("Render to texture enabled");
+        }
+        else
+        {
+            dmLogWarning("Render to framebuffer enabled");
+        }
 
         g_OriginalWindowWidth  = dmGraphics::GetWidth(rivectx->m_GraphicsContext);
         g_OriginalWindowHeight = dmGraphics::GetHeight(rivectx->m_GraphicsContext);

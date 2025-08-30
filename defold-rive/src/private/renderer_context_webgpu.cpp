@@ -80,6 +80,7 @@ namespace dmRive
 
         void Flush() override
         {
+            printf("    renderer_context_webgpu.cpp Flush()\n");
             m_RenderContext->flush({.renderTarget = m_RenderTarget.get()});
         }
 
@@ -95,27 +96,37 @@ namespace dmRive
                 dmGraphics::DeleteTexture(m_BackingTexture);
             }
 
-            dmGraphics::TextureCreationParams default_texture_creation_params;
-            default_texture_creation_params.m_Width          = width;
-            default_texture_creation_params.m_Height         = height;
-            default_texture_creation_params.m_Depth          = 1;
-            default_texture_creation_params.m_UsageHintBits  = dmGraphics::TEXTURE_USAGE_FLAG_SAMPLE | dmGraphics::TEXTURE_USAGE_FLAG_COLOR | dmGraphics::TEXTURE_USAGE_FLAG_INPUT;
-            default_texture_creation_params.m_OriginalWidth  = default_texture_creation_params.m_Width;
-            default_texture_creation_params.m_OriginalHeight = default_texture_creation_params.m_Height;
+            if (do_final_blit)
+            {
+                dmGraphics::TextureCreationParams default_texture_creation_params;
+                default_texture_creation_params.m_Width          = width;
+                default_texture_creation_params.m_Height         = height;
+                default_texture_creation_params.m_Depth          = 1;
+                default_texture_creation_params.m_UsageHintBits  = dmGraphics::TEXTURE_USAGE_FLAG_SAMPLE | dmGraphics::TEXTURE_USAGE_FLAG_COLOR | dmGraphics::TEXTURE_USAGE_FLAG_INPUT;
+                default_texture_creation_params.m_OriginalWidth  = default_texture_creation_params.m_Width;
+                default_texture_creation_params.m_OriginalHeight = default_texture_creation_params.m_Height;
 
-            m_BackingTexture = dmGraphics::NewTexture(m_GraphicsContext, default_texture_creation_params);
+                m_BackingTexture = dmGraphics::NewTexture(m_GraphicsContext, default_texture_creation_params);
 
-            dmGraphics::TextureParams tp = {};
-            tp.m_Width                   = width;
-            tp.m_Height                  = height;
-            //tp.m_Format                  = dmGraphics::TEXTURE_FORMAT_BGRA8U;
-            tp.m_Format                  = dmGraphics::TEXTURE_FORMAT_RGBA;
+                dmGraphics::TextureParams tp = {};
+                tp.m_Width                   = width;
+                tp.m_Height                  = height;
+                //tp.m_Format                  = dmGraphics::TEXTURE_FORMAT_BGRA8U;
+                tp.m_Format                  = dmGraphics::TEXTURE_FORMAT_RGBA;
 
-            dmGraphics::SetTexture(m_BackingTexture, tp);
+                dmGraphics::SetTexture(m_BackingTexture, tp);
 
-            WGPUTextureView webgpu_texture_view = dmGraphics::WebGPUGetTextureView(m_GraphicsContext, m_BackingTexture);
-            m_BackingTextureView                = wgpu::TextureView::Acquire(webgpu_texture_view);
-            m_RenderTarget->setTargetTextureView(m_BackingTextureView);
+                WGPUTextureView webgpu_texture_view = dmGraphics::WebGPUGetTextureView(m_GraphicsContext, m_BackingTexture);
+                m_BackingTextureView                = wgpu::TextureView::Acquire(webgpu_texture_view);
+                m_RenderTarget->setTargetTextureView(m_BackingTextureView);
+            }
+            else
+            {
+                dmGraphics::HTexture frame_buffer   = dmGraphics::WebGPUGetActiveSwapChainTexture(m_GraphicsContext);
+                WGPUTextureView webgpu_texture_view = dmGraphics::WebGPUGetTextureView(m_GraphicsContext, frame_buffer);
+                m_BackingTextureView                = wgpu::TextureView::Acquire(webgpu_texture_view);
+                m_RenderTarget->setTargetTextureView(m_BackingTextureView);
+            }
         }
 
         void SetGraphicsContext(dmGraphics::HContext graphics_context) override

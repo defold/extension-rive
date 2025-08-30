@@ -41,3 +41,7 @@ clear_color_green = 0.25
 clear_color_blue = 0.25
 clear_color_alpha = 1.0
 
+
+[rive]
+render_to_texture = 0
+
