@@ -184,9 +184,12 @@ namespace dmRive
             int samples = (int) params.m_DoFinalBlit ? 0 : params.m_BackbufferSamples;
 
         #if defined(DM_PLATFORM_MACOS) || defined(DM_PLATFORM_IOS)
-            dmGraphics::HTexture swap_chain_texture = dmGraphics::VulkanGetActiveSwapChainTexture(renderer->m_GraphicsContext);
-            renderer->m_RenderContext->SetRenderTargetTexture(swap_chain_texture);
-            samples = 0;
+            if (!params.m_DoFinalBlit)
+            {
+                dmGraphics::HTexture swap_chain_texture = dmGraphics::VulkanGetActiveSwapChainTexture(renderer->m_GraphicsContext);
+                renderer->m_RenderContext->SetRenderTargetTexture(swap_chain_texture);
+                samples = 0;
+            }
         #endif
 
             renderer->m_RenderContext->BeginFrame({

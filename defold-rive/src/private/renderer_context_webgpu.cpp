@@ -34,11 +34,12 @@ namespace dmRive
             dmGraphics::HContext graphics_context = dmGraphics::GetInstalledContext();
             assert(graphics_context);
 
-            WGPUDevice webgpu_device = dmGraphics::WebGPUGetDevice(graphics_context);
-            WGPUQueue webgpu_queue = dmGraphics::WebGPUGetQueue(graphics_context);
-            // Part of Defold 1.10.4!!!
-            WGPUAdapter webgpu_adapter = dmGraphics::WebGPUGetAdapter(graphics_context);
+            WGPUDevice  webgpu_device   = dmGraphics::WebGPUGetDevice(graphics_context);
+            WGPUQueue   webgpu_queue    = dmGraphics::WebGPUGetQueue(graphics_context);
+            WGPUAdapter webgpu_adapter  = dmGraphics::WebGPUGetAdapter(graphics_context);
 
+            m_RenderToTexture = true; // render to texture is the default
+            m_TargetTexture = 0;
             m_BackingTexture = 0;
             m_Adapter = wgpu::Adapter::Acquire(webgpu_adapter);
             m_Device = wgpu::Device::Acquire(webgpu_device);
@@ -66,30 +67,46 @@ namespace dmRive
 
         void BeginFrame(const rive::gpu::RenderContext::FrameDescriptor& frameDescriptor) override
         {
-            m_RenderContext->beginFrame(frameDescriptor);
+            // Using operator= (in case it gets implemented)
+            rive::gpu::RenderContext::FrameDescriptor copy = frameDescriptor;
 
-            /*
-            s_renderContext->beginFrame({
-                .renderTargetWidth = s_renderTarget->width(),
-                .renderTargetHeight = s_renderTarget->height(),
-                .loadAction = static_cast<gpu::LoadAction>(loadAction),
-                .clearColor = clearColor,
-            });
-            */
+            // rendering to a render target
+            if (!m_RenderToTexture)
+            {
+                copy.loadAction = rive::gpu::LoadAction::preserveRenderTarget;
+            }
+
+            m_RenderContext->beginFrame(copy);
         }
 
         void Flush() override
         {
-            printf("    renderer_context_webgpu.cpp Flush()\n");
-            m_RenderContext->flush({.renderTarget = m_RenderTarget.get()});
+            if (m_RenderToTexture)
+            {
+                m_RenderContext->flush({.renderTarget = m_RenderTarget.get()});
+            }
+            else
+            {
+                WGPUCommandEncoder wgpu_encoder = dmGraphics::WebGPUGetActiveCommandEncoder(m_GraphicsContext);
+                wgpu::CommandEncoder encoder = wgpu::CommandEncoder::Acquire(wgpu_encoder);
+
+                dmGraphics::WebGPURenderPassEnd(m_GraphicsContext);
+
+                m_RenderContext->flush({
+                    .renderTarget = m_RenderTarget.get(),
+                    .externalCommandBuffer = (void*)&encoder
+                });
+
+                (void)encoder.MoveToCHandle(); // set the handle to 0, to avoid a release
+
+                dmGraphics::WebGPURenderPassBegin(m_GraphicsContext);
+            }
         }
 
         void OnSizeChanged(uint32_t width, uint32_t height, uint32_t sample_count, bool do_final_blit) override
         {
-            dmLogInfo("Before creating RT");
             auto renderContextImpl = m_RenderContext->static_impl_cast<rive::gpu::RenderContextWebGPUImpl>();
             m_RenderTarget         = renderContextImpl->makeRenderTarget(wgpu::TextureFormat::RGBA8Unorm, width, height);
-            dmLogInfo("After creating RT");
 
             if (m_BackingTexture)
             {
@@ -119,6 +136,8 @@ namespace dmRive
                 WGPUTextureView webgpu_texture_view = dmGraphics::WebGPUGetTextureView(m_GraphicsContext, m_BackingTexture);
                 m_BackingTextureView                = wgpu::TextureView::Acquire(webgpu_texture_view);
                 m_RenderTarget->setTargetTextureView(m_BackingTextureView);
+
+                m_RenderToTexture = true;
             }
             else
             {
@@ -126,6 +145,8 @@ namespace dmRive
                 WGPUTextureView webgpu_texture_view = dmGraphics::WebGPUGetTextureView(m_GraphicsContext, frame_buffer);
                 m_BackingTextureView                = wgpu::TextureView::Acquire(webgpu_texture_view);
                 m_RenderTarget->setTargetTextureView(m_BackingTextureView);
+
+                m_RenderToTexture = false;
             }
         }
 
@@ -169,6 +190,8 @@ namespace dmRive
         wgpu::Device                              m_Device;
         wgpu::Queue                               m_Queue;
         wgpu::TextureView                         m_BackingTextureView;
+
+        bool                                      m_RenderToTexture;
     };
 
     IDefoldRiveRenderer* MakeDefoldRiveRendererWebGPU()
