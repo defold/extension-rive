@@ -48,6 +48,7 @@ def generate_rive_version_header(path, sha1):
     info = write_rive_version_header.GetCommitDetails(sha1)
     write_rive_version_header.WriteHeader(path, info)
 
+DEFAULT_INCLUDE_DIR="./defold-rive/include"
 TARGET_DIR="./defold-rive/include/rive"
 DEFOLD_TARGET_DIR="./defold-rive/include/defold"
 
@@ -60,7 +61,7 @@ copy_folder(f"./build/pls/deps/rivecpp/rive-runtime-{RIVE_RUNTIME_VERSION}/inclu
 copy_folder(f"./build/pls/deps/rivecpp/rive-runtime-{RIVE_RUNTIME_VERSION}/renderer/include/rive", TARGET_DIR)
 copy_folder(f"./build/pls/deps/rivecpp/rive-runtime-{RIVE_RUNTIME_VERSION}/renderer/src/webgpu", os.path.join(TARGET_DIR, "renderer/webgpu"))
 copy_folder(f"./build/pls/deps/rivecpp/rive-runtime-{RIVE_RUNTIME_VERSION}/renderer/glad", os.path.join(TARGET_DIR, "renderer/gl"))
-copy_folder(f"./build/pls/deps/rivecpp/rive-runtime-{RIVE_RUNTIME_VERSION}/renderer/glad", TARGET_DIR)
+copy_folder(f"./build/pls/deps/rivecpp/rive-runtime-{RIVE_RUNTIME_VERSION}/renderer/glad", DEFAULT_INCLUDE_DIR)
 copy_folder(f"./build/pls/rivecpp-tess/src/rive/tess", os.path.join(TARGET_DIR, "tess"))
 copy_folder(f"./build/pls/rivecpp-tess/src/rive/math", os.path.join(TARGET_DIR, "math"))
 
