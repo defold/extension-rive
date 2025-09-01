@@ -60,6 +60,7 @@ copy_folder(f"./build/pls/deps/rivecpp/rive-runtime-{RIVE_RUNTIME_VERSION}/inclu
 copy_folder(f"./build/pls/deps/rivecpp/rive-runtime-{RIVE_RUNTIME_VERSION}/renderer/include/rive", TARGET_DIR)
 copy_folder(f"./build/pls/deps/rivecpp/rive-runtime-{RIVE_RUNTIME_VERSION}/renderer/src/webgpu", os.path.join(TARGET_DIR, "renderer/webgpu"))
 copy_folder(f"./build/pls/deps/rivecpp/rive-runtime-{RIVE_RUNTIME_VERSION}/renderer/glad", os.path.join(TARGET_DIR, "renderer/gl"))
+copy_folder(f"./build/pls/deps/rivecpp/rive-runtime-{RIVE_RUNTIME_VERSION}/renderer/glad", TARGET_DIR)
 copy_folder(f"./build/pls/rivecpp-tess/src/rive/tess", os.path.join(TARGET_DIR, "tess"))
 copy_folder(f"./build/pls/rivecpp-tess/src/rive/math", os.path.join(TARGET_DIR, "math"))
 
