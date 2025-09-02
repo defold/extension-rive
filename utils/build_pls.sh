@@ -324,6 +324,7 @@ cp -r -v ${RIVECPP_ORIGINAL_DIR}/renderer/include ${RIVECPP_RENDERER_SOURCE_DIR}
 cp -r -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/*.cpp ${RIVECPP_RENDERER_SOURCE_DIR}/src
 cp -r -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/*.hpp ${RIVECPP_RENDERER_SOURCE_DIR}/src
 cp -r -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/shaders ${RIVECPP_RENDERER_SHADER_DIR}
+cp -r -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/src/*.c ${RIVECPP_RENDERER_SOURCE_DIR}/src
 
 echo "*************************************************"
 echo "Downloading python PLY files"
