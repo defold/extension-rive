@@ -81,25 +81,33 @@ namespace dmRive
 
         void Flush() override
         {
-            if (m_RenderToTexture)
+            WGPUCommandEncoder wgpu_encoder;
+
+            if (!m_RenderToTexture)
             {
-                m_RenderContext->flush({.renderTarget = m_RenderTarget.get()});
+                wgpu_encoder = dmGraphics::WebGPUGetActiveCommandEncoder(m_GraphicsContext);
+                dmGraphics::WebGPURenderPassEnd(m_GraphicsContext);
             }
             else
             {
-                WGPUCommandEncoder wgpu_encoder = dmGraphics::WebGPUGetActiveCommandEncoder(m_GraphicsContext);
-                wgpu::CommandEncoder encoder = wgpu::CommandEncoder::Acquire(wgpu_encoder);
+                wgpu_encoder = wgpuDeviceCreateCommandEncoder(m_Device.Get(), 0);
+            }
 
-                dmGraphics::WebGPURenderPassEnd(m_GraphicsContext);
+            m_RenderContext->flush({
+                .renderTarget = m_RenderTarget.get(),
+                .externalCommandBuffer = (void*)(uintptr_t)wgpu_encoder
+            });
 
-                m_RenderContext->flush({
-                    .renderTarget = m_RenderTarget.get(),
-                    .externalCommandBuffer = (void*)&encoder
-                });
-
-                (void)encoder.MoveToCHandle(); // set the handle to 0, to avoid a release
-
+            if (!m_RenderToTexture)
+            {
                 dmGraphics::WebGPURenderPassBegin(m_GraphicsContext);
+            }
+            else
+            {
+                const WGPUCommandBuffer buffer = wgpuCommandEncoderFinish(wgpu_encoder, NULL);
+                wgpuQueueSubmit(m_Queue.Get(), 1, &buffer);
+                wgpuCommandBufferRelease(buffer);
+                wgpuCommandEncoderRelease(wgpu_encoder);
             }
         }
 
