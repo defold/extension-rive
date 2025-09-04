@@ -41,7 +41,7 @@ platforms:
         context:
             defines: ["DM_RIVE_USE_OPENGL", "RIVE_WEBGL"]
             symbols: []
-            excludeLibs: [rive_renderer_wagyu_gl]
+            excludeLibs: [rive_renderer_wagyu_gl, rive_renderer_wagyu]
             libs: []
             flags: ["-std=c++17", "-fno-rtti"]
             emscriptenLinkFlags: [GL_WORKAROUND_SAFARI_GETCONTEXT_BUG=0]
