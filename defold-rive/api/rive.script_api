@@ -403,9 +403,72 @@
 
           - name: handle
             type: integer
-            desc: The handle to the currently set ViewModelInstanceRuntime instance
+            desc: The handle to the ViewModelInstanceRuntime instance
 
           - name: properties
             type: table
             desc: A table of properties, where each key is a Rive "path", and the values are mapped to the corresponding property value type.
 
+      - name: get_property
+        type: function
+        desc: Gets a property from the ViewModelInstanceRuntime instance
+
+        parameters:
+          - name: url
+            type: url
+            desc: The Rive model component
+
+          - name: handle
+            type: integer
+            desc: The handle to the ViewModelInstanceRuntime instance
+
+          - name: path
+            type: string
+            desc: The path to the property
+
+        return:
+          - name: result
+            type: string,number,vmath.vector4
+            desc: The value of the selected property. Raises error if property doesn't exist.
+
+      - name: list_add_instance
+        type: function
+        desc: Add a ViewModelInstanceRuntime instance to a list property
+
+        parameters:
+          - name: url
+            type: url
+            desc: The Rive model component
+
+          - name: handle
+            type: integer
+            desc: The handle to the ViewModelInstanceRuntime instance
+
+          - name: path
+            type: string
+            desc: The path to the list property
+
+          - name: instance_handle
+            type: integer
+            desc: The handle to the ViewModelInstanceRuntime instance to add to the list
+
+      - name: list_remove_instance
+        type: function
+        desc: Remove a ViewModelInstanceRuntime instance from a list property
+
+        parameters:
+          - name: url
+            type: url
+            desc: The Rive model component
+
+          - name: handle
+            type: integer
+            desc: The handle to the ViewModelInstanceRuntime instance
+
+          - name: path
+            type: string
+            desc: The path to the list property
+
+          - name: instance_handle
+            type: integer
+            desc: The handle to the ViewModelInstanceRuntime instance to add to the list

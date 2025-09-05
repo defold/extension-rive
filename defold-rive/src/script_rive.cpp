@@ -524,12 +524,12 @@ namespace dmRive
         {0, 0}
     };
 
-    extern void ScriptInitializeDataBinding(lua_State* L);
+    extern void ScriptInitializeDataBinding(lua_State* L, dmResource::HFactory factory);
 
     void ScriptRegister(lua_State* L, dmResource::HFactory factory)
     {
         luaL_register(L, "rive", RIVE_FUNCTIONS);
-            ScriptInitializeDataBinding(L);
+            ScriptInitializeDataBinding(L, factory);
         lua_pop(L, 1);
 
         g_Factory = factory;

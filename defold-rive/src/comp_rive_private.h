@@ -38,6 +38,7 @@ namespace rive
     class StateMachineInstance;
     class ViewModelInstance;
     class ViewModelInstanceRuntime;
+    class RenderImage;
     enum class DataType : unsigned int;
 }
 
@@ -126,14 +127,27 @@ namespace dmRive
     bool        CompRiveDestroyViewModelInstanceRuntime(RiveComponent* component, uint32_t handle);
     bool        CompRiveSetViewModelInstanceRuntime(RiveComponent* component, uint32_t handle);
     uint32_t    CompRiveGetViewModelInstanceRuntime(RiveComponent* component);
+
+    bool        GetPropertyDataType(RiveComponent* component, uint32_t handle, const char* path, rive::DataType* type);
+
     bool        CompRiveRuntimeSetPropertyBool(RiveComponent* component, uint32_t handle, const char* path, bool value);
     bool        CompRiveRuntimeSetPropertyF32(RiveComponent* component, uint32_t handle, const char* path, float value);
     bool        CompRiveRuntimeSetPropertyColor(RiveComponent* component, uint32_t handle, const char* path, dmVMath::Vector4* color);
     bool        CompRiveRuntimeSetPropertyString(RiveComponent* component, uint32_t handle, const char* path, const char* value);
     bool        CompRiveRuntimeSetPropertyEnum(RiveComponent* component, uint32_t handle, const char* path, const char* value);
     bool        CompRiveRuntimeSetPropertyTrigger(RiveComponent* component, uint32_t handle, const char* path);
+    bool        CompRiveRuntimeSetPropertyImage(RiveComponent* component, uint32_t handle, const char* path, rive::RenderImage* image);
 
-    bool        GetPropertyDataType(RiveComponent* component, uint32_t handle, const char* path, rive::DataType* type);
+    bool        CompRiveRuntimeGetPropertyBool(RiveComponent* component, uint32_t handle, const char* path, bool* value);
+    bool        CompRiveRuntimeGetPropertyF32(RiveComponent* component, uint32_t handle, const char* path, float* value);
+    bool        CompRiveRuntimeGetPropertyColor(RiveComponent* component, uint32_t handle, const char* path, dmVMath::Vector4* color);
+    bool        CompRiveRuntimeGetPropertyString(RiveComponent* component, uint32_t handle, const char* path, const char** value);
+    bool        CompRiveRuntimeGetPropertyEnum(RiveComponent* component, uint32_t handle, const char* path, const char** value);
+
+    bool        CompRiveRuntimeListAddInstance(RiveComponent* component, uint32_t handle, const char* path, uint32_t instance);
+    bool        CompRiveRuntimeListRemoveInstance(RiveComponent* component, uint32_t handle, const char* path, uint32_t instance);
+
+    RiveSceneData* CompRiveGetRiveSceneData(RiveComponent* component);
 }
 
 #endif //DM_COMP_RIVE_PRIVATE_H

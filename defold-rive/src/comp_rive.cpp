@@ -317,7 +317,7 @@ namespace dmRive
         component->m_World = Matrix4::identity();
         component->m_DoRender = 0;
         component->m_RenderConstants = 0;
-        component->m_CurrentViewModelInstanceRuntime = 0;
+        component->m_CurrentViewModelInstanceRuntime = INVALID_HANDLE;
         component->m_HandleCounter = 0;
 
         InstantiateArtboard(component);
@@ -1101,6 +1101,11 @@ namespace dmRive
         component->m_AnimationPlaybackRate = playback_rate;
         component->m_StateMachineInstance  = component->m_ArtboardInstance->stateMachineAt(state_machine_index);
 
+        if (component->m_CurrentViewModelInstanceRuntime != INVALID_HANDLE)
+        {
+            CompRiveSetViewModelInstanceRuntime(component, component->m_CurrentViewModelInstanceRuntime);
+        }
+
         // update the list of current state machine inputs
         GetStateMachineInputNames(component->m_StateMachineInstance.get(), component->m_StateMachineInputs);
         return true;
@@ -1542,6 +1547,11 @@ namespace dmRive
     #else
         g_RenderBeginParams.m_DoFinalBlit = value;
     #endif
+    }
+
+    RiveSceneData* CompRiveGetRiveSceneData(RiveComponent* component)
+    {
+        return GetRiveResource(component, component->m_Resource);
     }
 }
 

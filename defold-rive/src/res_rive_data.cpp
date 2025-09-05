@@ -294,6 +294,12 @@ namespace dmRive
         dmLogError("We currently don't support swapping the asset type of '%s'", asset_name);
         return dmResource::RESULT_NOT_SUPPORTED;
     }
+
+    rive::RenderImage* ResRiveDataCreateRenderImage(dmResource::HFactory factory, RiveSceneData* resource, uint8_t* data, uint32_t data_length)
+    {
+        rive::rcp<rive::RenderImage> image = dmRive::LoadImageFromMemory(resource->m_RiveRenderContext, data, data_length);
+        return image.release();
+    }
 }
 
 
