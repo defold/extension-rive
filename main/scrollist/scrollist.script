@@ -38,17 +38,16 @@ local function move_right(self)
 end
 
 local function create_thumb(self, image_data)
-	local scene_url = self.rive_url
-	local thumb, errThumb = rive.databind.create_view_model_instance_runtime(scene_url, "ThumbVM")
+	local thumb, errThumb = rive.databind.create_view_model_instance_runtime(self.rive_url, "ThumbVM")
 	if thumb == nil then
 		print("Failed to create view model instance:", errThumb)
 		return
 	end
 	table.insert(self.thumbs, thumb)
 
-	rive.databind.set_properties(scene_url, thumb, {Border = 10, Image = image_data})
+	rive.databind.set_properties(self.rive_url, thumb, {Border = 10, Image = image_data})
 	-- add the thumb last in the list
-	rive.databind.list_add_instance(scene_url, self.modelViewInstanceRuntime, self.list_path, thumb)
+	rive.databind.list_add_instance(self.rive_url, self.modelViewInstanceRuntime, self.list_path, thumb)
 
 	-- update borders
 	set_selected_thumb(self, #self.thumbs - 1)
@@ -67,7 +66,15 @@ local function download_image(self, image_url)
 end
 
 local function request_thumb(self, url)
+	print("Requesting new thumb")
 	download_image(self.modelViewInstanceRuntime, url)
+end
+
+local function remove_thumb(self, index)
+	print("Removing thumb at index", index)
+	local thumb = table.remove(self.thumbs, index)
+	rive.databind.list_remove_instance(self.rive_url, self.modelViewInstanceRuntime, self.list_path, thumb)
+	set_selected_thumb(self, index-1)
 end
 
 -- Rive events trigger when the splash intro starts and ends and is used to not allow input while the intro is playing.
@@ -103,11 +110,15 @@ end
 
 -- Enable rive input for the model.
 function on_input(self, action_id, action)
-	if action_id == hash("left") or action_id == hash("right") then
+	if action_id == hash("left") or action_id == hash("right") or action_id == hash("up") or action_id == hash("down") then
 		if action.pressed and action_id == hash("left") then
 			move_left(self)
 		elseif action.pressed and action_id == hash("right") then
 			move_right(self)
+		elseif action.pressed and action_id == hash("up") then
+			request_thumb(self, URL)
+		elseif action.pressed and action_id == hash("down") then
+			remove_thumb(self, self.thumb_index+1)
 		end
 		return true
 	end

@@ -24,3 +24,27 @@ embedded_instances {
     y: 0.49
   }
 }
+embedded_instances {
+  id: "go1"
+  data: "embedded_components {\n"
+  "  id: \"label\"\n"
+  "  type: \"label\"\n"
+  "  data: \"size {\\n"
+  "  x: 128.0\\n"
+  "  y: 32.0\\n"
+  "}\\n"
+  "text: \\\"Scroll: Left/Right Arrow keys\\\\n"
+  "\\\"\\n"
+  "  \\\"Add image: Up Arrow key\\\\n"
+  "\\\"\\n"
+  "  \\\"Remove image: Down Arrow key\\\"\\n"
+  "font: \\\"/dirtylarry/larryfont.font\\\"\\n"
+  "material: \\\"/builtins/fonts/label-df.material\\\"\\n"
+  "\"\n"
+  "  position {\n"
+  "    x: 497.0\n"
+  "    y: 397.0\n"
+  "  }\n"
+  "}\n"
+  ""
+}
