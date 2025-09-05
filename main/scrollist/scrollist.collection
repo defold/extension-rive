@@ -1,0 +1,26 @@
+name: "scrollist"
+instances {
+  id: "back"
+  prototype: "/main/menu/back.go"
+}
+scale_along_z: 0
+embedded_instances {
+  id: "go"
+  data: "components {\n"
+  "  id: \"scrollist\"\n"
+  "  component: \"/main/scrollist/scrolllist.rivemodel\"\n"
+  "}\n"
+  "components {\n"
+  "  id: \"main\"\n"
+  "  component: \"/main/scrollist/scrollist.script\"\n"
+  "}\n"
+  ""
+  position {
+    x: 482.0
+    y: 272.0
+  }
+  scale3 {
+    x: 0.49
+    y: 0.49
+  }
+}

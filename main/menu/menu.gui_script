@@ -19,6 +19,7 @@ local BUTTONS = {
 	{ id = "egg", text = "Feathering" },
 	{ id = "outofband", text = "Out-of-band" },
 	{ id = "databind", text = "Data Bindings" },
+	{ id = "scrollist", text = "Scroll List" },
  }
 local COLUMNS = 3
 local WIDTH = 220

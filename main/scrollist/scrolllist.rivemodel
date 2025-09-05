@@ -1,0 +1,5 @@
+scene: "/main/scrollist/scrolllist.rivescene"
+default_animation: ""
+material: "/defold-rive/assets/rivemodel.material"
+artboard: "Main"
+artboard_fit: FIT_LAYOUT

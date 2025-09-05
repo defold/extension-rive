@@ -1,0 +1,114 @@
+
+local URL = "https://picsum.photos/472/266"
+local MAX_NUM_THUMBS = 10
+
+local function set_border(self, index, border)
+	if index < 0 or index >= #self.thumbs then
+		return
+	end
+
+	local thumb = self.thumbs[index+1]
+	rive.databind.set_properties(self.rive_url, thumb, {Border = border})
+end
+
+local function set_selected_thumb(self, index)
+	local prev_index = self.thumb_index
+	self.thumb_index = index
+
+	set_border(self, prev_index, 0)
+	set_border(self, self.thumb_index, 10)
+
+	rive.databind.set_properties(self.rive_url, self.modelViewInstanceRuntime, {["List Index"] = self.thumb_index})
+end
+
+local function move_left(self)
+	local index = self.thumb_index - 1
+	if index < 0 then
+		index = 0
+	end
+	set_selected_thumb(self, index)
+end
+
+local function move_right(self)
+	local index = self.thumb_index + 1
+	if index >= #self.thumbs then
+		index = #self.thumbs - 1
+	end
+	set_selected_thumb(self, index)
+end
+
+local function create_thumb(self, image_data)
+	local scene_url = self.rive_url
+	local thumb, errThumb = rive.databind.create_view_model_instance_runtime(scene_url, "ThumbVM")
+	if thumb == nil then
+		print("Failed to create view model instance:", errThumb)
+		return
+	end
+	table.insert(self.thumbs, thumb)
+
+	rive.databind.set_properties(scene_url, thumb, {Border = 10, Image = image_data})
+	-- add the thumb last in the list
+	rive.databind.list_add_instance(scene_url, self.modelViewInstanceRuntime, self.list_path, thumb)
+
+	-- update borders
+	set_selected_thumb(self, #self.thumbs - 1)
+end
+
+local function download_image(self, image_url)
+	http.request(image_url, "GET", function (self, _id, response)
+			if response.status == 200 or response.status == 206 or response.status == 304 then
+				print("downloaded", response.url, "content-type:", response.headers['content-type'], "content-length:", response.headers['content-length'])
+				create_thumb(self, response.response)
+			elseif response.status == 302 then
+				-- redirect
+				download_image(self, response.headers.location)
+			end
+		end)
+end
+
+local function request_thumb(self, url)
+	download_image(self.modelViewInstanceRuntime, url)
+end
+
+-- Rive events trigger when the splash intro starts and ends and is used to not allow input while the intro is playing.
+-- The logic is done within the rive statemachine.
+local function rive_event_handler(self, message_id, message)
+	print("received event", message.name)
+end
+
+-- Get input focus then start the splash statemachine.
+function init(self)
+	msg.post(".", "acquire_input_focus") 
+
+	self.rive_url = msg.url("#scrollist")
+
+	local main, errMain = rive.databind.create_view_model_instance_runtime(self.rive_url, "MainVM")
+	if main == nil then
+		print("Failed to create view model instance:", errMain)
+		return
+	end
+
+	self.modelViewInstanceRuntime = main
+	rive.databind.set_view_model_instance_runtime(self.rive_url, self.modelViewInstanceRuntime)
+
+	self.list_path = 'Thumbs'
+	self.thumb_index = rive.databind.get_property(self.rive_url, self.modelViewInstanceRuntime, "List Index")
+	self.thumbs = {}
+
+	for i=1,MAX_NUM_THUMBS do
+		request_thumb(self, URL)
+	end
+end
+
+
+-- Enable rive input for the model.
+function on_input(self, action_id, action)
+	if action_id == hash("left") or action_id == hash("right") then
+		if action.pressed and action_id == hash("left") then
+			move_left(self)
+		elseif action.pressed and action_id == hash("right") then
+			move_right(self)
+		end
+		return true
+	end
+end

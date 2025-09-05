@@ -45,8 +45,9 @@ namespace dmRive
         dmArray<rive::FileAsset*>               m_FileAssets;       // For runtime swapping
     };
 
-    dmResource::Result ResRiveDataSetAssetFromMemory(RiveSceneData* resource, const char* asset_name, void* payload, uint32_t payload_size);
-    dmResource::Result ResRiveDataSetAsset(dmResource::HFactory factory, RiveSceneData* resource, const char* asset_name, const char* path);
+    dmResource::Result  ResRiveDataSetAssetFromMemory(RiveSceneData* resource, const char* asset_name, void* payload, uint32_t payload_size);
+    dmResource::Result  ResRiveDataSetAsset(dmResource::HFactory factory, RiveSceneData* resource, const char* asset_name, const char* path);
+    rive::RenderImage*  ResRiveDataCreateRenderImage(dmResource::HFactory factory, RiveSceneData* resource, uint8_t* data, uint32_t data_length);
 }
 
 #endif // DM_RES_RIVE_DATA_H
