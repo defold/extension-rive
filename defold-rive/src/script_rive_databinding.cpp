@@ -197,7 +197,7 @@ static int SetProperties(lua_State* L)
             }
             else
             {
-                dmLogWarning("Datatype %d is not yet supported (path: '%s')", data_type, path);
+                dmLogWarning("Datatype %d is not yet supported (path: '%s')", (int)data_type, path);
             }
         }
 
@@ -260,7 +260,7 @@ static int GetProperty(lua_State* L)
     }
     else
     {
-        return DM_LUA_ERROR("Getting data type %d is not supported (path: '%s')", data_type, path);
+        return DM_LUA_ERROR("Getting data type %d is not supported (path: '%s')", (int)data_type, path);
     }
     return 1;
 }
