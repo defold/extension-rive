@@ -51,7 +51,6 @@
 #define GL_PIXEL_LOCAL_CLEAR_VALUE_INT_ANGLE 0x96EC
 #define GL_PIXEL_LOCAL_CLEAR_VALUE_UNSIGNED_INT_ANGLE 0x96ED
 extern bool webgl_enable_WEBGL_shader_pixel_local_storage_coherent();
-extern bool webgl_enable_WEBGL_provoking_vertex();
 extern bool webgl_shader_pixel_local_storage_is_coherent();
 extern void glFramebufferTexturePixelLocalStorageANGLE(GLint plane,
                                                        GLuint backingtexture,
@@ -71,6 +70,7 @@ extern void glGetFramebufferPixelLocalStorageParameterivANGLE(GLint plane,
 #define GL_FIRST_VERTEX_CONVENTION_ANGLE 0x8E4D
 #define GL_LAST_VERTEX_CONVENTION_ANGLE 0x8E4E
 #define GL_PROVOKING_VERTEX_ANGLE 0x8E4F
+extern bool webgl_enable_WEBGL_provoking_vertex();
 extern void glProvokingVertexANGLE(GLenum provokeMode);
 #endif
 
@@ -140,7 +140,8 @@ struct GLCapabilities
     bool isPowerVR : 1;
 
     // Workarounds.
-    // Some devices crash when issuing draw commands with a large instancecount.
+    // Some Mali and PowerVR devices crash when issuing draw commands with a
+    // large instancecount.
     uint32_t maxSupportedInstancesPerDrawCommand = ~0u;
     // Chrome 136 crashes when trying to run Rive because it attempts to enable
     // blending on the tessellation texture, which is invalid for an integer
@@ -148,6 +149,14 @@ struct GLCapabilities
     // texture.
     // https://issues.chromium.org/issues/416294709
     bool needsFloatingPointTessellationTexture = false;
+    // Various Galaxy devices using ANGLE crash immediately when calling
+    // glMaxShaderCompilerThreadsKHR. On these devices we simply can't call this
+    // function. (This should be fine because the initial value of
+    // GL_MAX_SHADER_COMPILER_THREADS_KHR is specified to be an
+    // implementation-dependent maximum number of threads. We choose to only
+    // ignore this call selectively because on some drivers, the parallel
+    // compilation does not actually activate without explicitly setting it.)
+    bool avoidMaxShaderCompilerThreadsKHR = false;
 
     // Extensions
     bool ANGLE_base_vertex_base_instance_shader_builtin : 1;
