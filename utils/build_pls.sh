@@ -255,7 +255,7 @@ if [ -z "$RIVE_DIR" ]; then
 
     # https://github.com/rive-app/rive-runtime/commit/<sha>
 
-    RIVECPP_VERSION=4d6675c0ff635c8b0038846397945da56cff2fe6
+    RIVECPP_VERSION=17be3ff7e08c342d24c25482027ad709c951d38a
     RIVECPP_ZIP=${DOWNLOAD_DIR}/rivecpp-${RIVECPP_VERSION}.zip
     RIVECPP_URL="https://github.com/rive-app/rive-runtime/archive/${RIVECPP_VERSION}.zip"
 
@@ -428,7 +428,7 @@ for platform in $PLATFORMS; do
 
     RIVE_RENDERER_DEFINES=
     RIVE_RENDERER_CXXFLAGS=
-    RIVE_RENDERER_INCLUDES=
+    RIVE_RENDERER_INCLUDES="upload/src"
 
     # Due to a self include bug in rive_render_path.hpp, it references itself
     # We workaround it by adding a copy in the relative path it asks for "../renderer/src/rive_render_path.hpp"
@@ -465,7 +465,7 @@ for platform in $PLATFORMS; do
             ;;
         x86_64-win32|x86-win32)
             RIVE_RENDERER_DEFINES="RIVE_DESKTOP_GL RIVE_WINDOWS"
-            RIVE_RENDERER_INCLUDES="upload/src/glad"
+            RIVE_RENDERER_INCLUDES="upload/src/glad ${RIVE_RENDERER_INCLUDES}"
 
             # remove any previously generated shaders
             (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && rm -rf ./out)
@@ -495,7 +495,7 @@ for platform in $PLATFORMS; do
 
         arm64-linux|x86_64-linux)
             RIVE_RENDERER_DEFINES="RIVE_DESKTOP_GL RIVE_LINUX"
-            RIVE_RENDERER_INCLUDES="upload/src/glad"
+            RIVE_RENDERER_INCLUDES="upload/src/glad ${RIVE_RENDERER_INCLUDES}"
 
             # remove any previously generated shaders
             (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && rm -rf ./out)
@@ -527,7 +527,7 @@ for platform in $PLATFORMS; do
         x86_64-macos|arm64-macos)
             RIVE_RENDERER_DEFINES="RIVE_DESKTOP_GL RIVE_MACOSX"
             RIVE_RENDERER_CXXFLAGS="-fobjc-arc"
-            RIVE_RENDERER_INCLUDES="upload/src/glad"
+            RIVE_RENDERER_INCLUDES="upload/src/glad ${RIVE_RENDERER_INCLUDES}"
 
             # remove any previously generated shaders
             (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && rm -rf ./out)
@@ -564,7 +564,7 @@ for platform in $PLATFORMS; do
                 RIVE_RENDERER_DEFINES="RIVE_IOS_SIMULATOR"
             fi
             RIVE_RENDERER_CXXFLAGS="-fobjc-arc"
-            RIVE_RENDERER_INCLUDES="upload/src/glad"
+            RIVE_RENDERER_INCLUDES="upload/src/glad ${RIVE_RENDERER_INCLUDES}"
 
             # remove any previously generated shaders
             (cd ${RIVECPP_RENDERER_SHADER_DIR}/shaders && rm -rf ./out)
@@ -643,6 +643,7 @@ for platform in $PLATFORMS; do
             echo "Building RIVE_WEBGPU=1"
 
             RIVE_RENDERER_DEFINES="RIVE_WEBGL RIVE_WEBGPU=1 RIVE_WAGYU"
+            export INCLUDES="upload/src ${RIVE_RENDERER_INCLUDES}"
 
             # We temporarily remove the WebGL support until they've fixed their includes
 
@@ -655,6 +656,7 @@ for platform in $PLATFORMS; do
             ##########################################################################
             echo "Building RIVE_WEBGPU=2"
             RIVE_RENDERER_DEFINES="RIVE_WEBGL RIVE_WEBGPU=2 RIVE_WAGYU"
+            export INCLUDES="upload/src ${RIVE_RENDERER_INCLUDES}"
 
             if [ "${RIVE_RENDERER_DEFINES}" != "" ]; then
                 export DEFINES="${RIVE_RENDERER_DEFINES}"
