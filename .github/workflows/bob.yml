@@ -17,4 +17,7 @@ jobs:
 
   build:
     needs: check_shared_dependencies
-    uses: defold/github-actions-common/.github/workflows/bob.yml@master
+    uses: defold/github-actions-common/.github/workflows/bob.yml@improvements
+    with:
+      ignored_platforms: '[{"platform": "armv7-android"}]'
+
