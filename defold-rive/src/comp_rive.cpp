@@ -274,7 +274,7 @@ namespace dmRive
     {
         dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
 
-        if (component->m_Resource->m_DDF->m_Artboard)
+        if (component->m_Resource->m_DDF->m_Artboard && component->m_Resource->m_DDF->m_Artboard[0] != '\0')
         {
             component->m_ArtboardInstance = data->m_File->artboardNamed(component->m_Resource->m_DDF->m_Artboard);
 
@@ -335,26 +335,27 @@ namespace dmRive
         dmhash_t anim_id = dmHashString64(component->m_Resource->m_DDF->m_DefaultAnimation);
         dmhash_t state_machine_id = dmHashString64(component->m_Resource->m_DDF->m_DefaultStateMachine);
 
-        if (empty_id != state_machine_id)
+        dmRiveDDF::RivePlayAnimation ddf;
+        ddf.m_Offset            = 0.0;
+        ddf.m_PlaybackRate      = 1.0;
+
+        bool use_default_state_machine = component->m_ArtboardInstance->defaultStateMachineIndex() >= 0;
+        if (empty_id != state_machine_id || use_default_state_machine)
         {
-            dmRiveDDF::RivePlayAnimation ddf;
-            ddf.m_AnimationId       = state_machine_id;
-            ddf.m_Playback          = 0;
-            ddf.m_Offset            = 0.0;
-            ddf.m_PlaybackRate      = 1.0;
+            printf("playing state machine:");
+
+            ddf.m_Playback          = dmGameObject::PLAYBACK_NONE;
+            ddf.m_AnimationId       = use_default_state_machine ? 0 : state_machine_id;
             ddf.m_IsStateMachine    = true;
             if (!CompRivePlayStateMachine(component, &ddf, 0))
             {
                 dmLogError("Couldn't play state machine named '%s'", dmHashReverseSafe64(state_machine_id));
             }
         }
-        else if (empty_id != anim_id)
+        else
         {
-            dmRiveDDF::RivePlayAnimation ddf;
-            ddf.m_AnimationId       = anim_id;
+            ddf.m_AnimationId       = anim_id; // May be 0
             ddf.m_Playback          = dmGameObject::PLAYBACK_LOOP_FORWARD;
-            ddf.m_Offset            = 0.0;
-            ddf.m_PlaybackRate      = 1.0;
             ddf.m_IsStateMachine    = false;
             if (!CompRivePlayAnimation(component, &ddf, 0))
             {
@@ -1019,10 +1020,20 @@ namespace dmRive
         }
 
         int animation_index;
-        rive::LinearAnimation* animation = FindAnimation(component->m_ArtboardInstance.get(), data, &animation_index, anim_id);
+        rive::LinearAnimation* animation = 0;
+        if (anim_id != 0)
+        {
+            animation = FindAnimation(component->m_ArtboardInstance.get(), data, &animation_index, anim_id);
 
-        if (!animation) {
-            return false;
+            if (!animation) {
+                dmLogError("Failed to find animation '%s'", dmHashReverseSafe64(anim_id));
+                return false;
+            }
+        }
+        else
+        {
+            animation_index = 0;
+            animation = component->m_ArtboardInstance->animation(animation_index); // Default animation
         }
 
         CompRiveAnimationReset(component);
@@ -1082,11 +1093,20 @@ namespace dmRive
         dmhash_t anim_id = ddf->m_AnimationId;
         float playback_rate = ddf->m_PlaybackRate;
 
-        int state_machine_index;
-        rive::StateMachine* state_machine = FindStateMachine(component->m_ArtboardInstance.get(), data, &state_machine_index, anim_id);
+        int default_state_machine_index = component->m_ArtboardInstance->defaultStateMachineIndex();
+        int state_machine_index = -1;
+        if (anim_id != 0)
+        {
+            rive::StateMachine* state_machine = FindStateMachine(component->m_ArtboardInstance.get(), data, &state_machine_index, anim_id);
 
-        if (!state_machine) {
-            return false;
+            if (!state_machine) {
+                dmLogError("Failed to play state machine with id '%s'", dmHashReverseSafe64(anim_id));
+                return false;
+            }
+        }
+        else
+        {
+            state_machine_index = default_state_machine_index;
         }
 
         CompRiveAnimationReset(component);
@@ -1095,11 +1115,18 @@ namespace dmRive
         // For now, we need to create a new state machine instance when playing a state machine, because of nested artboards+state machine events
         InstantiateArtboard(component);
 
-        component->m_Callback              = callback_info;
         component->m_CallbackId++;
+        component->m_Callback              = callback_info;
         component->m_AnimationInstance     = nullptr;
         component->m_AnimationPlaybackRate = playback_rate;
-        component->m_StateMachineInstance  = component->m_ArtboardInstance->stateMachineAt(state_machine_index);
+
+        component->m_StateMachineInstance = component->m_ArtboardInstance->stateMachineAt(state_machine_index);
+
+        if (!component->m_StateMachineInstance.get())
+        {
+            dmLogError("Failed to start state machine '%s' at index %d", dmHashReverseSafe64(anim_id), state_machine_index);
+            return false;
+        }
 
         if (component->m_CurrentViewModelInstanceRuntime != INVALID_HANDLE)
         {
@@ -1108,6 +1135,8 @@ namespace dmRive
 
         // update the list of current state machine inputs
         GetStateMachineInputNames(component->m_StateMachineInstance.get(), component->m_StateMachineInputs);
+
+        component->m_StateMachineInstance->advanceAndApply(0);
         return true;
     }
 
