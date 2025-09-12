@@ -24,6 +24,7 @@ namespace dmRive
             metalOptions.disableFramebufferReads = true;
 
             m_RenderContext = rive::gpu::RenderContextMetalImpl::MakeContext(m_GPU, metalOptions);
+            m_TargetTexture = 0;
         }
 
         rive::Factory* Factory() override
@@ -57,24 +58,29 @@ namespace dmRive
         void OnSizeChanged(uint32_t width, uint32_t height, uint32_t sample_count, bool do_final_blit) override
         {
             @autoreleasepool {
-                // For now we can only output the result if we blit it to the backbuffer via an extra DC
-                assert(do_final_blit);
-
                 auto renderContextImpl = m_RenderContext->static_impl_cast<rive::gpu::RenderContextMetalImpl>();
                 m_RenderTarget         = renderContextImpl->makeRenderTarget(MTLPixelFormatBGRA8Unorm, width, height);
 
-                dmGraphics::TextureParams tp = {};
-                tp.m_Width                   = width;
-                tp.m_Height                  = height;
-                tp.m_Depth                   = 1;
-                tp.m_Format                  = dmGraphics::TEXTURE_FORMAT_BGRA8U;
+                if (do_final_blit)
+                {
+                    if (m_BackingTexture)
+                    {
+                        dmGraphics::DeleteTexture(m_BackingTexture);
+                    }
 
-                dmGraphics::SetTexture(m_BackingTexture, tp);
+                    dmGraphics::TextureParams tp = {};
+                    tp.m_Width                   = width;
+                    tp.m_Height                  = height;
+                    tp.m_Depth                   = 1;
+                    tp.m_Format                  = dmGraphics::TEXTURE_FORMAT_BGRA8U;
 
-                void* opaque_backing_texture = dmGraphics::VulkanTextureToMetal(m_GraphicsContext, m_BackingTexture);
-                assert(opaque_backing_texture);
-                id<MTLTexture> mtl_texture = (__bridge id<MTLTexture>) opaque_backing_texture;
-                m_RenderTarget->setTargetTexture(mtl_texture);
+                    dmGraphics::SetTexture(m_BackingTexture, tp);
+
+                    void* opaque_backing_texture = dmGraphics::VulkanTextureToMetal(m_GraphicsContext, m_BackingTexture);
+                    assert(opaque_backing_texture);
+                    id<MTLTexture> mtl_texture = (__bridge id<MTLTexture>) opaque_backing_texture;
+                    m_RenderTarget->setTargetTexture(mtl_texture);
+                }
             }
         }
 
@@ -93,7 +99,14 @@ namespace dmRive
 
         void SetRenderTargetTexture(dmGraphics::HTexture texture) override
         {
-            m_TargetTexture = texture;
+            @autoreleasepool {
+                m_TargetTexture = texture;
+
+                void* opaque_backing_texture = dmGraphics::VulkanTextureToMetal(m_GraphicsContext, m_TargetTexture);
+                assert(opaque_backing_texture);
+                id<MTLTexture> mtl_texture = (__bridge id<MTLTexture>) opaque_backing_texture;
+                m_RenderTarget->setTargetTexture(mtl_texture);
+            }
         }
 
         dmGraphics::HTexture GetBackingTexture() override
