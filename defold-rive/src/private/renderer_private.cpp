@@ -1,8 +1,11 @@
 #include <dmsdk/dlib/log.h>
 #include <dmsdk/dlib/image.h>
 #include <dmsdk/graphics/graphics_vulkan.h>
+#include <dmsdk/graphics/graphics.h>
+#include <dmsdk/render/render.h>
 
 #include "renderer_context.h"
+#include "defold/renderer.h"
 
 #include <rive/shapes/image.hpp>
 #include <rive/renderer.hpp>
@@ -10,13 +13,9 @@
 
 #include <rive/renderer/rive_render_image.hpp>
 
-#include <defold/defold_graphics.h>
-#include <defold/defold_render.h>
-
 #include <defold/shaders/rivemodel_blit.spc.gen.h>
 
 #include <common/vertices.h>
-#include <defold/renderer.h>
 
 #include <assert.h>
 

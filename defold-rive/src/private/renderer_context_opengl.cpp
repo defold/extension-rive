@@ -31,11 +31,11 @@
 #include <rive/renderer/gl/render_context_gl_impl.hpp>
 #include <rive/renderer/gl/render_target_gl.hpp>
 
-#include <defold/defold_graphics.h>
+#include <dmsdk/graphics/graphics.h>
 
 #ifdef RIVE_DESKTOP_GL
     #define GLFW_INCLUDE_NONE
-    #include "GLFW/glfw3.h"
+    #include "glfw/glfw3.h"
 
     #include <glad/gles2.h>
 #endif
@@ -51,22 +51,6 @@ static void OpenGLCheckError(const char* context)
     }
     assert(status_ok);
 }
-
-namespace dmGraphics
-{
-    // TODO: DMSDK?
-    enum BufferType
-    {
-        BUFFER_TYPE_COLOR0_BIT  = 0x01,
-        BUFFER_TYPE_COLOR1_BIT  = 0x02,
-        BUFFER_TYPE_COLOR2_BIT  = 0x04,
-        BUFFER_TYPE_COLOR3_BIT  = 0x08,
-        BUFFER_TYPE_DEPTH_BIT   = 0x10,
-        BUFFER_TYPE_STENCIL_BIT = 0x20,
-    };
-
-    HTexture GetRenderTargetTexture(HRenderTarget render_target, BufferType buffer_type);
-};
 
 namespace dmRive
 {
