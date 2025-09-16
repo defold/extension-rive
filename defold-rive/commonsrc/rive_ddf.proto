@@ -68,8 +68,8 @@ message RiveModelDesc
     optional Fit artboard_fit                   = 9 [default = FIT_NONE];
     optional Alignment artboard_alignment       = 10 [default = ALIGNMENT_CENTER];
 
-    optional bool auto_play                 = 11 [default = true];   // auto play animation if selected
-    optional bool auto_bind                 = 12 [default = true];   // auto bind default view model
+    optional bool auto_play                 = 11 [default=true];   // auto play animation if selected
+    optional bool auto_bind                 = 12 [default=true];   // auto bind default view model
 }
 
 message RivePlayAnimation

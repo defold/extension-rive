@@ -99,6 +99,8 @@
         default-state-machine :default-state-machine
         blend-mode :blend-mode
         create-go-bones :create-go-bones
+        auto-play :auto-play
+        auto-bind :auto-bind
         coordinate-system :coordinate-system
         artboard-fit :artboard-fit
         artboard-alignment :artboard-alignment))))
@@ -678,7 +680,7 @@
 ; .rivemodel (The "instance" file)
 ;
 
-(g/defnk produce-rivemodel-save-value [rive-scene-resource artboard default-animation default-state-machine material-resource blend-mode create-go-bones coordinate-system artboard-fit artboard-alignment]
+(g/defnk produce-rivemodel-save-value [rive-scene-resource artboard default-animation default-state-machine material-resource blend-mode create-go-bones auto-play auto-bind coordinate-system artboard-fit artboard-alignment]
   (protobuf/make-map-without-defaults rive-model-pb-class
     :scene (resource/resource->proj-path rive-scene-resource)
     :material (resource/resource->proj-path material-resource)
@@ -687,6 +689,8 @@
     :default-state-machine default-state-machine
     :blend-mode blend-mode
     :create-go-bones create-go-bones
+    :auto-play auto-play
+    :auto-bind auto-bind
     :coordinate-system coordinate-system
     :artboard-fit artboard-fit
     :artboard-alignment artboard-alignment))
@@ -804,6 +808,10 @@
           (dynamic error (g/fnk [_node-id rive-artboards artboard rive-scene]
                                 (validate-model-artboard _node-id rive-scene rive-artboards artboard)))
           (dynamic edit-type (g/fnk [rive-artboards] (properties/->choicebox (cons "" rive-artboards)))))
+
+  (property auto-play g/Bool (default (protobuf/default rive-model-pb-class :auto-play)))
+
+  (property auto-bind g/Bool (default (protobuf/default rive-model-pb-class :auto-bind)))
 
   (property create-go-bones g/Bool (default (protobuf/default rive-model-pb-class :create-go-bones)))
 
