@@ -5,24 +5,54 @@
 
 This step is needed for each platform+architecture that the runtime should support.
 
-First, clean out any previous code that may be left since last update:
+First, clean out any previous code that may be left since last update.
+You only need to do this once for each version update.
 
     rm -rf ./build
 
+### Build the rive runtime
+
+the `build_pls.sh` script copies the files needed for each library, and sends them to our build server, in order to make sure they're built with the SDK's we need.
+
 For each platform+arch, do:
 
-* Build the static libraries: `DEFOLDSDK=<defold sha1> SERVER=<server> ./utils/build_pls.sh <platform>`
+    `./utils/build_pls.sh <platform>`
 
-You can specify variables like bob, server, defoldsdk.
+This updates the folder `./defold-rive/lib<platform>`
+
+The currently supported platforms:
+    * arm64-ios
+    * x86_64-ios
+    * arm64-macos
+    * x86_64-macos
+    * arm64-android
+    * arm64-linux
+    * x86_64-linux
+    * x86_64-win32
+    * x86-win32
+    * js-web
+    * wasm-web
+    * wasm_pthread-web
+
+For the more advanced use cases, there are variables that can be modified:
+
+     `DEFOLDSDK=<defold sha1> SERVER=<server> ./utils/build_pls.sh <platform>`
+
+You can specify variables: BOB, SERVER, DEFOLDSDK.
 
 ### Update the Rive headers
 
 Once you've successfully built the libraries (for at least one platform), we also need to copy the headers.
-It may remove or add headers in the `defold-rive/include/rive` folder.
+Note that it may remove or add headers in the `defold-rive/include/rive` folder. This often happens in their api.
 
     > ./utils/copy_rive_headers.py
 
+
 ## For the editor
+
+This step is only needed if you've altered some particular extension code itself, namely the pluginsrc/ and commonsrc/ folders.
+
+For a regular rive-runtime update, this step isn't needed.
 
 Needed for the desktop platforms: macOS, Windows and Linux
 For each platform+arch, do:
