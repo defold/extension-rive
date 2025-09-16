@@ -363,15 +363,10 @@ namespace dmRive
             }
         }
 
-        bool auto_binding = false;
-        const char* view_model_name = 0;
-
         component->m_CurrentViewModelInstanceRuntime = 0xFFFFFFFF;
-        if (auto_binding)
+        if (component->m_Resource->m_DDF->m_AutoBind)
         {
-            dmLogInfo("Auto binding default ViewModelInstance '%s'", view_model_name?view_model_name:"");
-            dmhash_t name_hash = view_model_name ? dmHashString64(view_model_name) : 0;
-            component->m_CurrentViewModelInstanceRuntime = CompRiveCreateViewModelInstanceRuntime(component, name_hash);
+            component->m_CurrentViewModelInstanceRuntime = CompRiveCreateViewModelInstanceRuntime(component, 0);
             if (component->m_CurrentViewModelInstanceRuntime != dmRive::INVALID_HANDLE)
             {
                 CompRiveSetViewModelInstanceRuntime(component, component->m_CurrentViewModelInstanceRuntime);
