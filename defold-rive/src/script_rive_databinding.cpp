@@ -258,6 +258,17 @@ static int GetProperty(lua_State* L)
         CHECK_RESULT(result, &url, path, -2);
         lua_pushstring(L, value);
     }
+    else if(data_type == rive::DataType::color)
+    {
+        dmVMath::Vector4 value(-1, -1, -1, -1);
+        bool result = dmRive::CompRiveRuntimeGetPropertyColor(component, handle, path, &value);
+        CHECK_RESULT(result, &url, path, -2);
+        dmScript::PushVector4(L, value);
+    }
+    else if(data_type == rive::DataType::trigger)
+    {
+        return DM_LUA_ERROR("Cannot get trigger property value as it is input-only (path: '%s')", path);
+    }
     else
     {
         return DM_LUA_ERROR("Getting data type %d is not supported (path: '%s')", (int)data_type, path);

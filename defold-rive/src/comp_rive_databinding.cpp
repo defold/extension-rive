@@ -325,11 +325,11 @@ bool CompRiveRuntimeGetPropertyColor(RiveComponent* component, uint32_t handle, 
     CHECK_PROP_RESULT(prop, "color", path);
 
     uint32_t argb = (uint32_t)prop->value();
-    float a = (argb >> 24) % 0xFF;
-    float r = (argb >> 16) % 0xFF;
-    float g = (argb >>  8) % 0xFF;
-    float b = (argb >>  0) % 0xFF;
-    *color = dmVMath::Vector4(r/255.0f, g/255.0f, b/255.0f, a/255.0f);
+    float a = ((argb >> 24) & 0xFF) / 255.0f;
+    float r = ((argb >> 16) & 0xFF) / 255.0f;
+    float g = ((argb >>  8) & 0xFF) / 255.0f;
+    float b = ((argb >>  0) & 0xFF) / 255.0f;
+    *color = dmVMath::Vector4(r, g, b, a);
     return true;
 }
 
