@@ -89,14 +89,7 @@ function init(self)
 
 	self.rive_url = msg.url("#scrollist")
 
-	local main, errMain = rive.databind.create_view_model_instance_runtime(self.rive_url, "MainVM")
-	if main == nil then
-		print("Failed to create view model instance:", errMain)
-		return
-	end
-
-	self.modelViewInstanceRuntime = main
-	rive.databind.set_view_model_instance_runtime(self.rive_url, self.modelViewInstanceRuntime)
+	self.modelViewInstanceRuntime = rive.databind.get_view_model_instance_runtime(self.rive_url)
 
 	self.list_path = 'Thumbs'
 	self.thumb_index = rive.databind.get_property(self.rive_url, self.modelViewInstanceRuntime, "List Index")
