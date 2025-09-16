@@ -324,7 +324,7 @@ public:
     {
         // Make sure artboard is deleted before file.
         m_artboard = nullptr;
-        // m_file = nullptr;
+        m_file = nullptr;
     }
 
     static constexpr uint8_t luaTag = LUA_T_COUNT + 10;
@@ -337,6 +337,8 @@ public:
     Artboard* artboard() { return m_artboard.get(); }
     int pushData(lua_State* L);
     int instance(lua_State* L);
+
+    void advance(float seconds);
 
 private:
     rcp<File> m_file;
@@ -552,6 +554,7 @@ public:
     ScriptingContext(Factory* factory) : m_factory(factory) {}
     Factory* factory() const { return m_factory; }
 
+    virtual void printError(lua_State* state) = 0;
     virtual void printBeginLine(lua_State* state) = 0;
     virtual void print(Span<const char> data) = 0;
     virtual void printEndLine() = 0;

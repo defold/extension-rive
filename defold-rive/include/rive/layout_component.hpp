@@ -137,6 +137,7 @@ protected:
     }
     bool isCollapsed() const override;
     void propagateCollapse(bool collapse);
+    bool collapse(bool value) override;
     float computedLocalX() override { return m_layout.left(); };
     float computedLocalY() override { return m_layout.top(); };
     float computedWidth() override { return m_layout.width(); };
@@ -191,6 +192,7 @@ public:
                               m_layout.height());
     }
     size_t numLayoutNodes() override { return 1; }
+    AABB constraintBounds() const override { return localBounds(); }
     AABB localBounds() const override
     {
         return AABB::fromLTWH(0.0f, 0.0f, m_layout.width(), m_layout.height());
