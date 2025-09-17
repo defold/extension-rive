@@ -16,27 +16,28 @@ the `build_pls.sh` script copies the files needed for each library, and sends th
 
 For each platform+arch, do:
 
-    `./utils/build_pls.sh <platform>`
+    ./utils/build_pls.sh <platform>
 
 This updates the folder `./defold-rive/lib<platform>`
 
 The currently supported platforms:
-    * arm64-ios
-    * x86_64-ios
-    * arm64-macos
-    * x86_64-macos
-    * arm64-android
-    * arm64-linux
-    * x86_64-linux
-    * x86_64-win32
-    * x86-win32
-    * js-web
-    * wasm-web
-    * wasm_pthread-web
+
+* arm64-ios
+* x86_64-ios
+* arm64-macos
+* x86_64-macos
+* arm64-android
+* arm64-linux
+* x86_64-linux
+* x86_64-win32
+* x86-win32
+* js-web
+* wasm-web
+* wasm_pthread-web
 
 For the more advanced use cases, there are variables that can be modified:
 
-     `DEFOLDSDK=<defold sha1> SERVER=<server> ./utils/build_pls.sh <platform>`
+     DEFOLDSDK=<defold sha1> SERVER=<server> ./utils/build_pls.sh <platform>
 
 You can specify variables: BOB, SERVER, DEFOLDSDK.
 
@@ -65,3 +66,6 @@ The `build_plugins.sh` can omit the platform flag if you wish to build all platf
 You can also test the plugins locally:
 
     ./utils/test_plugin.sh path/to/scene.riv
+
+
+
