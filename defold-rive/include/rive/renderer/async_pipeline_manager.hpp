@@ -43,7 +43,8 @@ public:
         rive::gpu::InterlockMode interlockMode;
         rive::gpu::ShaderMiscFlags shaderMiscFlags;
 #ifdef WITH_RIVE_TOOLS
-        bool synthesizeCompilationFailures = false;
+        rive::gpu::SynthesizedFailureType synthesizedFailureType =
+            rive::gpu::SynthesizedFailureType::none;
 #endif
     };
 
@@ -68,14 +69,16 @@ public:
         assert(!m_jobThread.joinable());
     }
 
-    const PipelineType& getPipeline(const PipelineProps& propsIn)
+    const PipelineType* tryGetPipeline(const PipelineProps& propsIn,
+                                       const PlatformFeatures& platformFeatures)
     {
         PipelineProps props = propsIn;
 
         ShaderFeatures ubershaderFeatures =
             gpu::UbershaderFeaturesMaskFor(props.shaderFeatures,
                                            props.drawType,
-                                           props.interlockMode);
+                                           props.interlockMode,
+                                           platformFeatures);
 
         PipelineCreateType createType;
 
@@ -111,10 +114,23 @@ public:
         auto iter = m_pipelines.find(key);
 
 #ifdef WITH_RIVE_TOOLS
+        // If requested, synthesize a complete failure to get an ubershader
+        // (i.e. pretend we attempted to load the current shader asynchronously
+        // and tried to fall back on an uber, which failed) (Don't fail on
+        // "atomicResolve" because if we fail that one the unit test won't see
+        // the clear color)
+        if (props.synthesizedFailureType ==
+                gpu::SynthesizedFailureType::ubershaderLoad &&
+            props.drawType != DrawType::atomicResolve)
+        {
+            return nullptr;
+        }
+
         if (props.shaderFeatures == ubershaderFeatures)
         {
-            // Never synthesize compilation failure for an ubershader.
-            props.synthesizeCompilationFailures = false;
+            // Otherwise, do not synthesize compilation failure for an
+            // ubershader.
+            props.synthesizedFailureType = gpu::SynthesizedFailureType::none;
         }
 #endif
 
@@ -140,11 +156,17 @@ public:
 
                 if (getPipelineStatus(*iter->second) != PipelineStatus::errored)
                 {
-                    return *iter->second;
+                    return &*iter->second;
                 }
 
-                // It's bad to have a creation error for an ubershader, but
-                //  otherwise we can still fall back on the ubershader.
+                if (props.shaderFeatures == ubershaderFeatures)
+                {
+                    // Ubershader creation failed
+                    return nullptr;
+                }
+
+                // This pipeline failed to build for some reason, but we can
+                // (potentially) fall back on the ubershader.
                 assert(props.shaderFeatures != ubershaderFeatures);
             }
         }
@@ -171,7 +193,7 @@ public:
                 status == PipelineStatus::ready)
             {
                 // The program is present and ready to go!
-                return *iter->second;
+                return &*iter->second;
             }
             else if (status != PipelineStatus::errored)
             {
@@ -182,25 +204,43 @@ public:
                 if (advanceCreation(*iter->second, props))
                 {
                     // The program was not previously ready, but it is now.
-                    return *iter->second;
+                    return &*iter->second;
                 }
             }
+        }
+
+        if (props.shaderFeatures == ubershaderFeatures)
+        {
+            // The only way to get here for an ubershader should be for it to
+            // have failed to compile.
+            assert(iter->second &&
+                   getPipelineStatus(*iter->second) == PipelineStatus::errored);
+            return nullptr;
         }
 
         // The pipeline is still not ready, so instead return an ubershader
         // version (with all functionality enabled). This will create
         // synchronously so we're guaranteed to have a valid return from this
         // call.
-        // NOTE: intentionally not passing along synthesizeCompilationFailures
+        // NOTE: intentionally not passing along synthesizedFailureType
         //  here because we don't pay attention to it for ubershaders anyway
-        assert(props.shaderFeatures != ubershaderFeatures);
-        return getPipeline({props.drawType,
-                            ubershaderFeatures,
-                            props.interlockMode,
-                            props.shaderMiscFlags});
+        return tryGetPipeline({props.drawType,
+                               ubershaderFeatures,
+                               props.interlockMode,
+                               props.shaderMiscFlags},
+                              platformFeatures);
     }
 
 protected:
+    void clearCacheDoNotCallWithThreadedShaderLoading()
+    {
+        // If we want to handle this with threaded shaders there's more work
+        //  involved, but this was only needed for GL at the moment.
+        assert(!m_jobThread.joinable());
+
+        m_pipelines.clear();
+    }
+
     // This function is called to create a pipeline when we don't have one
     //  with its key already. It can be called in either "sync" or "async" mode.
     //  - In async mode, the function should either:

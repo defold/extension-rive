@@ -51,7 +51,6 @@
 #define GL_PIXEL_LOCAL_CLEAR_VALUE_INT_ANGLE 0x96EC
 #define GL_PIXEL_LOCAL_CLEAR_VALUE_UNSIGNED_INT_ANGLE 0x96ED
 extern bool webgl_enable_WEBGL_shader_pixel_local_storage_coherent();
-extern bool webgl_enable_WEBGL_provoking_vertex();
 extern bool webgl_shader_pixel_local_storage_is_coherent();
 extern void glFramebufferTexturePixelLocalStorageANGLE(GLint plane,
                                                        GLuint backingtexture,
@@ -71,6 +70,7 @@ extern void glGetFramebufferPixelLocalStorageParameterivANGLE(GLint plane,
 #define GL_FIRST_VERTEX_CONVENTION_ANGLE 0x8E4D
 #define GL_LAST_VERTEX_CONVENTION_ANGLE 0x8E4E
 #define GL_PROVOKING_VERTEX_ANGLE 0x8E4F
+extern bool webgl_enable_WEBGL_provoking_vertex();
 extern void glProvokingVertexANGLE(GLenum provokeMode);
 #endif
 
@@ -122,32 +122,61 @@ struct GLCapabilities
 {
     GLCapabilities() { memset(this, 0, sizeof(*this)); }
 
-    bool isContextVersionAtLeast(int major, int minor) const
+    static bool IsVersionAtLeast(uint32_t aMajor,
+                                 uint32_t aMinor,
+                                 uint32_t bMajor,
+                                 uint32_t bMinor)
     {
-        return ((contextVersionMajor << 16) | contextVersionMinor) >=
-               ((major << 16) | minor);
+        uint64_t a = (static_cast<uint64_t>(aMajor) << 32) | aMinor;
+        uint64_t b = (static_cast<uint64_t>(bMajor) << 32) | bMinor;
+        return a >= b;
     }
-
-    // GL version.
-    int contextVersionMajor;
-    int contextVersionMinor;
+    bool isContextVersionAtLeast(uint32_t major, uint32_t minor) const
+    {
+        return IsVersionAtLeast(contextVersionMajor,
+                                contextVersionMinor,
+                                major,
+                                minor);
+    }
+    bool isVendorDriverVersionAtLeast(uint32_t major, uint32_t minor) const
+    {
+        return IsVersionAtLeast(vendorDriverVersionMajor,
+                                vendorDriverVersionMinor,
+                                major,
+                                minor);
+    }
 
     // Driver info.
     bool isGLES : 1;
-    bool isANGLEOrWebGL : 1;
+    // Is the system OpenGL driver ANGLE? (Not WebGL via ANGLE, but the actual
+    // system driver (which can also be true in a situation like
+    // WebGL (probably ANGLE) -> System OpenGL ES (also ANGLE) -> Vulkan)).
+    bool isANGLESystemDriver : 1;
     bool isAdreno : 1;
     bool isMali : 1;
     bool isPowerVR : 1;
 
+    // GL version.
+    uint32_t contextVersionMajor;
+    uint32_t contextVersionMinor;
+    uint32_t vendorDriverVersionMajor;
+    uint32_t vendorDriverVersionMinor;
+
     // Workarounds.
-    // Some devices crash when issuing draw commands with a large instancecount.
-    uint32_t maxSupportedInstancesPerDrawCommand = ~0u;
+    // Some Mali and PowerVR devices crash when issuing draw commands with a
+    // large instancecount.
+    uint32_t maxSupportedInstancesPerDrawCommand;
     // Chrome 136 crashes when trying to run Rive because it attempts to enable
     // blending on the tessellation texture, which is invalid for an integer
     // render target. The workaround is to use a floating-point tessellation
     // texture.
     // https://issues.chromium.org/issues/416294709
-    bool needsFloatingPointTessellationTexture = false;
+    bool needsFloatingPointTessellationTexture;
+    // PowerVR Rogue GE8300, OpenGL ES 3.2 build 1.10@5187610 has severe pixel
+    // local storage corruption issues with our renderer. Using some of the
+    // EXT_shader_pixel_local_storage2 API is an apparent workaround that comes
+    // with worse performance and other, less severe visual artifacts.
+    bool needsPixelLocalStorage2;
 
     // Extensions
     bool ANGLE_base_vertex_base_instance_shader_builtin : 1;
@@ -159,13 +188,15 @@ struct GLCapabilities
     bool ARB_fragment_shader_interlock : 1;
     bool ARB_shader_image_load_store : 1;
     bool ARB_shader_storage_buffer_object : 1;
+    bool OES_shader_image_atomic : 1;
     bool KHR_blend_equation_advanced : 1;
     bool KHR_blend_equation_advanced_coherent : 1;
     bool KHR_parallel_shader_compile : 1;
     bool EXT_base_instance : 1;
     bool EXT_clip_cull_distance : 1;
     bool EXT_color_buffer_half_float : 1;
-    bool EXT_float_blend : 1; // Implies EXT_color_buffer_float.
+    bool EXT_color_buffer_float : 1;
+    bool EXT_float_blend : 1;
     bool EXT_multisampled_render_to_texture : 1;
     bool EXT_shader_framebuffer_fetch : 1;
     bool EXT_shader_pixel_local_storage : 1;
@@ -203,6 +234,9 @@ extern PFNGLCLEARPIXELLOCALSTORAGEUIEXTPROC glClearPixelLocalStorageuiEXT;
 // KHR_parallel_shader_compilation
 extern PFNGLMAXSHADERCOMPILERTHREADSKHRPROC glMaxShaderCompilerThreadsKHR;
 
-// Android doesn't load extension functions for us.
-void LoadGLESExtensions(const GLCapabilities&);
+// Android doesn't load extension functions for us (also, possibly some
+// extensions are reported as present but the functions don't actually exist,
+// this call will clear the capabilities flags for extensions that don't load,
+// accordingly).
+void LoadAndValidateGLESExtensions(GLCapabilities*);
 #endif

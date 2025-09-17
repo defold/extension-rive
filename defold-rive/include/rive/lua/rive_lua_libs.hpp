@@ -11,7 +11,11 @@
 #include "rive/viewmodel/viewmodel_instance_viewmodel.hpp"
 #include "rive/viewmodel/viewmodel_instance_number.hpp"
 #include "rive/viewmodel/viewmodel_instance_trigger.hpp"
+#include "rive/viewmodel/viewmodel_instance_list.hpp"
 #include "rive/viewmodel/viewmodel.hpp"
+#include "rive/artboard.hpp"
+#include "rive/file.hpp"
+#include "rive/animation/state_machine_instance.hpp"
 
 #include <unordered_map>
 
@@ -102,7 +106,14 @@ enum class LuaAtoms : int16_t
     getTrigger,
     addListener,
     removeListener,
-    fire
+    fire,
+
+    // Artboards
+    draw,
+    advance,
+    frameOrigin,
+    data,
+    instance
 };
 
 struct ScriptedMat2D
@@ -303,6 +314,45 @@ private:
     uint32_t m_saveCount = 0;
 };
 
+class ScriptedArtboard
+{
+public:
+    ScriptedArtboard(rcp<File> file,
+                     std::unique_ptr<ArtboardInstance>&& artboardInstance);
+
+    ~ScriptedArtboard()
+    {
+        // Make sure artboard is deleted before file.
+        m_artboard = nullptr;
+        m_file = nullptr;
+    }
+
+    static constexpr uint8_t luaTag = LUA_T_COUNT + 10;
+    static constexpr const char* luaName = "Artboard";
+    static constexpr bool hasMetatable = true;
+
+    // void draw(lua_State* L);
+    // void advance(lua_State* L);
+
+    Artboard* artboard() { return m_artboard.get(); }
+    int pushData(lua_State* L);
+    int instance(lua_State* L);
+
+    void advance(float seconds);
+
+private:
+    rcp<File> m_file;
+    std::unique_ptr<ArtboardInstance> m_artboard;
+    std::unique_ptr<StateMachineInstance> m_stateMachine;
+    rcp<ViewModelInstance> m_viewModelInstance;
+    int m_dataRef = 0;
+    // std::vector<WrappedDataBind*> m_dataBinds;
+
+    // for parent data context
+    // internalDataContext()
+    // bindViewModelInstance on state machine
+};
+
 struct ScriptedListener
 {
     int function;
@@ -332,6 +382,27 @@ protected:
     rcp<ViewModelInstanceValue> m_instanceValue;
 };
 
+class ScriptedViewModel
+{
+public:
+    ScriptedViewModel(lua_State* L,
+                      rcp<ViewModel> viewModel,
+                      rcp<ViewModelInstance> viewModelInstance);
+    ~ScriptedViewModel();
+    static constexpr uint8_t luaTag = LUA_T_COUNT + 11;
+    static constexpr const char* luaName = "ViewModel";
+    static constexpr bool hasMetatable = true;
+    int pushValue(const char* name, int coreType = 0);
+
+    const lua_State* state() const { return m_state; }
+
+private:
+    lua_State* m_state;
+    rcp<ViewModel> m_viewModel;
+    rcp<ViewModelInstance> m_viewModelInstance;
+    std::unordered_map<std::string, int> m_propertyRefs;
+};
+
 class ScriptedPropertyViewModel : public ScriptedProperty
 {
 public:
@@ -339,21 +410,21 @@ public:
                               rcp<ViewModel> viewModel,
                               rcp<ViewModelInstanceViewModel> value);
     ~ScriptedPropertyViewModel();
-    static constexpr uint8_t luaTag = LUA_T_COUNT + 10;
+    static constexpr uint8_t luaTag = LUA_T_COUNT + 12;
     static constexpr const char* luaName = "PropertyViewModel";
     static constexpr bool hasMetatable = true;
-    int pushValue(const char* name, int coreType = 0);
+    int pushValue();
 
 private:
     rcp<ViewModel> m_viewModel;
-    std::unordered_map<std::string, int> m_propertyRefs;
+    int m_valueRef = 0;
 };
 
 class ScriptedPropertyNumber : public ScriptedProperty
 {
 public:
     ScriptedPropertyNumber(lua_State* L, rcp<ViewModelInstanceNumber> value);
-    static constexpr uint8_t luaTag = LUA_T_COUNT + 11;
+    static constexpr uint8_t luaTag = LUA_T_COUNT + 13;
     static constexpr const char* luaName = "Property<number>";
     static constexpr bool hasMetatable = true;
 
@@ -365,9 +436,27 @@ class ScriptedPropertyTrigger : public ScriptedProperty
 {
 public:
     ScriptedPropertyTrigger(lua_State* L, rcp<ViewModelInstanceTrigger> value);
-    static constexpr uint8_t luaTag = LUA_T_COUNT + 12;
+    static constexpr uint8_t luaTag = LUA_T_COUNT + 14;
     static constexpr const char* luaName = "PropertyTrigger";
     static constexpr bool hasMetatable = true;
+};
+
+class ScriptedPropertyList : public ScriptedProperty
+{
+public:
+    ScriptedPropertyList(lua_State* L, rcp<ViewModelInstanceList> value);
+    ~ScriptedPropertyList();
+    static constexpr uint8_t luaTag = LUA_T_COUNT + 15;
+    static constexpr const char* luaName = "PropertyList";
+    static constexpr bool hasMetatable = true;
+
+    int pushLength();
+    int pushValue(int index);
+    void valueChanged() override;
+
+private:
+    bool m_changed = false;
+    std::unordered_map<ViewModelInstance*, int> m_propertyRefs;
 };
 
 // Make
@@ -465,6 +554,7 @@ public:
     ScriptingContext(Factory* factory) : m_factory(factory) {}
     Factory* factory() const { return m_factory; }
 
+    virtual void printError(lua_State* state) = 0;
     virtual void printBeginLine(lua_State* state) = 0;
     virtual void print(Span<const char> data) = 0;
     virtual void printEndLine() = 0;
