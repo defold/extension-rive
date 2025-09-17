@@ -16,7 +16,7 @@ the `build_pls.sh` script copies the files needed for each library, and sends th
 
 For each platform+arch, do:
 
-    `./utils/build_pls.sh <platform>`
+    ./utils/build_pls.sh <platform>
 
 This updates the folder `./defold-rive/lib<platform>`
 
@@ -37,7 +37,7 @@ The currently supported platforms:
 
 For the more advanced use cases, there are variables that can be modified:
 
-     `DEFOLDSDK=<defold sha1> SERVER=<server> ./utils/build_pls.sh <platform>`
+     DEFOLDSDK=<defold sha1> SERVER=<server> ./utils/build_pls.sh <platform>
 
 You can specify variables: BOB, SERVER, DEFOLDSDK.
 
@@ -66,5 +66,6 @@ The `build_plugins.sh` can omit the platform flag if you wish to build all platf
 You can also test the plugins locally:
 
     ./utils/test_plugin.sh path/to/scene.riv
+
 
 
