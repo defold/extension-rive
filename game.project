@@ -43,5 +43,5 @@ clear_color_alpha = 1.0
 
 
 [rive]
-render_to_texture = 0
+render_to_texture = 1
 
