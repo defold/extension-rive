@@ -22,18 +22,18 @@ This updates the folder `./defold-rive/lib<platform>`
 
 The currently supported platforms:
 
-    * arm64-ios
-    * x86_64-ios
-    * arm64-macos
-    * x86_64-macos
-    * arm64-android
-    * arm64-linux
-    * x86_64-linux
-    * x86_64-win32
-    * x86-win32
-    * js-web
-    * wasm-web
-    * wasm_pthread-web
+* arm64-ios
+* x86_64-ios
+* arm64-macos
+* x86_64-macos
+* arm64-android
+* arm64-linux
+* x86_64-linux
+* x86_64-win32
+* x86-win32
+* js-web
+* wasm-web
+* wasm_pthread-web
 
 For the more advanced use cases, there are variables that can be modified:
 
@@ -66,4 +66,5 @@ The `build_plugins.sh` can omit the platform flag if you wish to build all platf
 You can also test the plugins locally:
 
     ./utils/test_plugin.sh path/to/scene.riv
+
 
