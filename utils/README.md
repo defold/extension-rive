@@ -21,6 +21,7 @@ For each platform+arch, do:
 This updates the folder `./defold-rive/lib<platform>`
 
 The currently supported platforms:
+
     * arm64-ios
     * x86_64-ios
     * arm64-macos
@@ -65,3 +66,4 @@ The `build_plugins.sh` can omit the platform flag if you wish to build all platf
 You can also test the plugins locally:
 
     ./utils/test_plugin.sh path/to/scene.riv
+
