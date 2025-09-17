@@ -62,11 +62,6 @@ namespace dmRive
 
                 if (do_final_blit)
                 {
-                    if (m_BackingTexture)
-                    {
-                        dmGraphics::DeleteTexture(m_BackingTexture);
-                    }
-
                     dmGraphics::TextureParams tp = {};
                     tp.m_Width                   = width;
                     tp.m_Height                  = height;
