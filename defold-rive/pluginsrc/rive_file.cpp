@@ -29,7 +29,7 @@ RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char*
     rive::Span<uint8_t> data((uint8_t*)buffer, buffer_size);
 
     rive::ImportResult result;
-    std::unique_ptr<rive::File> file = rive::File::import(data,
+    rive::rcp<rive::File> file = rive::File::import(data,
                                                     factory,
                                                     &result,
                                                     &atlas_resolver);

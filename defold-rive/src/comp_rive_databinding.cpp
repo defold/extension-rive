@@ -36,13 +36,13 @@ namespace dmRive
 
 #define CHECK_VMIR(VMIR, HANDLE) \
     if (!(VMIR)) { \
-        dmLogError("No viewmodel runtime instance with handle '%u'", (HANDLE)); \
+        dmLogError("%s:%d: No viewmodel runtime instance with handle '%u'", __FUNCTION__, __LINE__, (HANDLE)); \
         return false; \
     }
 
 #define CHECK_PROP_RESULT(PROP, TYPE, PATH) \
     if (!(PROP)) { \
-        dmLogError("No property of type '%s', with path '%s'", (TYPE), (PATH)); \
+        dmLogError("%s:%d: No property of type '%s', with path '%s'", __FUNCTION__, __LINE__, (TYPE), (PATH)); \
         return false; \
     }
 
@@ -79,13 +79,14 @@ static rive::ViewModelInstanceRuntime* CreateViewModelInstanceRuntimeByHash(Rive
 
 void SetViewModelInstanceRuntime(RiveComponent* component, rive::ViewModelInstanceRuntime* vmir)
 {
+    if (component->m_ArtboardInstance)
+    {
+        component->m_ArtboardInstance->bindViewModelInstance(vmir->instance());
+    }
+
     if (component->m_StateMachineInstance)
     {
         component->m_StateMachineInstance->bindViewModelInstance(vmir->instance());
-    }
-    else
-    {
-        component->m_ArtboardInstance->bindViewModelInstance(vmir->instance());
     }
 }
 
@@ -116,6 +117,21 @@ void DebugModelViews(RiveComponent* component)
             dmLogInfo("  INST: '%s'\n", names[j].c_str());
         }
     }
+}
+
+void DebugVMIR(rive::ViewModelInstanceRuntime* vmir)
+{
+    printf("NAME: '%s'\n", vmir->name().c_str());
+
+    size_t num_properties = vmir->propertyCount();
+    std::vector<rive::PropertyData> pdatas = vmir->properties();
+    for (size_t j = 0; j < num_properties; ++j)
+    {
+        rive::PropertyData& property = pdatas[j];
+        printf("  DATA: %d '%s'\n", (int)property.type, property.name.c_str());
+    }
+
+    printf("  instance: '%s' %p\n", vmir->instance()->name().c_str(), vmir->instance().get());
 }
 
 // Scripting api + helpers
@@ -252,7 +268,6 @@ bool CompRiveRuntimeSetPropertyEnum(RiveComponent* component, uint32_t handle, c
 
     prop->value(value);
     return true;
-
 }
 
 bool CompRiveRuntimeSetPropertyTrigger(RiveComponent* component, uint32_t handle, const char* path)
@@ -265,8 +280,111 @@ bool CompRiveRuntimeSetPropertyTrigger(RiveComponent* component, uint32_t handle
 
     prop->trigger();
     return true;
-
 }
+
+bool CompRiveRuntimeSetPropertyImage(RiveComponent* component, uint32_t handle, const char* path, rive::RenderImage* image)
+{
+    rive::ViewModelInstanceRuntime* vmir = FromHandle(component, handle);
+    CHECK_VMIR(vmir, handle);
+
+    rive::ViewModelInstanceAssetImageRuntime* prop = vmir->propertyImage(path);
+    CHECK_PROP_RESULT(prop, "image", path);
+
+    prop->value(image);
+    return true;
+}
+
+bool CompRiveRuntimeGetPropertyBool(RiveComponent* component, uint32_t handle, const char* path, bool* value)
+{
+    rive::ViewModelInstanceRuntime* vmir = FromHandle(component, handle);
+    CHECK_VMIR(vmir, handle);
+
+    rive::ViewModelInstanceBooleanRuntime* prop = vmir->propertyBoolean(path);
+    CHECK_PROP_RESULT(prop, "boolean", path);
+    *value = prop->value();
+    return true;
+}
+
+bool CompRiveRuntimeGetPropertyF32(RiveComponent* component, uint32_t handle, const char* path, float* value)
+{
+    rive::ViewModelInstanceRuntime* vmir = FromHandle(component, handle);
+    CHECK_VMIR(vmir, handle);
+
+    rive::ViewModelInstanceNumberRuntime* prop = vmir->propertyNumber(path);
+    CHECK_PROP_RESULT(prop, "number", path);
+    *value = prop->value();
+    return true;
+}
+
+bool CompRiveRuntimeGetPropertyColor(RiveComponent* component, uint32_t handle, const char* path, dmVMath::Vector4* color)
+{
+    rive::ViewModelInstanceRuntime* vmir = FromHandle(component, handle);
+    CHECK_VMIR(vmir, handle);
+
+    rive::ViewModelInstanceColorRuntime* prop = vmir->propertyColor(path);
+    CHECK_PROP_RESULT(prop, "color", path);
+
+    uint32_t argb = (uint32_t)prop->value();
+    float a = ((argb >> 24) & 0xFF) / 255.0f;
+    float r = ((argb >> 16) & 0xFF) / 255.0f;
+    float g = ((argb >>  8) & 0xFF) / 255.0f;
+    float b = ((argb >>  0) & 0xFF) / 255.0f;
+    *color = dmVMath::Vector4(r, g, b, a);
+    return true;
+}
+
+bool CompRiveRuntimeGetPropertyString(RiveComponent* component, uint32_t handle, const char* path, const char** value)
+{
+    rive::ViewModelInstanceRuntime* vmir = FromHandle(component, handle);
+    CHECK_VMIR(vmir, handle);
+
+    rive::ViewModelInstanceStringRuntime* prop = vmir->propertyString(path);
+    CHECK_PROP_RESULT(prop, "string", path);
+
+    *value = prop->value().c_str(); // the temp string is not for storage
+    return true;
+}
+
+bool CompRiveRuntimeGetPropertyEnum(RiveComponent* component, uint32_t handle, const char* path, const char** value)
+{
+    rive::ViewModelInstanceRuntime* vmir = FromHandle(component, handle);
+    CHECK_VMIR(vmir, handle);
+
+    rive::ViewModelInstanceEnumRuntime* prop = vmir->propertyEnum(path);
+    CHECK_PROP_RESULT(prop, "enum", path);
+
+    *value = prop->value().c_str(); // the temp string is not for storage
+    return true;
+}
+
+// LISTS
+
+bool CompRiveRuntimeListAddInstance(RiveComponent* component, uint32_t handle, const char* path, uint32_t instance)
+{
+    rive::ViewModelInstanceRuntime* vmir = FromHandle(component, handle);
+    CHECK_VMIR(vmir, handle);
+
+    rive::ViewModelInstanceListRuntime* prop = vmir->propertyList(path);
+    CHECK_PROP_RESULT(prop, "list", path);
+
+    rive::ViewModelInstanceRuntime* instance_vmir = FromHandle(component, instance);
+    prop->addInstance(instance_vmir);
+    return true;
+}
+
+bool CompRiveRuntimeListRemoveInstance(RiveComponent* component, uint32_t handle, const char* path, uint32_t instance)
+{
+    rive::ViewModelInstanceRuntime* vmir = FromHandle(component, handle);
+    CHECK_VMIR(vmir, handle);
+
+    rive::ViewModelInstanceListRuntime* prop = vmir->propertyList(path);
+    CHECK_PROP_RESULT(prop, "list", path);
+
+    rive::ViewModelInstanceRuntime* instance_vmir = FromHandle(component, instance);
+    prop->removeInstance(instance_vmir);
+    return true;
+}
+
 
 } // namespace
 

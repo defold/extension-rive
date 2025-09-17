@@ -36,6 +36,8 @@
 #ifdef RIVE_DESKTOP_GL
     #define GLFW_INCLUDE_NONE
     #include "GLFW/glfw3.h"
+
+    #include <glad/gles2.h>
 #endif
 
 static void OpenGLCheckError(const char* context)
@@ -75,7 +77,7 @@ namespace dmRive
         {
         #ifdef RIVE_DESKTOP_GL
             // Load the OpenGL API using glad.
-            if (!gladLoadCustomLoader((GLADloadproc)glfwGetProcAddress))
+            if (!gladLoadCustomLoader((GLADloadfunc)glfwGetProcAddress))
             {
                 fprintf(stderr, "Failed to initialize glad.\n");
                 abort();

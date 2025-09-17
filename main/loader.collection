@@ -114,6 +114,12 @@ embedded_instances {
   "  data: \"collection: \\\"/main/databind/databind.collection\\\"\\n"
   "\"\n"
   "}\n"
+  "embedded_components {\n"
+  "  id: \"scrollist\"\n"
+  "  type: \"collectionproxy\"\n"
+  "  data: \"collection: \\\"/main/scrollist/scrollist.collection\\\"\\n"
+  "\"\n"
+  "}\n"
   ""
 }
 embedded_instances {
