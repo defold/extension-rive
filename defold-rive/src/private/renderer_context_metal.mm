@@ -6,8 +6,7 @@
 #include <rive/renderer/metal/render_context_metal_impl.h>
 
 #include <dmsdk/graphics/graphics_vulkan.h>
-
-#include <defold/defold_graphics.h>
+#include <dmsdk/graphics/graphics.h>
 
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
@@ -69,7 +68,7 @@ namespace dmRive
                 tp.m_Depth                   = 1;
                 tp.m_Format                  = dmGraphics::TEXTURE_FORMAT_BGRA8U;
 
-                dmGraphics::SetTexture(m_BackingTexture, tp);
+                dmGraphics::SetTexture(m_GraphicsContext, m_BackingTexture, tp);
 
                 void* opaque_backing_texture = dmGraphics::VulkanTextureToMetal(m_GraphicsContext, m_BackingTexture);
                 assert(opaque_backing_texture);

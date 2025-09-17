@@ -43,7 +43,6 @@
 
 // Defold Rive Renderer
 #include <defold/renderer.h>
-#include <defold/defold_graphics.h>
 
 // DMSDK
 #include <dmsdk/script.h>
@@ -76,28 +75,6 @@ namespace dmScript
 DM_PROPERTY_GROUP(rmtp_Rive, "Rive", 0);
 DM_PROPERTY_U32(rmtp_RiveBones, 0, PROFILE_PROPERTY_FRAME_RESET, "# rive bones", &rmtp_Rive);
 DM_PROPERTY_U32(rmtp_RiveComponents, 0, PROFILE_PROPERTY_FRAME_RESET, "# rive components", &rmtp_Rive);
-
-namespace dmGraphics
-{
-    float GetDisplayScaleFactor(HContext context);
-
-    enum AdapterFamily
-    {
-        ADAPTER_FAMILY_NONE   = -1,
-        ADAPTER_FAMILY_NULL   = 1,
-        ADAPTER_FAMILY_OPENGL = 2,
-        ADAPTER_FAMILY_VULKAN = 3,
-        ADAPTER_FAMILY_VENDOR = 4,
-        ADAPTER_FAMILY_WEBGPU = 5,
-    };
-
-    AdapterFamily GetInstalledAdapterFamily();
-}
-
-namespace dmRender
-{
-    dmGraphics::HVertexDeclaration GetVertexDeclaration(HMaterial material);
-}
 
 namespace dmRive
 {

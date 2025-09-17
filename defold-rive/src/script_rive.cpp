@@ -24,13 +24,13 @@
 #include <dmsdk/gameobject/script.h>
 #include <dmsdk/gamesys/script.h>
 #include <dmsdk/resource/resource.h>
+#include <dmsdk/graphics/graphics.h>
 
 #include "comp_rive.h"
 #include "comp_rive_private.h"
 #include "rive_ddf.h"
 #include "res_rive_data.h"
 
-#include <defold/defold_graphics.h>
 
 namespace dmRive
 {

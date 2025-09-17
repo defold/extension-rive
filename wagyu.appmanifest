@@ -8,3 +8,4 @@ platforms:
       flags: ["-std=c++17", "-fno-rtti"]
       linkFlags: ['-lexports.js', '-lrive_renderer_wagyu']
       externalJsPorts: ["ext/wagyu-port/new/webgpu-port.py:wagyu=true"]
+      emscriptenLinkFlags: [WASM_BIGINT=1]

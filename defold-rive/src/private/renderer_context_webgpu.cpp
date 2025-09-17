@@ -18,9 +18,8 @@
 #include <rive/renderer/webgpu/render_context_webgpu_impl.hpp>
 
 #include <dmsdk/graphics/graphics_webgpu.h>
+#include <dmsdk/graphics/graphics.h>
 #include <dmsdk/dlib/log.h>
-
-#include <defold/defold_graphics.h>
 
 #include <webgpu/webgpu_cpp.h>
 
@@ -92,7 +91,7 @@ namespace dmRive
 
             if (m_BackingTexture)
             {
-                dmGraphics::DeleteTexture(m_BackingTexture);
+                dmGraphics::DeleteTexture(m_GraphicsContext, m_BackingTexture);
             }
 
             dmGraphics::TextureCreationParams default_texture_creation_params;
@@ -111,7 +110,7 @@ namespace dmRive
             //tp.m_Format                  = dmGraphics::TEXTURE_FORMAT_BGRA8U;
             tp.m_Format                  = dmGraphics::TEXTURE_FORMAT_RGBA;
 
-            dmGraphics::SetTexture(m_BackingTexture, tp);
+            dmGraphics::SetTexture(m_GraphicsContext, m_BackingTexture, tp);
 
             WGPUTextureView webgpu_texture_view = dmGraphics::WebGPUGetTextureView(m_GraphicsContext, m_BackingTexture);
             m_BackingTextureView                = wgpu::TextureView::Acquire(webgpu_texture_view);
