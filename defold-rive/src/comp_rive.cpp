@@ -342,8 +342,6 @@ namespace dmRive
         bool use_default_state_machine = component->m_ArtboardInstance->defaultStateMachineIndex() >= 0;
         if (empty_id != state_machine_id || use_default_state_machine)
         {
-            printf("playing state machine:");
-
             ddf.m_Playback          = dmGameObject::PLAYBACK_NONE;
             ddf.m_AnimationId       = use_default_state_machine ? 0 : state_machine_id;
             ddf.m_IsStateMachine    = true;
