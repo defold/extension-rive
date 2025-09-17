@@ -156,7 +156,7 @@ namespace dmRive
 
         dmGraphics::HTexture GetBackingTexture() override
         {
-            return dmGraphics::GetRenderTargetTexture(m_DefoldRenderTarget, dmGraphics::BUFFER_TYPE_COLOR0_BIT);
+            return dmGraphics::GetRenderTargetTexture(m_GraphicsContext, m_DefoldRenderTarget, dmGraphics::BUFFER_TYPE_COLOR0_BIT);
         }
 
         rive::rcp<rive::gpu::Texture> MakeImageTexture(uint32_t width,
@@ -241,7 +241,7 @@ namespace dmRive
             }
             else
             {
-                dmGraphics::SetRenderTargetSize(m_DefoldRenderTarget, width, height);
+                dmGraphics::SetRenderTargetSize(m_GraphicsContext, m_DefoldRenderTarget, width, height);
             }
             assert(m_DefoldRenderTarget);
             return dmGraphics::OpenGLGetRenderTargetId(m_GraphicsContext, m_DefoldRenderTarget);
