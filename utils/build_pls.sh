@@ -255,7 +255,7 @@ if [ -z "$RIVE_DIR" ]; then
 
     # https://github.com/rive-app/rive-runtime/commit/<sha>
 
-    RIVECPP_VERSION=17be3ff7e08c342d24c25482027ad709c951d38a
+    RIVECPP_VERSION=5591fac1b3d767c170df6c7738b038909a5c5e39
     RIVECPP_ZIP=${DOWNLOAD_DIR}/rivecpp-${RIVECPP_VERSION}.zip
     RIVECPP_URL="https://github.com/rive-app/rive-runtime/archive/${RIVECPP_VERSION}.zip"
 
