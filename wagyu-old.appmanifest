@@ -8,4 +8,4 @@ platforms:
       flags: ["-std=c++17", "-fno-rtti"]
       linkFlags: ['-lexports.js', '-lrive_renderer_wagyu_gl']
       externalJsPorts: ["ext/wagyu-port/old/webgpu-port.py:wagyu=true"]
-      emscriptenLinkFlags: [ASYNCIFY=1, ASYNCIFY_IGNORE_INDIRECT=1, 'ASYNCIFY_ADD=["main","dmEngineCreate(*)","requestDeviceCallback(*)","WebGPUConfigure(*)","instanceRequestAdapterCallback(*)"]' ]
+      emscriptenLinkFlags: [ASYNCIFY=1, ASYNCIFY_IGNORE_INDIRECT=1, 'ASYNCIFY_ADD=["main","dmEngineCreate(*)","requestDeviceCallback(*)","WebGPUConfigure(*)","instanceRequestAdapterCallback(*)"]',WASM_BIGINT=1]
