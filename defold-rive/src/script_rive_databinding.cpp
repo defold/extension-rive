@@ -131,74 +131,69 @@ static int SetProperties(lua_State* L)
         // Note: This is a "path", as it may refer to a property within a nested structure of view model instance runtimes
         const char* path = lua_tostring(L, -1); // the key
 
-        dmVMath::Vector4* color = 0;
+        // Check what property type is wanted
+        rive::DataType data_type = rive::DataType::none;
+        bool result = dmRive::GetPropertyDataType(component, handle, path, &data_type);
+        CHECK_RESULT(result, &url, path, -2);
 
-        if (lua_isnumber(L, -2))
+        if (data_type == rive::DataType::number)
         {
             float value = lua_tonumber(L, -2);
             bool result = dmRive::CompRiveRuntimeSetPropertyF32(component, handle, path, value);
             CHECK_RESULT(result, &url, path, -2);
         }
-        else if ((color = dmScript::ToVector4(L, -2)))
+        else if (data_type == rive::DataType::string)
         {
+            const char* value = luaL_checkstring(L, -2);
+            bool result = dmRive::CompRiveRuntimeSetPropertyString(component, handle, path, value);
+            CHECK_RESULT(result, &url, path, -2);
+        }
+        else if (data_type == rive::DataType::boolean)
+        {
+            CHECK_BOOLEAN(path, -2);
+            bool value = lua_toboolean(L, -2);
+            bool result = dmRive::CompRiveRuntimeSetPropertyBool(component, handle, path, value);
+            CHECK_RESULT(result, &url, path, -2);
+        }
+        else if (data_type == rive::DataType::trigger)
+        {
+            CHECK_BOOLEAN(path, -2);
+            bool value = lua_toboolean(L, -2);
+            // Trigger doesn't really use a value.
+            // But no value would mean nil, and nil would mean it's not in the table to begin with.
+            // So we use a bool as the "dummy" value!
+            // However, it would feel strange to trigger() on a false value :/
+            if (value)
+            {
+                bool result = dmRive::CompRiveRuntimeSetPropertyTrigger(component, handle, path);
+                CHECK_RESULT(result, &url, path, -2);
+            }
+        }
+        else if (data_type == rive::DataType::color)
+        {
+            dmVMath::Vector4* color = dmScript::CheckVector4(L, -2);
             bool result = dmRive::CompRiveRuntimeSetPropertyColor(component, handle, path, color);
+            CHECK_RESULT(result, &url, path, -2);
+        }
+        else if (data_type == rive::DataType::enumType)
+        {
+            const char* value = luaL_checkstring(L, -2);
+            result = dmRive::CompRiveRuntimeSetPropertyEnum(component, handle, path, value);
+            CHECK_RESULT(result, &url, path, -2);
+        }
+        else if (data_type == rive::DataType::assetImage)
+        {
+            size_t data_length = 0;
+            const char* data = luaL_checklstring(L, -2, &data_length);
+
+            RiveSceneData* rive_scene_data = dmRive::CompRiveGetRiveSceneData(component);
+            rive::RenderImage* image = ResRiveDataCreateRenderImage(g_ResourceFactory, rive_scene_data, (uint8_t*)data, (uint32_t)data_length);
+            result = dmRive::CompRiveRuntimeSetPropertyImage(component, handle, path, image);
             CHECK_RESULT(result, &url, path, -2);
         }
         else
         {
-            // In Lua, we cannot represent all Rive types: enum, list, trigger, viewModel
-            // So we need to do our own checking
-            rive::DataType data_type = rive::DataType::none;
-            bool result = dmRive::GetPropertyDataType(component, handle, path, &data_type);
-            CHECK_RESULT(result, &url, path, -2);
-
-            if (data_type == rive::DataType::string)
-            {
-                const char* value = luaL_checkstring(L, -2);
-                bool result = dmRive::CompRiveRuntimeSetPropertyString(component, handle, path, value);
-                CHECK_RESULT(result, &url, path, -2);
-            }
-            else if (data_type == rive::DataType::boolean)
-            {
-                CHECK_BOOLEAN(path, -2);
-                bool value = lua_toboolean(L, -2);
-                bool result = dmRive::CompRiveRuntimeSetPropertyBool(component, handle, path, value);
-                CHECK_RESULT(result, &url, path, -2);
-            }
-            else if (data_type == rive::DataType::trigger)
-            {
-                CHECK_BOOLEAN(path, -2);
-                bool value = lua_toboolean(L, -2);
-                // Trigger doesn't really use a value.
-                // But no value would mean nil, and nil would mean it's not in the table to begin with.
-                // So we use a bool as the "dummy" value!
-                // However, it would feel strange to trigger() on a false value :/
-                if (value)
-                {
-                    bool result = dmRive::CompRiveRuntimeSetPropertyTrigger(component, handle, path);
-                    CHECK_RESULT(result, &url, path, -2);
-                }
-            }
-            else if (data_type == rive::DataType::enumType)
-            {
-                const char* value = luaL_checkstring(L, -2);
-                result = dmRive::CompRiveRuntimeSetPropertyEnum(component, handle, path, value);
-                CHECK_RESULT(result, &url, path, -2);
-            }
-            else if (data_type == rive::DataType::assetImage)
-            {
-                size_t data_length = 0;
-                const char* data = luaL_checklstring(L, -2, &data_length);
-
-                RiveSceneData* rive_scene_data = dmRive::CompRiveGetRiveSceneData(component);
-                rive::RenderImage* image = ResRiveDataCreateRenderImage(g_ResourceFactory, rive_scene_data, (uint8_t*)data, (uint32_t)data_length);
-                result = dmRive::CompRiveRuntimeSetPropertyImage(component, handle, path, image);
-                CHECK_RESULT(result, &url, path, -2);
-            }
-            else
-            {
-                dmLogWarning("Datatype %d is not yet supported (path: '%s')", (int)data_type, path);
-            }
+            dmLogWarning("Datatype %d is not yet supported (path: '%s')", (int)data_type, path);
         }
 
         lua_pop(L, 2);
@@ -257,6 +252,17 @@ static int GetProperty(lua_State* L)
         bool result = dmRive::CompRiveRuntimeGetPropertyEnum(component, handle, path, &value);
         CHECK_RESULT(result, &url, path, -2);
         lua_pushstring(L, value);
+    }
+    else if(data_type == rive::DataType::color)
+    {
+        dmVMath::Vector4 value(-1, -1, -1, -1);
+        bool result = dmRive::CompRiveRuntimeGetPropertyColor(component, handle, path, &value);
+        CHECK_RESULT(result, &url, path, -2);
+        dmScript::PushVector4(L, value);
+    }
+    else if(data_type == rive::DataType::trigger)
+    {
+        return DM_LUA_ERROR("Cannot get trigger property value as it is input-only (path: '%s')", path);
     }
     else
     {

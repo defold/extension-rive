@@ -43,7 +43,6 @@
 
 // Defold Rive Renderer
 #include <defold/renderer.h>
-#include <defold/defold_graphics.h>
 
 // DMSDK
 #include <dmsdk/script.h>
@@ -76,28 +75,6 @@ namespace dmScript
 DM_PROPERTY_GROUP(rmtp_Rive, "Rive", 0);
 DM_PROPERTY_U32(rmtp_RiveBones, 0, PROFILE_PROPERTY_FRAME_RESET, "# rive bones", &rmtp_Rive);
 DM_PROPERTY_U32(rmtp_RiveComponents, 0, PROFILE_PROPERTY_FRAME_RESET, "# rive components", &rmtp_Rive);
-
-namespace dmGraphics
-{
-    float GetDisplayScaleFactor(HContext context);
-
-    enum AdapterFamily
-    {
-        ADAPTER_FAMILY_NONE   = -1,
-        ADAPTER_FAMILY_NULL   = 1,
-        ADAPTER_FAMILY_OPENGL = 2,
-        ADAPTER_FAMILY_VULKAN = 3,
-        ADAPTER_FAMILY_VENDOR = 4,
-        ADAPTER_FAMILY_WEBGPU = 5,
-    };
-
-    AdapterFamily GetInstalledAdapterFamily();
-}
-
-namespace dmRender
-{
-    dmGraphics::HVertexDeclaration GetVertexDeclaration(HMaterial material);
-}
 
 namespace dmRive
 {
@@ -1323,8 +1300,17 @@ namespace dmRive
         rivectx->m_RenderContext    = *(dmRender::HRenderContext*)ctx->m_Contexts.Get(dmHashString64("render"));
         rivectx->m_MaxInstanceCount = dmConfigFile::GetInt(ctx->m_Config, "rive.max_instance_count", 128);
 
-        g_RenderBeginParams.m_DoFinalBlit       = true;
+        g_RenderBeginParams.m_DoFinalBlit       = dmConfigFile::GetInt(ctx->m_Config, "rive.render_to_texture", 1);
         g_RenderBeginParams.m_BackbufferSamples = dmConfigFile::GetInt(ctx->m_Config, "display.samples", 0);
+
+        if (g_RenderBeginParams.m_DoFinalBlit)
+        {
+            dmLogWarning("Render to texture enabled");
+        }
+        else
+        {
+            dmLogWarning("Render to framebuffer enabled");
+        }
 
         g_OriginalWindowWidth  = dmGraphics::GetWidth(rivectx->m_GraphicsContext);
         g_OriginalWindowHeight = dmGraphics::GetHeight(rivectx->m_GraphicsContext);

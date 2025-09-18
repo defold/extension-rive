@@ -74,6 +74,38 @@ public:
 
     GLState* state() const { return m_state.get(); }
 
+    // Storage type and rendering method for the feather atlas.
+    //
+    // Ideally we would always use r32f or r16f, but floating point color
+    // buffers are only supported via extensions in GL.
+    //
+    // These are sorted with the most preferred types higher up in the list.
+    enum class AtlasType
+    {
+        r32f, // Most preferred. Uses HW blending to count coverage.
+        r16f, // Uses HW blending but loses precision on complex feathers.
+
+        r32uiFramebufferFetch, // Stores coverage as fp32 bits in a uint.
+        r32uiPixelLocalStorage,
+
+        r32iAtomicTexture, // Stores coverage as 16:16 fixed point.
+
+        rgba8, // Low quality, but always supported. Uses HW blending and breaks
+               // up coverage into all 4 components of an RGBA texture.
+    };
+
+    AtlasType atlasType() const { return m_atlasType; }
+
+#ifdef WITH_RIVE_TOOLS
+    // Changes the context's AtlasType for testing purposes. If atlasDesiredType
+    // is not supported, the next supported AtlasType down the list is chosen.
+    //
+    // NOTE: this also calls releaseResources() on the owning RenderContext to
+    // ensure the atlas texture gets reallocated.
+    void testingOnly_resetAtlasDesiredType(RenderContext* owningRenderContext,
+                                           AtlasType atlasDesiredType);
+#endif
+
 private:
     class DrawProgram;
 
@@ -152,6 +184,8 @@ private:
                         std::unique_ptr<PixelLocalStorageImpl>,
                         ShaderCompilationMode);
 
+    void buildAtlasRenderPipelines();
+
     std::unique_ptr<BufferRing> makeUniformBufferRing(
         size_t capacityInBytes) override;
     std::unique_ptr<BufferRing> makeStorageBufferRing(
@@ -163,6 +197,8 @@ private:
     void resizeGradientTexture(uint32_t width, uint32_t height) override;
     void resizeTessellationTexture(uint32_t width, uint32_t height) override;
     void resizeAtlasTexture(uint32_t width, uint32_t height) override;
+
+    void preBeginFrame(RenderContext*) override;
 
     void flush(const FlushDescriptor&) override;
 
@@ -201,7 +237,7 @@ private:
     glutils::Framebuffer m_tessellateFBO;
     GLuint m_tessVertexTexture = 0;
 
-    // Atlas rendering.
+    // Renders feathers to the atlas texture.
     class AtlasProgram
     {
     public:
@@ -225,9 +261,20 @@ private:
         GLint m_baseInstanceUniformLocation = -1;
     };
 
+    // Atlas rendering pipelines.
+    AtlasType m_atlasType;
     glutils::Shader m_atlasVertexShader;
     AtlasProgram m_atlasFillProgram;
     AtlasProgram m_atlasStrokeProgram;
+    gpu::PipelineState m_atlasFillPipelineState;
+    gpu::PipelineState m_atlasStrokePipelineState;
+#ifdef RIVE_ANDROID
+    // Pipelines for clearing and resolving EXT_shader_pixel_local_storage.
+    glutils::Shader m_atlasResolveVertexShader;
+    glutils::Program m_atlasClearProgram = glutils::Program::Zero();
+    glutils::Program m_atlasResolveProgram = glutils::Program::Zero();
+    glutils::VAO m_atlasResolveVAO;
+#endif
     glutils::Texture m_atlasTexture = glutils::Texture::Zero();
     glutils::Framebuffer m_atlasFBO;
 
@@ -274,7 +321,7 @@ private:
                     gpu::ShaderMiscFlags
 #ifdef WITH_RIVE_TOOLS
                     ,
-                    bool synthesizeCompilationFailures
+                    SynthesizedFailureType
 #endif
         );
         ~DrawProgram();
@@ -285,23 +332,7 @@ private:
             return m_baseInstanceUniformLocation;
         }
 
-        PipelineStatus status() const
-        {
-            switch (m_creationState)
-            {
-                case CreationState::waitingOnProgram:
-                case CreationState::waitingOnShaders:
-                    return PipelineStatus::notReady;
-
-                case CreationState::complete:
-                    return PipelineStatus::ready;
-
-                case CreationState::error:
-                    return PipelineStatus::errored;
-            }
-
-            RIVE_UNREACHABLE();
-        }
+        PipelineStatus status() const { return m_pipelineStatus; }
 
         bool advanceCreation(RenderContextGLImpl*,
                              PipelineCreateType,
@@ -311,20 +342,16 @@ private:
                              gpu::ShaderMiscFlags);
 
     private:
-        enum class CreationState
-        {
-            waitingOnShaders,
-            waitingOnProgram,
-            complete,
-            error,
-        };
-
         DrawShader m_fragmentShader;
         const DrawShader* m_vertexShader = nullptr;
-        CreationState m_creationState = CreationState::waitingOnShaders;
+        PipelineStatus m_pipelineStatus = PipelineStatus::notReady;
         GLuint m_id = 0;
         GLint m_baseInstanceUniformLocation = -1;
         const rcp<GLState> m_state;
+#ifdef WITH_RIVE_TOOLS
+        SynthesizedFailureType m_synthesizedFailureType =
+            SynthesizedFailureType::none;
+#endif
     };
 
     class GLPipelineManager : public AsyncPipelineManager<DrawProgram>
@@ -333,6 +360,8 @@ private:
 
     public:
         GLPipelineManager(ShaderCompilationMode, RenderContextGLImpl*);
+
+        void clearCache() { clearCacheDoNotCallWithThreadedShaderLoading(); }
 
     protected:
         virtual std::unique_ptr<DrawProgram> createPipeline(
@@ -388,5 +417,7 @@ private:
     glutils::Program m_blitAsDrawProgram = glutils::Program::Zero();
 
     const rcp<GLState> m_state;
+
+    bool m_testForAdvancedBlendError = false;
 };
 } // namespace rive::gpu

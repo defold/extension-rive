@@ -9,7 +9,7 @@ shared_state = 1
 width = 960
 height = 540
 high_dpi = 1
-samples = 4
+samples = 0
 
 [android]
 input_method = HiddenInputField
@@ -40,4 +40,8 @@ clear_color_red = 0.25
 clear_color_green = 0.25
 clear_color_blue = 0.25
 clear_color_alpha = 1.0
+
+
+[rive]
+render_to_texture = 1
 
