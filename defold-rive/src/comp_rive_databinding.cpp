@@ -73,8 +73,22 @@ static rive::ViewModelInstanceRuntime* CreateViewModelInstanceRuntimeByHash(Rive
     dmRive::RiveSceneData* data = component->m_Resource->m_Scene->m_Scene;
     rive::File* file = data->m_File;
 
-    rive::ViewModelRuntime* vmr = name_hash != 0 ? FindViewModelRuntimeByHash(component, name_hash) : file->viewModelByIndex(0);
-    return vmr ? vmr->createInstance() : 0;
+    if (name_hash != 0)
+    {
+        rive::ViewModelRuntime* vmr = FindViewModelRuntimeByHash(component, name_hash);
+        return vmr ? vmr->createInstance() : 0;
+    }
+
+    // Create a default view model instance
+    if (!component->m_ArtboardInstance)
+        return 0;
+
+    rive::ViewModelRuntime* vmr = file->defaultArtboardViewModel(component->m_ArtboardInstance.get());
+    if (vmr)
+    {
+        return vmr->createDefaultInstance();
+    }
+    return 0;
 }
 
 void SetViewModelInstanceRuntime(RiveComponent* component, rive::ViewModelInstanceRuntime* vmir)

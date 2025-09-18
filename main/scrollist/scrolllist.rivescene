@@ -1,2 +1,2 @@
-scene: "/main/scrollist/scrolllist.riv"
+scene: "/main/scrollist/scrolllist-default.riv"
 atlas: "/defold-rive/assets/empty.atlas"
