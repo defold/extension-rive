@@ -90,6 +90,17 @@ namespace dmRive
                 wgpu_encoder = wgpuDeviceCreateCommandEncoder(m_Device.Get(), 0);
             }
 
+            if (!m_RenderToTexture)
+            {
+                // The texture view gets created every render start, so we need to get it here and set it to the render target
+                dmGraphics::HTexture frame_buffer        = dmGraphics::WebGPUGetActiveSwapChainTexture(m_GraphicsContext);
+                WGPUTexture          webgpu_texture      = dmGraphics::WebGPUGetTexture(m_GraphicsContext, frame_buffer);
+                WGPUTextureView      webgpu_texture_view = dmGraphics::WebGPUGetTextureView(m_GraphicsContext, frame_buffer);
+                m_BackingTextureView                     = wgpu::TextureView::Acquire(webgpu_texture_view);
+
+                m_RenderTarget->setTargetTextureView(m_BackingTextureView, wgpu::Texture::Acquire(webgpu_texture));
+            }
+
             m_RenderContext->flush({
                 .renderTarget = m_RenderTarget.get(),
                 .externalCommandBuffer = (void*)(uintptr_t)wgpu_encoder
@@ -148,13 +159,6 @@ namespace dmRive
             }
             else
             {
-                dmGraphics::HTexture frame_buffer        = dmGraphics::WebGPUGetActiveSwapChainTexture(m_GraphicsContext);
-                WGPUTexture          webgpu_texture      = dmGraphics::WebGPUGetTexture(m_GraphicsContext, frame_buffer);
-                WGPUTextureView      webgpu_texture_view = dmGraphics::WebGPUGetTextureView(m_GraphicsContext, frame_buffer);
-                m_BackingTextureView                     = wgpu::TextureView::Acquire(webgpu_texture_view);
-
-                m_RenderTarget->setTargetTextureView(m_BackingTextureView, wgpu::Texture::Acquire(webgpu_texture));
-
                 m_RenderToTexture = false;
             }
         }
