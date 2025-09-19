@@ -255,7 +255,7 @@ if [ -z "$RIVE_DIR" ]; then
 
     # https://github.com/rive-app/rive-runtime/commit/<sha>
 
-    RIVECPP_VERSION=5591fac1b3d767c170df6c7738b038909a5c5e39
+    RIVECPP_VERSION=e54883d9099f87ed6d87c678793fd619b5594e2c
     RIVECPP_ZIP=${DOWNLOAD_DIR}/rivecpp-${RIVECPP_VERSION}.zip
     RIVECPP_URL="https://github.com/rive-app/rive-runtime/archive/${RIVECPP_VERSION}.zip"
 
@@ -463,6 +463,8 @@ for platform in $PLATFORMS; do
             cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/load_gles_extensions.cpp       ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
             cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_ext_native.cpp        ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
             #cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_framebuffer_fetch.cpp ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
+
+            cp -v -r ${RIVECPP_ORIGINAL_DIR}/renderer/glad/include/                      ${RIVECPP_RENDERER_SOURCE_DIR}/include
             ;;
         x86_64-win32|x86-win32)
             RIVE_RENDERER_DEFINES="RIVE_DESKTOP_GL RIVE_WINDOWS"
@@ -620,10 +622,10 @@ for platform in $PLATFORMS; do
 
             cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_webgl.cpp         ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
 
+            cp -v -r ${RIVECPP_ORIGINAL_DIR}/renderer/glad/include/                  ${RIVECPP_RENDERER_SOURCE_DIR}/include
+
             # WebGPU
             cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/webgpu/**.*                   ${RIVECPP_RENDERER_SOURCE_DIR}/src/webgpu/
-
-            cp -v ${SCRIPT_DIR}/../defold-rive/include/rive/renderer/webgpu/wagyu-port/old/include/webgpu/*.*     ${RIVECPP_RENDERER_SOURCE_DIR}/include/webgpu/
     esac
 
     export CXXFLAGS="-std=c++17 -fno-rtti -fno-exceptions ${RIVE_RENDERER_CXXFLAGS}"
@@ -640,19 +642,23 @@ for platform in $PLATFORMS; do
 
     case ${platform} in
         wasm-web|wasm_pthread-web)
-            ##########################################################################
-            echo "Building RIVE_WEBGPU=1"
 
-            RIVE_RENDERER_DEFINES="RIVE_WEBGL RIVE_WEBGPU=1 RIVE_WAGYU"
-            export INCLUDES="upload/src ${RIVE_RENDERER_INCLUDES}"
+            # # Wagyu
+            # cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/webgpu/wagyu-port/old/include/webgpu/*.* ${RIVECPP_RENDERER_SOURCE_DIR}/include/webgpu/
 
-            # We temporarily remove the WebGL support until they've fixed their includes
+            # ##########################################################################
+            # echo "Building RIVE_WEBGPU=1"
 
-            if [ "${RIVE_RENDERER_DEFINES}" != "" ]; then
-                export DEFINES="${RIVE_RENDERER_DEFINES}"
-            fi
+            # RIVE_RENDERER_DEFINES="RIVE_WEBGL RIVE_WEBGPU=1 RIVE_WAGYU"
+            # export INCLUDES="upload/src ${RIVE_RENDERER_INCLUDES}"
 
-            build_library rive_renderer_wagyu_gl $platform $platform_ne ${RIVECPP_RENDERER_SOURCE_DIR} ${BUILD}
+            # # We temporarily remove the WebGL support until they've fixed their includes
+
+            # if [ "${RIVE_RENDERER_DEFINES}" != "" ]; then
+            #     export DEFINES="${RIVE_RENDERER_DEFINES}"
+            # fi
+
+            # build_library rive_renderer_wagyu_gl $platform $platform_ne ${RIVECPP_RENDERER_SOURCE_DIR} ${BUILD}
 
             ##########################################################################
             echo "Building RIVE_WEBGPU=2"
@@ -664,7 +670,7 @@ for platform in $PLATFORMS; do
             fi
 
             rm ${RIVECPP_RENDERER_SOURCE_DIR}/src/webgpu/webgpu_compat.h
-            cp -v ${SCRIPT_DIR}/../defold-rive/include/rive/renderer/webgpu/wagyu-port/new/include/webgpu/*.*     ${RIVECPP_RENDERER_SOURCE_DIR}/include/webgpu/
+            cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/webgpu/wagyu-port/new/include/webgpu/*.* ${RIVECPP_RENDERER_SOURCE_DIR}/include/webgpu/
             build_library rive_renderer_wagyu $platform $platform_ne ${RIVECPP_RENDERER_SOURCE_DIR} ${BUILD}
     esac
 

@@ -14,21 +14,13 @@
 
 namespace rive::gpu
 {
-class RenderContextWebGPUVulkan;
 class RenderTargetWebGPU;
 
 class RenderContextWebGPUImpl : public RenderContextHelperImpl
 {
 public:
     struct ContextOptions
-    {
-        // Invert Y when drawing to client-provided RenderTargets.
-        // TODO: We may need to eventually make this configurable
-        // per-RenderTarget.
-        bool invertRenderTargetY = false;
-        // Invert the front face when drawing to client-provied RenderTargets.
-        bool invertRenderTargetFrontFace = false;
-    };
+    {};
 
     enum class PixelLocalStorageType
     {
@@ -67,6 +59,11 @@ public:
 
     virtual ~RenderContextWebGPUImpl();
 
+    wgpu::Device device() const { return m_device; }
+    wgpu::Queue queue() const { return m_queue; }
+    const ContextOptions& contextOptions() const { return m_contextOptions; }
+    const Capabilities& capabilities() const { return m_capabilities; }
+
     virtual rcp<RenderTargetWebGPU> makeRenderTarget(wgpu::TextureFormat,
                                                      uint32_t width,
                                                      uint32_t height);
@@ -98,14 +95,6 @@ private:
                                               wgpu::LoadOp,
                                               const wgpu::Color& clearColor);
 
-    wgpu::Device device() const { return m_device; }
-    const ContextOptions& contextOptions() const { return m_contextOptions; }
-    wgpu::FrontFace frontFaceForRenderTargetDraws() const
-    {
-        return m_contextOptions.invertRenderTargetFrontFace
-                   ? wgpu::FrontFace::CCW
-                   : wgpu::FrontFace::CW;
-    }
     wgpu::PipelineLayout drawPipelineLayout() const
     {
         return m_drawPipelineLayout;
@@ -115,10 +104,6 @@ private:
     void initGPUObjects();
 
     void generateMipmaps(wgpu::Texture);
-
-    // PLS always expects a clockwise front face.
-    constexpr static wgpu::FrontFace kFrontFaceForOffscreenDraws =
-        wgpu::FrontFace::CW;
 
     std::unique_ptr<BufferRing> makeUniformBufferRing(
         size_t capacityInBytes) override;
@@ -209,20 +194,21 @@ public:
         return m_framebufferFormat;
     }
 
-    void setTargetTextureView(wgpu::TextureView);
+    void setTargetTextureView(wgpu::TextureView, wgpu::Texture);
 
-private:
-    friend class RenderContextWebGPUImpl;
-    friend class RenderContextWebGPUVulkan;
-
+protected:
     RenderTargetWebGPU(wgpu::Device device,
                        const RenderContextWebGPUImpl::Capabilities&,
                        wgpu::TextureFormat framebufferFormat,
                        uint32_t width,
                        uint32_t height);
 
+private:
+    friend class RenderContextWebGPUImpl;
+
     const wgpu::TextureFormat m_framebufferFormat;
 
+    wgpu::Texture m_targetTexture;
     wgpu::Texture m_coverageTexture;
     wgpu::Texture m_clipTexture;
     wgpu::Texture m_scratchColorTexture;
@@ -231,5 +217,22 @@ private:
     wgpu::TextureView m_coverageTextureView;
     wgpu::TextureView m_clipTextureView;
     wgpu::TextureView m_scratchColorTextureView;
+};
+
+class TextureWebGPUImpl : public Texture
+{
+public:
+    TextureWebGPUImpl(uint32_t width, uint32_t height, wgpu::Texture texture) :
+        Texture(width, height),
+        m_texture(std::move(texture)),
+        m_textureView(m_texture.CreateView())
+    {}
+
+    wgpu::Texture texture() const { return m_texture; }
+    wgpu::TextureView textureView() const { return m_textureView; }
+
+private:
+    wgpu::Texture m_texture;
+    wgpu::TextureView m_textureView;
 };
 } // namespace rive::gpu
