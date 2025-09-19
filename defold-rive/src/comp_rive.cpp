@@ -1305,11 +1305,11 @@ namespace dmRive
 
         if (g_RenderBeginParams.m_DoFinalBlit)
         {
-            dmLogWarning("Render to texture enabled");
+            dmLogInfo("Render to texture enabled");
         }
         else
         {
-            dmLogWarning("Render to framebuffer enabled");
+            dmLogInfo("Render to framebuffer enabled");
         }
 
         g_OriginalWindowWidth  = dmGraphics::GetWidth(rivectx->m_GraphicsContext);
