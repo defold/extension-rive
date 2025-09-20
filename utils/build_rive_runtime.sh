@@ -12,6 +12,12 @@ shift
 
 function Usage {
     echo "Usage: ./utils/build_rive_runtime.sh <platform> <rive_runtime_repo>"
+    echo "platforms:"
+    echo "  * arm64-android"
+    echo "  * armv7-android"
+    echo "  * wasm-web"
+    echo "  * wasm_pthread-web"
+    echo "  * js-web"
     exit 1
 }
 
@@ -27,11 +33,11 @@ fi
 
 # Check platforms
 case $PLATFORM in
-    arm64-android|armv7-android)
+    arm64-android|armv7-android|wasm-web|js-web|wasm_pthread-web)
         ;;
 
     *)
-        echo "This script doesn't support platform ${PLATFORM}"
+        echo "Platform '${PLATFORM}' is not supported!"
         Usage
         ;;
 esac
@@ -74,8 +80,10 @@ CleanLibraries ${LIBDIR}
 VERSIONHEADER=${PREFIX}/include/defold/rive_version.h
 
 # temp while developing
-#cp -v ${RIVECPP}/build_version_header.sh ${SCRIPT_DIR}/
-#cp -v ${RIVECPP}/build_android.sh ${SCRIPT_DIR}/
+# cp -v ${RIVECPP}/build_version_header.sh ${SCRIPT_DIR}/
+# cp -v ${RIVECPP}/build_android.sh ${SCRIPT_DIR}/
+# cp -v ${RIVECPP}/build_emscripten.sh ${SCRIPT_DIR}/
+# cp -v ${RIVECPP}/build_headers.sh ${SCRIPT_DIR}/
 
 echo "Writing version header ${VERSIONHEADER}"
 ${SCRIPT_DIR}/build_version_header.sh ${VERSIONHEADER} ${RIVECPP}
@@ -90,14 +98,29 @@ set -e
 
 case $PLATFORM in
 
-    arm64-android)
+    arm64-android|armv7-android)
+        ARCH=arm64
+        if [ "armv7-android" == "${PLATFORM}" ]; then
+            ARCH=arm
+        fi
+
         # expects ANDROID_NDK to be set
-        (cd ${RIVECPP} && ${SCRIPT_DIR}/build_android.sh --prefix ${PREFIX} --abis arm64 --config release)
+        (cd ${RIVECPP} && ${SCRIPT_DIR}/build_android.sh --prefix ${PREFIX} --abis ${ARCH} --config release)
         ;;
 
-    armv7-android)
-        # expects ANDROID_NDK to be set
-        (cd ${RIVECPP} && ${SCRIPT_DIR}/build_android.sh --prefix ${PREFIX} --abis arm --config release)
+    wasm-web|wasm_pthread-web|js-web)
+        ARCH=wasm
+        if [ "js-web" == "${PLATFORM}" ]; then
+            ARCH=js
+        fi
+
+        (cd ${RIVECPP} && ${SCRIPT_DIR}/build_emscripten.sh --prefix ${PREFIX} --targets ${ARCH} --config release)
+
+        if [ "js-web" != "${PLATFORM}" ]; then
+            echo "Building for Wagyu"
+            (cd ${RIVECPP} && ${SCRIPT_DIR}/build_emscripten.sh --with-wagyu --prefix ${PREFIX} --targets ${ARCH} --config release)
+        fi
+
         ;;
 
     *)

@@ -113,44 +113,13 @@ for entry in "${ABI_LIST_RAW[@]}"; do
     done
 done
 
-# Ensure prefix subdirs
+# Ensure prefix subdirs (headers handled by build_headers.sh)
 INCLUDE_DST="$PREFIX/include"
 LIB_ROOT="$PREFIX/lib"
 mkdir -p "$INCLUDE_DST" "$LIB_ROOT"
 
-echo "Installing headers to $INCLUDE_DST"
-
-# Header copy map (mirrors copy_rive_headers.py intent):
-#   src_dir -> dest_dir (relative to repo root and PREFIX respectively)
-declare -a HEADER_MAP=(
-    "include:include" \
-    "renderer/include/rive:include/rive" \
-    "renderer/src/webgpu:include/rive/renderer/webgpu" \
-    "renderer/glad:include/rive/renderer/gl" \
-    "tess/include/rive:include/rive" \
-    "decoders/include/rive:include/rive" \
-    "renderer/glad/include/glad:include/glad" \
-    "renderer/glad/include/KHR:include/KHR" \
-)
-
-for mapping in "${HEADER_MAP[@]}"; do
-    src_rel="${mapping%%:*}"
-    dst_rel="${mapping##*:}"
-    src_dir="$ROOT_DIR/$src_rel/"
-    dst_dir="$PREFIX/$dst_rel/"
-    if [[ -d "$src_dir" ]]; then
-        echo "  - $src_rel -> $dst_rel (headers only)"
-        mkdir -p "$dst_dir"
-        rsync -a -m \
-            --include '*/' \
-            --include '*.h' \
-            --include '*.hpp' \
-            --include '*.hxx' \
-            --include '*.inl' \
-            --exclude '*' \
-            "$src_dir" "$dst_dir"
-    fi
-done
+# Install headers via shared helper
+"$ROOT_DIR/build_headers.sh" --prefix "$PREFIX" --root "$ROOT_DIR"
 
 # Change into renderer directory before building so premake picks up renderer/premake5.lua
 BUILD_DIR="$ROOT_DIR/renderer"
