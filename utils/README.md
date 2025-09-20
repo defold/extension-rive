@@ -1,7 +1,34 @@
 
 # Build and desploy steps
 
-## For the engine
+*UPDATE 2025-09-20*
+
+For platforms `arm64-android|armv7-android` we now use the build system of the rive runtime.
+
+The build scripts do several things:
+* Remove old headers
+* Copy new headers
+* Generate `rive_version.h`
+* Remove old libraries
+* Build and copy new libraries
+
+**NOTE** The build steps currently apply a small patch to the rive-runtiome in order to successfully build for all targets! See [rive.patch](./utils/rive.patch) for the details.
+
+## Clone the rive runtime repo
+
+* Clone [rive-runtime](https://github.com/rive-app/rive-runtime) to a local folder `path/to/rive`
+
+### Android
+
+* Make sure you have ANDROID_NDK version `25.2.9519653` installed
+* Make sure the ANDROID_NDK environment is set: `ANDROID_NDK=~/Library/Android/sdk/ndk/25.2.9519653`
+
+Build for arm64-android/armv7-android:
+
+> ANDROID_NDK=~/Library/Android/sdk/ndk/25.2.9519653 ./utils/build_rive_runtime.sh arm64-android ~/work/external/rive-runtime
+
+
+## For the engine (old build path)
 
 This step is needed for each platform+architecture that the runtime should support.
 

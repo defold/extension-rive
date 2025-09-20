@@ -1,0 +1,56 @@
+diff --git a/build/rive_build_config.lua b/build/rive_build_config.lua
+index d4336ed9..ae5c19de 100644
+--- a/build/rive_build_config.lua
++++ b/build/rive_build_config.lua
+@@ -411,7 +411,7 @@ if _OPTIONS['for_android'] then
+ 
+     -- Detect the NDK.
+     local EXPECTED_NDK_VERSION = 'r27c'
+-    local NDK_LONG_VERSION_STRING = "27.2.12479018"
++    local NDK_LONG_VERSION_STRING = "25.2.9519653"
+     if _OPTIONS['for_unreal'] then
+         EXPECTED_NDK_VERSION = '25.1.8937393'
+         NDK_LONG_VERSION_STRING = '25.1.8937393'
+diff --git a/renderer/premake5.lua b/renderer/premake5.lua
+index 255c6d97..458e841a 100644
+--- a/renderer/premake5.lua
++++ b/renderer/premake5.lua
+@@ -5,11 +5,11 @@ dofile(RIVE_RUNTIME_DIR .. '/premake5_v2.lua')
+ dofile(RIVE_RUNTIME_DIR .. '/decoders/premake5_v2.lua')
+ 
+ newoption({ trigger = 'with-skia', description = 'use skia' })
+-if _OPTIONS['with-skia'] then
++if _OPTIONS['with-skia'] and not _OPTIONS['with-libs-only'] then
+     dofile(RIVE_RUNTIME_DIR .. '/skia/renderer/premake5_v2.lua')
+ end
+ 
+-if not _OPTIONS['with-webgpu'] then
++if not _OPTIONS['with-webgpu'] and not _OPTIONS['with-libs-only'] then
+     project('path_fiddle')
+     do
+         dependson('rive')
+@@ -183,7 +183,7 @@ if not _OPTIONS['with-webgpu'] then
+     end
+ end
+ 
+-if _OPTIONS['with-webgpu'] or _OPTIONS['with-dawn'] then
++if (_OPTIONS['with-webgpu'] or _OPTIONS['with-dawn']) and not _OPTIONS['with-libs-only']  then
+     project('webgpu_player')
+     do
+         kind('ConsoleApp')
+diff --git a/renderer/premake5_pls_renderer.lua b/renderer/premake5_pls_renderer.lua
+index 77786666..573906eb 100644
+--- a/renderer/premake5_pls_renderer.lua
++++ b/renderer/premake5_pls_renderer.lua
+@@ -68,6 +68,11 @@ do
+     defines({ 'RIVE_WEBGPU=' .. _OPTIONS['webgpu-version'] })
+ end
+ 
++newoption({
++    trigger = 'with-libs-only',
++    description = 'only builds the libraries',
++})
++
+ filter({})
+ 
+ newoption({
