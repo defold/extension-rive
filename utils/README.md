@@ -37,6 +37,15 @@ Defold currently uses Xcode 15.4, so you cannot use a newer version, or the link
 * Select it as the toolchain: `xcode-select -s /Users/name/Downloads/Xcode_15.4.app/Contents/Developer`
 </details>
 
+<details><summary>Prerequisites HTML5 -></summary>
+There is no real prerequisite here, as rive-runtime can download its own copy of Emscripten.
+There are two options you could override if wanted:
+
+* Set custom Emscripten:  `export EMSDK=./path/to/emsdk-4.0.6`
+
+* Set Emscripten to download by rive: `export RIVE_EMSDK_VERSION=4.0.6`
+</details>
+
 
 ## Build the libraries
 

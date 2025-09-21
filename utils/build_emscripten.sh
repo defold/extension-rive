@@ -101,6 +101,7 @@ if [[ -n "${EMSDK:-}" ]]; then
         export RIVE_EMSDK_VERSION=none
     else
         echo "warning: EMSDK is set but \"$EMSDK/emsdk_env.sh\" not found; proceeding without sourcing" >&2
+        exit 2
     fi
 fi
 

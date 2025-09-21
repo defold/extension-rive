@@ -121,6 +121,14 @@ case $PLATFORM in
             ARCH=js
         fi
 
+        if [ "" != "${EMSDK}" ]; then
+            echo "Using EMSDK=${EMSDK}"
+        else
+            if [ "" == "${RIVE_EMSDK_VERSION}" ]; then
+                export RIVE_EMSDK_VERSION="4.0.6"
+            fi
+            echo "Using RIVE_EMSDK_VERSION=${RIVE_EMSDK_VERSION}"
+        fi
         (cd ${RIVECPP} && ${SCRIPT_DIR}/build_emscripten.sh --prefix ${PREFIX} --targets ${ARCH} --config release)
 
         if [ "js-web" != "${PLATFORM}" ]; then
