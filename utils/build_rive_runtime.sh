@@ -124,10 +124,17 @@ case $PLATFORM in
         ;;
 
     wasm-web|wasm_pthread-web|js-web)
-        ARCH=wasm
-        if [ "js-web" == "${PLATFORM}" ]; then
-            ARCH=js
-        fi
+        case $PLATFORM in
+            wasm-web)
+                ARCH=wasm
+                ;;
+            wasm_pthread-web)
+                ARCH=wasm_pthread
+                ;;
+            js-web)
+                ARCH=js
+                ;;
+        esac
 
         if [ "" != "${EMSDK}" ]; then
             echo "Using EMSDK=${EMSDK}"

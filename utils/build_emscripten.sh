@@ -6,7 +6,7 @@
 # PREFIX directory. Mirrors build_android.sh behavior and header layout.
 #
 # Usage:
-#   ./build_emscripten.sh --prefix /abs/prefix [--targets wasm,js] [--config release|debug]
+#   ./build_emscripten.sh --prefix /abs/prefix [--targets wasm,js,wasm_pthread] [--config release|debug]
 #
 # Notes:
 # - If EMSDK is set, this script sources "$EMSDK/emsdk_env.sh" and forces
@@ -32,7 +32,7 @@ Build Emscripten libraries and install to a PREFIX directory.
 
 Options:
   -p, --prefix PATH        Install prefix directory (required)
-  -t, --targets LIST       Comma/space-separated: wasm, js (default: wasm)
+  -t, --targets LIST       Comma/space-separated: wasm, js, wasm_pthread (default: wasm)
   -c, --config NAME        Build config: release|debug (default: release)
   --with-wagyu             Enable wagyu option when building wasm target
   -h, --help               Show this help
@@ -142,7 +142,7 @@ cd "$BUILD_DIR"
 # Build and install for each target
 for TARGET in "${TARGET_LIST[@]}"; do
     case "$TARGET" in
-        wasm|js) ;;
+        wasm|js|wasm_pthread) ;;
         *)
             echo "error: unsupported target: $TARGET (supported: wasm, js)" >&2
             exit 2
@@ -152,6 +152,8 @@ for TARGET in "${TARGET_LIST[@]}"; do
     echo
     echo "==> Building: $TARGET ($CONFIG)"
     EXTRA_PREMAKE=""
+    # Map special targets to build arch and out dirs
+    BUILD_ARCH="$TARGET"
     OUT_DIR_REL="out/${TARGET}_${CONFIG}"
     OUT_DIR="$BUILD_DIR/$OUT_DIR_REL"
     if [[ "$TARGET" == "wasm" && "$WITH_WAGYU" == true ]]; then
@@ -159,15 +161,29 @@ for TARGET in "${TARGET_LIST[@]}"; do
         OUT_DIR_REL="out/wasm_wagyu_${CONFIG}"
         OUT_DIR="$BUILD_DIR/$OUT_DIR_REL"
     fi
+    if [[ "$TARGET" == "wasm_pthread" ]]; then
+        BUILD_ARCH="wasm"
+        EXTRA_PREMAKE="--with_pthread"
+        if [[ "$WITH_WAGYU" == true ]]; then
+            EXTRA_PREMAKE+=" --with_wagyu --with-webgpu --webgpu-version=2"
+        fi
+        # Use fixed output folder names; append -wagyu when requested
+        if [[ "$WITH_WAGYU" == true ]]; then
+            OUT_DIR_REL="out/wasm_pthread-wagyu-web"
+        else
+            OUT_DIR_REL="out/wasm_pthread-web"
+        fi
+        OUT_DIR="$BUILD_DIR/$OUT_DIR_REL"
+    fi
     # Expand EXTRA_PREMAKE only if non-empty (safe with set -u). When wagyu is used,
     # direct the build into our custom OUT directory by setting RIVE_OUT.
     if [[ -n "$EXTRA_PREMAKE" ]]; then
         # Clean and rebuild into custom OUT directory when using wagyu.
         # Pass RIVE_OUT as a relative path so premake doesn't prepend _WORKING_DIR twice.
-        RIVE_OUT="$OUT_DIR_REL" "$BUILD_SCRIPT" clean "$TARGET" "$CONFIG" "$EXTRA_PREMAKE" --with-libs-only || true
-        RIVE_OUT="$OUT_DIR_REL" "$BUILD_SCRIPT" ninja "$TARGET" "$CONFIG" "$EXTRA_PREMAKE" --with-libs-only
+        RIVE_OUT="$OUT_DIR_REL" "$BUILD_SCRIPT" clean "$BUILD_ARCH" "$CONFIG" "$EXTRA_PREMAKE" --with-libs-only || true
+        RIVE_OUT="$OUT_DIR_REL" "$BUILD_SCRIPT" ninja "$BUILD_ARCH" "$CONFIG" "$EXTRA_PREMAKE" --with-libs-only
     else
-        "$BUILD_SCRIPT" ninja "$TARGET" "$CONFIG" --with-libs-only
+        "$BUILD_SCRIPT" ninja "$BUILD_ARCH" "$CONFIG" --with-libs-only
     fi
 
     # Sanity check: ensure build.ninja exists where we expect
@@ -179,11 +195,11 @@ for TARGET in "${TARGET_LIST[@]}"; do
         exit 2
     fi
 
-    # Install directory per target (e.g. wasm-web or js-web)
+    # Install directory per target (e.g. wasm-web, js-web, wasm_pthread-web)
     TGT_LIB_DST="$LIB_ROOT/${TARGET}-web"
     mkdir -p "$TGT_LIB_DST"
 
-    if [[ "$TARGET" == "wasm" && "$WITH_WAGYU" == true ]]; then
+    if [[ ("$TARGET" == "wasm" || "$TARGET" == "wasm_pthread") && "$WITH_WAGYU" == true ]]; then
         # Special case: only install the PLS renderer lib, and rename it
         # to librive_renderer_wagyu.a
         SRC_WAGYU_LIB="$OUT_DIR/librive_pls_renderer.a"

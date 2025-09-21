@@ -1,8 +1,8 @@
 diff --git a/build/rive_build_config.lua b/build/rive_build_config.lua
-index d4336ed9..5c3c382f 100644
+index d4336ed9..78936d87 100644
 --- a/build/rive_build_config.lua
 +++ b/build/rive_build_config.lua
-@@ -145,6 +145,13 @@ if _OPTIONS['with_optick'] then
+@@ -145,6 +145,19 @@ if _OPTIONS['with_optick'] then
      RIVE_OPTICK_VERSION = '1.4.0.0'
  end 
  
@@ -13,10 +13,16 @@ index d4336ed9..5c3c382f 100644
 +    description = 'Path to a sysroot for cross-compiling (adds --sysroot=PATH to compile and link options)',
 +})
 +
++-- Optional pthread enabling (used e.g. for Emscripten wagyu builds)
++newoption({
++    trigger = 'with_pthread',
++    description = 'Enable pthread compile/link flags (-pthread)',
++})
++
  location(RIVE_BUILD_OUT)
  targetdir(RIVE_BUILD_OUT)
  objdir(RIVE_BUILD_OUT .. '/obj')
-@@ -411,7 +418,7 @@ if _OPTIONS['for_android'] then
+@@ -411,7 +424,7 @@ if _OPTIONS['for_android'] then
  
      -- Detect the NDK.
      local EXPECTED_NDK_VERSION = 'r27c'
@@ -25,7 +31,7 @@ index d4336ed9..5c3c382f 100644
      if _OPTIONS['for_unreal'] then
          EXPECTED_NDK_VERSION = '25.1.8937393'
          NDK_LONG_VERSION_STRING = '25.1.8937393'
-@@ -548,6 +555,31 @@ end
+@@ -548,6 +561,37 @@ end
  
  filter({})
  
@@ -52,6 +58,12 @@ index d4336ed9..5c3c382f 100644
 +        buildoptions({ '--sysroot=' .. _OPTIONS['sysroot'] })
 +        linkoptions({ '--sysroot=' .. _OPTIONS['sysroot'] })
 +    end
++end
++
++-- Apply pthread flags when requested
++if _OPTIONS['with_pthread'] then
++    buildoptions({ '-pthread' })
++    linkoptions({ '-pthread' })
 +end
 +
  filter('system:macosx')
