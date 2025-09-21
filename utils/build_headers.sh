@@ -66,6 +66,46 @@ mkdir -p "$INCLUDE_DST"
 
 echo "Installing headers to $INCLUDE_DST"
 
+# Detect rsync availability and prepare a fallback copier.
+if command -v rsync >/dev/null 2>&1; then
+    RSYNC_AVAILABLE=true
+else
+    RSYNC_AVAILABLE=false
+    echo "rsync not found; using fallback copy method" >&2
+fi
+
+copy_headers() {
+    # copy_headers <src_dir/> <dst_dir/>
+    local src="$1"
+    local dst="$2"
+    mkdir -p "$dst"
+    if [[ "$RSYNC_AVAILABLE" == true ]]; then
+        rsync -a -m \
+            --include '*/' \
+            --include '*.h' \
+            --include '*.hpp' \
+            --include '*.hxx' \
+            --include '*.inl' \
+            --exclude '*' \
+            "$src" "$dst"
+    else
+        # Fallback: walk and copy only header-like files, recreating directories.
+        # Ensure src ends with a slash for accurate prefix stripping.
+        local src_trimmed="$src"
+        [[ "${src_trimmed: -1}" != "/" ]] && src_trimmed+="/"
+        # Use find -print0 to handle spaces.
+        find "$src_trimmed" -type f \( \
+            -name '*.h' -o -name '*.hpp' -o -name '*.hxx' -o -name '*.inl' \
+        \) -print0 | while IFS= read -r -d '' f; do
+            local rel="${f#${src_trimmed}}"
+            local target_dir="$dst$(dirname "/$rel")"
+            mkdir -p "$target_dir"
+            cp -f "$f" "$dst$rel"
+            echo "  + $rel"
+        done
+    fi
+}
+
 # Header copy map
 declare -a HEADER_MAP=(
     "include:include" \
@@ -85,15 +125,7 @@ for mapping in "${HEADER_MAP[@]}"; do
     dst_dir="$PREFIX/$dst_rel/"
     if [[ -d "$src_dir" ]]; then
         echo "  - $src_rel -> $dst_rel (headers only)"
-        mkdir -p "$dst_dir"
-        rsync -a -m \
-            --include '*/' \
-            --include '*.h' \
-            --include '*.hpp' \
-            --include '*.hxx' \
-            --include '*.inl' \
-            --exclude '*' \
-            "$src_dir" "$dst_dir"
+        copy_headers "$src_dir" "$dst_dir"
     fi
 done
 

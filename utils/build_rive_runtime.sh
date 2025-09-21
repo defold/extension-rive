@@ -22,6 +22,8 @@ function Usage {
     echo "  * x86_64-macos"
     echo "  * arm64-ios"
     echo "  * x86_64-ios"
+    echo "  * arm64-linux"
+    echo "  * x86_64-linux"
     exit 1
 }
 
@@ -37,9 +39,13 @@ fi
 
 # Check platforms
 case $PLATFORM in
-    arm64-android|armv7-android|wasm-web|js-web|wasm_pthread-web)
+    arm64-android|armv7-android)
+        ;;
+    wasm-web|js-web|wasm_pthread-web)
         ;;
     arm64-macos|x86_64-macos|arm64-ios|x86_64-ios)
+        ;;
+    arm64-linux|x86_64-linux)
         ;;
 
     *)
@@ -90,6 +96,7 @@ VERSIONHEADER=${PREFIX}/include/defold/rive_version.h
 # cp -v ${RIVECPP}/build_android.sh ${SCRIPT_DIR}/
 # cp -v ${RIVECPP}/build_darwin.sh ${SCRIPT_DIR}/
 # cp -v ${RIVECPP}/build_emscripten.sh ${SCRIPT_DIR}/
+# cp -v ${RIVECPP}/build_linux.sh ${SCRIPT_DIR}/
 # cp -v ${RIVECPP}/build_headers.sh ${SCRIPT_DIR}/
 
 echo "Writing version header ${VERSIONHEADER}"
@@ -102,6 +109,7 @@ set +e
 (cd ${RIVECPP} && git apply ${RIVEPATCH})
 set -e
 
+CONFIGURATION=release
 
 case $PLATFORM in
 
@@ -112,7 +120,7 @@ case $PLATFORM in
         fi
 
         # expects ANDROID_NDK to be set
-        (cd ${RIVECPP} && ${SCRIPT_DIR}/build_android.sh --prefix ${PREFIX} --abis ${ARCH} --config release)
+        (cd ${RIVECPP} && ${SCRIPT_DIR}/build_android.sh --prefix ${PREFIX} --abis ${ARCH} --config ${CONFIGURATION})
         ;;
 
     wasm-web|wasm_pthread-web|js-web)
@@ -129,11 +137,11 @@ case $PLATFORM in
             fi
             echo "Using RIVE_EMSDK_VERSION=${RIVE_EMSDK_VERSION}"
         fi
-        (cd ${RIVECPP} && ${SCRIPT_DIR}/build_emscripten.sh --prefix ${PREFIX} --targets ${ARCH} --config release)
+        (cd ${RIVECPP} && ${SCRIPT_DIR}/build_emscripten.sh --prefix ${PREFIX} --targets ${ARCH} --config ${CONFIGURATION})
 
         if [ "js-web" != "${PLATFORM}" ]; then
             echo "Building for Wagyu"
-            (cd ${RIVECPP} && ${SCRIPT_DIR}/build_emscripten.sh --with-wagyu --prefix ${PREFIX} --targets ${ARCH} --config release)
+            (cd ${RIVECPP} && ${SCRIPT_DIR}/build_emscripten.sh --with-wagyu --prefix ${PREFIX} --targets ${ARCH} --config ${CONFIGURATION})
         fi
 
         ;;
@@ -144,7 +152,7 @@ case $PLATFORM in
             ARCH=x64
         fi
 
-        (cd ${RIVECPP} && ${SCRIPT_DIR}/build_darwin.sh --prefix ${PREFIX} --targets macos --archs ${ARCH} --config release)
+        (cd ${RIVECPP} && ${SCRIPT_DIR}/build_darwin.sh --prefix ${PREFIX} --targets macos --archs ${ARCH} --config ${CONFIGURATION})
         ;;
 
     arm64-ios|x86_64-ios)
@@ -153,7 +161,16 @@ case $PLATFORM in
             ARCH=x64
         fi
 
-        (cd ${RIVECPP} && ${SCRIPT_DIR}/build_darwin.sh --prefix ${PREFIX} --targets ios --archs ${ARCH} --config release)
+        (cd ${RIVECPP} && ${SCRIPT_DIR}/build_darwin.sh --prefix ${PREFIX} --targets ios --archs ${ARCH} --config ${CONFIGURATION})
+        ;;
+
+    arm64-linux|x86_64-linux)
+        ARCH=arm64
+        if [ "x86_64-linux" == "${PLATFORM}" ]; then
+            ARCH=x64
+        fi
+
+        (cd ${RIVECPP} && ${SCRIPT_DIR}/build_linux.sh --prefix ${PREFIX} --archs ${ARCH} --config ${CONFIGURATION})
         ;;
 
     *)

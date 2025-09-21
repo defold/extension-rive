@@ -1,6 +1,8 @@
 
 # Build and desploy steps
 
+## Build Rive Runtime
+
 *UPDATE 2025-09-20*
 
 For some platforms we now use the build system of the rive runtime.
@@ -14,7 +16,7 @@ The build scripts do several things:
 
 **NOTE** The build steps currently apply a small patch to the rive-runtiome in order to successfully build for all targets! See [rive.patch](./utils/rive.patch) for the details.
 
-## Prerequisites
+### Prerequisites
 
 <details>
 <summary>Clone the rive-runtime repo -></summary>
@@ -46,8 +48,16 @@ There are two options you could override if wanted:
 * Set Emscripten to download by rive: `export RIVE_EMSDK_VERSION=4.0.6`
 </details>
 
+<details>
+<summary>Prerequisites Linux -></summary>
 
-## Build the libraries
+Defold uses Ubuntu 22.04.
+Do not build for a newer version, as it will lead to link errors for the users.
+
+</details>
+
+
+### Build the libraries
 
 Build the libraries using:
 
