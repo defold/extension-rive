@@ -3,29 +3,60 @@
 
 *UPDATE 2025-09-20*
 
-For platforms `arm64-android|armv7-android` we now use the build system of the rive runtime.
+For some platforms we now use the build system of the rive runtime.
 
 The build scripts do several things:
-* Remove old headers
+* Removes old headers
 * Copy new headers
-* Generate `rive_version.h`
-* Remove old libraries
-* Build and copy new libraries
+* Generates `rive_version.h`
+* Removes old libraries
+* Builds and copies new libraries
 
 **NOTE** The build steps currently apply a small patch to the rive-runtiome in order to successfully build for all targets! See [rive.patch](./utils/rive.patch) for the details.
 
-## Clone the rive runtime repo
+## Prerequisites
 
-* Clone [rive-runtime](https://github.com/rive-app/rive-runtime) to a local folder `path/to/rive`
+<details>
+<summary>Clone the rive-runtime repo -></summary>
 
-### Android
+* Clone [rive-runtime](https://github.com/rive-app/rive-runtime) to a local folder `path/to/rive-runtime`
+
+</details>
+
+<details>
+<summary>Prerequisites Android -></summary>
 
 * Make sure you have ANDROID_NDK version `25.2.9519653` installed
-* Make sure the ANDROID_NDK environment is set: `ANDROID_NDK=~/Library/Android/sdk/ndk/25.2.9519653`
+* Make sure the ANDROID_NDK environment is set: `export ANDROID_NDK=~/Library/Android/sdk/ndk/25.2.9519653`
+</details>
 
-Build for arm64-android/armv7-android:
+<details><summary>Prerequisites macOS + iOS -></summary>
+Defold currently uses Xcode 15.4, so you cannot use a newer version, or the link step will fail.
 
-> ANDROID_NDK=~/Library/Android/sdk/ndk/25.2.9519653 ./utils/build_rive_runtime.sh arm64-android ~/work/external/rive-runtime
+* Download and install [Xcode 15.4](https://download.developer.apple.com/Developer_Tools/Xcode_15.4/Xcode_15.4.xip)
+* Select it as the toolchain: `xcode-select -s /Users/name/Downloads/Xcode_15.4.app/Contents/Developer`
+</details>
+
+
+## Build the libraries
+
+Build the libraries using:
+
+```bash
+cd extension-rive
+./utils/build_rive_runtime.sh <platform> ./path/to/rive-runtime
+```
+
+The supported platforms are
+
+* arm64-ios
+* x86_64-ios
+* arm64-macos
+* x86_64-macos
+* arm64-android
+* armv7-android
+* js-web
+* wasm-web
 
 
 ## For the engine (old build path)

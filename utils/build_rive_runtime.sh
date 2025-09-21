@@ -18,6 +18,10 @@ function Usage {
     echo "  * wasm-web"
     echo "  * wasm_pthread-web"
     echo "  * js-web"
+    echo "  * arm64-macos"
+    echo "  * x86_64-macos"
+    echo "  * arm64-ios"
+    echo "  * x86_64-ios"
     exit 1
 }
 
@@ -34,6 +38,8 @@ fi
 # Check platforms
 case $PLATFORM in
     arm64-android|armv7-android|wasm-web|js-web|wasm_pthread-web)
+        ;;
+    arm64-macos|x86_64-macos|arm64-ios|x86_64-ios)
         ;;
 
     *)
@@ -82,6 +88,7 @@ VERSIONHEADER=${PREFIX}/include/defold/rive_version.h
 # temp while developing
 # cp -v ${RIVECPP}/build_version_header.sh ${SCRIPT_DIR}/
 # cp -v ${RIVECPP}/build_android.sh ${SCRIPT_DIR}/
+# cp -v ${RIVECPP}/build_darwin.sh ${SCRIPT_DIR}/
 # cp -v ${RIVECPP}/build_emscripten.sh ${SCRIPT_DIR}/
 # cp -v ${RIVECPP}/build_headers.sh ${SCRIPT_DIR}/
 
@@ -121,6 +128,24 @@ case $PLATFORM in
             (cd ${RIVECPP} && ${SCRIPT_DIR}/build_emscripten.sh --with-wagyu --prefix ${PREFIX} --targets ${ARCH} --config release)
         fi
 
+        ;;
+
+    arm64-macos|x86_64-macos)
+        ARCH=arm64
+        if [ "x86_64-macos" == "${PLATFORM}" ]; then
+            ARCH=x64
+        fi
+
+        (cd ${RIVECPP} && ${SCRIPT_DIR}/build_darwin.sh --prefix ${PREFIX} --targets macos --archs ${ARCH} --config release)
+        ;;
+
+    arm64-ios|x86_64-ios)
+        ARCH=arm64
+        if [ "x86_64-ios" == "${PLATFORM}" ]; then
+            ARCH=x64
+        fi
+
+        (cd ${RIVECPP} && ${SCRIPT_DIR}/build_darwin.sh --prefix ${PREFIX} --targets ios --archs ${ARCH} --config release)
         ;;
 
     *)
