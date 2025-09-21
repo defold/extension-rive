@@ -30,7 +30,6 @@ namespace dmRive
         dmGameSystem::TextureSetResource*   m_TextureSet;   // The atlas
         RiveSceneData*                      m_Scene;
         Atlas*                              m_Atlas;
-        ShaderResources*                    m_Shaders;
     };
 }
 

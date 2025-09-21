@@ -33,7 +33,6 @@ namespace rive
 namespace dmRive
 {
     typedef void*  HRenderContext;
-    typedef struct ShaderResources ShaderResources;
 
     struct RenderBeginParams
     {
@@ -51,10 +50,7 @@ namespace dmRive
     void                         GetDimensions(HRenderContext context, uint32_t* width, uint32_t* height);
     void                         RenderBegin(HRenderContext context, dmResource::HFactory factory, const RenderBeginParams& params);
     void                         RenderEnd(HRenderContext context);
-    dmResource::Result           LoadShaders(dmResource::HFactory factory, ShaderResources** resources);
-    void                         ReleaseShaders(dmResource::HFactory factory, ShaderResources** resources);
 
-    dmRender::HMaterial          GetBlitToBackBufferMaterial(HRenderContext context, dmRender::HRenderContext render_context);
     dmGraphics::HTexture         GetBackingTexture(HRenderContext context);
 }
 

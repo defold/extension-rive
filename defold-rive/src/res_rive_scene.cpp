@@ -40,7 +40,7 @@ namespace dmRive
             resource->m_Atlas = dmRive::CreateAtlas(resource->m_TextureSet->m_TextureSet);
         }
 
-        return LoadShaders(factory, &resource->m_Shaders);
+        return dmResource::RESULT_OK;
     }
 
     static void ReleaseResources(dmResource::HFactory factory, RiveSceneResource* resource)
@@ -53,8 +53,6 @@ namespace dmRive
             dmDDF::FreeMessage(resource->m_DDF);
         if (resource->m_Scene != 0x0)
             dmResource::Release(factory, resource->m_Scene);
-
-        ReleaseShaders(factory, &resource->m_Shaders);
     }
 
     static dmResource::Result ResourceTypePreload(const dmResource::ResourcePreloadParams* params)
