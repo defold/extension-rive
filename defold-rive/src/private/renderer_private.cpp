@@ -13,8 +13,6 @@
 
 #include <rive/renderer/rive_render_image.hpp>
 
-#include <defold/shaders/rivemodel_blit.spc.gen.h>
-
 #include <common/vertices.h>
 
 #include <assert.h>
@@ -51,9 +49,6 @@ namespace dmRive
         rive::Renderer*      m_RiveRenderer;
         dmGraphics::HContext m_GraphicsContext;
 
-        dmGraphics::HProgram m_BlitSpc;
-        dmRender::HMaterial  m_BlitMaterial;
-
         uint32_t             m_LastWidth;
         uint32_t             m_LastHeight;
         uint8_t              m_LastDoFinalBlit : 1;
@@ -77,58 +72,10 @@ namespace dmRive
         return (HRenderContext) g_RiveRenderer;
     }
 
-    static void AddShaderResources(dmResource::HFactory factory)
-    {
-        dmResource::AddFile(factory, "/defold-rive/assets/pls-shaders/rivemodel_blit.spc", RIVEMODEL_BLIT_SPC_SIZE, RIVEMODEL_BLIT_SPC);
-    }
-
-    static void RemoveShaderResources(dmResource::HFactory factory)
-    {
-        dmResource::RemoveFile(factory, "/defold-rive/assets/pls-shaders/rivemodel_blit.spc");
-    }
-
-    dmResource::Result LoadShaders(dmResource::HFactory factory, ShaderResources** resources)
-    {
-        dmResource::Result result = dmResource::RESULT_OK;
-
-        AddShaderResources(factory);
-
-        #define GET_SHADER(path, storage) \
-            result = dmResource::Get(factory, path, (void**) &storage); \
-            if (result != dmResource::RESULT_OK) \
-            { \
-                dmLogError("Failed to load resource '%s'", path); \
-                return result; \
-            }
-
-        GET_SHADER("/defold-rive/assets/pls-shaders/rivemodel_blit.spc", g_RiveRenderer->m_BlitSpc);
-
-        #undef GET_SHADER
-
-        RemoveShaderResources(factory);
-
-        return result;
-    }
-
-    static void ReleaseShadersInternal(dmResource::HFactory factory)
-    {
-        #define RELEASE_SHADER(res) \
-            if (res) dmResource::Release(factory, (void*) res);
-        RELEASE_SHADER(g_RiveRenderer->m_BlitSpc);
-        #undef RELEASE_SHADER
-    }
-
-    void ReleaseShaders(dmResource::HFactory factory, ShaderResources** resources)
-    {
-        ReleaseShadersInternal(factory);
-        *resources = 0;
-    }
-
     void DeleteRenderContext(HRenderContext context)
     {
         if (g_RiveRenderer)
         {
-            ReleaseShadersInternal(g_RiveRenderer->m_Factory);
             delete g_RiveRenderer;
             g_RiveRenderer = 0;
         }
@@ -162,8 +109,6 @@ namespace dmRive
             renderer->m_RenderContext->SetGraphicsContext(renderer->m_GraphicsContext);
             renderer->m_RiveRenderer = renderer->m_RenderContext->MakeRenderer();
             renderer->m_Factory = factory;
-
-            dmResource::IncRef(factory, (void*) renderer->m_BlitSpc);
         }
 
         if (!renderer->m_FrameBegin)
@@ -319,25 +264,6 @@ namespace dmRive
         }
 
         return texture != nullptr ? rive::make_rcp<rive::RiveRenderImage>(std::move(texture)) : nullptr;
-    }
-
-    dmRender::HMaterial GetBlitToBackBufferMaterial(HRenderContext context, dmRender::HRenderContext render_context)
-    {
-        DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
-        if (!renderer->m_BlitMaterial)
-        {
-            renderer->m_BlitMaterial = dmRender::NewMaterial(render_context, renderer->m_BlitSpc);
-
-            if (!dmRender::SetMaterialSampler(renderer->m_BlitMaterial, dmHashString64("texture_sampler"), 0, dmGraphics::TEXTURE_WRAP_CLAMP_TO_EDGE, dmGraphics::TEXTURE_WRAP_CLAMP_TO_EDGE, dmGraphics::TEXTURE_FILTER_LINEAR, dmGraphics::TEXTURE_FILTER_LINEAR, 1.0))
-            {
-                dmLogError("Failed to set material sampler");
-            }
-
-            dmhash_t dummy_tag = dmHashString64("rive");
-            dmRender::SetMaterialTags(renderer->m_BlitMaterial, 1, &dummy_tag);
-        }
-        assert(renderer->m_BlitMaterial);
-        return renderer->m_BlitMaterial;
     }
 
     rive::Mat2D GetViewTransform(HRenderContext context, dmRender::HRenderContext render_context)

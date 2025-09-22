@@ -36,7 +36,13 @@ public class RiveModelBuilder extends ProtoBuilder<RiveModelDesc.Builder> {
         if (!builder.getMaterial().equals("")) {
             BuilderUtil.checkResource(this.project, resource, "material", builder.getMaterial());
         }
+
+        if (!builder.getBlitMaterial().equals("")) {
+            BuilderUtil.checkResource(this.project, resource, "material", builder.getBlitMaterial());
+        }
+
         builder.setMaterial(BuilderUtil.replaceExt(builder.getMaterial(), ".material", ".materialc"));
+        builder.setBlitMaterial(BuilderUtil.replaceExt(builder.getBlitMaterial(), ".material", ".materialc"));
         return builder;
     }
 }

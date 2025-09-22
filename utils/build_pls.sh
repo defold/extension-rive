@@ -339,18 +339,6 @@ LIBPLY_PATH=${DOWNLOAD_DIR}/libply/ply-${LIBPLY_VERSION}/src
 download_zip ${LIBPLY_ZIP} ${DOWNLOAD_DIR}/libply ${LIBPLY_URL}
 
 echo "*************************************************"
-echo "Setup shader source variables"
-
-source ${SCRIPT_DIR}/gen_embedded_shaders.sh
-
-DEFOLDSHADERS_INPUT_DIR=${SCRIPT_DIR}/../defold-rive/assets/shader-library
-DEFOLDSHADERS_INCLUDE_DIR=${SCRIPT_DIR}/../defold-rive/include/defold/shaders
-DEFOLDSHADERS_SOURCE_DIR=${SOURCE_DIR}/defoldshaders/src
-
-mkdir -p ${DEFOLDSHADERS_INCLUDE_DIR}
-mkdir -p ${DEFOLDSHADERS_SOURCE_DIR}
-
-echo "*************************************************"
 
 for platform in $PLATFORMS; do
     echo "Building platform ${platform}"
@@ -674,19 +662,6 @@ for platform in $PLATFORMS; do
             build_library rive_renderer_wagyu $platform $platform_ne ${RIVECPP_RENDERER_SOURCE_DIR} ${BUILD}
     esac
 
-    echo "************************************************************"
-    echo "RIVE SHADERS ${platform}"
-    echo "************************************************************"
-    unset DEFINES
-    unset INCLUDES
-    export CXXFLAGS="-x c"
-    generate_cpp_sources ${platform} ${DEFOLDSHADERS_INPUT_DIR}/rivemodel_blit.vp ${DEFOLDSHADERS_INPUT_DIR}/rivemodel_blit.fp ${DEFOLDSHADERS_SOURCE_DIR}/rivemodel_blit.spc
-    build_library riveshaders $platform $platform_ne ${DEFOLDSHADERS_SOURCE_DIR} ${BUILD}
-
-    # # TODO: Fix this (paths are wrong)
-    # mkdir -p ${DEFOLDSHADERS_INCLUDE_DIR}
-    # rm -v ${DEFOLDSHADERS_INCLUDE_DIR}/*.gen.h
-    # cp -v ${DEFOLDSHADERS_SOURCE_DIR}/*.gen.h ${DEFOLDSHADERS_INCLUDE_DIR}
 done
 
 

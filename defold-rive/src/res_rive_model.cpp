@@ -32,6 +32,12 @@ namespace dmRive
         {
             return result;
         }
+
+        result = dmResource::Get(factory, resource->m_DDF->m_BlitMaterial, (void**) &resource->m_BlitMaterial);
+        if (result != dmResource::RESULT_OK)
+        {
+            return result;
+        }
         resource->m_CreateGoBones = resource->m_DDF->m_CreateGoBones;
         return dmResource::RESULT_OK;
     }
@@ -44,6 +50,8 @@ namespace dmRive
             dmResource::Release(factory, resource->m_Scene);
         if (resource->m_Material != 0x0)
             dmResource::Release(factory, resource->m_Material);
+        if (resource->m_BlitMaterial != 0x0)
+            dmResource::Release(factory, resource->m_BlitMaterial);
     }
 
     static dmResource::Result ResourceType_RiveModel_Preload(const dmResource::ResourcePreloadParams* params)

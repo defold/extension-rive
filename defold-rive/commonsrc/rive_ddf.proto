@@ -70,6 +70,7 @@ message RiveModelDesc
 
     optional bool auto_play                 = 11 [default=true];   // auto play animation if selected
     optional bool auto_bind                 = 12 [default=true];   // auto bind default view model
+    optional string blit_material           = 13 [(resource)=true, default="/defold-rive/assets/shader-library/rivemodel_blit.material"];
 }
 
 message RivePlayAnimation

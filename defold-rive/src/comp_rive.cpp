@@ -123,6 +123,7 @@ namespace dmRive
         dmArray<dmRender::HNamedConstantBuffer> m_RenderConstants; // 1:1 mapping with the render objects
         dmGraphics::HVertexBuffer               m_BlitToBackbufferVertexBuffer;
         dmGraphics::HVertexDeclaration          m_VertexDeclaration;
+        dmGameSystem::MaterialResource*         m_BlitMaterial;
         bool                                    m_DidWork;         // did we get any batch workload ?
     };
 
@@ -136,6 +137,7 @@ namespace dmRive
         world->m_RenderObjects.SetCapacity(context->m_MaxInstanceCount);
         world->m_RenderConstants.SetCapacity(context->m_MaxInstanceCount);
         world->m_RenderConstants.SetSize(context->m_MaxInstanceCount);
+        world->m_BlitMaterial = 0;
         world->m_DidWork = false;
 
         float bottom = 0.0f;
@@ -463,7 +465,7 @@ namespace dmRive
                 dmRender::RenderObject& ro = *world->m_RenderObjects.End();
                 world->m_RenderObjects.SetSize(world->m_RenderObjects.Size()+1);
                 ro.Init();
-                ro.m_Material          = GetBlitToBackBufferMaterial(world->m_RiveRenderContext, render_context);
+                ro.m_Material          = world->m_BlitMaterial->m_Material;
                 ro.m_VertexDeclaration = world->m_VertexDeclaration;
                 ro.m_VertexBuffer      = world->m_BlitToBackbufferVertexBuffer;
                 ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
@@ -910,6 +912,8 @@ namespace dmRive
         dmRender::RenderListEntry* render_list = dmRender::RenderListAlloc(render_context, count);
         dmRender::HRenderListDispatch dispatch = dmRender::RenderListMakeDispatch(render_context, &RenderListDispatch, world);
         dmRender::RenderListEntry* write_ptr   = render_list;
+
+        world->m_BlitMaterial = components[0]->m_Resource->m_BlitMaterial;
 
         for (uint32_t i = 0; i < count; ++i)
         {
