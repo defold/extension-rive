@@ -490,6 +490,154 @@ namespace dmRive
         return 0;
     }
 
+static dmhash_t GetCanonicalPathHash(const char* path)
+{
+    char canonical_path[1024];
+    uint32_t path_len  = dmResource::GetCanonicalPath(path, canonical_path, sizeof(canonical_path));
+    return dmHashBuffer64(canonical_path, path_len);
+}
+
+// TODO: Move this function into dmScript namespace
+static void PreCreateResources(lua_State* L, const char* path_str, const char** supported_exts, uint32_t num_supported_exts, dmhash_t* canonical_path_hash_out)
+{
+    const char* path_ext = dmResource::GetExtFromPath(path_str);
+    while (path_ext[0] == '.')
+        path_ext++;
+
+    bool path_ok = false;
+    if (path_ext)
+    {
+        for (uint32_t i = 0; i < num_supported_exts; ++i)
+        {
+            const char* ext = supported_exts[i];
+
+            if (dmStrCaseCmp(path_ext, ext) == 0)
+            {
+                path_ok = true;
+                break;
+            }
+        }
+    }
+
+    if (!path_ok)
+    {
+        char message[1024];
+        dmSnPrintf(message, sizeof(message), "Unable to create resource, path '%s' must have any of the following extensions: ", path_str);
+        for (uint32_t i = 0; i < num_supported_exts; ++i)
+        {
+            dmStrlCat(message, supported_exts[i], sizeof(message));
+        }
+        luaL_error(L, "%s", message);
+    }
+
+    dmhash_t canonical_path_hash = GetCanonicalPathHash(path_str);
+
+    HResourceDescriptor rd = 0;
+    ResourceResult r = ResourceGetDescriptorByHash((HResourceFactory)g_Factory, canonical_path_hash, &rd);
+    if (r == RESOURCE_RESULT_OK || rd != 0)
+    {
+        luaL_error(L, "Unable to create resource, a resource is already registered at path '%s'", path_str);
+    }
+
+    *canonical_path_hash_out = canonical_path_hash;
+}
+
+static void PreCreateResource(lua_State* L, const char* path_str, const char* path_ext_wanted, dmhash_t* canonical_path_hash_out)
+{
+    PreCreateResources(L, path_str, &path_ext_wanted, 1, canonical_path_hash_out);
+}
+
+static void PushResourceError(lua_State* L, ResourceResult result, dmhash_t path_hash)
+{
+    const char* format = 0;
+    switch(result)
+    {
+    case RESOURCE_RESULT_RESOURCE_NOT_FOUND: format = "The resource was not found (%d): %llu, %s"; break;
+    case RESOURCE_RESULT_NOT_SUPPORTED:      format = "The resource type does not support this operation (%d): %llu, %s"; break;
+    default:                                 format = "The resource was not updated (%d): %llu, %s"; break;
+    }
+    lua_pushfstring(L, format, (unsigned long long)path_hash, dmHashReverseSafe64(path_hash));
+}
+
+// TODO: from internal script_resource.cpp. Move to public dmsdk
+static int ReportPathError(lua_State* L, ResourceResult result, dmhash_t path_hash)
+{
+    char msg[256];
+    const char* format = 0;
+    switch(result)
+    {
+    case RESOURCE_RESULT_RESOURCE_NOT_FOUND: format = "The resource was not found (%d): %llu, %s"; break;
+    case RESOURCE_RESULT_NOT_SUPPORTED:      format = "The resource type does not support this operation (%d): %llu, %s"; break;
+    default:                                 format = "The resource was not updated (%d): %llu, %s"; break;
+    }
+    dmSnPrintf(msg, sizeof(msg), format, result, (unsigned long long)path_hash, dmHashReverseSafe64(path_hash));
+    return luaL_error(L, "%s", msg);
+}
+
+// TODO: from internal script_resource.cpp. Move to public dmsdk
+static void* CheckResource(lua_State* L, dmResource::HFactory factory, dmhash_t path_hash, const char* resource_ext)
+{
+    HResourceDescriptor rd = 0;
+    ResourceResult r = ResourceGetDescriptorByHash((HResourceFactory)factory, path_hash, &rd);
+    if (r != RESOURCE_RESULT_OK)
+    {
+        luaL_error(L, "Could not get %s type resource: %s", resource_ext, dmHashReverseSafe64(path_hash));
+        return 0;
+    }
+
+    HResourceType expected_resource_type;
+    r = ResourceGetTypeFromExtension(factory, resource_ext, &expected_resource_type);
+    if( r != RESOURCE_RESULT_OK )
+    {
+        ReportPathError(L, r, path_hash);
+    }
+
+    HResourceType resource_type = ResourceDescriptorGetType(rd);
+    if (resource_type != expected_resource_type)
+    {
+        luaL_error(L, "Resource %s is not of type %s.", dmHashReverseSafe64(path_hash), resource_ext);
+        return 0;
+    }
+
+    return ResourceDescriptorGetResource(rd);
+}
+
+static int RiveComp_CreateRivFromMemory(lua_State* L)
+{
+    int top = lua_gettop(L);
+
+    const char* path  = luaL_checkstring(L, 1); // path to be associated with this resource
+
+    size_t data_length = 0;
+    const char* data = luaL_checklstring(L, 2, &data_length);
+
+    dmGameObject::HInstance instance = dmScript::CheckGOInstance(L);
+    dmGameObject::HCollection collection = dmGameObject::GetCollection(instance);
+
+    dmhash_t path_hash;
+    PreCreateResource(L, path, "rivc", &path_hash); // create the hash, and check that no other resource is registered with the same hash
+
+    void* resource = 0;
+    ResourceResult r = ResourceCreateResource(g_Factory, path, (void*)data, data_length, &resource);
+    if (r != RESOURCE_RESULT_OK)
+    {
+        assert(top == lua_gettop(L));
+
+        lua_pushnil(L);
+        PushResourceError(L, r, path_hash);
+        return 2;
+    }
+
+    // Pass ownership of the resource to the current collection
+    dmGameObject::AddDynamicResourceHash(collection, path_hash);
+    dmScript::PushHash(L, path_hash);
+    lua_pushnil(L);
+
+    assert((top+2) == lua_gettop(L));
+    return 2;
+}
+
+
     // This is an "all bets are off" mode.
     static int RiveComp_DebugSetBlitMode(lua_State* L)
     {
@@ -521,6 +669,8 @@ namespace dmRive
         {"debug_set_blit_mode",     RiveComp_DebugSetBlitMode},
 
         {"riv_swap_asset",          RiveComp_RivSwapAsset},
+
+        {"create_riv_from_memory",  RiveComp_CreateRivFromMemory},
         {0, 0}
     };
 
