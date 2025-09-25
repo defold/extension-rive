@@ -674,6 +674,8 @@ static int RiveComp_CreateRivFromMemory(lua_State* L)
         {0, 0}
     };
 
+    extern void ScriptInitializeFile(lua_State* L, dmResource::HFactory factory);
+    extern void ScriptInitializeStructs(lua_State* L, dmResource::HFactory factory);
     extern void ScriptInitializeDataBinding(lua_State* L, dmResource::HFactory factory);
 
     void ScriptRegister(lua_State* L, dmResource::HFactory factory)
@@ -681,6 +683,8 @@ static int RiveComp_CreateRivFromMemory(lua_State* L)
         luaL_register(L, "rive", RIVE_FUNCTIONS);
             ScriptInitializeDataBinding(L, factory);
         lua_pop(L, 1);
+        ScriptInitializeFile(L, factory);
+        ScriptInitializeStructs(L, factory);
 
         g_Factory = factory;
     }
