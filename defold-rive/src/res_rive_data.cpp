@@ -99,13 +99,13 @@ namespace dmRive
         rive::Span<const uint8_t> data((const uint8_t*)params->m_Buffer, params->m_BufferSize);
 
         // Creates DefoldRenderImage with a hashed name for each image resource
-        AtlasNameResolver atlas_resolver = AtlasNameResolver(params->m_Factory, render_context_res);
+        rive::rcp<AtlasNameResolver> atlas_resolver(new AtlasNameResolver(params->m_Factory, render_context_res));
 
         rive::ImportResult result;
         rive::rcp<rive::File> file = rive::File::import(data,
                                                         rive_factory,
                                                         &result,
-                                                        (rive::FileAssetLoader*) &atlas_resolver);
+                                                        atlas_resolver);
 
         if (result != rive::ImportResult::success)
         {
@@ -114,7 +114,7 @@ namespace dmRive
         }
 
         RiveSceneData* scene_data = new RiveSceneData();
-        scene_data->m_FileAssets.Swap(atlas_resolver.GetAssets());
+        scene_data->m_FileAssets.Swap(atlas_resolver->GetAssets());
         SetupData(scene_data, file.release(), params->m_Filename, render_context_res);
 
         dmResource::SetResource(params->m_Resource, scene_data);
@@ -147,13 +147,13 @@ namespace dmRive
 
         rive::Factory* rive_factory = GetRiveFactory(render_context_res);
 
-        AtlasNameResolver atlas_resolver = AtlasNameResolver(params->m_Factory, render_context_res);
+        rive::rcp<AtlasNameResolver> atlas_resolver(new AtlasNameResolver(params->m_Factory, render_context_res));
 
         rive::ImportResult result;
         rive::rcp<rive::File> file = rive::File::import(data,
                                                         rive_factory,
                                                         &result,
-                                                        &atlas_resolver);
+                                                        atlas_resolver);
 
         if (result != rive::ImportResult::success)
         {
@@ -170,7 +170,7 @@ namespace dmRive
 
         RiveSceneData* scene_data = new RiveSceneData();
 
-        scene_data->m_FileAssets.Swap(atlas_resolver.GetAssets());
+        scene_data->m_FileAssets.Swap(atlas_resolver->GetAssets());
         SetupData(scene_data, file.release(), params->m_Filename, render_context_res);
 
         dmResource::SetResource(params->m_Resource, scene_data);
