@@ -147,7 +147,8 @@ namespace dmRive
     bool        CompRiveRuntimeListAddInstance(RiveComponent* component, uint32_t handle, const char* path, uint32_t instance);
     bool        CompRiveRuntimeListRemoveInstance(RiveComponent* component, uint32_t handle, const char* path, uint32_t instance);
 
-    RiveSceneData* CompRiveGetRiveSceneData(RiveComponent* component);
+    RiveSceneData*  CompRiveGetRiveSceneData(RiveComponent* component);
+    rive::ViewModelInstanceRuntime* CompRiveGetViewModelInstance(RiveComponent* component);
 }
 
 #endif //DM_COMP_RIVE_PRIVATE_H

@@ -24,6 +24,7 @@
 #include "comp_rive.h"
 #include "comp_rive_private.h"
 #include "res_rive_data.h"
+#include "script_rive_private.h"
 #include <rive/data_bind/data_values/data_type.hpp>
 
 #include <rive/file.hpp>
@@ -67,19 +68,29 @@ static bool IsTypeRivc(HResourceFactory factory, dmhash_t path_hash)
 
 // *********************************************************************************
 
-struct RiveFile
-{
-    RiveSceneData* m_Resource;
-};
 
-static bool IsRiveFile(lua_State* L, int index)
+bool IsRiveFile(lua_State* L, int index)
 {
     return dmScript::GetUserType(L, index) == TYPE_HASH_RIVE_FILE;
 }
 
-static RiveFile* ToRiveFile(lua_State* L, int index)
+RiveFile* ToRiveFile(lua_State* L, int index)
 {
     return (RiveFile*)dmScript::ToUserType(L, index, TYPE_HASH_RIVE_FILE);
+}
+
+void PushRiveFile(lua_State* L, RiveSceneData* resource)
+{
+    RiveFile* file = (RiveFile*)lua_newuserdata(L, sizeof(RiveFile));
+    file->m_Resource = resource;
+    luaL_getmetatable(L, SCRIPT_TYPE_NAME_RIVE_FILE);
+    lua_setmetatable(L, -2);
+}
+
+RiveFile* CheckRiveFile(lua_State* L, int index)
+{
+    RiveFile* file = (RiveFile*)dmScript::CheckUserType(L, index, TYPE_HASH_RIVE_FILE, 0);
+    return file;
 }
 
 static int RiveFile_tostring(lua_State* L)
@@ -90,7 +101,7 @@ static int RiveFile_tostring(lua_State* L)
         lua_pushstring(L, "no valid pointer!");
         return 1;
     }
-    lua_pushfstring(L, "%s.file(%p : %s)", "rive", file, dmHashReverseSafe64(file->m_Resource->m_PathHash));
+    lua_pushfstring(L, "%s.file(%p : '%s')", "rive", file, dmHashReverseSafe64(file->m_Resource->m_PathHash));
     return 1;
 }
 
@@ -109,33 +120,56 @@ static int RiveFile_gc(lua_State* L)
     return 0;
 }
 
-static const luaL_reg RiveFile_methods[] =
+static int RiveFileGetArtboard(lua_State* L)
 {
-    {0,0}
-};
+    DM_LUA_STACK_CHECK(L, 1);
+    RiveFile* file = CheckRiveFile(L, 1);
 
-static const luaL_reg RiveFile_meta[] =
-{
-    {"__tostring",  RiveFile_tostring},
-    // {"__index",     RiveFile_index},
-    // {"__newindex",  RiveFile_newindex},
-    {"__eq",        RiveFile_eq},
-    {"__gc",        RiveFile_gc},
-    {0,0}
-};
+    const char* name = 0;
+    int index = -1;
 
-static void PushRiveFile(lua_State* L, RiveSceneData* resource)
-{
-    RiveFile* file = (RiveFile*)lua_newuserdata(L, sizeof(RiveFile));
-    file->m_Resource = resource;
-    luaL_getmetatable(L, SCRIPT_TYPE_NAME_RIVE_FILE);
-    lua_setmetatable(L, -2);
+    switch(lua_type(L, 2))
+    {
+    case LUA_TSTRING: name = luaL_checkstring(L, 2); break;
+    case LUA_TNUMBER: index = luaL_checknumber(L, 2); break;
+    default: break;
+    }
+
+    rive::ArtboardInstance* artboard = 0;
+    if (name)
+    {
+        artboard = file->m_Resource->m_File->artboardNamed(name).release();
+        if (!artboard)
+        {
+            return DM_LUA_ERROR("No artboard named '%s' in file '%s'", name, dmHashReverseSafe64(file->m_Resource->m_PathHash));
+        }
+    }
+    else if(index >= 0)
+    {
+        artboard = file->m_Resource->m_File->artboardAt((size_t)index).release();
+        if (!artboard)
+        {
+            return DM_LUA_ERROR("No artboard named at index %d in file '%s'", index, dmHashReverseSafe64(file->m_Resource->m_PathHash));
+        }
+    }
+    else
+    {
+        artboard = file->m_Resource->m_File->artboardDefault().release();
+        if (!artboard)
+        {
+            return DM_LUA_ERROR("No default artboard in file '%s'", dmHashReverseSafe64(file->m_Resource->m_PathHash));
+        }
+    }
+
+    PushArtboard(L, file->m_Resource, artboard);
+    return 1;
 }
 
-static RiveFile* CheckArtboard(lua_State* L, int index)
+static int RiveFileGetPath(lua_State* L)
 {
-    RiveFile* file = (RiveFile*)dmScript::CheckUserType(L, index, TYPE_HASH_RIVE_FILE, 0);
-    return file;
+    RiveFile* file = CheckRiveFile(L, 1);
+    lua_pushstring(L, dmHashReverseSafe64(file->m_Resource->m_PathHash));
+    return 1;
 }
 
 static RiveSceneData* AcquireRiveResource(lua_State* L, int index)
@@ -170,7 +204,7 @@ static RiveSceneData* AcquireRiveResource(lua_State* L, int index)
     return resource;
 }
 
-static int FileGet(lua_State* L)
+static int RiveFileGet(lua_State* L)
 {
     int top = lua_gettop(L);
 
@@ -186,14 +220,30 @@ static int FileGet(lua_State* L)
     return 1;
 }
 
-
 // *********************************************************************************
 
-static const luaL_reg RIVE_FILE_FUNCTIONS[] =
+static const luaL_reg RiveFile_methods[] =
 {
-    {"get_file", FileGet},
+    {"get_path",    RiveFileGetPath},
+    {"get_artboard",RiveFileGetArtboard},
+    {0,0}
+};
+
+static const luaL_reg RiveFile_meta[] =
+{
+    {"__tostring",  RiveFile_tostring},
+    {"__eq",        RiveFile_eq},
+    {"__gc",        RiveFile_gc},
+    {0,0}
+};
+
+static const luaL_reg RiveFile_functions[] =
+{
+    {"get_file",    RiveFileGet},
     {0, 0}
 };
+
+// *********************************************************************************
 
 void ScriptInitializeFile(lua_State* L, dmResource::HFactory factory)
 {
@@ -201,23 +251,9 @@ void ScriptInitializeFile(lua_State* L, dmResource::HFactory factory)
 
     g_Factory = factory;
 
-    struct
-    {
-        const char*     m_Name;
-        const luaL_reg* m_Methods;
-        const luaL_reg* m_Metatable;
-        uint32_t*       m_TypeHash;
-    } types[1] =
-    {
-        {SCRIPT_TYPE_NAME_RIVE_FILE, RiveFile_methods, RiveFile_meta, &TYPE_HASH_RIVE_FILE},
-    };
+    TYPE_HASH_RIVE_FILE = dmScript::RegisterUserType(L, SCRIPT_TYPE_NAME_RIVE_FILE, RiveFile_methods, RiveFile_meta);
 
-    for (uint32_t i = 0; i < DM_ARRAY_SIZE(types); ++i)
-    {
-        *types[i].m_TypeHash = dmScript::RegisterUserType(L, types[i].m_Name, types[i].m_Methods, types[i].m_Metatable);
-    }
-
-    luaL_register(L, "rive", RIVE_FILE_FUNCTIONS);
+    luaL_register(L, "rive", RiveFile_functions);
     lua_pop(L, 1);
 
     assert(top == lua_gettop(L));

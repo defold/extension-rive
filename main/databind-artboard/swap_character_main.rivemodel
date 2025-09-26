@@ -1,0 +1,3 @@
+scene: "/main/databind-artboard/swap_character_main.rivescene"
+default_animation: ""
+material: "/defold-rive/assets/rivemodel.material"

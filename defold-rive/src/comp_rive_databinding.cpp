@@ -187,6 +187,12 @@ uint32_t CompRiveCreateViewModelInstanceRuntime(RiveComponent* component, dmhash
     return handle;
 }
 
+rive::ViewModelInstanceRuntime* CompRiveGetViewModelInstance(RiveComponent* component)
+{
+    rive::ViewModelInstanceRuntime* vmir = FromHandle(component, component->m_CurrentViewModelInstanceRuntime);
+    return vmir;
+}
+
 bool CompRiveDestroyViewModelInstanceRuntime(RiveComponent* component, uint32_t handle)
 {
     rive::ViewModelInstanceRuntime* vmir = FromHandle(component, handle);
