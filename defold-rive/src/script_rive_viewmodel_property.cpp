@@ -49,6 +49,24 @@ static ViewModelProperty* ToViewModelProperty(lua_State* L, int index)
     return (ViewModelProperty*)dmScript::ToUserType(L, index, TYPE_HASH_VIEWMODEL_PROPERTY);
 }
 
+void PushViewModelProperty(lua_State* L, RiveSceneData* resource, rive::ViewModelInstanceValueRuntime* instance)
+{
+    ViewModelProperty* viewmodel = (ViewModelProperty*)lua_newuserdata(L, sizeof(ViewModelProperty));
+    viewmodel->m_Resource = resource;
+    viewmodel->m_Instance = instance;
+    luaL_getmetatable(L, SCRIPT_TYPE_NAME_VIEWMODEL_PROPERTY);
+    lua_setmetatable(L, -2);
+    dmResource::IncRef(g_Factory, resource);
+}
+
+ViewModelProperty* CheckViewModelProperty(lua_State* L, int index)
+{
+    ViewModelProperty* viewmodel = (ViewModelProperty*)dmScript::CheckUserType(L, index, TYPE_HASH_VIEWMODEL_PROPERTY, 0);
+    return viewmodel;
+}
+
+// *********************************************************************************
+
 static const char* DataTypeToString(rive::DataType type)
 {
     #define DATATYPE_CASE(_NAME) case rive::DataType:: _NAME : return # _NAME;
@@ -99,42 +117,129 @@ static int ViewModelProperty_eq(lua_State* L)
 
 static int ViewModelProperty_gc(lua_State* L)
 {
-    //printf("ViewModelProperty_gc: begin\n");
-    //fflush(stdout);
-
     ViewModelProperty* prop = ToViewModelProperty(L, 1);
-    //printf("ViewModelProperty_gc: %p : %p\n", prop, prop->m_Instance);
-    //fflush(stdout);
-
     dmResource::Release(g_Factory, prop->m_Resource);
-
-    //printf("ViewModelProperty_gc: end\n");
-    //fflush(stdout);
     return 0;
 }
 
-// static int ViewModelGetViewModel(lua_State* L)
-// {
-//     RiveComponent* component = 0;
-//     dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
-//     RiveSceneData* resource = CompRiveGetRiveSceneData(component);
-//     rive::ViewModelInstanceRuntime* instance = CompRiveGetViewModelInstance(component);
-//     if (instance)
-//     {
-//         PushViewModel(L, resource, instance);
-//     }
-//     else
-//     {
-//         lua_pushnil(L);
-//     }
+static int ViewModelPropertyName(lua_State* L)
+{
+    ViewModelProperty* prop = CheckViewModelProperty(L, 1);
+    lua_pushstring(L, prop->m_Instance->name().c_str());
+    return 1;
+}
 
-//     return 1;
-// }
+static int ViewModelPropertyType(lua_State* L)
+{
+    ViewModelProperty* prop = CheckViewModelProperty(L, 1);
+    lua_pushinteger(L, (int)prop->m_Instance->dataType());
+    return 1;
+}
+
+static dmVMath::Vector4 GetColor(rive::ViewModelInstanceValueRuntime* _prop)
+{
+    rive::ViewModelInstanceColorRuntime* prop = (rive::ViewModelInstanceColorRuntime*)_prop;
+
+    uint32_t argb = (uint32_t)prop->value();
+    float a = ((argb >> 24) & 0xFF) / 255.0f;
+    float r = ((argb >> 16) & 0xFF) / 255.0f;
+    float g = ((argb >>  8) & 0xFF) / 255.0f;
+    float b = ((argb >>  0) & 0xFF) / 255.0f;
+    return dmVMath::Vector4(r, g, b, a);
+}
+
+static void SetArtboard(rive::ViewModelInstanceValueRuntime* _prop, rive::ArtboardInstance* instance)
+{
+    rive::ViewModelInstanceArtboardRuntime* prop = (rive::ViewModelInstanceArtboardRuntime*)_prop;
+    prop->value(instance);
+}
+
+static int ViewModelPropertyGet(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
+
+    ViewModelProperty* prop = CheckViewModelProperty(L, 1);
+    rive::DataType type = prop->m_Instance->dataType();
+
+    switch(type)
+    {
+        case rive::DataType::number:    lua_pushnumber(L, ((rive::ViewModelInstanceNumberRuntime*)prop->m_Instance)->value()); break;
+        case rive::DataType::string:    lua_pushstring(L, ((rive::ViewModelInstanceStringRuntime*)prop->m_Instance)->value().c_str()); break;
+        case rive::DataType::enumType:  lua_pushstring(L, ((rive::ViewModelInstanceEnumRuntime*)prop->m_Instance)->value().c_str()); break;
+        case rive::DataType::boolean:   lua_pushboolean(L, ((rive::ViewModelInstanceBooleanRuntime*)prop->m_Instance)->value()); break;
+        case rive::DataType::color:     dmScript::PushVector4(L, GetColor(prop->m_Instance)); break;
+
+
+        // todo: support
+        case rive::DataType::list:
+        case rive::DataType::viewModel:
+        case rive::DataType::integer:
+        case rive::DataType::symbolListIndex:
+        case rive::DataType::assetImage:
+        case rive::DataType::input:
+
+        // not gettable
+        case rive::DataType::artboard:
+        case rive::DataType::trigger:
+        case rive::DataType::none:
+        default:
+            dmLogError("Property '%s': Type has no gettable value: %d (%s)",
+                        prop->m_Instance->name().c_str(), type, DataTypeToString(type));
+            lua_pushnil(L);
+    }
+
+    return 1;
+}
+
+static int ViewModelPropertySet(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+
+    ViewModelProperty* prop = CheckViewModelProperty(L, 1);
+    rive::DataType type = prop->m_Instance->dataType();
+
+    switch(type)
+    {
+        // case rive::DataType::number:    lua_pushnumber(L, ((rive::ViewModelInstanceNumberRuntime*)prop->m_Instance)->value()); break;
+        // case rive::DataType::string:    lua_pushstring(L, ((rive::ViewModelInstanceStringRuntime*)prop->m_Instance)->value().c_str()); break;
+        // case rive::DataType::enumType:  lua_pushstring(L, ((rive::ViewModelInstanceEnumRuntime*)prop->m_Instance)->value().c_str()); break;
+        // case rive::DataType::boolean:   lua_pushboolean(L, ((rive::ViewModelInstanceBooleanRuntime*)prop->m_Instance)->value()); break;
+        // case rive::DataType::color:     dmScript::PushVector4(L, GetColor(prop->m_Instance)); break;
+
+        case rive::DataType::artboard:
+            {
+                Artboard* artboard = CheckArtboard(L, 2);
+                SetArtboard(prop->m_Instance, artboard->m_Instance);
+            }
+            break;
+
+        // todo: support
+        case rive::DataType::list:
+        case rive::DataType::viewModel:
+        case rive::DataType::integer:
+        case rive::DataType::symbolListIndex:
+        case rive::DataType::assetImage:
+        case rive::DataType::input:
+
+        // not settable
+        case rive::DataType::trigger:
+        case rive::DataType::none:
+        default:
+            dmLogError("Property '%s': Type has no settable value: %d (%s)",
+                        prop->m_Instance->name().c_str(), type, DataTypeToString(type));
+    }
+
+    return 0;
+}
 
 // *********************************************************************************
 
 static const luaL_reg ViewModelProperty_methods[] =
 {
+    {"get",     ViewModelPropertyGet},
+    {"set",     ViewModelPropertySet},
+    {"name",    ViewModelPropertyName},
+    {"type",    ViewModelPropertyType},
     {0,0}
 };
 
@@ -147,22 +252,6 @@ static const luaL_reg ViewModelProperty_meta[] =
 };
 
 // *********************************************************************************
-
-void PushViewModelProperty(lua_State* L, RiveSceneData* resource, rive::ViewModelInstanceValueRuntime* instance)
-{
-    ViewModelProperty* viewmodel = (ViewModelProperty*)lua_newuserdata(L, sizeof(ViewModelProperty));
-    viewmodel->m_Resource = resource;
-    viewmodel->m_Instance = instance;
-    luaL_getmetatable(L, SCRIPT_TYPE_NAME_VIEWMODEL_PROPERTY);
-    lua_setmetatable(L, -2);
-    dmResource::IncRef(g_Factory, resource);
-}
-
-ViewModelProperty* CheckViewModelProperty(lua_State* L, int index)
-{
-    ViewModelProperty* viewmodel = (ViewModelProperty*)dmScript::CheckUserType(L, index, TYPE_HASH_VIEWMODEL_PROPERTY, 0);
-    return viewmodel;
-}
 
 void ScriptInitializeViewModelProperty(lua_State* L, dmResource::HFactory factory)
 {

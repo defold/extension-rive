@@ -24,3 +24,15 @@ embedded_instances {
     y: 0.49
   }
 }
+embedded_instances {
+  id: "go1"
+  data: "components {\n"
+  "  id: \"swap_character_assets\"\n"
+  "  component: \"/main/databind-artboard/swap_character_assets.rivemodel\"\n"
+  "}\n"
+  ""
+  position {
+    x: -711.0
+    y: 75.0
+  }
+}

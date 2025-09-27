@@ -70,54 +70,37 @@ local function rive_event_handler(self, messagse_id, message)
 	print("received event", message.name)
 end
 
+local function attach_character(self)
+	if self.character_artboard and self.viewModelInstanceArtboardProp then
+		self.viewModelInstanceArtboardProp:set(self.character_artboard)
+	end
+end
+
 -- Get input focus then start the splash statemachine.
 function init(self)
 	msg.post(".", "acquire_input_focus") 
 
 	self.rive_url = msg.url("#swap_character_main")
-	--self.main_artboard = rive.get_artboard(self.rive_url, "")
-	-- self.main_file = rive.get_file(self.rive_url)
 
-	-- print("MAWE main_file:", self.main_file)
-
-	-- local f = rive.get_file(self.rive_url)
-	-- pprint("MAWE f:", f)
-
-	-- print("MAWE FILE PATH:", f:get_path())
-
-	-- print("MAWE main_artboard:", self.main_artboard)
-
-	-- self.main_artboard = self.main_file:get_artboard()
-	-- print("MAWE main_artboard:", self.main_artboard)
-
-	-- --self.modelViewInstanceRuntime = rive.databind.get_view_model_instance_runtime(self.rive_url)
 	self.viewModelInstance = rive.get_viewmodel(self.rive_url)
-	print("MAWE ViewModel:", self.viewModelInstance)
-
 	self.viewModelInstanceArtboardProp = self.viewModelInstance:get_property("Artboard property")
-	print("MAWE ViewModelProp:", self.viewModelInstanceArtboardProp)
 
+	self.character_file = rive.get_file_from_url("go1#swap_character_assets")
+	--go.delete("#swap_character_assets")
 
-	self.character_artboard = nil
-	self.character_riv_hash = nil
-	download_riv_file(self, "/unique/name/for/marty.rivc", URL, function (path_hash)
-			self.character_riv_hash = path_hash
-			self.character_file = rive.get_file(path_hash)
-			print("MAWE character_file:", self.character_file)
-			-- -- self.character_artboard = self.character_file:get_artboard("New Artboard")
-			self.character_artboard = self.character_file:get_artboard()
-			print("MAWE character_artboard:", self.character_artboard)
-		end)
+	--self.character_artboard = self.character_file:get_artboard() -- default: snapper
+	self.character_artboard = self.character_file:get_artboard('Character 1') -- ogre
+	--self.character_artboard = self.character_file:get_artboard('Character 2') -- snapper
+	attach_character(self)
+
+	-- download_riv_file(self, "/unique/name/for/marty.rivc", URL, function (path_hash)
+	-- 		self.character_file = rive.get_file_from_path(path_hash)
+	-- 		self.character_artboard = self.character_file:get_artboard()
+	--		attach_character(self)
+	-- 	end)
 
 end
 
-function final(self)
-	print("FINAL")
-	self.character_file = nil
-	self.viewModelInstance = nil
-	self.viewModelInstanceArtboardProp = nil
-	print("FINAL END")
-end
 
 -- Enable rive input for the model.
 function on_input(self, action_id, action)

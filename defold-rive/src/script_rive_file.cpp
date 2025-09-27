@@ -85,6 +85,7 @@ void PushRiveFile(lua_State* L, RiveSceneData* resource)
     file->m_Resource = resource;
     luaL_getmetatable(L, SCRIPT_TYPE_NAME_RIVE_FILE);
     lua_setmetatable(L, -2);
+    dmResource::IncRef(g_Factory, resource);
 }
 
 RiveFile* CheckRiveFile(lua_State* L, int index)
@@ -172,21 +173,11 @@ static int RiveFileGetPath(lua_State* L)
     return 1;
 }
 
-static RiveSceneData* AcquireRiveResource(lua_State* L, int index)
+static int RiveFileGetFileFromPath(lua_State* L)
 {
-    if (dmScript::IsURL(L, index))
-    {
-        RiveComponent* component = 0;
-        dmScript::GetComponentFromLua(L, index, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
-        RiveSceneData* resource = CompRiveGetRiveSceneData(component);
-        if (resource)
-        {
-            dmResource::IncRef(g_Factory, resource);
-        }
-        return resource;
-    }
+    int top = lua_gettop(L);
 
-    dmhash_t path_hash = dmScript::CheckHashOrString(L, index); // the resource to get the artboard from
+    dmhash_t path_hash = dmScript::CheckHashOrString(L, 1); // the resource to get the artboard from
 
     if (!IsTypeRivc(g_Factory, path_hash))
     {
@@ -201,17 +192,25 @@ static RiveSceneData* AcquireRiveResource(lua_State* L, int index)
         luaL_error(L, "Resource was not found: '%s'", dmHashReverseSafe64(path_hash));
         return 0;
     }
-    return resource;
+
+    PushRiveFile(L, resource);
+    // since the PushRiveFile incref'ed it too, we need to release it once
+    dmResource::Release(g_Factory, resource);
+
+    assert((top+1) == lua_gettop(L));
+    return 1;
 }
 
-static int RiveFileGet(lua_State* L)
+static int RiveFileGetFileFromUrl(lua_State* L)
 {
     int top = lua_gettop(L);
 
-    RiveSceneData* resource = AcquireRiveResource(L, 1);
+    RiveComponent* component = 0;
+    dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
+    RiveSceneData* resource = CompRiveGetRiveSceneData(component);
     if (!resource)
     {
-        return luaL_error(L, "Failed to get rive resource");
+        return luaL_error(L, "Failed to get rive resource from '%s'", lua_tostring(L, 1));
     }
 
     PushRiveFile(L, resource);
@@ -239,7 +238,8 @@ static const luaL_reg RiveFile_meta[] =
 
 static const luaL_reg RiveFile_functions[] =
 {
-    {"get_file",    RiveFileGet},
+    {"get_file_from_path",  RiveFileGetFileFromPath},
+    {"get_file_from_url",   RiveFileGetFileFromUrl},
     {0, 0}
 };
 
