@@ -12,8 +12,6 @@ embedded_instances {
   "  data: \"scene: \\\"/main/input/input.rivescene\\\"\\n"
   "default_animation: \\\"\\\"\\n"
   "material: \\\"/defold-rive/assets/rivemodel.material\\\"\\n"
-  "default_state_machine: \\\"State Machine 1\\\"\\n"
-  "artboard: \\\"Artboard\\\"\\n"
   "coordinate_system: COORDINATE_SYSTEM_RIVE\\n"
   "artboard_fit: FIT_CONTAIN\\n"
   "\"\n"

@@ -120,6 +120,12 @@ embedded_instances {
   "  data: \"collection: \\\"/main/scrollist/scrollist.collection\\\"\\n"
   "\"\n"
   "}\n"
+  "embedded_components {\n"
+  "  id: \"databind-artboard\"\n"
+  "  type: \"collectionproxy\"\n"
+  "  data: \"collection: \\\"/main/databind-artboard/databind-artboard.collection\\\"\\n"
+  "\"\n"
+  "}\n"
   ""
 }
 embedded_instances {

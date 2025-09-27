@@ -36,6 +36,7 @@ namespace dmRive
 {
     static void SetupData(RiveSceneData* scene_data, rive::File* file, const char* path, HRenderContext rive_render_context)
     {
+        scene_data->m_PathHash = dmHashString64(path);
         scene_data->m_File = file;
         scene_data->m_RiveRenderContext = rive_render_context;
         scene_data->m_ArtboardDefault = scene_data->m_File->artboardDefault();

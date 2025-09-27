@@ -4,12 +4,6 @@ set -e
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
-PLATFORM=$1
-shift
-
-RIVECPP=$1
-shift
-
 function Usage {
     echo "Usage: ./utils/build_rive_runtime.sh <platform> <rive_runtime_repo>"
     echo "platforms:"
@@ -27,18 +21,27 @@ function Usage {
     exit 1
 }
 
-if [ "" == "$RIVECPP" ]; then
+PLATFORM=$1
+
+RIVECPP=$2
+
+if [ "" == "${PLATFORM}" ]; then
     echo "You must specify a runtime path"
     Usage
 fi
 
-if [ ! -d "$RIVECPP" ]; then
-    echo "Rive folder does not exist: '$RIVECPP'"
+if [ "" == "${RIVECPP}" ]; then
+    echo "You must specify a runtime path"
+    Usage
+fi
+
+if [ ! -d "${RIVECPP}" ]; then
+    echo "Rive folder does not exist: '${RIVECPP}'"
     Usage
 fi
 
 # Check platforms
-case $PLATFORM in
+case ${PLATFORM} in
     arm64-android|armv7-android)
         ;;
     wasm-web|js-web|wasm_pthread-web)
