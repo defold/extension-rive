@@ -29,139 +29,103 @@
 #include <rive/viewmodel/runtime/viewmodel_instance_value_runtime.hpp>
 #include <rive/viewmodel/runtime/viewmodel_instance_number_runtime.hpp>
 
+#include "script_defold.h"
+#include <rive/lua/rive_lua_libs.hpp>
+#include <rive_lua_wrapper.h>
+
 namespace dmRive
 {
 
 static dmResource::HFactory g_Factory = 0;
 
-static const char*  SCRIPT_TYPE_NAME_VIEWMODEL = "ViewModel";
-static uint32_t     TYPE_HASH_VIEWMODEL = 0;
+static const char*  SCRIPT_TYPE_NAME_VIEWMODEL = rive::ScriptedViewModel::luaName;
+static char SCRIPT_TYPE_VIEWMODEL_METATABLE_NAME[128];
 
 // *********************************************************************************
 
-static bool IsViewModel(lua_State* L, int index)
+static rive::ScriptedViewModel* ToViewModel(lua_State* L, int index)
 {
-    return dmScript::GetUserType(L, index) == TYPE_HASH_VIEWMODEL;
+    return (rive::ScriptedViewModel*)dmRive::ToUserType(L, index, SCRIPT_TYPE_VIEWMODEL_METATABLE_NAME);
 }
 
-static ViewModel* ToViewModel(lua_State* L, int index)
+rive::ScriptedViewModel* CheckViewModel(lua_State* L, int index)
 {
-    return (ViewModel*)dmScript::ToUserType(L, index, TYPE_HASH_VIEWMODEL);
+    return (rive::ScriptedViewModel*)dmRive::CheckUserType(L, index, SCRIPT_TYPE_VIEWMODEL_METATABLE_NAME);
 }
 
 static int ViewModel_tostring(lua_State* L)
 {
-    ViewModel* viewmodel = ToViewModel(L, 1);
-    if (!viewmodel)
-    {
-        lua_pushstring(L, "no valid pointer!");
-        return 1;
-    }
-    lua_pushfstring(L, "rive.viewmodel(%p : '%s')", viewmodel, viewmodel->m_Instance ? viewmodel->m_Instance->name().c_str() : "null");
-    return 1;
-}
-
-static int ViewModel_eq(lua_State* L)
-{
-    ViewModel* v1 = ToViewModel(L, 1);
-    ViewModel* v2 = ToViewModel(L, 2);
-    lua_pushboolean(L, v1 && v2 && v1 == v2);
+    rive::ScriptedViewModel* viewmodel = CheckViewModel(L, 1);
+    lua_pushfstring(L, "rive.viewmodel(%p)", viewmodel);
     return 1;
 }
 
 static int ViewModel_gc(lua_State* L)
 {
-    //printf("ViewModel_gc: begin\n");
-    //fflush(stdout);
-
-    ViewModel* viewmodel = ToViewModel(L, 1);
-    delete viewmodel->m_Instance;
-    //printf("ViewModel_gc: %p : %p", viewmodel, viewmodel->m_Instance);
-    //fflush(stdout);
-
-    dmResource::Release(g_Factory, viewmodel->m_Resource);
-
-    //printf("ViewModel_gc: end\n");
-    //fflush(stdout);
+    rive::ScriptedViewModel* viewmodel = CheckViewModel(L, 1);
+    viewmodel->~ScriptedViewModel();
     return 0;
 }
 
-static int ViewModelGetViewModel(lua_State* L)
+static int ViewModel_index(lua_State* L)
 {
-    RiveComponent* component = 0;
-    dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
-    RiveSceneData* resource = CompRiveGetRiveSceneData(component);
-    rive::ViewModelInstanceRuntime* instance = CompRiveGetViewModelInstance(component);
-    if (instance)
-    {
-        PushViewModel(L, resource, instance);
-    }
-    else
-    {
-        lua_pushnil(L);
-    }
-
-    return 1;
+    rive::ScriptedViewModel* viewmodel = CheckViewModel(L, 1);
+    const char* name = luaL_checkstring(L, 2);
+    return viewmodel->pushValue(name);
 }
 
-static int ViewModelGetProperty(lua_State* L)
-{
-    DM_LUA_STACK_CHECK(L, 1);
-    ViewModel* viewmodel = CheckViewModel(L, 1);
-    const char* property_path = luaL_checkstring(L, 2);;
+// static int ViewModelGetViewModel(lua_State* L)
+// {
+//     RiveComponent* component = 0;
+//     dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
+//     RiveSceneData* resource = CompRiveGetRiveSceneData(component);
+//     rive::ViewModelInstanceRuntime* instance = CompRiveGetViewModelInstance(component);
+//     if (instance)
+//     {
+//         PushViewModel(L, resource, instance);
+//     }
+//     else
+//     {
+//         lua_pushnil(L);
+//     }
 
-    rive::ViewModelInstanceValueRuntime* property = viewmodel->m_Instance->property(property_path);
-    if (!property)
-    {
-        return DM_LUA_ERROR("No property found with path '%s'", property_path);
-    }
+//     return 1;
+// }
+
+// static int ViewModelGetProperty(lua_State* L)
+// {
+//     DM_LUA_STACK_CHECK(L, 1);
+//     ViewModel* viewmodel = CheckViewModel(L, 1);
+//     const char* property_path = luaL_checkstring(L, 2);;
+
+//     rive::ViewModelInstanceValueRuntime* property = viewmodel->m_Instance->property(property_path);
+//     if (!property)
+//     {
+//         return DM_LUA_ERROR("No property found with path '%s'", property_path);
+//     }
 
 
-    printf("ViewModelGetProperty: %p : %p -> %p", viewmodel, viewmodel->m_Instance, property);
-    PushViewModelProperty(L, viewmodel->m_Resource, property);
-    return 1;
-}
+//     printf("ViewModelGetProperty: %p : %p -> %p", viewmodel, viewmodel->m_Instance, property);
+//     PushViewModelProperty(L, viewmodel->m_Resource, property);
+//     return 1;
+// }
 
 
 // *********************************************************************************
 
 static const luaL_reg ViewModel_methods[] =
 {
-    {"get_property",       ViewModelGetProperty},
+    //{"get_property",       ViewModelGetProperty},
     {0,0}
 };
 
 static const luaL_reg ViewModel_meta[] =
 {
     {"__tostring",  ViewModel_tostring},
-    {"__eq",        ViewModel_eq},
     {"__gc",        ViewModel_gc},
+    {"__index",     ViewModel_index},
     {0,0}
 };
-
-static const luaL_reg ViewModel_functions[] =
-{
-    {"get_viewmodel", ViewModelGetViewModel},
-    {0, 0}
-};
-
-// *********************************************************************************
-
-void PushViewModel(lua_State* L, RiveSceneData* resource, rive::ViewModelInstanceRuntime* instance)
-{
-    ViewModel* viewmodel = (ViewModel*)lua_newuserdata(L, sizeof(ViewModel));
-    viewmodel->m_Resource = resource;
-    viewmodel->m_Instance = instance;
-    luaL_getmetatable(L, SCRIPT_TYPE_NAME_VIEWMODEL);
-    lua_setmetatable(L, -2);
-    dmResource::IncRef(g_Factory, resource);
-}
-
-ViewModel* CheckViewModel(lua_State* L, int index)
-{
-    ViewModel* viewmodel = (ViewModel*)dmScript::CheckUserType(L, index, TYPE_HASH_VIEWMODEL, 0);
-    return viewmodel;
-}
 
 void ScriptInitializeViewModel(lua_State* L, dmResource::HFactory factory)
 {
@@ -169,10 +133,8 @@ void ScriptInitializeViewModel(lua_State* L, dmResource::HFactory factory)
 
     g_Factory = factory;
 
-    TYPE_HASH_VIEWMODEL = dmScript::RegisterUserType(L, SCRIPT_TYPE_NAME_VIEWMODEL, ViewModel_methods, ViewModel_meta);
-
-    luaL_register(L, "rive", ViewModel_functions);
-    lua_pop(L, 1);
+    GetMetaTableName(rive::ScriptedViewModel::luaName, SCRIPT_TYPE_VIEWMODEL_METATABLE_NAME, sizeof(SCRIPT_TYPE_VIEWMODEL_METATABLE_NAME));
+    dmRive::RegisterUserType(L, SCRIPT_TYPE_NAME_VIEWMODEL, SCRIPT_TYPE_VIEWMODEL_METATABLE_NAME, ViewModel_methods, ViewModel_meta);
 
     assert(top == lua_gettop(L));
 }

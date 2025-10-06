@@ -55,12 +55,11 @@ static rive::ViewModelInstanceRuntime* FromHandle(RiveComponent* component, uint
 static rive::ViewModelRuntime* FindViewModelRuntimeByHash(RiveComponent* component, dmhash_t name_hash)
 {
     dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
-    rive::File* file = data->m_File;
 
-    size_t n = file->viewModelCount();
+    size_t n = data->m_File->viewModelCount();
     for (size_t i = 0; i < n; ++i)
     {
-        rive::ViewModelRuntime* vmr = file->viewModelByIndex(i);
+        rive::ViewModelRuntime* vmr = data->m_File->viewModelByIndex(i);
         dmhash_t hash = dmHashString64(vmr->name().c_str());
         if (hash == name_hash)
             return vmr;
@@ -71,8 +70,6 @@ static rive::ViewModelRuntime* FindViewModelRuntimeByHash(RiveComponent* compone
 static rive::ViewModelInstanceRuntime* CreateViewModelInstanceRuntimeByHash(RiveComponent* component, dmhash_t name_hash)
 {
     dmRive::RiveSceneData* data = component->m_Resource->m_Scene->m_Scene;
-    rive::File* file = data->m_File;
-
     if (name_hash != 0)
     {
         rive::ViewModelRuntime* vmr = FindViewModelRuntimeByHash(component, name_hash);
@@ -83,7 +80,7 @@ static rive::ViewModelInstanceRuntime* CreateViewModelInstanceRuntimeByHash(Rive
     if (!component->m_ArtboardInstance)
         return 0;
 
-    rive::ViewModelRuntime* vmr = file->defaultArtboardViewModel(component->m_ArtboardInstance.get());
+    rive::ViewModelRuntime* vmr = data->m_File->defaultArtboardViewModel(component->m_ArtboardInstance.get());
     if (vmr)
     {
         return vmr->createDefaultInstance();

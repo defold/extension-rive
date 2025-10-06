@@ -1,15 +1,21 @@
 #ifdef WITH_RIVE_SCRIPTING
 #ifndef _RIVE_LUA_LIBS_HPP_
 #define _RIVE_LUA_LIBS_HPP_
-#include "lua.h"
-#include "lualib.h"
+#if defined(RIVE_USE_LUA_WRAPPER) // DEFOLD
+    #include "rive_lua_wrapper.h"
+#else
+    #include "lua.h"
+    #include "lualib.h"
+#endif
 #include "rive/math/raw_path.hpp"
 #include "rive/renderer.hpp"
 #include "rive/math/vec2d.hpp"
 #include "rive/shapes/paint/image_sampler.hpp"
+#include "rive/viewmodel/viewmodel_instance_color.hpp"
 #include "rive/viewmodel/viewmodel_instance_value.hpp"
 #include "rive/viewmodel/viewmodel_instance_viewmodel.hpp"
 #include "rive/viewmodel/viewmodel_instance_number.hpp"
+#include "rive/viewmodel/viewmodel_instance_string.hpp"
 #include "rive/viewmodel/viewmodel_instance_trigger.hpp"
 #include "rive/viewmodel/viewmodel_instance_list.hpp"
 #include "rive/viewmodel/viewmodel.hpp"
@@ -21,6 +27,8 @@
 
 namespace rive
 {
+#if !defined(RIVE_USE_VANILLA_LUA) // DEFOLD
+
 class Factory;
 enum class LuaAtoms : int16_t
 {
@@ -314,6 +322,8 @@ private:
     uint32_t m_saveCount = 0;
 };
 
+#endif // !RIVE_USE_VANILLA_LUA
+
 class ScriptedArtboard
 {
 public:
@@ -359,7 +369,9 @@ struct ScriptedListener
 class ScriptedProperty : public ViewModelInstanceValueDelegate
 {
 public:
-    ScriptedProperty(lua_State* L, rcp<ViewModelInstanceValue> value);
+    ScriptedProperty(lua_State* L,
+                     rcp<File> file,
+                     rcp<ViewModelInstanceValue> value);
     virtual ~ScriptedProperty();
     int addListener();
     int removeListener();
@@ -376,6 +388,7 @@ private:
 
 protected:
     lua_State* m_state;
+    rcp<File> m_file;
     rcp<ViewModelInstanceValue> m_instanceValue;
 };
 
@@ -383,6 +396,7 @@ class ScriptedViewModel
 {
 public:
     ScriptedViewModel(lua_State* L,
+                      rcp<File> file,
                       rcp<ViewModel> viewModel,
                       rcp<ViewModelInstance> viewModelInstance);
     ~ScriptedViewModel();
@@ -395,6 +409,7 @@ public:
 
 private:
     lua_State* m_state;
+    rcp<File> m_file;
     rcp<ViewModel> m_viewModel;
     rcp<ViewModelInstance> m_viewModelInstance;
     std::unordered_map<std::string, int> m_propertyRefs;
@@ -404,6 +419,7 @@ class ScriptedPropertyViewModel : public ScriptedProperty
 {
 public:
     ScriptedPropertyViewModel(lua_State* L,
+                              rcp<File> file,
                               rcp<ViewModel> viewModel,
                               rcp<ViewModelInstanceViewModel> value);
     ~ScriptedPropertyViewModel();
@@ -420,7 +436,7 @@ private:
 class ScriptedPropertyNumber : public ScriptedProperty
 {
 public:
-    ScriptedPropertyNumber(lua_State* L, rcp<ViewModelInstanceNumber> value);
+    ScriptedPropertyNumber(lua_State* L, rcp<File> file, rcp<ViewModelInstanceNumber> value);
     static constexpr uint8_t luaTag = LUA_T_COUNT + 13;
     static constexpr const char* luaName = "Property<number>";
     static constexpr bool hasMetatable = true;
@@ -432,7 +448,7 @@ public:
 class ScriptedPropertyTrigger : public ScriptedProperty
 {
 public:
-    ScriptedPropertyTrigger(lua_State* L, rcp<ViewModelInstanceTrigger> value);
+    ScriptedPropertyTrigger(lua_State* L, rcp<File> file, rcp<ViewModelInstanceTrigger> value);
     static constexpr uint8_t luaTag = LUA_T_COUNT + 14;
     static constexpr const char* luaName = "PropertyTrigger";
     static constexpr bool hasMetatable = true;
@@ -441,7 +457,7 @@ public:
 class ScriptedPropertyList : public ScriptedProperty
 {
 public:
-    ScriptedPropertyList(lua_State* L, rcp<ViewModelInstanceList> value);
+    ScriptedPropertyList(lua_State* L, rcp<File> file, rcp<ViewModelInstanceList> value);
     ~ScriptedPropertyList();
     static constexpr uint8_t luaTag = LUA_T_COUNT + 15;
     static constexpr const char* luaName = "PropertyList";
@@ -456,6 +472,30 @@ private:
     std::unordered_map<ViewModelInstance*, int> m_propertyRefs;
 };
 
+class ScriptedPropertyColor : public ScriptedProperty
+{
+public:
+    ScriptedPropertyColor(lua_State* L, rcp<File> file, rcp<ViewModelInstanceColor> value);
+    static constexpr uint8_t luaTag = LUA_T_COUNT + 16;
+    static constexpr const char* luaName = "PropertyColor";
+    static constexpr bool hasMetatable = true;
+
+    int pushValue();
+    void setValue(unsigned value);
+};
+
+class ScriptedPropertyString : public ScriptedProperty
+{
+public:
+    ScriptedPropertyString(lua_State* L, rcp<File> file, rcp<ViewModelInstanceString> value);
+    static constexpr uint8_t luaTag = LUA_T_COUNT + 17;
+    static constexpr const char* luaName = "PropertyString";
+    static constexpr bool hasMetatable = true;
+
+    int pushValue();
+    void setValue(const std::string& value);
+};
+
 // Make
 // ScriptedPropertyViewModel
 //      - Nullable ViewModelInstanceValue (ViewModelInstanceViewModel)
@@ -463,18 +503,10 @@ private:
 // ScriptedPropertyEnum
 //      - Nullable ViewModelInstanceValue (ViewModelInstanceEnum)
 //      - Requires DataEnum for expected types
-// ScriptedPropertyNumber
-//      - Nullable ViewModelInstanceValue (ViewModelInstanceNumber)
-// ScriptedPropertyString
-//      - Nullable ViewModelInstanceValue (ViewModelInstanceString)
-// ScriptedPropertyTrigger
-//      - Nullable ViewModelInstanceValue (ViewModelInstanceTrigger)
 // ScriptedPropertyArtboard
 //      - Nullable ViewModelInstanceValue (ViewModelInstanceArtboard)
-// ScriptedPropertyColor
-//      - Nullable ViewModelInstanceValue (ViewModelInstanceColor)
-// ScriptedPropertyList
-//      - Nullable ViewModelInstanceValue (ViewModelInstanceList)
+
+#if !defined(RIVE_USE_VANILLA_LUA)
 
 // Make renderer: return lua_newrive<ScriptedRenderer>(L, renderer);
 template <class T, class... Args>
@@ -587,6 +619,8 @@ private:
     lua_State* m_state;
     ScriptingContext* m_context;
 };
+
+#endif // !RIVE_USE_VANILLA_LUA
 
 } // namespace rive
 #endif

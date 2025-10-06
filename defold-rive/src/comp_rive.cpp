@@ -788,7 +788,7 @@ namespace dmRive
 
             // RIVE UPDATE
             dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component.m_Resource->m_Scene->m_Scene;
-            rive::File* f               = data->m_File;
+            rive::File* f               = data->m_File.get();
             rive::Artboard* artboard    = f->artboard();
 
             if (!artboard)

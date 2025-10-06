@@ -3,7 +3,7 @@ name: RiveExt
 platforms:
     common:
         context:
-            defines:    []
+            defines:    ['WITH_RIVE_SCRIPTING', 'RIVE_USE_VANILLA_LUA', 'RIVE_USE_LUA_WRAPPER']
             symbols:    ["ResourceTypeRiveScene", "ResourceTypeRiveModel", "ResourceTypeRiveData", "ComponentTypeRive"]
 
     linux:

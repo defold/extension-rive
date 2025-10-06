@@ -39,7 +39,7 @@ namespace dmRive
     struct RiveSceneData
     {
         dmhash_t                                m_PathHash; // for printing debug info
-        rive::File*                             m_File;
+        rive::rcp<rive::File>                   m_File;
         HRenderContext                          m_RiveRenderContext;
         std::unique_ptr<rive::ArtboardInstance> m_ArtboardDefault;
         dmArray<RiveArtboardIdList*>            m_ArtboardIdLists;

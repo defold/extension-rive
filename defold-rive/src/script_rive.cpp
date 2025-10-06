@@ -16,6 +16,7 @@
 #include <rive/animation/linear_animation_instance.hpp>
 #include <rive/animation/state_machine.hpp>
 #include <rive/animation/state_machine_instance.hpp>
+#include <rive/viewmodel/runtime/viewmodel_instance_runtime.hpp>
 
 #include <dmsdk/sdk.h>
 #include <dmsdk/dlib/hash.h>
@@ -32,6 +33,7 @@
 #include "res_rive_data.h"
 #include "script_rive_private.h"
 
+#include <rive/lua/rive_lua_libs.hpp>
 
 namespace dmRive
 {
@@ -638,57 +640,140 @@ static int RiveComp_CreateRivFromMemory(lua_State* L)
     return 2;
 }
 
+static int RiveComp_GetArtBoard(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
 
-    // This is an "all bets are off" mode.
-    static int RiveComp_DebugSetBlitMode(lua_State* L)
+    RiveComponent* component = 0;
+    dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
+    RiveSceneData* resource = CompRiveGetRiveSceneData(component);
+    if (!resource)
     {
-        DM_LUA_STACK_CHECK(L, 0);
+        return luaL_error(L, "Failed to get rive resource from '%s'", lua_tostring(L, 1));
+    }
 
-        if (!lua_isboolean(L, 1))
+    const char* name = 0;
+    int index = -1;
+
+    switch(lua_type(L, 2))
+    {
+    case LUA_TSTRING: name = luaL_checkstring(L, 2); break;
+    case LUA_TNUMBER: index = luaL_checknumber(L, 2); break;
+    default: break;
+    }
+
+    rive::Artboard* artboard;
+    if (name)
+    {
+        artboard = resource->m_File->artboard(name);
+        if (!artboard)
         {
-            return DM_LUA_ERROR("The first argument must be a boolean.");
+            return DM_LUA_ERROR("No artboard named '%s' in file '%s'", name, dmHashReverseSafe64(resource->m_PathHash));
         }
-        bool value = lua_toboolean(L, 1);
-        CompRiveDebugSetBlitMode(value);
-        return 0;
+    }
+    else if(index >= 0)
+    {
+        artboard = resource->m_File->artboard((size_t)index);
+        if (!artboard)
+        {
+            return DM_LUA_ERROR("No artboard named at index %d in file '%s'", index, dmHashReverseSafe64(resource->m_PathHash));
+        }
+    }
+    else
+    {
+        artboard = resource->m_File->artboard();
+        if (!artboard)
+        {
+            return DM_LUA_ERROR("No default artboard in file '%s'", dmHashReverseSafe64(resource->m_PathHash));
+        }
     }
 
-    static const luaL_reg RIVE_FUNCTIONS[] =
+    lua_newrive<rive::ScriptedArtboard>(L, resource->m_File, artboard->instance());
+    return 1;
+}
+
+static int RiveComp_GetViewModel(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
+
+    RiveComponent* component = 0;
+    dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
+    rive::ViewModelInstanceRuntime* vmir = CompRiveGetViewModelInstance(component);
+    if (!vmir)
     {
-        {"play_anim",               RiveComp_PlayAnim},
-        {"play_state_machine",      RiveComp_PlayStateMachine},
-        {"cancel",                  RiveComp_Cancel},
-        {"get_go",                  RiveComp_GetGO},
-        {"pointer_move",            RiveComp_PointerMove},
-        {"pointer_up",              RiveComp_PointerUp},
-        {"pointer_down",            RiveComp_PointerDown},
-        {"set_text_run",            RiveComp_SetTextRun},
-        {"get_text_run",            RiveComp_GetTextRun},
-        {"get_projection_matrix",   RiveComp_GetProjectionMatrix},
-        {"get_state_machine_input", RiveComp_GetStateMachineInput},
-        {"set_state_machine_input", RiveComp_SetStateMachineInput},
-        {"debug_set_blit_mode",     RiveComp_DebugSetBlitMode},
-
-        {"riv_swap_asset",          RiveComp_RivSwapAsset},
-
-        {"create_riv_from_memory",  RiveComp_CreateRivFromMemory},
-        {0, 0}
-    };
-
-    void ScriptRegister(lua_State* L, dmResource::HFactory factory)
-    {
-        // deprecated
-        luaL_register(L, "rive", RIVE_FUNCTIONS);
-            ScriptInitializeDataBinding(L, factory);
-        lua_pop(L, 1);
-
-        ScriptInitializeFile(L, factory);
-        ScriptInitializeArtboard(L, factory);
-        ScriptInitializeViewModel(L, factory);
-        ScriptInitializeViewModelProperty(L, factory);
-
-        g_Factory = factory;
+        return luaL_error(L, "Failed to get view model from '%s'", lua_tostring(L, 1));
     }
+    RiveSceneData* resource = CompRiveGetRiveSceneData(component);
+    if (!resource)
+    {
+        return luaL_error(L, "Failed to get rive resource from '%s'", lua_tostring(L, 1));
+    }
+
+// ScriptedViewModel(lua_State* L,
+//                       rcp<File> file,
+//                       rcp<ViewModel> viewModel,
+//                       rcp<ViewModelInstance> viewModelInstance);
+
+    rive::rcp<rive::ViewModelInstance> instance = vmir->instance();
+    rive::rcp<rive::ViewModel> view_model(instance->viewModel());
+    lua_newrive<rive::ScriptedViewModel>(L, L, resource->m_File, view_model, instance);
+    return 1;
+}
+
+
+// This is an "all bets are off" mode.
+static int RiveComp_DebugSetBlitMode(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+
+    if (!lua_isboolean(L, 1))
+    {
+        return DM_LUA_ERROR("The first argument must be a boolean.");
+    }
+    bool value = lua_toboolean(L, 1);
+    CompRiveDebugSetBlitMode(value);
+    return 0;
+}
+
+static const luaL_reg RIVE_FUNCTIONS[] =
+{
+    {"play_anim",               RiveComp_PlayAnim},
+    {"play_state_machine",      RiveComp_PlayStateMachine},
+    {"cancel",                  RiveComp_Cancel},
+    {"get_go",                  RiveComp_GetGO},
+    {"pointer_move",            RiveComp_PointerMove},
+    {"pointer_up",              RiveComp_PointerUp},
+    {"pointer_down",            RiveComp_PointerDown},
+    {"set_text_run",            RiveComp_SetTextRun},
+    {"get_text_run",            RiveComp_GetTextRun},
+    {"get_projection_matrix",   RiveComp_GetProjectionMatrix},
+    {"get_state_machine_input", RiveComp_GetStateMachineInput},
+    {"set_state_machine_input", RiveComp_SetStateMachineInput},
+    {"debug_set_blit_mode",     RiveComp_DebugSetBlitMode},
+
+    {"riv_swap_asset",          RiveComp_RivSwapAsset},
+
+    {"create_riv_from_memory",  RiveComp_CreateRivFromMemory},
+
+    {"get_artboard",            RiveComp_GetArtBoard},
+    {"get_viewmodel",           RiveComp_GetViewModel},
+    {0, 0}
+};
+
+void ScriptRegister(lua_State* L, dmResource::HFactory factory)
+{
+    // deprecated
+    luaL_register(L, "rive", RIVE_FUNCTIONS);
+        ScriptInitializeDataBinding(L, factory);
+    lua_pop(L, 1);
+
+    // ScriptInitializeFile(L, factory);
+    ScriptInitializeArtboard(L, factory);
+    ScriptInitializeViewModel(L, factory);
+    // ScriptInitializeViewModelProperty(L, factory);
+
+    g_Factory = factory;
+}
 }
 
 #endif // DM_RIVE_UNSUPPORTED

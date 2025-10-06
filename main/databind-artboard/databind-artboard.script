@@ -51,15 +51,6 @@ end
 -- 	set_selected_thumb(self, index-1)
 -- end
 
-local function load_artboard_file(path)
-	local data, error = sys.load_resource(path)
-	if data then
-	  print("Success", data)
-	else
-	  print(error)
-	end
-end
-
 local function attachCharacter(self)
 	rive.databind.set_properties()
 end
@@ -82,16 +73,31 @@ function init(self)
 
 	self.rive_url = msg.url("#swap_character_main")
 
-	self.viewModelInstance = rive.get_viewmodel(self.rive_url)
-	self.viewModelInstanceArtboardProp = self.viewModelInstance:get_property("Artboard property")
+	local vm = rive.get_viewmodel(self.rive_url)
+	print("MAWE viewmodel:", vm)
 
-	self.character_file = rive.get_file_from_url("go1#swap_character_assets")
-	--go.delete("#swap_character_assets")
+	local ab_prop = vm["Artboard property"]
+	print("MAWE ab_prop:", ab_prop, type(ab_prop))
 
-	--self.character_artboard = self.character_file:get_artboard() -- default: snapper
-	self.character_artboard = self.character_file:get_artboard('Character 1') -- ogre
-	--self.character_artboard = self.character_file:get_artboard('Character 2') -- snapper
-	attach_character(self)
+	local ab = rive.get_artboard(self.rive_url)
+
+	print("MAWE artboard:", ab)
+	print("MAWE artboard.frameOrigin:", ab.frameOrigin)
+	pprint("MAWE artboard.data:", ab.data, type(ab.data))
+	--ab:advance(0.5)
+
+	--pprint("MAWE vm.Point:", vm.Point, type(vm.Point))
+
+	-- self.viewModelInstance = rive.get_viewmodel(self.rive_url)
+	-- self.viewModelInstanceArtboardProp = self.viewModelInstance:get_property("Artboard property")
+
+	-- self.character_file = rive.get_file_from_url("go1#swap_character_assets")
+	-- --go.delete("#swap_character_assets")
+
+	-- --self.character_artboard = self.character_file:get_artboard() -- default: snapper
+	-- self.character_artboard = self.character_file:get_artboard('Character 1') -- ogre
+	-- --self.character_artboard = self.character_file:get_artboard('Character 2') -- snapper
+	-- attach_character(self)
 
 	-- download_riv_file(self, "/unique/name/for/marty.rivc", URL, function (path_hash)
 	-- 		self.character_file = rive.get_file_from_path(path_hash)

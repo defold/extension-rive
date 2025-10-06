@@ -34,7 +34,7 @@
 
 namespace dmRive
 {
-    static void SetupData(RiveSceneData* scene_data, rive::File* file, const char* path, HRenderContext rive_render_context)
+    static void SetupData(RiveSceneData* scene_data, rive::rcp<rive::File> file, const char* path, HRenderContext rive_render_context)
     {
         scene_data->m_PathHash = dmHashString64(path);
         scene_data->m_File = file;
@@ -115,7 +115,7 @@ namespace dmRive
 
         RiveSceneData* scene_data = new RiveSceneData();
         scene_data->m_FileAssets.Swap(atlas_resolver->GetAssets());
-        SetupData(scene_data, file.release(), params->m_Filename, render_context_res);
+        SetupData(scene_data, file, params->m_Filename, render_context_res);
 
         dmResource::SetResource(params->m_Resource, scene_data);
         dmResource::SetResourceSize(params->m_Resource, 0);
@@ -129,7 +129,7 @@ namespace dmRive
         {
             delete scene_data->m_ArtboardIdLists[i];
         }
-        delete scene_data->m_File;
+        scene_data->m_File.reset();
         delete scene_data;
     }
 
@@ -171,7 +171,7 @@ namespace dmRive
         RiveSceneData* scene_data = new RiveSceneData();
 
         scene_data->m_FileAssets.Swap(atlas_resolver->GetAssets());
-        SetupData(scene_data, file.release(), params->m_Filename, render_context_res);
+        SetupData(scene_data, file, params->m_Filename, render_context_res);
 
         dmResource::SetResource(params->m_Resource, scene_data);
         dmResource::SetResourceSize(params->m_Resource, 0);

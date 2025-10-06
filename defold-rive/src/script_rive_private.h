@@ -42,42 +42,42 @@ namespace rive
 
 namespace dmRive
 {
-    struct RiveFile
-    {
-        RiveSceneData* m_Resource;
-    };
+    // struct RiveFile
+    // {
+    //     RiveSceneData* m_Resource;
+    // };
 
-    struct Artboard
-    {
-        RiveSceneData*          m_Resource; // The original file that it belongs to
-        rive::ArtboardInstance* m_Instance; // The instance
-    };
+    // struct Artboard
+    // {
+    //     RiveSceneData*          m_Resource; // The original file that it belongs to
+    //     rive::ArtboardInstance* m_Instance; // The instance
+    // };
 
-    struct ViewModel
-    {
-        RiveSceneData*                  m_Resource; // The original file that it belongs to
-        rive::ViewModelInstanceRuntime* m_Instance; // The instance
-    };
+    // struct ViewModel
+    // {
+    //     RiveSceneData*                  m_Resource; // The original file that it belongs to
+    //     rive::ViewModelInstanceRuntime* m_Instance; // The instance
+    // };
 
-    struct ViewModelProperty
-    {
-        RiveSceneData*                          m_Resource; // The original file that it belongs to
-        rive::ViewModelInstanceValueRuntime*    m_Instance; // The instance
-    };
+    // struct ViewModelProperty
+    // {
+    //     RiveSceneData*                          m_Resource; // The original file that it belongs to
+    //     rive::ViewModelInstanceValueRuntime*    m_Instance; // The instance
+    // };
 
-    bool        IsRiveFile(lua_State* L, int index);
-    void        PushRiveFile(lua_State* L, RiveSceneData* resource);
-    RiveFile*   ToRiveFile(lua_State* L, int index);
-    RiveFile*   CheckRiveFile(lua_State* L, int index);
+    // bool        IsRiveFile(lua_State* L, int index);
+    // void        PushRiveFile(lua_State* L, RiveSceneData* resource);
+    // RiveFile*   ToRiveFile(lua_State* L, int index);
+    // RiveFile*   CheckRiveFile(lua_State* L, int index);
 
-    void        PushArtboard(lua_State* L, RiveSceneData* resource, rive::ArtboardInstance* instance);
-    Artboard*   CheckArtboard(lua_State* L, int index);
+    // void        PushArtboard(lua_State* L, RiveSceneData* resource, rive::ArtboardInstance* instance);
+    // Artboard*   CheckArtboard(lua_State* L, int index);
 
-    void        PushViewModel(lua_State* L, RiveSceneData* resource, rive::ViewModelInstanceRuntime* instance);
-    ViewModel*  CheckViewModel(lua_State* L, int index);
+    // void        PushViewModel(lua_State* L, RiveSceneData* resource, rive::ViewModelInstanceRuntime* instance);
+    // ViewModel*  CheckViewModel(lua_State* L, int index);
 
-    void                PushViewModelProperty(lua_State* L, RiveSceneData* resource, rive::ViewModelInstanceValueRuntime* instance);
-    ViewModelProperty*  CheckViewModelProperty(lua_State* L, int index);
+    // void                PushViewModelProperty(lua_State* L, RiveSceneData* resource, rive::ViewModelInstanceValueRuntime* instance);
+    // ViewModelProperty*  CheckViewModelProperty(lua_State* L, int index);
 
     void ScriptInitializeFile(lua_State* L, dmResource::HFactory factory);
     void ScriptInitializeArtboard(lua_State* L, dmResource::HFactory factory);
