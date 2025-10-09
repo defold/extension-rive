@@ -50,7 +50,9 @@
 (def rive-scene-icon "/defold-rive/editor/resources/icons/32/Icons_16-Rive-scene.png")
 (def rive-model-icon "/defold-rive/editor/resources/icons/32/Icons_15-Rive-model.png")
 (def rive-bone-icon "/defold-rive/editor/resources/icons/32/Icons_18-Rive-bone.png")
+;; These should be read from the .proto file
 (def default-material-proj-path "/defold-rive/assets/rivemodel.material")
+(def default-blit-material-proj-path "/defold-rive/assets/shader-library/rivemodel_blit.material")
 
 (def rive-file-ext "riv")
 (def rive-scene-ext "rivescene")
@@ -94,6 +96,7 @@
       (gu/set-properties-from-pb-map self rive-model-pb-class rive-model-desc
         rive-scene (resolve-resource :scene)
         material (resolve-resource (:material :or default-material-proj-path))
+        blit-material (resolve-resource (:blit-material :or default-blit-material-proj-path))
         artboard :artboard
         default-animation :default-animation
         default-state-machine :default-state-machine
@@ -679,10 +682,11 @@
 ; .rivemodel (The "instance" file)
 ;
 
-(g/defnk produce-rivemodel-save-value [rive-scene-resource artboard default-animation default-state-machine material-resource blend-mode create-go-bones auto-bind coordinate-system artboard-fit artboard-alignment]
+(g/defnk produce-rivemodel-save-value [rive-scene-resource artboard default-animation default-state-machine material-resource blit-material-resource blend-mode create-go-bones auto-bind coordinate-system artboard-fit artboard-alignment]
   (protobuf/make-map-without-defaults rive-model-pb-class
     :scene (resource/resource->proj-path rive-scene-resource)
     :material (resource/resource->proj-path material-resource)
+    :blit-material (resource/resource->proj-path blit-material-resource)
     :artboard artboard
     :default-animation default-animation
     :default-state-machine default-state-machine
@@ -741,11 +745,11 @@
         pb (reduce #(assoc %1 (first %2) (second %2)) pb (map (fn [[label res]] [label (resource/proj-path (get dep-resources res))]) (:dep-resources user-data)))]
     {:resource resource :content (protobuf/map->bytes rive-model-pb-class pb)}))
 
-(g/defnk produce-model-build-targets [_node-id own-build-errors resource save-value rive-scene-resource material-resource dep-build-targets]
+(g/defnk produce-model-build-targets [_node-id own-build-errors resource save-value rive-scene-resource material-resource blit-material-resource dep-build-targets]
   (g/precluding-errors own-build-errors
                        (let [dep-build-targets (flatten dep-build-targets)
                              deps-by-source (into {} (map #(let [res (:resource %)] [(:resource res) res]) dep-build-targets))
-                             dep-resources (map (fn [[label resource]] [label (get deps-by-source resource)]) [[:scene rive-scene-resource] [:material material-resource]])]
+                             dep-resources (map (fn [[label resource]] [label (get deps-by-source resource)]) [[:scene rive-scene-resource] [:material material-resource] [:blit-material blit-material-resource]])]
                          [(bt/with-content-hash
                             {:node-id _node-id
                              :resource (workspace/make-build-resource resource)
@@ -789,6 +793,19 @@
             (dynamic edit-type (g/constantly {:type resource/Resource :ext "material"}))
             (dynamic error (g/fnk [_node-id material]
                                   (validate-model-material _node-id material))))
+  ; not visible/editable
+  (property blit-material resource/Resource ; Default assigned in load-fn.
+            (value (gu/passthrough blit-material-resource))
+            (set (fn [evaluation-context self old-value new-value]
+                   (project/resource-setter evaluation-context self old-value new-value
+                                            [:resource :blit-material-resource]
+                                            [:shader :blit-material-shader]
+                                            [:samplers :blit-material-samplers]
+                                            [:build-targets :dep-build-targets])))
+            (dynamic edit-type (g/constantly {:type resource/Resource :ext "material"}))
+            (dynamic error (g/fnk [_node-id material]
+                                  (validate-model-material _node-id material)))
+            (dynamic visible (g/constantly false)))
 
   (property default-state-machine g/Str (default (protobuf/default rive-model-pb-class :default-state-machine))
             (dynamic error (g/fnk [_node-id artboard rive-artboard-id-list default-state-machine rive-scene]
@@ -832,6 +849,9 @@
   (input material-resource resource/Resource)
   (input material-shader ShaderLifecycle)
   (input material-samplers g/Any)
+  (input blit-material-resource resource/Resource)
+  (input blit-material-shader ShaderLifecycle)
+  (input blit-material-samplers g/Any)
   (input default-tex-params g/Any)
   (input anim-data g/Any)
 
