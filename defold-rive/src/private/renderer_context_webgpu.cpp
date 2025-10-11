@@ -40,9 +40,9 @@ namespace dmRive
             m_RenderToTexture = true; // render to texture is the default
             m_TargetTexture = 0;
             m_BackingTexture = 0;
-            m_Adapter = wgpu::Adapter::Acquire(webgpu_adapter);
-            m_Device = wgpu::Device::Acquire(webgpu_device);
-            m_Queue = wgpu::Queue::Acquire(webgpu_queue);
+            m_Adapter = wgpu::Adapter(webgpu_adapter);
+            m_Device = wgpu::Device(webgpu_device);
+            m_Queue = wgpu::Queue(webgpu_queue);
 
             dmLogInfo("Before creating WebGPU context. (RIVE_WEBGPU=%d)", RIVE_WEBGPU);
 
@@ -96,9 +96,9 @@ namespace dmRive
                 dmGraphics::HTexture frame_buffer        = dmGraphics::WebGPUGetActiveSwapChainTexture(m_GraphicsContext);
                 WGPUTexture          webgpu_texture      = dmGraphics::WebGPUGetTexture(m_GraphicsContext, frame_buffer);
                 WGPUTextureView      webgpu_texture_view = dmGraphics::WebGPUGetTextureView(m_GraphicsContext, frame_buffer);
-                m_BackingTextureView                     = wgpu::TextureView::Acquire(webgpu_texture_view);
+                m_BackingTextureView                     = wgpu::TextureView(webgpu_texture_view);
 
-                m_RenderTarget->setTargetTextureView(m_BackingTextureView, wgpu::Texture::Acquire(webgpu_texture));
+                m_RenderTarget->setTargetTextureView(m_BackingTextureView, wgpu::Texture(webgpu_texture));
             }
 
             m_RenderContext->flush({
@@ -151,9 +151,9 @@ namespace dmRive
 
                 WGPUTexture     webgpu_texture      = dmGraphics::WebGPUGetTexture(m_GraphicsContext, m_BackingTexture);
                 WGPUTextureView webgpu_texture_view = dmGraphics::WebGPUGetTextureView(m_GraphicsContext, m_BackingTexture);
-                m_BackingTextureView                = wgpu::TextureView::Acquire(webgpu_texture_view);
+                m_BackingTextureView                = wgpu::TextureView(webgpu_texture_view);
 
-                m_RenderTarget->setTargetTextureView(m_BackingTextureView, wgpu::Texture::Acquire(webgpu_texture));
+                m_RenderTarget->setTargetTextureView(m_BackingTextureView, wgpu::Texture(webgpu_texture));
 
                 m_RenderToTexture = true;
             }
