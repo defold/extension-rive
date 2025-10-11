@@ -103,6 +103,7 @@
         blend-mode :blend-mode
         create-go-bones :create-go-bones
         auto-bind :auto-bind
+        auto-play :auto-play
         coordinate-system :coordinate-system
         artboard-fit :artboard-fit
         artboard-alignment :artboard-alignment))))
@@ -209,12 +210,9 @@
                                    (g/connect bone :bone parent-id :child-bones))]
     bone-tx-data))
 
-(defn- tx-first-created [tx-data]
-  (get-in (first tx-data) [:node :_node-id]))
-
 (defn- create-bone-hierarchy [parent-id bone]
   (let [bone-tx-data (create-bone parent-id bone)
-        bone-id (tx-first-created bone-tx-data)
+        bone-id (first (g/tx-data-added-node-ids bone-tx-data))
         child-bones (.-children bone)
         children-tx-data (mapcat (fn [child] (create-bone-hierarchy bone-id child)) child-bones)]
     (concat bone-tx-data children-tx-data)))
@@ -682,7 +680,7 @@
 ; .rivemodel (The "instance" file)
 ;
 
-(g/defnk produce-rivemodel-save-value [rive-scene-resource artboard default-animation default-state-machine material-resource blit-material-resource blend-mode create-go-bones auto-bind coordinate-system artboard-fit artboard-alignment]
+(g/defnk produce-rivemodel-save-value [rive-scene-resource artboard default-animation default-state-machine material-resource blit-material-resource blend-mode create-go-bones auto-bind auto-play coordinate-system artboard-fit artboard-alignment]
   (protobuf/make-map-without-defaults rive-model-pb-class
     :scene (resource/resource->proj-path rive-scene-resource)
     :material (resource/resource->proj-path material-resource)
@@ -693,6 +691,7 @@
     :blend-mode blend-mode
     :create-go-bones create-go-bones
     :auto-bind auto-bind
+    :auto-play auto-play
     :coordinate-system coordinate-system
     :artboard-fit artboard-fit
     :artboard-alignment artboard-alignment))
@@ -825,6 +824,8 @@
           (dynamic edit-type (g/fnk [rive-artboards] (properties/->choicebox (cons "" rive-artboards)))))
 
   (property auto-bind g/Bool (default (protobuf/default rive-model-pb-class :auto-bind)))
+
+  (property auto-play g/Bool (default (protobuf/default rive-model-pb-class :auto-play)))
 
   (property create-go-bones g/Bool (default (protobuf/default rive-model-pb-class :create-go-bones)))
 
