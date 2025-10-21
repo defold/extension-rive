@@ -1,0 +1,36 @@
+#version 140
+
+#define FILL_TYPE_SOLID 0
+#define FILL_TYPE_LINEAR 1
+#define FILL_TYPE_RADIAL 2
+#define FILL_TYPE_TEXTURED 3
+
+in highp vec2 position;
+in highp vec2 texcoord0;
+
+uniform vs_uniforms {
+    highp mat4 world_view_proj;
+    highp vec4 transform_local[4];
+    highp vec4 gradientLimits;
+    highp vec4 properties; // x: filltype, y: stopcount
+};
+
+out highp vec2 var_texcoord0;
+out highp vec2 var_gradient_uv;
+
+void main() {
+    var_texcoord0 = texcoord0;
+    gl_Position = world_view_proj * vec4(position.xy, 0.0, 1.0);
+
+    int iFillType = int(properties.x);
+    vec2 gradientStart = gradientLimits.xy;
+    vec2 gradientStop = gradientLimits.zw;
+
+    if (iFillType == FILL_TYPE_LINEAR) {
+        vec2 toEnd  = gradientStop - gradientStart;
+        float lengthSquared = toEnd.x * toEnd.x + toEnd.y * toEnd.y;
+        var_gradient_uv.x = dot(position.xy - gradientStart, toEnd) / lengthSquared;
+    } else if (iFillType == FILL_TYPE_RADIAL) {
+        var_gradient_uv = (position.xy - gradientStart) / distance(gradientStart, gradientStop);
+    }
+}
