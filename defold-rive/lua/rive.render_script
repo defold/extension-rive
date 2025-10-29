@@ -194,7 +194,10 @@ function update(self)
     -- Rive rendering
     render.set_projection(rive.get_projection_matrix())
     render.draw(predicates.rive)
-    
+
+    -- render the other components: sprites, tilemaps, particles etc
+    --
+    render.set_projection(camera_world.proj)
     render.draw(predicates.tile, camera_world.frustum)
     render.draw(predicates.particle, camera_world.frustum)
     render.disable_state(graphics.STATE_DEPTH_TEST)
