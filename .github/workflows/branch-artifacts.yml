@@ -1,0 +1,259 @@
+name: Branch Scripts and Artifacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "Target platform for Rive build"
+        required: true
+        type: choice
+        options: ["x86_64-linux", "arm64-macos"]
+        default: "x86_64-linux"
+      rive_repo_url:
+        description: "Rive runtime repo URL (HTTPS)"
+        required: true
+        default: "https://github.com/rive-app/rive-runtime.git"
+      rive_ref:
+        description: "Rive runtime ref (branch/tag/commit). Leave empty for default."
+        required: false
+        default: ""
+      commit_message:
+        description: "Optional commit message suffix"
+        required: false
+        default: ""
+      push_changes:
+        description: "Push changes back to the same branch"
+        required: true
+        type: choice
+        options: ["true", "false"]
+        default: "true"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: branch-artifacts-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build-linux:
+    if: ${{ github.event.inputs.platform == 'x86_64-linux' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Clone Rive runtime and set RIVE_ROOT
+        shell: bash
+        run: |
+          set -euo pipefail
+          RIVE_TMP_DIR=$(mktemp -d)
+          echo "RIVE_ROOT=${RIVE_TMP_DIR}" >> "$GITHUB_ENV"
+          url="${{ github.event.inputs.rive_repo_url }}"
+          ref="${{ github.event.inputs.rive_ref }}"
+          echo "Cloning Rive runtime from: ${url}"
+          if [ -n "$ref" ]; then
+            git clone --depth 1 --branch "$ref" "$url" "$RIVE_TMP_DIR"
+          else
+            git clone --depth 1 "$url" "$RIVE_TMP_DIR"
+          fi
+          echo "RIVE_ROOT set to: $RIVE_TMP_DIR"
+
+      - name: Ensure clean Rive repo
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -d "${RIVE_ROOT}/.git" ]; then
+            cd "${RIVE_ROOT}"
+            if [ -n "$(git status --porcelain)" ]; then
+              echo "Pending changes detected; resetting Rive repo"
+              git reset --hard
+            else
+              echo "Rive repo is clean"
+            fi
+          fi
+
+      - name: Show context
+        shell: bash
+        run: |
+          echo "Branch: ${{ github.ref_name }}"
+          echo "RIVE_ROOT: ${RIVE_ROOT:-not-set}"
+          echo "Platform: ${{ github.event.inputs.platform }}"
+          git --version
+          git status
+
+      - name: Build Rive runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          platform="${{ github.event.inputs.platform }}"
+          echo "Running: ./utils/build_rive_runtime.sh ${platform} ${RIVE_ROOT}"
+          bash utils/build_rive_runtime.sh "${platform}" "${RIVE_ROOT}"
+
+      - name: Pack artifacts (optional)
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          paths=()
+          [ -d defold-rive/lib ] && paths+=(defold-rive/lib)
+          [ -d defold-rive/include ] && paths+=(defold-rive/include)
+          if [ ${#paths[@]} -eq 0 ]; then
+            echo "No artifact directories found (defold-rive/lib, defold-rive/include)."
+            exit 0
+          fi
+          echo "Packing: ${paths[*]}"
+          tar -czf "branch-artifacts-${{ github.ref_name }}.tgz" "${paths[@]}"
+
+      - name: Upload artifact (optional)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: branch-artifacts-${{ github.ref_name }}
+          path: branch-artifacts-${{ github.ref_name }}.tgz
+          if-no-files-found: ignore
+
+      - name: Commit and push changes (optional)
+        if: ${{ github.event.inputs.push_changes == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          add_paths=()
+          [ -d defold-rive/lib ] && add_paths+=(defold-rive/lib)
+          [ -d defold-rive/include ] && add_paths+=(defold-rive/include)
+          if [ ${#add_paths[@]} -gt 0 ]; then
+            git add -v "${add_paths[@]}" || true
+          fi
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          msg="ci: update artifacts on ${{ github.ref_name }} [skip ci]"
+          if [ -n "${{ github.event.inputs.commit_message }}" ]; then
+            msg="$msg - ${{ github.event.inputs.commit_message }}"
+          fi
+          git commit -m "$msg"
+          git pull --rebase origin "${{ github.ref_name }}" || true
+          git push origin HEAD:"${{ github.ref_name }}"
+
+      - name: Post-commit status
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          git --no-pager log -1 --oneline || true
+          git status || true
+
+  build-macos:
+    if: ${{ github.event.inputs.platform == 'arm64-macos' }}
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Clone Rive runtime and set RIVE_ROOT
+        shell: bash
+        run: |
+          set -euo pipefail
+          RIVE_TMP_DIR=$(mktemp -d)
+          echo "RIVE_ROOT=${RIVE_TMP_DIR}" >> "$GITHUB_ENV"
+          url="${{ github.event.inputs.rive_repo_url }}"
+          ref="${{ github.event.inputs.rive_ref }}"
+          echo "Cloning Rive runtime from: ${url}"
+          if [ -n "$ref" ]; then
+            git clone --depth 1 --branch "$ref" "$url" "$RIVE_TMP_DIR"
+          else
+            git clone --depth 1 "$url" "$RIVE_TMP_DIR"
+          fi
+          echo "RIVE_ROOT set to: $RIVE_TMP_DIR"
+
+      - name: Ensure clean Rive repo
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -d "${RIVE_ROOT}/.git" ]; then
+            cd "${RIVE_ROOT}"
+            if [ -n "$(git status --porcelain)" ]; then
+              echo "Pending changes detected; resetting Rive repo"
+              git reset --hard
+            else
+              echo "Rive repo is clean"
+            fi
+          fi
+
+      - name: Show context
+        shell: bash
+        run: |
+          echo "Branch: ${{ github.ref_name }}"
+          echo "RIVE_ROOT: ${RIVE_ROOT:-not-set}"
+          echo "Platform: ${{ github.event.inputs.platform }}"
+          git --version
+          git status
+
+      - name: Build Rive runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          platform="${{ github.event.inputs.platform }}"
+          echo "Running: ./utils/build_rive_runtime.sh ${platform} ${RIVE_ROOT}"
+          bash utils/build_rive_runtime.sh "${platform}" "${RIVE_ROOT}"
+
+      - name: Pack artifacts (optional)
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          paths=()
+          [ -d defold-rive/lib ] && paths+=(defold-rive/lib)
+          [ -d defold-rive/include ] && paths+=(defold-rive/include)
+          if [ ${#paths[@]} -eq 0 ]; then
+            echo "No artifact directories found (defold-rive/lib, defold-rive/include)."
+            exit 0
+          fi
+          echo "Packing: ${paths[*]}"
+          tar -czf "branch-artifacts-${{ github.ref_name }}.tgz" "${paths[@]}"
+
+      - name: Upload artifact (optional)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: branch-artifacts-${{ github.ref_name }}
+          path: branch-artifacts-${{ github.ref_name }}.tgz
+          if-no-files-found: ignore
+
+      - name: Commit and push changes (optional)
+        if: ${{ github.event.inputs.push_changes == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          add_paths=()
+          [ -d defold-rive/lib ] && add_paths+=(defold-rive/lib)
+          [ -d defold-rive/include ] && add_paths+=(defold-rive/include)
+          if [ ${#add_paths[@]} -gt 0 ]; then
+            git add -v "${add_paths[@]}" || true
+          fi
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          msg="ci: update artifacts on ${{ github.ref_name }} [skip ci]"
+          if [ -n "${{ github.event.inputs.commit_message }}" ]; then
+            msg="$msg - ${{ github.event.inputs.commit_message }}"
+          fi
+          git commit -m "$msg"
+          git pull --rebase origin "${{ github.ref_name }}" || true
+          git push origin HEAD:"${{ github.ref_name }}"
+
+      - name: Post-commit status
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          git --no-pager log -1 --oneline || true
+          git status || true

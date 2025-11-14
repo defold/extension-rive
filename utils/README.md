@@ -81,6 +81,36 @@ The supported platforms are
 * x86_64-linux
 
 
+## CI Workflow Usage
+
+Use the GitHub Actions workflow to build and optionally commit the generated artifacts back to the same branch.
+
+Steps:
+
+- Go to GitHub → Actions → "Branch Scripts and Artifacts" → Run workflow.
+- Pick the target branch in the UI.
+- Set inputs:
+  - `platform`: choose `x86_64-linux` or `arm64-macos`.
+  - `rive_repo_url`: HTTPS repo for Rive runtime (defaults to `https://github.com/rive-app/rive-runtime.git`).
+  - `rive_ref` (optional): pin a branch/tag/commit of the runtime.
+  - `commit_message` (optional): suffix for the commit message.
+  - `push_changes`: `true` to commit/push changes; `false` for a dry run.
+
+What it does:
+
+- Checks out your branch and clones the Rive runtime to a temp folder.
+- Exports `RIVE_ROOT` to that folder and ensures the repo is clean.
+- Runs `./utils/build_rive_runtime.sh ${PLATFORM} ${RIVE_ROOT}`.
+- Uploads `branch-artifacts-<branch>.tgz` containing `defold-rive/lib` and `defold-rive/include`.
+- If `push_changes=true`, commits only `defold-rive/lib` and `defold-rive/include` back to the same branch with `[skip ci]` in the message.
+
+Notes:
+
+- Runners: `x86_64-linux` runs on `ubuntu-latest`; `arm64-macos` runs on `macos-latest` and requires Xcode command line tools.
+- If you need specific SDKs (e.g., `ANDROID_NDK`, `EMSDK`), set them accordingly before invoking platform-specific builds.
+- Concurrency is limited to one workflow per branch; commits include `[skip ci]` to avoid loops.
+
+
 ## For the engine (old build path)
 
 This step is needed for each platform+architecture that the runtime should support.
