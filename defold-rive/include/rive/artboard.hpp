@@ -6,9 +6,8 @@
 #include "rive/animation/linear_animation.hpp"
 #include "rive/animation/state_machine.hpp"
 #include "rive/core_context.hpp"
-#include "rive/data_bind/data_bind.hpp"
 #include "rive/data_bind/data_context.hpp"
-#include "rive/data_bind/data_bind_context.hpp"
+#include "rive/data_bind/data_bind_container.hpp"
 #include "rive/viewmodel/viewmodel_instance_value.hpp"
 #include "rive/viewmodel/viewmodel_instance_viewmodel.hpp"
 #include "rive/generated/artboard_base.hpp"
@@ -48,6 +47,9 @@ class SMIBool;
 class SMIInput;
 class SMINumber;
 class SMITrigger;
+class DataBind;
+class DataBindContainer;
+class ScriptedObject;
 
 #ifdef WITH_RIVE_TOOLS
 typedef void (*ArtboardCallback)(void*);
@@ -59,7 +61,8 @@ typedef float (*RootTransformCallback)(void*, float, float, bool);
 class Artboard : public ArtboardBase,
                  public CoreContext,
                  public Virtualizable,
-                 public ResettingComponent
+                 public ResettingComponent,
+                 public DataBindContainer
 {
     friend class File;
     friend class ArtboardImporter;
@@ -77,8 +80,7 @@ private:
     std::vector<ArtboardHost*> m_ArtboardHosts;
     std::vector<Joystick*> m_Joysticks;
     std::vector<ResettingComponent*> m_Resettables;
-    std::vector<DataBind*> m_DataBinds;
-    std::vector<DataBind*> m_AllDataBinds;
+    std::vector<ScriptedObject*> m_ScriptedObjects;
     DataContext* m_DataContext = nullptr;
     bool m_ownsDataContext = false;
     bool m_JoysticksApplyBeforeUpdate = true;
@@ -93,6 +95,7 @@ private:
     float m_originalWidth = 0;
     float m_originalHeight = 0;
     bool m_updatesOwnLayout = true;
+    bool m_hostTransformMarkedDirty = false;
     Artboard* parentArtboard() const;
     ArtboardHost* m_host = nullptr;
     bool sharesLayoutWithHost() const;
@@ -119,7 +122,7 @@ private:
     void update(ComponentDirt value) override;
 
 public:
-    void updateDataBinds();
+    void updateDataBinds(bool applyTargetToSource = true) override;
     void host(ArtboardHost* artboardHost);
     ArtboardHost* host() const;
 
@@ -131,6 +134,7 @@ public:
     Component* virtualizableComponent() override { return this; }
     bool updatesOwnLayout() { return m_updatesOwnLayout; }
     StatusCode onAddedClean(CoreContext* context) override;
+    void addDirtyDataBind(DataBind*) override;
 
 private:
 #ifdef TESTING
@@ -157,7 +161,10 @@ public:
     {
         m_artboardSource = artboard;
     }
-    const Artboard* artboardSource() const { return m_artboardSource; }
+    const Artboard* artboardSource() const
+    {
+        return isInstance() ? m_artboardSource : this;
+    }
     bool isAncestor(const Artboard* artboard);
 
     /// Find the id of a component in the artboard the object in the artboard.
@@ -193,6 +200,7 @@ public:
     void updateWorldTransform() override {}
 
     void markLayoutDirty(LayoutComponent* layoutComponent);
+    void markHostTransformDirty();
     void cleanLayout(LayoutComponent* layoutComponent);
 
     LayoutData* takeLayoutData();
@@ -212,6 +220,7 @@ public:
     void reset() override;
     uint8_t drawOrderChangeCounter() { return m_drawOrderChangeCounter; }
     Drawable* firstDrawable() { return m_FirstDrawable; };
+    void addScriptedObject(ScriptedObject* object);
 
     enum class DrawOption
     {
@@ -222,6 +231,7 @@ public:
     void draw(Renderer* renderer, DrawOption option);
     void draw(Renderer* renderer) override;
     void addToRenderPath(RenderPath* path, const Mat2D& transform);
+    void addToRawPath(RawPath& path, const Mat2D* transform);
 
 #ifdef TESTING
     ShapePaintPath* clipPath() { return &m_worldPath; }
@@ -243,8 +253,6 @@ public:
     {
         return m_ComponentLists;
     }
-    const std::vector<DataBind*> dataBinds() const { return m_DataBinds; }
-    const std::vector<DataBind*> allDataBinds() const { return m_AllDataBinds; }
     DataContext* dataContext() { return m_DataContext; }
     NestedArtboard* nestedArtboard(const std::string& name) const;
     NestedArtboard* nestedArtboardAtPath(const std::string& path) const;
@@ -269,11 +277,10 @@ public:
     void internalDataContext(DataContext* dataContext);
     void clearDataContext();
     void unbind();
+    void rebind() override;
     void bindViewModelInstance(rcp<ViewModelInstance> viewModelInstance,
                                DataContext* parent);
     void bindViewModelInstance(rcp<ViewModelInstance> viewModelInstance);
-    void addDataBind(DataBind* dataBind);
-    void sortDataBinds();
 
     bool hasAudio() const;
 
@@ -472,6 +479,7 @@ private:
 #ifdef WITH_RIVE_TOOLS
     ArtboardCallback m_layoutChangedCallback = nullptr;
     ArtboardCallback m_layoutDirtyCallback = nullptr;
+    ArtboardCallback m_transformDirtyCallback = nullptr;
     TestBoundsCallback m_testBoundsCallback = nullptr;
     IsAncestorCallback m_isAncestorCallback = nullptr;
     RootTransformCallback m_rootTransformCallback = nullptr;
@@ -485,6 +493,11 @@ public:
     void onLayoutDirty(ArtboardCallback callback)
     {
         m_layoutDirtyCallback = callback;
+        addDirt(ComponentDirt::Components);
+    }
+    void onTransformDirty(ArtboardCallback callback)
+    {
+        m_transformDirtyCallback = callback;
         addDirt(ComponentDirt::Components);
     }
     void onTestBounds(TestBoundsCallback callback)

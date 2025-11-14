@@ -3,6 +3,7 @@
 set -e
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+SCRIPT_DIR_UTILS=${SCRIPT_DIR}/buildscripts
 
 PLATFORM=$1
 shift
@@ -100,14 +101,12 @@ VERSIONHEADER=${PREFIX}/include/defold/rive_version.h
 # cp -v ${RIVECPP}/build_headers.sh ${SCRIPT_DIR}/
 
 echo "Writing version header ${VERSIONHEADER}"
-${SCRIPT_DIR}/build_version_header.sh ${VERSIONHEADER} ${RIVECPP}
+${SCRIPT_DIR_UTILS}/build_version_header.sh ${VERSIONHEADER} ${RIVECPP}
 
 
 RIVEPATCH=${SCRIPT_DIR}/rive.patch
 echo "Applying patch ${RIVEPATCH}"
-set +e
-(cd ${RIVECPP} && git apply ${RIVEPATCH})
-set -e
+(cd ${RIVECPP} && git apply -3 ${RIVEPATCH})
 
 CONFIGURATION=release
 
@@ -120,7 +119,7 @@ case $PLATFORM in
         fi
 
         # expects ANDROID_NDK to be set
-        (cd ${RIVECPP} && ${SCRIPT_DIR}/build_android.sh --prefix ${PREFIX} --abis ${ARCH} --config ${CONFIGURATION})
+        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_android.sh --prefix ${PREFIX} --abis ${ARCH} --config ${CONFIGURATION})
         ;;
 
     wasm-web|wasm_pthread-web|js-web)
@@ -144,11 +143,11 @@ case $PLATFORM in
             fi
             echo "Using RIVE_EMSDK_VERSION=${RIVE_EMSDK_VERSION}"
         fi
-        (cd ${RIVECPP} && ${SCRIPT_DIR}/build_emscripten.sh --prefix ${PREFIX} --targets ${ARCH} --config ${CONFIGURATION})
+        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_emscripten.sh --prefix ${PREFIX} --targets ${ARCH} --config ${CONFIGURATION})
 
         if [ "js-web" != "${PLATFORM}" ]; then
             echo "Building for Wagyu"
-            (cd ${RIVECPP} && ${SCRIPT_DIR}/build_emscripten.sh --with-wagyu --prefix ${PREFIX} --targets ${ARCH} --config ${CONFIGURATION})
+            (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_emscripten.sh --with-wagyu --prefix ${PREFIX} --targets ${ARCH} --config ${CONFIGURATION})
         fi
 
         ;;
@@ -159,7 +158,7 @@ case $PLATFORM in
             ARCH=x64
         fi
 
-        (cd ${RIVECPP} && ${SCRIPT_DIR}/build_darwin.sh --prefix ${PREFIX} --targets macos --archs ${ARCH} --config ${CONFIGURATION})
+        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_darwin.sh --prefix ${PREFIX} --targets macos --archs ${ARCH} --config ${CONFIGURATION})
         ;;
 
     arm64-ios|x86_64-ios)
@@ -168,7 +167,7 @@ case $PLATFORM in
             ARCH=x64
         fi
 
-        (cd ${RIVECPP} && ${SCRIPT_DIR}/build_darwin.sh --prefix ${PREFIX} --targets ios --archs ${ARCH} --config ${CONFIGURATION})
+        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_darwin.sh --prefix ${PREFIX} --targets ios --archs ${ARCH} --config ${CONFIGURATION})
         ;;
 
     arm64-linux|x86_64-linux)
@@ -177,7 +176,7 @@ case $PLATFORM in
             ARCH=x64
         fi
 
-        (cd ${RIVECPP} && ${SCRIPT_DIR}/build_linux.sh --prefix ${PREFIX} --archs ${ARCH} --config ${CONFIGURATION})
+        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_linux.sh --prefix ${PREFIX} --archs ${ARCH} --config ${CONFIGURATION})
         ;;
 
     *)
@@ -186,5 +185,7 @@ case $PLATFORM in
         ;;
 
 esac
+
+find ${SCRIPT_DIR}/../defold-rive/lib -iname "*glfw3.*" | xargs rm -v $1
 
 echo "Done!"

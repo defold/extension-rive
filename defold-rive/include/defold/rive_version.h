@@ -1,9 +1,9 @@
 // Generated. Do not edit! See ./build_version_header.sh
 
-//fix(webgpu): Fix Y orientation on GL zero and nonzero FBOs (#10623) 454b0d2db1
+//chore: Perform Script's method validation only once (#11037) c783bb438c
 //
-//Co-authored-by: Chris Dalton <99840794+csmartdalton@users.noreply.github.com>
+//Co-authored-by: Philip Chung <philterdesign@gmail.com>
 
-const char* RIVE_RUNTIME_AUTHOR="csmartdalton";
-const char* RIVE_RUNTIME_DATE="2025-09-19T02:18:27+00:00";
-const char* RIVE_RUNTIME_SHA1="e54883d9099f87ed6d87c678793fd619b5594e2c";
+const char* RIVE_RUNTIME_AUTHOR="philter";
+const char* RIVE_RUNTIME_DATE="2025-11-14T01:27:28+00:00";
+const char* RIVE_RUNTIME_SHA1="d03977e75326135a469a4f03d359dbc32a8b055a";

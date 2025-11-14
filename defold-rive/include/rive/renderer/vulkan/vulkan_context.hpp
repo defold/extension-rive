@@ -26,6 +26,12 @@ struct VulkanFeatures
 
     // EXT_rasterization_order_attachment_access.
     bool rasterizationOrderColorAttachmentAccess = false;
+
+    // VK_EXT_fragment_shader_interlock.
+    bool fragmentShaderPixelInterlock = false;
+
+    // Indicates a nonconformant driver, like MoltenVK.
+    bool VK_KHR_portability_subset;
 };
 
 // Wraps a VkDevice, function dispatch table, and VMA library instance.
@@ -168,9 +174,13 @@ public:
                              VkDependencyFlags,
                              VkBufferMemoryBarrier);
 
+    void clearColorImage(VkCommandBuffer, ColorInt, VkImage, VkImageLayout);
+
     void blitSubRect(VkCommandBuffer commandBuffer,
-                     VkImage src,
-                     VkImage dst,
+                     VkImage srcImage,
+                     VkImageLayout srcImageLayout,
+                     VkImage dstImage,
+                     VkImageLayout dstImageLayout,
                      const IAABB&);
 
 private:

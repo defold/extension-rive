@@ -23,6 +23,7 @@ shopt -s nullglob
 
 # Treat the current working directory as the repo root (do not depend on script location).
 ROOT_DIR="$(pwd -P)"
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 PREFIX=""
 TARGETS="macos"
@@ -141,7 +142,7 @@ LIB_ROOT="$PREFIX/lib"
 mkdir -p "$INCLUDE_DST" "$LIB_ROOT"
 
 # Install headers via shared helper
-"$ROOT_DIR/build_headers.sh" --prefix "$PREFIX" --root "$ROOT_DIR"
+"${SCRIPT_DIR}/build_headers.sh" --prefix "$PREFIX" --root "$ROOT_DIR"
 
 # Change into renderer directory before building so premake picks up renderer/premake5.lua
 BUILD_DIR="$ROOT_DIR/renderer"

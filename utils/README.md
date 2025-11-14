@@ -5,7 +5,7 @@
 
 *UPDATE 2025-09-20*
 
-For some platforms we now use the build system of the rive runtime.
+For most platforms we now use the build system of the rive runtime.
 
 The build scripts do several things:
 * Removes old headers
@@ -76,6 +76,9 @@ The supported platforms are
 * armv7-android
 * js-web
 * wasm-web
+* wasm_pthread-web
+* arm64-linux
+* x86_64-linux
 
 
 ## For the engine (old build path)
