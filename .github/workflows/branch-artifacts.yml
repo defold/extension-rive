@@ -351,6 +351,11 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Set up Premake5
+        uses: abdes/setup-premake@v1
+        with:
+          version: "5.0.0-beta2"
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
