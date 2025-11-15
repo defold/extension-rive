@@ -1,6 +1,8 @@
 name: Branch Scripts and Artifacts
 
 on:
+  push:
+
   workflow_dispatch:
     inputs:
       platform:
@@ -17,6 +19,12 @@ on:
         description: "Rive runtime ref (branch/tag/commit). Leave empty for default."
         required: false
         default: ""
+      upload_artifact:
+        description: "Upload tarball artifact (defold-rive/lib + include)"
+        required: true
+        type: choice
+        options: ["true", "false"]
+        default: "false"
       commit_message:
         description: "Optional commit message suffix"
         required: false
@@ -61,20 +69,6 @@ jobs:
           fi
           echo "RIVE_ROOT set to: $RIVE_TMP_DIR"
 
-      - name: Ensure clean Rive repo
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ -d "${RIVE_ROOT}/.git" ]; then
-            cd "${RIVE_ROOT}"
-            if [ -n "$(git status --porcelain)" ]; then
-              echo "Pending changes detected; resetting Rive repo"
-              git reset --hard
-            else
-              echo "Rive repo is clean"
-            fi
-          fi
-
       - name: Show context
         shell: bash
         run: |
@@ -93,7 +87,7 @@ jobs:
           bash utils/build_rive_runtime.sh "${platform}" "${RIVE_ROOT}"
 
       - name: Pack artifacts (optional)
-        if: ${{ always() }}
+        if: ${{ github.event.inputs.upload_artifact == 'true' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -108,7 +102,7 @@ jobs:
           tar -czf "branch-artifacts-${{ github.ref_name }}.tgz" "${paths[@]}"
 
       - name: Upload artifact (optional)
-        if: ${{ always() }}
+        if: ${{ github.event.inputs.upload_artifact == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: branch-artifacts-${{ github.ref_name }}
@@ -204,7 +198,7 @@ jobs:
           bash utils/build_rive_runtime.sh "${platform}" "${RIVE_ROOT}"
 
       - name: Pack artifacts (optional)
-        if: ${{ always() }}
+        if: ${{ github.event.inputs.upload_artifact == 'true' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -219,7 +213,7 @@ jobs:
           tar -czf "branch-artifacts-${{ github.ref_name }}.tgz" "${paths[@]}"
 
       - name: Upload artifact (optional)
-        if: ${{ always() }}
+        if: ${{ github.event.inputs.upload_artifact == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: branch-artifacts-${{ github.ref_name }}
