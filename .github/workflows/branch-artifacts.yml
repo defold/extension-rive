@@ -129,6 +129,19 @@ jobs:
         with:
           version: "5.0.0-beta2"
 
+      - name: Expose premake on PATH and env
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v premake5 >/dev/null 2>&1; then
+            echo "PREMAKE5=$(command -v premake5)" >> "$GITHUB_ENV"
+            echo "PREMAKE=$(command -v premake5)" >> "$GITHUB_ENV"
+            echo "premake5: $(command -v premake5)"
+            premake5 --version || true
+          else
+            echo "premake5 not found on PATH" >&2
+          fi
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
