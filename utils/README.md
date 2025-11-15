@@ -90,11 +90,13 @@ Steps:
 - Go to GitHub → Actions → "Branch Scripts and Artifacts" → Run workflow.
 - Pick the target branch in the UI.
 - Set inputs:
-  - `platform`: choose `x86_64-linux` or `arm64-macos`.
+  - `platform`: choose `x86_64-linux`, Apple (`arm64-macos`, `x86_64-macos`, `arm64-ios`, `x86_64-ios`), Android (`arm64-android`, `armv7-android`), Web (`js-web`, `wasm-web`, `wasm_pthread-web`), or `all` to build all.
   - `rive_repo_url`: HTTPS repo for Rive runtime (defaults to `https://github.com/rive-app/rive-runtime.git`).
-  - `rive_ref` (optional): pin a branch/tag/commit of the runtime.
+  - `rive_ref` (optional): pin a branch/tag of the runtime.
+  - `rive_sha` (optional): pin an exact commit SHA (takes precedence over `rive_ref`).
   - `commit_message` (optional): suffix for the commit message.
   - `push_changes`: `true` to commit/push changes; `false` for a dry run.
+  - `upload_artifact`: `false` by default; set `true` to upload a tarball in addition to committing changes.
 
 What it does:
 
@@ -103,10 +105,16 @@ What it does:
 - Runs `./utils/build_rive_runtime.sh ${PLATFORM} ${RIVE_ROOT}`.
 - Uploads `branch-artifacts-<branch>.tgz` containing `defold-rive/lib` and `defold-rive/include`.
 - If `push_changes=true`, commits only `defold-rive/lib` and `defold-rive/include` back to the same branch with `[skip ci]` in the message.
+- If `upload_artifact=false`, the tarball upload is skipped.
 
 Notes:
 
-- Runners: `x86_64-linux` runs on `ubuntu-latest`; `arm64-macos` runs on `macos-latest` and requires Xcode command line tools.
+- Runners: `x86_64-linux` runs on `ubuntu-latest`; Apple targets (`arm64-macos`, `x86_64-macos`, `arm64-ios`, `x86_64-ios`) run on `macos-latest` and require Xcode command line tools.
+- Android (`arm64-android`, `armv7-android`) runs on `macos-latest`; the workflow sets up the Android SDK and installs NDK r25c (25.2.9519653) via a GitHub Action, and exports `ANDROID_NDK` automatically.
+  - The workflow also exports `ANDROID_NDK_HOME`, `NDK_PATH`, and sets `ANDROID_API=21` to ensure the correct sysroot is selected by Clang.
+  - Note: Rive's build compiles a premake-with-ninja internally; no external premake install is required.
+- Web (`js-web`, `wasm-web`, `wasm_pthread-web`) runs on `ubuntu-latest`; rive-runtime fetches Emscripten automatically unless you set `EMSDK` or `RIVE_EMSDK_VERSION`.
+  - The workflow installs `glslangValidator` (package: `glslang-tools`) for shader validation during web builds.
 - If you need specific SDKs (e.g., `ANDROID_NDK`, `EMSDK`), set them accordingly before invoking platform-specific builds.
 - Concurrency is limited to one workflow per branch; commits include `[skip ci]` to avoid loops.
 

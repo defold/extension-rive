@@ -7,7 +7,7 @@ on:
         description: "Target platform for Rive build"
         required: true
         type: choice
-        options: ["x86_64-linux", "arm64-macos", "x86_64-macos", "arm64-ios", "x86_64-ios", "arm64-android", "armv7-android", "js-web", "wasm-web", "wasm_pthread-web", "all"]
+        options: ["x86_64-linux", "arm64-macos", "x86_64-macos", "arm64-ios", "x86_64-ios", "arm64-android", "armv7-android", "js-web", "wasm-web", "wasm_pthread-web", "x86-win32", "x86_64-win32", "all"]
         default: "x86_64-linux"
       rive_repo_url:
         description: "Rive runtime repo URL (HTTPS)"
@@ -181,3 +181,153 @@ jobs:
           upload_artifact: ${{ github.event.inputs.upload_artifact }}
           commit_message: ${{ github.event.inputs.commit_message }}
           push_changes: ${{ github.event.inputs.push_changes }}
+
+  build-windows:
+    if: ${{ github.event.inputs.platform == 'x86-win32' || github.event.inputs.platform == 'x86_64-win32' || github.event.inputs.platform == 'all' }}
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["x86-win32","x86_64-win32"]' || format('["{0}"]', github.event.inputs.platform)) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Ninja
+        shell: bash
+        run: |
+          set -euo pipefail
+          choco install ninja -y
+          ninja --version || true
+
+      - name: Clone Rive runtime and set RIVE_ROOT
+        shell: bash
+        run: |
+          set -euo pipefail
+          RIVE_TMP_DIR=$(mktemp -d)
+          echo "RIVE_ROOT=${RIVE_TMP_DIR}" >> "$GITHUB_ENV"
+          url="${{ github.event.inputs.rive_repo_url }}"
+          ref="${{ github.event.inputs.rive_ref }}"
+          sha="${{ github.event.inputs.rive_sha }}"
+          echo "Cloning Rive runtime from: ${url}"
+          if [ -n "$sha" ]; then
+            git clone --depth 1 "$url" "$RIVE_TMP_DIR"
+            (cd "$RIVE_TMP_DIR" && git fetch --depth 1 origin "$sha" && git checkout -f "$sha")
+          elif [ -n "$ref" ]; then
+            git clone --depth 1 --branch "$ref" "$url" "$RIVE_TMP_DIR"
+          else
+            git clone --depth 1 "$url" "$RIVE_TMP_DIR"
+          fi
+          echo "RIVE_ROOT set to: $RIVE_TMP_DIR"
+
+      - name: Ensure clean Rive repo
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -d "${RIVE_ROOT}/.git" ]; then
+            cd "${RIVE_ROOT}"
+            if [ -n "$(git status --porcelain)" ]; then
+              echo "Pending changes detected; resetting Rive repo"
+              git reset --hard
+            else
+              echo "Rive repo is clean"
+            fi
+          fi
+
+      - name: Show context
+        shell: bash
+        run: |
+          echo "Branch: ${{ github.ref_name }}"
+          echo "RIVE_ROOT: ${RIVE_ROOT:-not-set}"
+          echo "Platform: ${{ matrix.platform }}"
+          git --version
+          git status
+
+      - name: Build Rive runtime (Windows)
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ matrix.platform }}" in
+            x86_64-win32) ARCH=x64 ;;
+            x86-win32) ARCH=x86 ;;
+            *) echo "Unknown Windows platform ${{ matrix.platform }}" >&2; exit 1 ;;
+          esac
+          cd "$RIVE_ROOT"
+          bash "$GITHUB_WORKSPACE/utils/buildscripts/build_windows.sh" \
+            --prefix "$GITHUB_WORKSPACE/defold-rive" \
+            --archs "$ARCH" \
+            --config release
+
+      - name: Pack artifacts (optional)
+        if: ${{ github.event.inputs.upload_artifact == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          paths=()
+          [ -d defold-rive/lib ] && paths+=(defold-rive/lib)
+          [ -d defold-rive/include ] && paths+=(defold-rive/include)
+          if [ ${#paths[@]} -eq 0 ]; then
+            echo "No artifact directories found (defold-rive/lib, defold-rive/include)."
+            exit 0
+          fi
+          echo "Packing: ${paths[*]}"
+          tar -czf "branch-artifacts-${{ github.ref_name }}.tgz" "${paths[@]}"
+
+      - name: Upload artifact (optional)
+        if: ${{ github.event.inputs.upload_artifact == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: branch-artifacts-${{ github.ref_name }}
+          path: branch-artifacts-${{ github.ref_name }}.tgz
+          if-no-files-found: ignore
+
+      - name: Commit and push changes (optional)
+        if: ${{ github.event.inputs.push_changes == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          add_paths=()
+          [ -d defold-rive/lib ] && add_paths+=(defold-rive/lib)
+          [ -d defold-rive/include ] && add_paths+=(defold-rive/include)
+          if [ ${#add_paths[@]} -gt 0 ]; then
+            git add -v "${add_paths[@]}" || true
+          fi
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          msg="ci: update artifacts on ${{ github.ref_name }} [skip ci]"
+          if [ -n "${{ github.event.inputs.commit_message }}" ]; then
+            msg="$msg - ${{ github.event.inputs.commit_message }}"
+          fi
+          git commit -m "$msg"
+          max_attempts=3
+          attempt=1
+          until [ $attempt -gt $max_attempts ]; do
+            echo "Attempt $attempt: rebase + push"
+            if git pull --rebase origin "${{ github.ref_name }}"; then
+              if git push origin HEAD:"${{ github.ref_name }}"; then
+                echo "Push succeeded"
+                break
+              fi
+            else
+              echo "Rebase failed; aborting and retrying"
+              git rebase --abort || true
+            fi
+            attempt=$((attempt+1))
+            sleep $((attempt*2))
+          done
+          if [ $attempt -gt $max_attempts ]; then
+            echo "Push failed after $max_attempts attempts"
+            exit 1
+          fi
+
+      - name: Post-commit status
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          git --no-pager log -1 --oneline || true
+          git status || true
