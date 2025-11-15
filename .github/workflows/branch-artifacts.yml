@@ -201,6 +201,13 @@ jobs:
           choco install ninja -y
           ninja --version || true
 
+      - name: Install rsync
+        shell: bash
+        run: |
+          set -euo pipefail
+          choco install rsync -y
+          rsync --version || where rsync || true
+
       - name: Clone Rive runtime and set RIVE_ROOT
         shell: bash
         run: |
