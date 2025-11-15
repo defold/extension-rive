@@ -106,7 +106,19 @@ ${SCRIPT_DIR_UTILS}/build_version_header.sh ${VERSIONHEADER} ${RIVECPP}
 
 RIVEPATCH=${SCRIPT_DIR}/rive.patch
 echo "Applying patch ${RIVEPATCH}"
-(cd ${RIVECPP} && git apply -3 ${RIVEPATCH})
+set +e
+(cd ${RIVECPP} && git apply ${RIVEPATCH})
+APPLY_RC=$?
+set -e
+if [ ${APPLY_RC} -ne 0 ]; then
+    echo "Simple apply failed; attempting 3-way with history..."
+    (
+        cd ${RIVECPP}
+        # If shallow, unshallow to make 3-way possible; ignore if already full
+        git rev-parse --is-shallow-repository >/dev/null 2>&1 && git fetch --unshallow || true
+        git apply -3 ${RIVEPATCH}
+    )
+fi
 
 CONFIGURATION=release
 
