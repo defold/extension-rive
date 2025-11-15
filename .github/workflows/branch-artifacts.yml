@@ -365,6 +365,15 @@ jobs:
           echo "ANDROID_NDK=${{ steps.setup-ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
           echo "Using ANDROID_NDK=${{ steps.setup-ndk.outputs.ndk-path }}"
 
+      - name: Configure Android toolchain environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "ANDROID_NDK_HOME=${ANDROID_NDK}" >> "$GITHUB_ENV"
+          echo "NDK_PATH=${ANDROID_NDK}" >> "$GITHUB_ENV"
+          # API 21 is a safe default for arm64 and armv7 toolchains
+          echo "ANDROID_API=21" >> "$GITHUB_ENV"
+
       - name: Clone Rive runtime and set RIVE_ROOT
         shell: bash
         run: |
