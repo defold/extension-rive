@@ -212,36 +212,52 @@ jobs:
       - name: Add Windows SDK fxc.exe to PATH
         shell: pwsh
         run: |
-          $paths = @()
-          $roots = @(
-            "$env:ProgramFiles(x86)\Windows Kits\10\bin",
-            "$env:ProgramFiles\Windows Kits\10\bin"
-          )
+          $foundPaths = @()
+          # Candidate roots for Windows SDK bin
+          $roots = @()
+          if ($env:WindowsSdkDir) {
+            $roots += (Join-Path $env:WindowsSdkDir 'bin')
+          }
+          $pf86 = ${env:ProgramFiles(x86)}
+          if ($pf86) { $roots += (Join-Path $pf86 'Windows Kits\10\bin') }
+          if ($env:ProgramFiles) { $roots += (Join-Path $env:ProgramFiles 'Windows Kits\10\bin') }
+
+          $roots = $roots | Where-Object { Test-Path $_ } | Select-Object -Unique
+          Write-Host "SDK bin roots:" ($roots -join ', ')
+
           foreach ($root in $roots) {
-            if (Test-Path $root) {
-              $vers = Get-ChildItem $root -Directory -ErrorAction SilentlyContinue | Sort-Object Name -Descending
-              foreach ($v in $vers) {
-                $x64 = Join-Path $v.FullName 'x64'
-                $x86 = Join-Path $v.FullName 'x86'
-                if (Test-Path (Join-Path $x64 'fxc.exe')) { $paths += $x64 }
-                if (Test-Path (Join-Path $x86 'fxc.exe')) { $paths += $x86 }
-              }
+            $ver = $env:WindowsSDKVersion
+            if ($ver) { $ver = $ver.TrimEnd('\\') }
+            $verDirs = @()
+            if ($ver -and (Test-Path (Join-Path $root $ver))) {
+              $verDirs = ,(Join-Path $root $ver)
+            } else {
+              $verDirs = Get-ChildItem $root -Directory -ErrorAction SilentlyContinue | Sort-Object Name -Descending | Select-Object -ExpandProperty FullName
+            }
+            foreach ($vd in $verDirs) {
+              $x64 = Join-Path $vd 'x64'
+              $x86 = Join-Path $vd 'x86'
+              if (Test-Path (Join-Path $x64 'fxc.exe')) { $foundPaths += $x64 }
+              if (Test-Path (Join-Path $x86 'fxc.exe')) { $foundPaths += $x86 }
             }
           }
-          $paths = $paths | Select-Object -Unique
-          if ($paths.Count -eq 0) {
-            Write-Host 'fxc.exe not found in Windows Kits paths'
-          } else {
-            $paths | ForEach-Object { $_ | Out-File -FilePath $env:GITHUB_PATH -Append }
-          }
+
           # Also consider legacy DXSDK if present
-          $dxsdk = "$env:ProgramFiles(x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin"
+          $dxsdk = Join-Path ${env:ProgramFiles(x86)} 'Microsoft DirectX SDK (June 2010)\Utilities\bin'
           if (Test-Path $dxsdk) {
             $dx64 = Join-Path $dxsdk 'x64'
             $dx86 = Join-Path $dxsdk 'x86'
-            if (Test-Path (Join-Path $dx64 'fxc.exe')) { $dx64 | Out-File -FilePath $env:GITHUB_PATH -Append }
-            if (Test-Path (Join-Path $dx86 'fxc.exe')) { $dx86 | Out-File -FilePath $env:GITHUB_PATH -Append }
+            if (Test-Path (Join-Path $dx64 'fxc.exe')) { $foundPaths += $dx64 }
+            if (Test-Path (Join-Path $dx86 'fxc.exe')) { $foundPaths += $dx86 }
           }
+
+          $foundPaths = $foundPaths | Select-Object -Unique
+          if ($foundPaths.Count -gt 0) {
+            $foundPaths | ForEach-Object { $_ | Out-File -FilePath $env:GITHUB_PATH -Append }
+          } else {
+            Write-Warning 'fxc.exe not found in Windows SDK paths. Ensure the Windows 10 SDK is present on the runner.'
+          }
+
           Write-Host 'fxc.exe:'
           Get-Command fxc.exe -ErrorAction SilentlyContinue | Format-List -Property Source, Version
           Write-Host 'dxc.exe:'
