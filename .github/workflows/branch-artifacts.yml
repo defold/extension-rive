@@ -201,22 +201,51 @@ jobs:
           choco install ninja -y
           ninja --version || true
 
+      - name: Install Windows 10 SDK + DXC
+        shell: bash
+        run: |
+          set -euo pipefail
+          choco install windows-sdk-10.1 -y
+          # Optional: modern HLSL compiler (dxc)
+          choco install directxshadercompiler -y || true
+
       - name: Add Windows SDK fxc.exe to PATH
         shell: pwsh
         run: |
-          $winSdkDir = $env:WindowsSdkDir
-          if (-not $winSdkDir) { $winSdkDir = 'C:\Program Files (x86)\Windows Kits\10\' }
-          $binRoot = Join-Path $winSdkDir 'bin'
-          $ver = $env:WindowsSDKVersion
-          if (-not $ver) {
-            $ver = (Get-ChildItem $binRoot -Directory | Sort-Object Name -Descending | Select-Object -First 1).Name
+          $paths = @()
+          $roots = @(
+            "$env:ProgramFiles(x86)\Windows Kits\10\bin",
+            "$env:ProgramFiles\Windows Kits\10\bin"
+          )
+          foreach ($root in $roots) {
+            if (Test-Path $root) {
+              $vers = Get-ChildItem $root -Directory -ErrorAction SilentlyContinue | Sort-Object Name -Descending
+              foreach ($v in $vers) {
+                $x64 = Join-Path $v.FullName 'x64'
+                $x86 = Join-Path $v.FullName 'x86'
+                if (Test-Path (Join-Path $x64 'fxc.exe')) { $paths += $x64 }
+                if (Test-Path (Join-Path $x86 'fxc.exe')) { $paths += $x86 }
+              }
+            }
           }
-          $ver = $ver.TrimEnd('\')
-          $x64 = Join-Path $binRoot "$ver\x64"
-          $x86 = Join-Path $binRoot "$ver\x86"
-          $x64 | Out-File -FilePath $env:GITHUB_PATH -Append
-          $x86 | Out-File -FilePath $env:GITHUB_PATH -Append
-          Get-Command fxc.exe | Format-List -Property Source, Version
+          $paths = $paths | Select-Object -Unique
+          if ($paths.Count -eq 0) {
+            Write-Host 'fxc.exe not found in Windows Kits paths'
+          } else {
+            $paths | ForEach-Object { $_ | Out-File -FilePath $env:GITHUB_PATH -Append }
+          }
+          # Also consider legacy DXSDK if present
+          $dxsdk = "$env:ProgramFiles(x86)\Microsoft DirectX SDK (June 2010)\Utilities\bin"
+          if (Test-Path $dxsdk) {
+            $dx64 = Join-Path $dxsdk 'x64'
+            $dx86 = Join-Path $dxsdk 'x86'
+            if (Test-Path (Join-Path $dx64 'fxc.exe')) { $dx64 | Out-File -FilePath $env:GITHUB_PATH -Append }
+            if (Test-Path (Join-Path $dx86 'fxc.exe')) { $dx86 | Out-File -FilePath $env:GITHUB_PATH -Append }
+          }
+          Write-Host 'fxc.exe:'
+          Get-Command fxc.exe -ErrorAction SilentlyContinue | Format-List -Property Source, Version
+          Write-Host 'dxc.exe:'
+          Get-Command dxc.exe -ErrorAction SilentlyContinue | Format-List -Property Source, Version
 
       - name: Install rsync
         shell: bash
