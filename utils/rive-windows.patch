@@ -1,0 +1,28 @@
+diff --git a/renderer/premake5_pls_renderer.lua b/renderer/premake5_pls_renderer.lua
+index 0000000..0000000 100644
+--- a/renderer/premake5_pls_renderer.lua
++++ b/renderer/premake5_pls_renderer.lua
+@@ -1,1 +1,7 @@
++newoption({
++    trigger = 'with-libs-only',
++    description = 'only builds the libraries',
++})
++
++
+ 
+diff --git a/renderer/premake5.lua b/renderer/premake5.lua
+index 0000000..0000000 100644
+--- a/renderer/premake5.lua
++++ b/renderer/premake5.lua
+@@ -1,1 +1,5 @@
++cppdialect "C++14"
++
+@@
+-if _OPTIONS['with-skia'] then
++if _OPTIONS['with-skia'] and not _OPTIONS['with-libs-only'] then
+@@
+-if not _OPTIONS['with-webgpu'] then
++if not _OPTIONS['with-webgpu'] and not _OPTIONS['with-libs-only'] then
+@@
+-if (_OPTIONS['with-webgpu'] or _OPTIONS['with-dawn']) then
++if (_OPTIONS['with-webgpu'] or _OPTIONS['with-dawn']) and not _OPTIONS['with-libs-only'] then

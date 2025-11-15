@@ -108,39 +108,21 @@ echo "Writing version header ${VERSIONHEADER}"
 ${SCRIPT_DIR_UTILS}/build_version_header.sh ${VERSIONHEADER} ${RIVECPP}
 
 
-function ApplyLibsOnlyPatchWindows() {
-    echo "Applying minimal 'with-libs-only' tweaks for Windows"
-    pushd "${RIVECPP}" >/dev/null
-    # Add newoption in renderer/premake5_pls_renderer.lua if missing
-    local pls_file="renderer/premake5_pls_renderer.lua"
-    if ! grep -q "with-libs-only" "$pls_file" 2>/dev/null; then
-        tmpfile=$(mktemp)
-        {
-            echo "newoption({"
-            echo "    trigger = 'with-libs-only',"
-            echo "    description = 'only builds the libraries',"
-            echo "})"
-            echo
-            cat "$pls_file"
-        } > "$tmpfile"
-        mv "$tmpfile" "$pls_file"
-    fi
-
-    # Gate example/app projects in renderer/premake5.lua behind with-libs-only
-    local p_file="renderer/premake5.lua"
-    if [ -f "$p_file" ]; then
-        sed -i "s/if _OPTIONS\['with-skia'\] then/if _OPTIONS['with-skia'] and not _OPTIONS['with-libs-only'] then/" "$p_file" || true
-        sed -i "s/if not _OPTIONS\['with-webgpu'\] then/if not _OPTIONS['with-webgpu'] and not _OPTIONS['with-libs-only'] then/" "$p_file" || true
-        sed -i "s/if (_OPTIONS\['with-webgpu'\] or _OPTIONS\['with-dawn'\]) then/if (_OPTIONS['with-webgpu'] or _OPTIONS['with-dawn']) and not _OPTIONS['with-libs-only'] then/" "$p_file" || true
-    fi
-    popd >/dev/null
-}
-
 # Apply patch set. On Windows, the full patch may fail due to upstream changes; for
 # Windows we apply a minimal patch enabling --with-libs-only to avoid building apps.
 RIVEPATCH=${SCRIPT_DIR}/rive.patch
 if [[ "$PLATFORM" == x86_64-win32 || "$PLATFORM" == x86-win32 ]]; then
-    ApplyLibsOnlyPatchWindows
+    echo "Applying Windows-specific patch utils/rive-windows.patch"
+    set +e
+    (cd ${RIVECPP} && git apply "${SCRIPT_DIR}/rive-windows.patch")
+    APPLY_RC=$?
+    set -e
+    if [ ${APPLY_RC} -ne 0 ]; then
+        echo "Error: Failed to apply utils/rive-windows.patch to Rive runtime at '${RIVECPP}'." >&2
+        echo "- Ensure 'rive_sha' points to a revision compatible with this Windows patch." >&2
+        echo "- Alternatively, update utils/rive-windows.patch for the selected rive commit." >&2
+        exit 1
+    fi
 else
     echo "Applying patch ${RIVEPATCH}"
     set +e
@@ -149,12 +131,21 @@ else
     set -e
     if [ ${APPLY_RC} -ne 0 ]; then
         echo "Simple apply failed; attempting 3-way with history..."
+        set +e
         (
             cd ${RIVECPP}
             # If shallow, unshallow to make 3-way possible; ignore if already full
             git rev-parse --is-shallow-repository >/dev/null 2>&1 && git fetch --unshallow || true
             git apply -3 ${RIVEPATCH}
-        ) || true
+        )
+        APPLY_RC=$?
+        set -e
+        if [ ${APPLY_RC} -ne 0 ]; then
+            echo "Error: Failed to apply utils/rive.patch to Rive runtime at '${RIVECPP}'." >&2
+            echo "- Ensure 'rive_sha' points to a revision compatible with this patch." >&2
+            echo "- Alternatively, update utils/rive.patch for the selected rive commit." >&2
+            exit 1
+        fi
     fi
 fi
 
