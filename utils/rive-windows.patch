@@ -1,24 +1,9 @@
-diff --git a/renderer/premake5_pls_renderer.lua b/renderer/premake5_pls_renderer.lua
---- a/renderer/premake5_pls_renderer.lua
-+++ b/renderer/premake5_pls_renderer.lua
-@@ -68,6 +68,11 @@ do
-     defines({ 'RIVE_WEBGPU=' .. _OPTIONS['webgpu-version'] })
- end
-
-+newoption({
-+    trigger = 'with-libs-only',
-+    description = 'only builds the libraries',
-+})
-+
- filter({})
-
- newoption({
-
 diff --git a/renderer/premake5.lua b/renderer/premake5.lua
+index 57d5a28d..8ee9f5bf 100644
 --- a/renderer/premake5.lua
 +++ b/renderer/premake5.lua
-@@ -5,11 +5,11 @@ dofile(RIVE_RUNTIME_DIR .. '/premake5_v2.lua')
- dofile(RIVE_RUNTIME_DIR .. '/decoders/premake5_v2.lua')
+@@ -6,11 +6,11 @@ dofile(RIVE_RUNTIME_DIR .. '/decoders/premake5_v2.lua')
+ dofile(RIVE_RUNTIME_DIR .. '/dependencies/premake5_glfw_v2.lua')
  
  newoption({ trigger = 'with-skia', description = 'use skia' })
 -if _OPTIONS['with-skia'] then
@@ -31,10 +16,20 @@ diff --git a/renderer/premake5.lua b/renderer/premake5.lua
      project('path_fiddle')
      do
          dependson('rive')
-@@ -183,7 +183,7 @@ if not _OPTIONS['with-webgpu'] then
-     end
- end
+diff --git a/renderer/premake5_pls_renderer.lua b/renderer/premake5_pls_renderer.lua
+index 266b3ed4..4bbc995f 100644
+--- a/renderer/premake5_pls_renderer.lua
++++ b/renderer/premake5_pls_renderer.lua
+@@ -70,6 +70,12 @@ end
  
--if _OPTIONS['with-webgpu'] or _OPTIONS['with-dawn'] then
-+if (_OPTIONS['with-webgpu'] or _OPTIONS['with-dawn']) and not _OPTIONS['with-libs-only'] then
-     project('webgpu_player')
+ filter({})
+ 
++newoption({
++    trigger = 'with-libs-only',
++    description = 'only builds the libraries',
++})
++
++
+ newoption({
+     trigger = 'with_wagyu',
+     description = 'compile in support for wagyu webgpu extensions',
