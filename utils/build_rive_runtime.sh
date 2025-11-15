@@ -122,27 +122,90 @@ if [[ "$PLATFORM" == x86_64-win32 || "$PLATFORM" == x86-win32 ]]; then
     APPLY_RC=$?
     set -e
     if [ ${APPLY_RC} -ne 0 ]; then
-        echo "Patch pre-check failed. Generating diagnostics..." >&2
-        (
-            cd ${RIVECPP}
-            git -c core.autocrlf=false -c core.eol=lf apply --reject --whitespace=nowarn "${SCRIPT_DIR}/rive-windows.patch" || true
-            echo "--- Git EOL configuration ---" >&2
-            git config --get core.autocrlf || true
-            git config --get core.eol || true
-            echo "--- File(1) output ---" >&2
-            file renderer/premake5.lua renderer/premake5_pls_renderer.lua || true
-            echo "--- CRLF check (\r at EOL) ---" >&2
-            grep -n $'\r$' renderer/premake5.lua || true
-            grep -n $'\r$' renderer/premake5_pls_renderer.lua || true
-            echo "--- Rejects (if any) ---" >&2
-            for r in renderer/*.rej; do echo "# $r"; sed -n '1,120p' "$r"; done 2>/dev/null || true
-        )
-        echo "Error: Failed to apply utils/rive-windows.patch to Rive runtime at '${RIVECPP}'." >&2
-        echo "- Ensure 'rive_sha' matches the patch, check EOL settings, or regenerate the patch." >&2
-        exit 1
+        echo "Patch pre-check failed. Attempting fallback edit based on patch contents..." >&2
+        patchfile="${SCRIPT_DIR}/rive-windows.patch"
+        lua_file="${RIVECPP}/renderer/premake5.lua"
+        pls_file="${RIVECPP}/renderer/premake5_pls_renderer.lua"
+
+        # Extract -/+ replacement pairs for premake5.lua and apply them
+        mapfile -t repls < <(awk '
+            $0 ~ /^diff --git a\/renderer\/premake5\.lua b\/renderer\/premake5\.lua$/ { inblock=1; next }
+            inblock && $0 ~ /^diff --git / { inblock=0 }
+            inblock {
+              if ($0 ~ /^---/ || $0 ~ /^\+\+\+/ || $0 ~ /^@@/) next;
+              if ($0 ~ /^-/) { minus = substr($0,2); next }
+              if ($0 ~ /^\+/ && length(minus)>0) { plus=substr($0,2); print minus "\t" plus; minus="" }
+            }
+        ' "$patchfile")
+
+        repl_failed=0
+        for pair in "${repls[@]}"; do
+            orig=${pair%%$'\t'*}
+            new=${pair#*$'\t'}
+            tmpfile=$(mktemp)
+            awk -v orig="$orig" -v new="$new" 'BEGIN{r=0} {if($0==orig){print new; r=1} else print} END{exit r?0:1}' "$lua_file" > "$tmpfile" || repl_failed=1
+            mv "$tmpfile" "$lua_file"
+        done
+
+        # Extract added lines for premake5_pls_renderer.lua and insert after anchor 'filter({})'
+        tmpblock=$(mktemp)
+        awk '
+            $0 ~ /^diff --git a\/renderer\/premake5_pls_renderer\.lua b\/renderer\/premake5_pls_renderer\.lua$/ { inblock=1; next }
+            inblock && $0 ~ /^diff --git / { inblock=0 }
+            inblock {
+              if ($0 ~ /^\+\+\+/ || $0 ~ /^---/ || $0 ~ /^@@/) next;
+              if ($0 ~ /^\+/) { print substr($0,2) }
+            }
+        ' "$patchfile" > "$tmpblock"
+
+        if grep -q "with-libs-only" "$tmpblock"; then
+            anchor=$(grep -n "^filter({})$" "$pls_file" | head -1 | cut -d: -f1 || true)
+            if [ -n "$anchor" ]; then
+                tmpout=$(mktemp)
+                sed "${anchor}r $tmpblock" "$pls_file" > "$tmpout"
+                mv "$tmpout" "$pls_file"
+            else
+                repl_failed=1
+            fi
+        else
+            repl_failed=1
+        fi
+        rm -f "$tmpblock" 2>/dev/null || true
+
+        # Validate fallback edits
+        if ! grep -q "with-libs-only" "$pls_file" 2>/dev/null; then repl_failed=1; fi
+        if ! grep -q "with-libs-only" "$lua_file" 2>/dev/null; then repl_failed=1; fi
+
+        if [ $repl_failed -ne 0 ]; then
+            echo "Fallback edit failed. Generating diagnostics..." >&2
+            (
+                cd ${RIVECPP}
+                git -c core.autocrlf=false -c core.eol=lf apply --reject --whitespace=nowarn "${SCRIPT_DIR}/rive-windows.patch" || true
+                echo "--- Git EOL configuration ---" >&2
+                git config --get core.autocrlf || true
+                git config --get core.eol || true
+                echo "--- File(1) output ---" >&2
+                file renderer/premake5.lua renderer/premake5_pls_renderer.lua || true
+                echo "--- CRLF check (\r at EOL) ---" >&2
+                grep -n $'\r$' renderer/premake5.lua || true
+                grep -n $'\r$' renderer/premake5_pls_renderer.lua || true
+                echo "--- Rejects (if any) ---" >&2
+                for r in renderer/*.rej; do echo "# $r"; sed -n '1,120p' "$r"; done 2>/dev/null || true
+                echo "--- Current context (premake5.lua top) ---" >&2
+                sed -n '1,40p' renderer/premake5.lua || true
+                echo "--- Current context (premake5_pls_renderer.lua around filter) ---" >&2
+                awk 'NR<=120{print}' renderer/premake5_pls_renderer.lua || true
+            )
+            echo "Error: Failed to apply utils/rive-windows.patch (and fallback) to Rive runtime at '${RIVECPP}'." >&2
+            echo "- Ensure 'rive_sha' matches the patch or update utils/rive-windows.patch." >&2
+            exit 1
+        else
+            echo "Fallback edit succeeded based on patch contents."
+        fi
+    else
+        # Actual apply (with LF EOL guard)
+        (cd ${RIVECPP} && git -c core.autocrlf=false -c core.eol=lf apply "${SCRIPT_DIR}/rive-windows.patch")
     fi
-    # Actual apply (with LF EOL guard)
-    (cd ${RIVECPP} && git -c core.autocrlf=false -c core.eol=lf apply "${SCRIPT_DIR}/rive-windows.patch")
 else
     echo "Applying patch ${RIVEPATCH}"
     set +e
