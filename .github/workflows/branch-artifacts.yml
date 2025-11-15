@@ -201,13 +201,13 @@ jobs:
           choco install ninja -y
           ninja --version || true
 
-      - name: Install Windows 10 SDK + DXC
+      - name: Install DirectX Shader Compiler (DXC)
         shell: bash
         run: |
           set -euo pipefail
-          choco install windows-sdk-10.1 -y
-          # Optional: modern HLSL compiler (dxc)
           choco install directxshadercompiler -y || true
+          # Verify availability if installed
+          dxc.exe -help 2> NUL || true
 
       - name: Add Windows SDK fxc.exe to PATH
         shell: pwsh
@@ -247,12 +247,7 @@ jobs:
           Write-Host 'dxc.exe:'
           Get-Command dxc.exe -ErrorAction SilentlyContinue | Format-List -Property Source, Version
 
-      - name: Install rsync
-        shell: bash
-        run: |
-          set -euo pipefail
-          choco install rsync -y
-          rsync --version || where rsync || true
+
 
       - name: Clone Rive runtime and set RIVE_ROOT
         shell: bash
