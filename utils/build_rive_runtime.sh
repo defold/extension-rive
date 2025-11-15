@@ -114,15 +114,35 @@ RIVEPATCH=${SCRIPT_DIR}/rive.patch
 if [[ "$PLATFORM" == x86_64-win32 || "$PLATFORM" == x86-win32 ]]; then
     echo "Applying Windows-specific patch utils/rive-windows.patch"
     set +e
-    (cd ${RIVECPP} && git apply "${SCRIPT_DIR}/rive-windows.patch")
+    (
+        cd ${RIVECPP}
+        # Dry-run with LF EOL to catch issues and produce helpful diagnostics
+        git -c core.autocrlf=false -c core.eol=lf apply --check -v "${SCRIPT_DIR}/rive-windows.patch"
+    )
     APPLY_RC=$?
     set -e
     if [ ${APPLY_RC} -ne 0 ]; then
+        echo "Patch pre-check failed. Generating diagnostics..." >&2
+        (
+            cd ${RIVECPP}
+            git -c core.autocrlf=false -c core.eol=lf apply --reject --whitespace=nowarn "${SCRIPT_DIR}/rive-windows.patch" || true
+            echo "--- Git EOL configuration ---" >&2
+            git config --get core.autocrlf || true
+            git config --get core.eol || true
+            echo "--- File(1) output ---" >&2
+            file renderer/premake5.lua renderer/premake5_pls_renderer.lua || true
+            echo "--- CRLF check (\r at EOL) ---" >&2
+            grep -n $'\r$' renderer/premake5.lua || true
+            grep -n $'\r$' renderer/premake5_pls_renderer.lua || true
+            echo "--- Rejects (if any) ---" >&2
+            for r in renderer/*.rej; do echo "# $r"; sed -n '1,120p' "$r"; done 2>/dev/null || true
+        )
         echo "Error: Failed to apply utils/rive-windows.patch to Rive runtime at '${RIVECPP}'." >&2
-        echo "- Ensure 'rive_sha' points to a revision compatible with this Windows patch." >&2
-        echo "- Alternatively, update utils/rive-windows.patch for the selected rive commit." >&2
+        echo "- Ensure 'rive_sha' matches the patch, check EOL settings, or regenerate the patch." >&2
         exit 1
     fi
+    # Actual apply (with LF EOL guard)
+    (cd ${RIVECPP} && git -c core.autocrlf=false -c core.eol=lf apply "${SCRIPT_DIR}/rive-windows.patch")
 else
     echo "Applying patch ${RIVEPATCH}"
     set +e
@@ -141,6 +161,22 @@ else
         APPLY_RC=$?
         set -e
         if [ ${APPLY_RC} -ne 0 ]; then
+            echo "Patch apply failed. Generating diagnostics..." >&2
+            (
+                cd ${RIVECPP}
+                git apply --reject --whitespace=nowarn ${RIVEPATCH} || true
+                echo "--- Git EOL configuration ---" >&2
+                git config --get core.autocrlf || true
+                git config --get core.eol || true
+                echo "--- File(1) output ---" >&2
+                file build/rive_build_config.lua renderer/premake5.lua renderer/premake5_pls_renderer.lua || true
+                echo "--- CRLF check (\r at EOL) ---" >&2
+                grep -n $'\r$' build/rive_build_config.lua || true
+                grep -n $'\r$' renderer/premake5.lua || true
+                grep -n $'\r$' renderer/premake5_pls_renderer.lua || true
+                echo "--- Rejects (if any) ---" >&2
+                for r in build/*.rej renderer/*.rej; do echo "# $r"; sed -n '1,120p' "$r"; done 2>/dev/null || true
+            )
             echo "Error: Failed to apply utils/rive.patch to Rive runtime at '${RIVECPP}'." >&2
             echo "- Ensure 'rive_sha' points to a revision compatible with this patch." >&2
             echo "- Alternatively, update utils/rive.patch for the selected rive commit." >&2
