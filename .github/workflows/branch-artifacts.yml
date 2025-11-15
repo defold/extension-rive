@@ -125,7 +125,7 @@ jobs:
           java-version: '17'
 
       - name: Set up Premake5
-        uses: jurplel/install-premake5@v1
+        uses: abel0b/setup-premake@v2.4
         with:
           version: "5.0.0-beta2"
 
