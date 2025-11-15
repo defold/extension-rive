@@ -198,6 +198,10 @@ case $PLATFORM in
 
 esac
 
-find ${SCRIPT_DIR}/../defold-rive/lib -iname "*glfw3.*" | xargs rm -v $1
+echo "Removing unwanted files:"
+UNWANTED=$(find ${SCRIPT_DIR}/../defold-rive/lib -iname "*glfw3.*")
+if [ "" != "${UNWANTED}" ]; then
+    find ${SCRIPT_DIR}/../defold-rive/lib -iname "*glfw3.*" | xargs rm -v $1
+fi
 
 echo "Done!"

@@ -423,16 +423,39 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          ndk_bin="${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          export ANDROID_API="${ANDROID_API:-21}"
+          build_one() {
+            local platform="$1"
+            local cc=""
+            local cxx=""
+            case "$platform" in
+              arm64-android)
+                cc="${ndk_bin}/aarch64-linux-android${ANDROID_API}-clang"
+                cxx="${ndk_bin}/aarch64-linux-android${ANDROID_API}-clang++"
+                ;;
+              armv7-android)
+                # For armv7 use 19+; 21 is fine for modern NDKs
+                cc="${ndk_bin}/armv7a-linux-androideabi${ANDROID_API}-clang"
+                cxx="${ndk_bin}/armv7a-linux-androideabi${ANDROID_API}-clang++"
+                ;;
+              *)
+                echo "Unknown android platform: $platform" >&2; return 1 ;;
+            esac
+            echo "Using CC=$cc"
+            echo "Using CXX=$cxx"
+            CC="$cc" CXX="$cxx" bash utils/build_rive_runtime.sh "$platform" "$RIVE_ROOT"
+          }
+
           input_platform="${{ github.event.inputs.platform }}"
           if [ "$input_platform" = "all" ]; then
             for platform in arm64-android armv7-android; do
               echo "Running: ./utils/build_rive_runtime.sh ${platform} ${RIVE_ROOT}"
-              bash utils/build_rive_runtime.sh "${platform}" "${RIVE_ROOT}"
+              build_one "$platform"
             done
           else
-            platform="$input_platform"
-            echo "Running: ./utils/build_rive_runtime.sh ${platform} ${RIVE_ROOT}"
-            bash utils/build_rive_runtime.sh "${platform}" "${RIVE_ROOT}"
+            echo "Running: ./utils/build_rive_runtime.sh ${input_platform} ${RIVE_ROOT}"
+            build_one "$input_platform"
           fi
 
       - name: Pack artifacts (optional)
