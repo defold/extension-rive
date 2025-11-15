@@ -25,6 +25,8 @@ function Usage {
     echo "  * x86_64-ios"
     echo "  * arm64-linux"
     echo "  * x86_64-linux"
+    echo "  * x86_64-win32"
+    echo "  * x86-win32"
     exit 1
 }
 
@@ -47,6 +49,8 @@ case $PLATFORM in
     arm64-macos|x86_64-macos|arm64-ios|x86_64-ios)
         ;;
     arm64-linux|x86_64-linux)
+        ;;
+    x86_64-win32|x86-win32)
         ;;
 
     *)
@@ -189,6 +193,15 @@ case $PLATFORM in
         fi
 
         (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_linux.sh --prefix ${PREFIX} --archs ${ARCH} --config ${CONFIGURATION})
+        ;;
+
+    x86_64-win32|x86-win32)
+        ARCH=x64
+        if [ "x86-win32" == "${PLATFORM}" ]; then
+            ARCH=x86
+        fi
+
+        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_windows.sh --prefix ${PREFIX} --archs ${ARCH} --config ${CONFIGURATION})
         ;;
 
     *)
