@@ -112,7 +112,7 @@ ${SCRIPT_DIR_UTILS}/build_version_header.sh ${VERSIONHEADER} ${RIVECPP}
 # Windows we apply a minimal patch enabling --with-libs-only to avoid building apps.
 RIVEPATCH=${SCRIPT_DIR}/rive.patch
 if [[ "$PLATFORM" == x86_64-win32 || "$PLATFORM" == x86-win32 ]]; then
-    echo "Skipping patch for windoes."
+    echo "Skipping patch for windows."
 
 else
     echo "Applying patch ${RIVEPATCH}"

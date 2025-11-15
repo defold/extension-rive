@@ -194,6 +194,27 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup VS DevCmd (x64)
+        if: ${{ matrix.platform == 'x86_64-win32' }}
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Setup VS DevCmd (x86)
+        if: ${{ matrix.platform == 'x86-win32' }}
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86
+
+      - name: MSBuild sanity check
+        shell: pwsh
+        run: |
+          msbuild -version
+          Get-Command msbuild.exe | Format-List -Property Source
+
       - name: Install Ninja
         shell: bash
         run: |
