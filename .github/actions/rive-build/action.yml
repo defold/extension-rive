@@ -44,13 +44,15 @@ runs:
         sha="${{ inputs.rive_sha }}"
         echo "Cloning Rive runtime from: ${url}"
         if [ -n "$sha" ]; then
-          git clone --depth 1 "$url" "$RIVE_TMP_DIR"
+          git -c core.autocrlf=false -c core.eol=lf clone --depth 1 "$url" "$RIVE_TMP_DIR"
           (cd "$RIVE_TMP_DIR" && git fetch --depth 1 origin "$sha" && git checkout -f "$sha")
         elif [ -n "$ref" ]; then
-          git clone --depth 1 --branch "$ref" "$url" "$RIVE_TMP_DIR"
+          git -c core.autocrlf=false -c core.eol=lf clone --depth 1 --branch "$ref" "$url" "$RIVE_TMP_DIR"
         else
-          git clone --depth 1 "$url" "$RIVE_TMP_DIR"
+          git -c core.autocrlf=false -c core.eol=lf clone --depth 1 "$url" "$RIVE_TMP_DIR"
         fi
+        # Double-check repo config to avoid CRLF breaking patch apply
+        (cd "$RIVE_TMP_DIR" && git config core.autocrlf false && git config core.eol lf)
         echo "RIVE_ROOT set to: $RIVE_TMP_DIR"
 
     - name: Ensure clean Rive repo
