@@ -55,12 +55,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Linux build dependencies (uuid, X11, Xcursor)
+      - name: Install Linux build dependencies (uuid, X11, Xcursor, Xrandr, Xi, Xinerama, Xf86VidMode)
         shell: bash
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y uuid-dev libx11-dev libxcursor-dev
+          sudo apt-get install -y uuid-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libxinerama-dev libxxf86vm-dev
 
       - name: Clone Rive runtime and set RIVE_ROOT
         shell: bash
@@ -327,7 +327,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          yes | sdkmanager "ndk;25.2.9519653"
+          # Accept licenses non-interactively without tripping pipefail
+          set +o pipefail
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          set -o pipefail
+          # Install the desired NDK version
+          sdkmanager --install "ndk;25.2.9519653"
           echo "ANDROID_NDK=${ANDROID_SDK_ROOT}/ndk/25.2.9519653" >> "$GITHUB_ENV"
           ls -la "${ANDROID_SDK_ROOT}/ndk/25.2.9519653" || true
 
