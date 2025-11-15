@@ -1,8 +1,6 @@
 name: Branch Scripts and Artifacts
 
 on:
-  push:
-
   workflow_dispatch:
     inputs:
       platform:
@@ -17,6 +15,10 @@ on:
         default: "https://github.com/rive-app/rive-runtime.git"
       rive_ref:
         description: "Rive runtime ref (branch/tag/commit). Leave empty for default."
+        required: false
+        default: ""
+      rive_sha:
+        description: "Rive runtime commit SHA to checkout (overrides rive_ref)"
         required: false
         default: ""
       upload_artifact:
@@ -61,8 +63,12 @@ jobs:
           echo "RIVE_ROOT=${RIVE_TMP_DIR}" >> "$GITHUB_ENV"
           url="${{ github.event.inputs.rive_repo_url }}"
           ref="${{ github.event.inputs.rive_ref }}"
+          sha="${{ github.event.inputs.rive_sha }}"
           echo "Cloning Rive runtime from: ${url}"
-          if [ -n "$ref" ]; then
+          if [ -n "$sha" ]; then
+            git clone --depth 1 "$url" "$RIVE_TMP_DIR"
+            (cd "$RIVE_TMP_DIR" && git fetch --depth 1 origin "$sha" && git checkout -f "$sha")
+          elif [ -n "$ref" ]; then
             git clone --depth 1 --branch "$ref" "$url" "$RIVE_TMP_DIR"
           else
             git clone --depth 1 "$url" "$RIVE_TMP_DIR"
@@ -158,8 +164,12 @@ jobs:
           echo "RIVE_ROOT=${RIVE_TMP_DIR}" >> "$GITHUB_ENV"
           url="${{ github.event.inputs.rive_repo_url }}"
           ref="${{ github.event.inputs.rive_ref }}"
+          sha="${{ github.event.inputs.rive_sha }}"
           echo "Cloning Rive runtime from: ${url}"
-          if [ -n "$ref" ]; then
+          if [ -n "$sha" ]; then
+            git clone --depth 1 "$url" "$RIVE_TMP_DIR"
+            (cd "$RIVE_TMP_DIR" && git fetch --depth 1 origin "$sha" && git checkout -f "$sha")
+          elif [ -n "$ref" ]; then
             git clone --depth 1 --branch "$ref" "$url" "$RIVE_TMP_DIR"
           else
             git clone --depth 1 "$url" "$RIVE_TMP_DIR"
