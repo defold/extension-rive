@@ -126,6 +126,7 @@ if [[ "$PLATFORM" == x86_64-win32 || "$PLATFORM" == x86-win32 ]]; then
         patchfile="${SCRIPT_DIR}/rive-windows.patch"
         lua_file="${RIVECPP}/renderer/premake5.lua"
         pls_file="${RIVECPP}/renderer/premake5_pls_renderer.lua"
+        v2_file="${RIVECPP}/premake5_v2.lua"
 
         # Extract -/+ replacement pairs for premake5.lua and apply them
         mapfile -t repls < <(awk '
@@ -155,6 +156,10 @@ if [[ "$PLATFORM" == x86_64-win32 || "$PLATFORM" == x86-win32 ]]; then
             if ! grep -q 'cppdialect "C\+\+14"' "$lua_file"; then
                 tmpfile=$(mktemp)
                 awk 'NR==7{print "cppdialect \"C++14\""} {print}' "$lua_file" > "$tmpfile" && mv "$tmpfile" "$lua_file" || true
+            fi
+            # Also bump dialect in core project definition
+            if [ -f "$v2_file" ]; then
+                sed -i "s/cppdialect('C++11')/cppdialect('C++14')/" "$v2_file" || true
             fi
             repl_failed=0
         fi
@@ -204,6 +209,10 @@ EOF
         # Validate fallback edits
         if ! grep -q "with-libs-only" "$pls_file" 2>/dev/null; then repl_failed=1; fi
         if ! grep -q "with-libs-only" "$lua_file" 2>/dev/null; then repl_failed=1; fi
+        # Ensure cppdialect C++14 is present either in lua_file or v2_file
+        if ! grep -q "cppdialect \"C\+\+14\"" "$lua_file" 2>/dev/null; then
+            if ! grep -q "cppdialect('C\+\+14')" "$v2_file" 2>/dev/null; then repl_failed=1; fi
+        fi
 
         if [ $repl_failed -ne 0 ]; then
             echo "Fallback edit failed. Generating diagnostics..." >&2
