@@ -85,7 +85,14 @@ runs:
         platform="$INPUT_PLATFORM"
         # For Android, set CC/CXX to the proper Clang wrappers so sysroot is correct
         if [ "$platform" = "arm64-android" ] || [ "$platform" = "armv7-android" ]; then
-          ndk_bin="${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          # Determine host tag for NDK toolchain (linux-x86_64, darwin-x86_64, darwin-arm64)
+          host_tag="linux-x86_64"
+          case "${RUNNER_OS:-}$(uname -m)" in
+            macOSx86_64|Darwinx86_64) host_tag="darwin-x86_64" ;;
+            macOSarm64|Darwinarm64) host_tag="darwin-arm64" ;;
+            Linux*) host_tag="linux-x86_64" ;;
+          esac
+          ndk_bin="${ANDROID_NDK}/toolchains/llvm/prebuilt/${host_tag}/bin"
           export ANDROID_API="${ANDROID_API:-21}"
           case "$platform" in
             arm64-android)
@@ -177,4 +184,3 @@ runs:
       run: |
         git --no-pager log -1 --oneline || true
         git status || true
-

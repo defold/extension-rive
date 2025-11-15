@@ -101,7 +101,7 @@ jobs:
 
   build-android:
     if: ${{ github.event.inputs.platform == 'arm64-android' || github.event.inputs.platform == 'armv7-android' || github.event.inputs.platform == 'all' }}
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     strategy:
       matrix:
         platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["arm64-android","armv7-android"]' || format('["{0}"]', github.event.inputs.platform)) }}
@@ -111,36 +111,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Linux dependencies (uuid for premake)
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y uuid-dev
-
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Set up Premake5
-        uses: abel0b/setup-premake@v2.4
-        with:
-          version: "5.0.0-beta2"
-
-      - name: Expose premake on PATH and env
-        shell: bash
-        run: |
-          set -euo pipefail
-          if command -v premake5 >/dev/null 2>&1; then
-            echo "PREMAKE5=$(command -v premake5)" >> "$GITHUB_ENV"
-            echo "PREMAKE=$(command -v premake5)" >> "$GITHUB_ENV"
-            echo "premake5: $(command -v premake5)"
-            premake5 --version || true
-          else
-            echo "premake5 not found on PATH" >&2
-          fi
+      
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
