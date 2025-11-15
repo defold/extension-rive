@@ -201,6 +201,23 @@ jobs:
           choco install ninja -y
           ninja --version || true
 
+      - name: Add Windows SDK fxc.exe to PATH
+        shell: pwsh
+        run: |
+          $winSdkDir = $env:WindowsSdkDir
+          if (-not $winSdkDir) { $winSdkDir = 'C:\Program Files (x86)\Windows Kits\10\' }
+          $binRoot = Join-Path $winSdkDir 'bin'
+          $ver = $env:WindowsSDKVersion
+          if (-not $ver) {
+            $ver = (Get-ChildItem $binRoot -Directory | Sort-Object Name -Descending | Select-Object -First 1).Name
+          }
+          $ver = $ver.TrimEnd('\')
+          $x64 = Join-Path $binRoot "$ver\x64"
+          $x86 = Join-Path $binRoot "$ver\x86"
+          $x64 | Out-File -FilePath $env:GITHUB_PATH -Append
+          $x86 | Out-File -FilePath $env:GITHUB_PATH -Append
+          Get-Command fxc.exe | Format-List -Property Source, Version
+
       - name: Install rsync
         shell: bash
         run: |
