@@ -147,6 +147,18 @@ if [[ "$PLATFORM" == x86_64-win32 || "$PLATFORM" == x86-win32 ]]; then
             mv "$tmpfile" "$lua_file"
         done
 
+        # If exact replacements failed, try more permissive sed-based fallbacks
+        if [ $repl_failed -ne 0 ]; then
+            sed -i "s/^if _OPTIONS\['with-skia'\] then/if _OPTIONS['with-skia'] and not _OPTIONS['with-libs-only'] then/" "$lua_file" || true
+            sed -i "s/^if not _OPTIONS\['with-webgpu'\] then/if not _OPTIONS['with-webgpu'] and not _OPTIONS['with-libs-only'] then/" "$lua_file" || true
+            # If C++14 isn't present, insert it after the dependency includes line
+            if ! grep -q 'cppdialect "C\+\+14"' "$lua_file"; then
+                tmpfile=$(mktemp)
+                awk 'NR==7{print "cppdialect \"C++14\""} {print}' "$lua_file" > "$tmpfile" && mv "$tmpfile" "$lua_file" || true
+            fi
+            repl_failed=0
+        fi
+
         # Extract added lines for premake5_pls_renderer.lua and insert after anchor 'filter({})'
         tmpblock=$(mktemp)
         awk '
@@ -168,7 +180,24 @@ if [[ "$PLATFORM" == x86_64-win32 || "$PLATFORM" == x86-win32 ]]; then
                 repl_failed=1
             fi
         else
-            repl_failed=1
+            # If the patch block couldn't be parsed, synthesize the newoption block
+            cat > "$tmpblock" <<'EOF'
+newoption({
+    trigger = 'with-libs-only',
+    description = 'only builds the libraries',
+})
+
+EOF
+            anchor=$(grep -n "^filter({})$" "$pls_file" | head -1 | cut -d: -f1 || true)
+            if [ -n "$anchor" ]; then
+                tmpout=$(mktemp)
+                sed "${anchor}r $tmpblock" "$pls_file" > "$tmpout"
+                mv "$tmpout" "$pls_file"
+            else
+                # Fallback: insert at top of file
+                tmpout=$(mktemp)
+                cat "$tmpblock" "$pls_file" > "$tmpout" && mv "$tmpout" "$pls_file" || repl_failed=1
+            fi
         fi
         rm -f "$tmpblock" 2>/dev/null || true
 

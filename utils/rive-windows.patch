@@ -1,9 +1,12 @@
 diff --git a/renderer/premake5.lua b/renderer/premake5.lua
-index 57d5a28d..8ee9f5bf 100644
+index 57d5a28d..35119d63 100644
 --- a/renderer/premake5.lua
 +++ b/renderer/premake5.lua
-@@ -6,11 +6,11 @@ dofile(RIVE_RUNTIME_DIR .. '/decoders/premake5_v2.lua')
+@@ -4,13 +4,14 @@ dofile('premake5_pls_renderer.lua')
+ dofile(RIVE_RUNTIME_DIR .. '/premake5_v2.lua')
+ dofile(RIVE_RUNTIME_DIR .. '/decoders/premake5_v2.lua')
  dofile(RIVE_RUNTIME_DIR .. '/dependencies/premake5_glfw_v2.lua')
++cppdialect "C++14"
  
  newoption({ trigger = 'with-skia', description = 'use skia' })
 -if _OPTIONS['with-skia'] then
@@ -17,13 +20,19 @@ index 57d5a28d..8ee9f5bf 100644
      do
          dependson('rive')
 diff --git a/renderer/premake5_pls_renderer.lua b/renderer/premake5_pls_renderer.lua
-index 266b3ed4..4bbc995f 100644
+index 266b3ed4..eedc73fa 100644
 --- a/renderer/premake5_pls_renderer.lua
 +++ b/renderer/premake5_pls_renderer.lua
-@@ -70,6 +70,12 @@ end
+@@ -70,6 +70,18 @@ end
  
  filter({})
  
++newoption({
++    trigger = 'with-libs-only',
++    description = 'only builds the libraries',
++})
++
++
 +newoption({
 +    trigger = 'with-libs-only',
 +    description = 'only builds the libraries',
