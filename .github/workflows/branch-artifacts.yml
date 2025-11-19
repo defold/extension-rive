@@ -88,6 +88,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Select Xcode 16.2
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.2'
+
       - name: Build, (optionally) upload, and commit
         uses: ./.github/actions/rive-build
         with:
