@@ -187,7 +187,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["x86-win32","x86_64-win32"]' || format('["{0}"]', github.event.inputs.platform)) }}
+        platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["x86_64-win32"]' || format('["{0}"]', github.event.inputs.platform)) }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
