@@ -213,10 +213,8 @@ case $PLATFORM in
 esac
 
 echo "Removing unwanted files:"
-UNWANTED=$(find ${SCRIPT_DIR}/../defold-rive/lib -iname "*glfw3.*")
-if [ "" != "${UNWANTED}" ]; then
-    find ${SCRIPT_DIR}/../defold-rive/lib -iname "*glfw3.*" | xargs rm -v $1
-    find ${SCRIPT_DIR}/../defold-rive/lib -iname "*path_fiddle.*" | xargs rm -v $1
-fi
+# Be resilient if nothing matches; remove quietly if present
+find "${SCRIPT_DIR}/../defold-rive/lib" -type f -iname "*glfw3.*" -exec rm -f -v {} + 2>/dev/null || true
+find "${SCRIPT_DIR}/../defold-rive/lib" -type f -iname "*path_fiddle.*" -exec rm -f -v {} + 2>/dev/null || true
 
 echo "Done!"
