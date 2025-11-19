@@ -46,10 +46,6 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  bob-setup:
-    # Reusable: prepare BOB via local bob workflow (now supports workflow_call)
-    uses: ./.github/workflows/bob.yml
-
   build-linux:
     if: ${{ github.event.inputs.platform == 'x86_64-linux' || github.event.inputs.platform == 'all' }}
     runs-on: ubuntu-latest
@@ -237,8 +233,8 @@ jobs:
           push_changes: ${{ github.event.inputs.push_changes }}
 
   build-editor-plugin:
-    # Build the editor plugin after the desktop builds
-    needs: [bob-setup, build-linux, build-macos, build-windows]
+    # Build the editor plugin after native builds
+    needs: [build-linux, build-macos, build-windows]
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
@@ -253,10 +249,36 @@ jobs:
           distribution: 'temurin'
           java-version: '25'
 
+      - name: Install jq
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Download bob.jar (Defold stable)
+        id: bob
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHA=$(curl -sSL https://d.defold.com/stable/info.json | jq -r .sha1)
+          if [ -z "$SHA" ] || [ "$SHA" = "null" ]; then
+            echo "Failed to resolve Defold stable sha1" >&2
+            exit 1
+          fi
+          echo "Resolved Defold stable sha1: $SHA"
+          mkdir -p "${RUNNER_TEMP}/bob"
+          curl -sSLo "${RUNNER_TEMP}/bob/bob.jar" \
+            "https://d.defold.com/archive/${SHA}/bob/bob.jar"
+          if [ ! -s "${RUNNER_TEMP}/bob/bob.jar" ]; then
+            echo "Downloaded bob.jar is missing or empty" >&2
+            exit 1
+          fi
+
       - name: Build editor plugin
         shell: bash
         env:
-          BOB: ${{ needs.bob-setup.outputs.BOB }}
+          BOB: ${{ runner.temp }}/bob/bob.jar
         run: |
           set -euo pipefail
           echo "Using BOB=${BOB}"
