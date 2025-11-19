@@ -46,9 +46,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  setup-bob:
-    # Reuse the bob workflow to prepare BOB and any required Defold SDK env.
-    # Adjust the ref below if your default branch differs.
+  bob-setup:
+    # Reusable: prepare BOB via local bob workflow (now supports workflow_call)
     uses: defold/extension-rive/.github/workflows/bob.yml@main
 
   build-linux:
@@ -241,7 +240,7 @@ jobs:
 
   build-editor-plugin:
     # Build the editor plugin after the desktop builds
-    needs: [setup-bob, build-linux, build-macos, build-windows]
+    needs: [bob-setup, build-linux, build-macos, build-windows]
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
@@ -254,16 +253,15 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '25'
 
       - name: Build editor plugin
         shell: bash
         env:
-          # Prefer output from reusable bob workflow; utils/build_plugins.sh falls back to DYNAMO_HOME if unset.
-          BOB: ${{ needs.setup-bob.outputs.BOB }}
+          BOB: ${{ needs.bob-setup.outputs.BOB }}
         run: |
           set -euo pipefail
-          echo "Using BOB=${BOB:-"(auto from DYNAMO_HOME)"}"
+          echo "Using BOB=${BOB}"
           bash ./utils/build_plugins.sh
 
       - name: Commit editor plugin outputs

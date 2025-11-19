@@ -1,6 +1,13 @@
 name: Build with bob
 
-on: [push, pull_request]
+on:
+  workflow_call:
+    outputs:
+      BOB:
+        description: "Path to bob.jar"
+        value: ${{ jobs.expose.outputs.bob }}
+  push:
+  pull_request:
 
 env:
   PLUGIN_SO: './defold-rive/plugins/lib/x86_64-linux/libRiveExt.so'
@@ -21,3 +28,15 @@ jobs:
     with:
       ignored_platforms: '[{"platform": "armv7-android"}]'
 
+  expose:
+    needs: build
+    runs-on: ubuntu-latest
+    outputs:
+      bob: ${{ steps.out.outputs.bob }}
+    steps:
+      - name: Expose bob and DYNAMO_HOME
+        id: out
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "bob=${GITHUB_WORKSPACE}/tmp/dynamo_home/share/java/bob.jar" >> "$GITHUB_OUTPUT"
