@@ -79,6 +79,7 @@ The supported platforms are
 * wasm_pthread-web
 * arm64-linux
 * x86_64-linux
+* x86_64-win32
 
 
 ## CI Workflow Usage
@@ -90,7 +91,7 @@ Steps:
 - Go to GitHub → Actions → "Branch Scripts and Artifacts" → Run workflow.
 - Pick the target branch in the UI.
 - Set inputs:
-  - `platform`: choose `x86_64-linux`, Apple (`arm64-macos`, `x86_64-macos`, `arm64-ios`, `x86_64-ios`), Android (`arm64-android`, `armv7-android`), Web (`js-web`, `wasm-web`, `wasm_pthread-web`), or `all` to build all.
+  - `platform`: choose `x86_64-linux`, `arm64-linux`, `arm64-macos`, `x86_64-macos`, `arm64-ios`, `x86_64-ios`, `arm64-android`, `armv7-android`, `js-web`, `wasm-web`, `wasm_pthread-web`, `x86_64-win32`, or `all`..
   - `rive_repo_url`: HTTPS repo for Rive runtime (defaults to `https://github.com/rive-app/rive-runtime.git`).
   - `rive_ref` (optional): pin a branch/tag of the runtime.
   - `rive_sha` (optional): pin an exact commit SHA (takes precedence over `rive_ref`).
@@ -119,57 +120,11 @@ Notes:
 - Concurrency is limited to one workflow per branch; commits include `[skip ci]` to avoid loops.
 
 
-## For the engine (old build path)
+## Plugins for the editor
 
-This step is needed for each platform+architecture that the runtime should support.
+**NOTE** This step is also handled by the CI build step!
 
-First, clean out any previous code that may be left since last update.
-You only need to do this once for each version update.
-
-    rm -rf ./build
-
-### Build the rive runtime
-
-the `build_pls.sh` script copies the files needed for each library, and sends them to our build server, in order to make sure they're built with the SDK's we need.
-
-For each platform+arch, do:
-
-    ./utils/build_pls.sh <platform>
-
-This updates the folder `./defold-rive/lib<platform>`
-
-The currently supported platforms:
-
-* arm64-ios
-* x86_64-ios
-* arm64-macos
-* x86_64-macos
-* arm64-android
-* arm64-linux
-* x86_64-linux
-* x86_64-win32
-* x86-win32
-* js-web
-* wasm-web
-* wasm_pthread-web
-
-For the more advanced use cases, there are variables that can be modified:
-
-     DEFOLDSDK=<defold sha1> SERVER=<server> ./utils/build_pls.sh <platform>
-
-You can specify variables: BOB, SERVER, DEFOLDSDK.
-
-### Update the Rive headers
-
-Once you've successfully built the libraries (for at least one platform), we also need to copy the headers.
-Note that it may remove or add headers in the `defold-rive/include/rive` folder. This often happens in their api.
-
-    > ./utils/copy_rive_headers.py
-
-
-## For the editor
-
-This step is only needed if you've altered some particular extension code itself, namely the pluginsrc/ and commonsrc/ folders.
+This step is only necessary if you've altered some particular extension code itself, namely the pluginsrc/ and commonsrc/ folders.
 
 For a regular rive-runtime update, this step isn't needed.
 
