@@ -48,7 +48,7 @@ concurrency:
 jobs:
   bob-setup:
     # Reusable: prepare BOB via local bob workflow (now supports workflow_call)
-    uses: defold/extension-rive/.github/workflows/bob.yml@main
+    uses: ./.github/workflows/bob.yml
 
   build-linux:
     if: ${{ github.event.inputs.platform == 'x86_64-linux' || github.event.inputs.platform == 'all' }}
@@ -119,9 +119,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
-
-      
+          java-version: '25'
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
