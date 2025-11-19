@@ -46,6 +46,11 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  setup-bob:
+    # Reuse the bob workflow to prepare BOB and any required Defold SDK env.
+    # Adjust the ref below if your default branch differs.
+    uses: defold/extension-rive/.github/workflows/bob.yml@main
+
   build-linux:
     if: ${{ github.event.inputs.platform == 'x86_64-linux' || github.event.inputs.platform == 'all' }}
     runs-on: ubuntu-latest
@@ -233,3 +238,68 @@ jobs:
           upload_artifact: ${{ github.event.inputs.upload_artifact }}
           commit_message: ${{ github.event.inputs.commit_message }}
           push_changes: ${{ github.event.inputs.push_changes }}
+
+  build-editor-plugin:
+    # Build the editor plugin after the desktop builds
+    needs: [setup-bob, build-linux, build-macos, build-windows]
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Build editor plugin
+        shell: bash
+        env:
+          # Prefer output from reusable bob workflow; utils/build_plugins.sh falls back to DYNAMO_HOME if unset.
+          BOB: ${{ needs.setup-bob.outputs.BOB }}
+        run: |
+          set -euo pipefail
+          echo "Using BOB=${BOB:-"(auto from DYNAMO_HOME)"}"
+          bash ./utils/build_plugins.sh
+
+      - name: Commit editor plugin outputs
+        if: ${{ github.event.inputs.push_changes == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -v defold-rive/plugins || true
+          if git diff --cached --quiet; then
+            echo "No editor plugin changes to commit."
+            exit 0
+          fi
+          msg="ci: update editor plugin on ${{ github.ref_name }} [skip ci]"
+          if [ -n "${{ github.event.inputs.commit_message }}" ]; then
+            msg="$msg - ${{ github.event.inputs.commit_message }}"
+          fi
+          git commit -m "$msg"
+          max_attempts=3
+          attempt=1
+          until [ $attempt -gt $max_attempts ]; do
+            echo "Attempt $attempt: rebase + push"
+            if git pull --rebase origin "${{ github.ref_name }}"; then
+              if git push origin HEAD:"${{ github.ref_name }}"; then
+                echo "Push succeeded"
+                break
+              fi
+            else
+              echo "Rebase failed; aborting and retrying"
+              git rebase --abort || true
+            fi
+            attempt=$((attempt+1))
+            sleep $((attempt*2))
+          done
+          if [ $attempt -gt $max_attempts ]; then
+            echo "Push failed after $max_attempts attempts"
+            exit 1
+          fi
