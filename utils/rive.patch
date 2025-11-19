@@ -1,5 +1,5 @@
 diff --git a/build/rive_build_config.lua b/build/rive_build_config.lua
-index f8172084..58284e79 100644
+index f8172084..b88724ab 100644
 --- a/build/rive_build_config.lua
 +++ b/build/rive_build_config.lua
 @@ -145,6 +145,19 @@ if _OPTIONS['with_optick'] then
@@ -97,6 +97,15 @@ index f8172084..58284e79 100644
          buildoptions({
 -            '-mmacosx-version-min=11.0',
 +            '-mmacosx-version-min=10.15',
+         })
+     end
+ 
+@@ -676,7 +720,7 @@ if os.host() == 'macosx' then
+     do
+         -- xcode tries to specify a target...
+         buildoptions({
+-            '--target=' .. os.outputof('uname -m') .. '-apple-macos11.0',
++            '--target=' .. os.outputof('uname -m') .. '-apple-macos10.15',
          })
      end
  
