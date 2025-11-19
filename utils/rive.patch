@@ -69,23 +69,6 @@ index f8172084..b88724ab 100644
  filter('system:macosx')
  do
      defines({ 'RIVE_MACOSX' })
-@@ -668,7 +712,7 @@ if os.host() == 'macosx' then
-     filter({ 'system:macosx', 'options:not variant=maccatalyst' })
-     do
-         buildoptions({
--            '-mmacosx-version-min=11.0',
-+            '-mmacosx-version-min=10.15',
-         })
-     end
- 
-@@ -676,7 +720,7 @@ if os.host() == 'macosx' then
-     do
-         -- xcode tries to specify a target...
-         buildoptions({
--            '--target=' .. os.outputof('uname -m') .. '-apple-macos11.0',
-+            '--target=' .. os.outputof('uname -m') .. '-apple-macos10.15',
-         })
-     end
  
 diff --git a/renderer/premake5.lua b/renderer/premake5.lua
 index 57d5a28d..bd629f1a 100644
