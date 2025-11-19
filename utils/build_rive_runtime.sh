@@ -121,10 +121,8 @@ else
     APPLY_RC=$?
     set -e
     if [ ${APPLY_RC} -ne 0 ]; then
-        echo "Apply failed; attempting 3-way with history..."
-        exit 1
+        echo "Simple apply failed; attempting 3-way with history..."
     fi
-fi
 fi
 
 CONFIGURATION=release
