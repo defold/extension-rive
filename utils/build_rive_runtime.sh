@@ -216,6 +216,7 @@ echo "Removing unwanted files:"
 UNWANTED=$(find ${SCRIPT_DIR}/../defold-rive/lib -iname "*glfw3.*")
 if [ "" != "${UNWANTED}" ]; then
     find ${SCRIPT_DIR}/../defold-rive/lib -iname "*glfw3.*" | xargs rm -v $1
+    find ${SCRIPT_DIR}/../defold-rive/lib -iname "*path_fiddle.*" | xargs rm -v $1
 fi
 
 echo "Done!"
