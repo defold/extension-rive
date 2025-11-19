@@ -247,6 +247,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Sync to latest branch tip
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "${{ github.ref_name }}"
+          # Fast-forward to the latest remote tip to include prior job commits
+          git checkout -B "${{ github.ref_name }}" "origin/${{ github.ref_name }}"
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
