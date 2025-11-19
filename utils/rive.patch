@@ -96,7 +96,7 @@ index f8172084..58284e79 100644
      do
          buildoptions({
 -            '-mmacosx-version-min=11.0',
-+            '-mmacosx-version-min=10.5',
++            '-mmacosx-version-min=10.15',
          })
      end
  

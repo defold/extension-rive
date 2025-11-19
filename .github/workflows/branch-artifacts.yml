@@ -236,7 +236,6 @@ jobs:
     # Build the editor plugin after native builds
     needs: [build-linux, build-macos, build-windows]
     runs-on: ubuntu-latest
-    if: ${{ always() }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
