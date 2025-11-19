@@ -121,59 +121,8 @@ else
     APPLY_RC=$?
     set -e
     if [ ${APPLY_RC} -ne 0 ]; then
-        echo "Simple apply failed; attempting 3-way with history..."
-        set +e
-        (
-            cd ${RIVECPP}
-            # If shallow, unshallow to make 3-way possible; ignore if already full
-            git rev-parse --is-shallow-repository >/dev/null 2>&1 && git fetch --unshallow || true
-            git apply -3 ${RIVEPATCH}
-        )
-        APPLY_RC=$?
-        set -e
-        if [ ${APPLY_RC} -ne 0 ]; then
-        echo "Patch apply failed. Attempting fallback edits..." >&2
-        # Fallback transforms for build/rive_build_config.lua
-        RBC="${RIVECPP}/build/rive_build_config.lua"
-        # macOS min 11.0 -> 10.15
-        sed -i "s/-mmacosx-version-min=11.0/-mmacosx-version-min=10.15/" "$RBC" || true
-        # iOS mins/targets 13.0 -> 11.0 (device + simulator)
-        sed -i "s/--target=arm64-apple-ios13.0.0/--target=arm64-apple-ios11.0.0/" "$RBC" || true
-        sed -i "s/-mios-version-min=13.0.0/-mios-version-min=11.0.0/" "$RBC" || true
-        sed -i "s/--target=arm64-apple-ios13.0.0-simulator/--target=arm64-apple-ios11.0.0-simulator/" "$RBC" || true
-        # Android NDK string 27.2... -> 25.2...
-        sed -i "s/NDK_LONG_VERSION_STRING = \"27.2.12479018\"/NDK_LONG_VERSION_STRING = \"25.2.9519653\"/" "$RBC" || true
-        # Insert sysroot/with_pthread newoptions before first 'location(RIVE_BUILD_OUT)'
-        awk '1; /^location\(RIVE_BUILD_OUT\)/ && !done {print "\n-- Optional sysroot for cross builds (primarily Linux)\nnewoption({\n    trigger = '\''sysroot'\'',\n    value = '\''PATH'\'',\n    description = '\''Path to a sysroot for cross-compiling (adds --sysroot=PATH to compile and link options)'\',\n})\n\n-- Optional pthread enabling (used e.g. for Emscripten wagyu builds)\nnewoption({\n    trigger = '\''with_pthread'\'',\n    description = '\''Enable pthread compile/link flags (-pthread)'\',\n})\n"; done=1}' "$RBC" > "$RBC.tmp" && mv "$RBC.tmp" "$RBC"
-        # Insert Linux cross-compilation helpers before first filter('system:macosx')
-        awk 'BEGIN{ins=0} {if($0 ~ /^filter\('\''system:macosx'\''\)/ && !ins){
-          print "\n-- Cross-compilation helpers for Linux.\nif os.target() == '\''linux'\'' then";
-          print "    local host_arch = os.outputof('\''uname -m'\'') or '\'''\'''";
-          print "    if _OPTIONS['\''arch'\''] == '\''x64'\'' and host_arch ~= '\''x86_64'\'' then";
-          print "        buildoptions({ '\''--target=x86_64-linux-gnu'\'' })";
-          print "        linkoptions({ '\''--target=x86_64-linux-gnu'\'' })";
-          print "    elseif _OPTIONS['\''arch'\''] == '\''arm64'\'' and host_arch ~= '\''aarch64'\'' then";
-          print "        buildoptions({ '\''--target=aarch64-linux-gnu'\'' })";
-          print "        linkoptions({ '\''--target=aarch64-linux-gnu'\'' })";
-          print "    elseif _OPTIONS['\''arch'\''] == '\''arm'\'' and host_arch !~ /arm/ then";
-          print "        buildoptions({ '\''--target=arm-linux-gnueabihf'\'' })";
-          print "        linkoptions({ '\''--target=arm-linux-gnueabihf'\'' })";
-          print "    end";
-          print "    if _OPTIONS['\''sysroot'\''] ~= nil then";
-          print "        buildoptions({ '\''--sysroot='\'' .. _OPTIONS['\''sysroot'\''] })";
-          print "        linkoptions({ '\''--sysroot='\'' .. _OPTIONS['\''sysroot'\''] })";
-          print "    end\nend\n"; ins=1}
-          print }' "$RBC" > "$RBC.tmp" && mv "$RBC.tmp" "$RBC"
-        # with-libs-only option and guards in renderer files
-        RPL="${RIVECPP}/renderer/premake5.lua"
-        RPLS="${RIVECPP}/renderer/premake5_pls_renderer.lua"
-        sed -i "s/^if _OPTIONS\['with-skia'\] then/if _OPTIONS['with-skia'] and not _OPTIONS['with-libs-only'] then/" "$RPL" || true
-        sed -i "s/^if not _OPTIONS\['with-webgpu'\] then/if not _OPTIONS['with-webgpu'] and not _OPTIONS['with-libs-only'] then/" "$RPL" || true
-        sed -i "s/^if (_OPTIONS\['with-webgpu'\] or _OPTIONS\['with-dawn'\]) then/if (_OPTIONS['with-webgpu'] or _OPTIONS['with-dawn']) and not _OPTIONS['with-libs-only'] then/" "$RPL" || true
-        if ! grep -q "with-libs-only" "$RPLS" 2>/dev/null; then
-          awk '1;/^filter\(\{\}\)/ && !done {print "\nnewoption({\n    trigger = '\''with-libs-only'\'',\n    description = '\''only builds the libraries'\'',\n})\n"; done=1}' "$RPLS" > "$RPLS.tmp" && mv "$RPLS.tmp" "$RPLS"
-        fi
-        echo "Fallback edits applied."
+        echo "Apply failed; attempting 3-way with history..."
+        exit 1
     fi
 fi
 fi

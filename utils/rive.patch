@@ -1,7 +1,76 @@
 diff --git a/build/rive_build_config.lua b/build/rive_build_config.lua
+index f8172084..58284e79 100644
 --- a/build/rive_build_config.lua
 +++ b/build/rive_build_config.lua
-@@
+@@ -145,6 +145,19 @@ if _OPTIONS['with_optick'] then
+     RIVE_OPTICK_VERSION = '1.4.0.0'
+ end 
+ 
++-- Optional sysroot for cross builds (primarily Linux)
++newoption({
++    trigger = 'sysroot',
++    value = 'PATH',
++    description = 'Path to a sysroot for cross-compiling (adds --sysroot=PATH to compile and link options)',
++})
++
++-- Optional pthread enabling (used e.g. for Emscripten wagyu builds)
++newoption({
++    trigger = 'with_pthread',
++    description = 'Enable pthread compile/link flags (-pthread)',
++})
++
+ location(RIVE_BUILD_OUT)
+ targetdir(RIVE_BUILD_OUT)
+ objdir(RIVE_BUILD_OUT .. '/obj')
+@@ -422,7 +435,7 @@ if _OPTIONS['for_android'] then
+ 
+     -- Detect the NDK.
+     local EXPECTED_NDK_VERSION = 'r27c'
+-    local NDK_LONG_VERSION_STRING = "27.2.12479018"
++    local NDK_LONG_VERSION_STRING = "25.2.9519653"
+     if _OPTIONS['for_unreal'] then
+         EXPECTED_NDK_VERSION = '25.1.8937393'
+         NDK_LONG_VERSION_STRING = '25.1.8937393'
+@@ -559,6 +572,37 @@ end
+ 
+ filter({})
+ 
++-- Cross-compilation helpers for Linux. When targeting a Linux architecture that does not match
++-- the host, add an explicit target triple so clang uses the correct backend. Optionally honor a
++-- provided --sysroot for both compilation and linking.
++if os.target() == 'linux' then
++    local host_arch = os.outputof('uname -m') or ''
++
++    -- Apply target triple if host arch doesn't match requested arch
++    if _OPTIONS['arch'] == 'x64' and host_arch ~= 'x86_64' then
++        buildoptions({ '--target=x86_64-linux-gnu' })
++        linkoptions({ '--target=x86_64-linux-gnu' })
++    elseif _OPTIONS['arch'] == 'arm64' and host_arch ~= 'aarch64' then
++        buildoptions({ '--target=aarch64-linux-gnu' })
++        linkoptions({ '--target=aarch64-linux-gnu' })
++    elseif _OPTIONS['arch'] == 'arm' and not host_arch:match('arm') then
++        buildoptions({ '--target=arm-linux-gnueabihf' })
++        linkoptions({ '--target=arm-linux-gnueabihf' })
++    end
++
++    -- Optional sysroot
++    if _OPTIONS['sysroot'] ~= nil then
++        buildoptions({ '--sysroot=' .. _OPTIONS['sysroot'] })
++        linkoptions({ '--sysroot=' .. _OPTIONS['sysroot'] })
++    end
++end
++
++-- Apply pthread flags when requested
++if _OPTIONS['with_pthread'] then
++    buildoptions({ '-pthread' })
++    linkoptions({ '-pthread' })
++end
++
+ filter('system:macosx')
+ do
+     defines({ 'RIVE_MACOSX' })
+@@ -577,8 +621,8 @@ if _OPTIONS['os'] == 'ios' then
+ 
          defines({ 'RIVE_IOS' })
          buildoptions({
 -            '--target=arm64-apple-ios13.0.0',
@@ -10,7 +79,9 @@ diff --git a/build/rive_build_config.lua b/build/rive_build_config.lua
 +            '-mios-version-min=11.0.0',
              '-isysroot ' .. iphoneos_sysroot,
          })
-@@
+     elseif _OPTIONS['variant'] == 'emulator' then
+@@ -591,8 +635,8 @@ if _OPTIONS['os'] == 'ios' then
+ 
          defines({ 'RIVE_IOS_SIMULATOR' })
          buildoptions({
 -            '--target=arm64-apple-ios13.0.0-simulator',
@@ -19,11 +90,56 @@ diff --git a/build/rive_build_config.lua b/build/rive_build_config.lua
 +            '-mios-version-min=11.0.0',
              '-isysroot ' .. iphonesimulator_sysroot,
          })
-@@
-    filter({ 'system:macosx', 'options:not variant=maccatalyst' })
-    do
-        buildoptions({
+     elseif _OPTIONS['variant'] == 'xros' then
+@@ -668,7 +712,7 @@ if os.host() == 'macosx' then
+     filter({ 'system:macosx', 'options:not variant=maccatalyst' })
+     do
+         buildoptions({
 -            '-mmacosx-version-min=11.0',
-+            '-mmacosx-version-min=10.15',
-        })
-    end
++            '-mmacosx-version-min=10.5',
+         })
+     end
+ 
+diff --git a/renderer/premake5.lua b/renderer/premake5.lua
+index 57d5a28d..bd629f1a 100644
+--- a/renderer/premake5.lua
++++ b/renderer/premake5.lua
+@@ -6,11 +6,11 @@ dofile(RIVE_RUNTIME_DIR .. '/decoders/premake5_v2.lua')
+ dofile(RIVE_RUNTIME_DIR .. '/dependencies/premake5_glfw_v2.lua')
+ 
+ newoption({ trigger = 'with-skia', description = 'use skia' })
+-if _OPTIONS['with-skia'] then
++if _OPTIONS['with-skia'] and not _OPTIONS['with-libs-only'] then
+     dofile(RIVE_RUNTIME_DIR .. '/skia/renderer/premake5_v2.lua')
+ end
+ 
+-if not _OPTIONS['with-webgpu'] then
++if not _OPTIONS['with-webgpu'] and not _OPTIONS['with-libs-only'] then
+     project('path_fiddle')
+     do
+         dependson('rive')
+@@ -179,7 +179,7 @@ if not _OPTIONS['with-webgpu'] then
+     end
+ end
+ 
+-if _OPTIONS['with-webgpu'] or _OPTIONS['with-dawn'] then
++if (_OPTIONS['with-webgpu'] or _OPTIONS['with-dawn']) and not _OPTIONS['with-libs-only']  then
+     project('webgpu_player')
+     do
+         kind('ConsoleApp')
+diff --git a/renderer/premake5_pls_renderer.lua b/renderer/premake5_pls_renderer.lua
+index 266b3ed4..9d7b5507 100644
+--- a/renderer/premake5_pls_renderer.lua
++++ b/renderer/premake5_pls_renderer.lua
+@@ -68,6 +68,11 @@ do
+     defines({ 'RIVE_WEBGPU=' .. _OPTIONS['webgpu-version'] })
+ end
+ 
++newoption({
++    trigger = 'with-libs-only',
++    description = 'only builds the libraries',
++})
++
+ filter({})
+ 
+ newoption({
