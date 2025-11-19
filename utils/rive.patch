@@ -69,28 +69,6 @@ index f8172084..b88724ab 100644
  filter('system:macosx')
  do
      defines({ 'RIVE_MACOSX' })
-@@ -577,8 +621,8 @@ if _OPTIONS['os'] == 'ios' then
- 
-         defines({ 'RIVE_IOS' })
-         buildoptions({
--            '--target=arm64-apple-ios13.0.0',
--            '-mios-version-min=13.0.0',
-+            '--target=arm64-apple-ios11.0.0',
-+            '-mios-version-min=11.0.0',
-             '-isysroot ' .. iphoneos_sysroot,
-         })
-     elseif _OPTIONS['variant'] == 'emulator' then
-@@ -591,8 +635,8 @@ if _OPTIONS['os'] == 'ios' then
- 
-         defines({ 'RIVE_IOS_SIMULATOR' })
-         buildoptions({
--            '--target=arm64-apple-ios13.0.0-simulator',
--            '-mios-version-min=13.0.0',
-+            '--target=arm64-apple-ios11.0.0-simulator',
-+            '-mios-version-min=11.0.0',
-             '-isysroot ' .. iphonesimulator_sysroot,
-         })
-     elseif _OPTIONS['variant'] == 'xros' then
 @@ -668,7 +712,7 @@ if os.host() == 'macosx' then
      filter({ 'system:macosx', 'options:not variant=maccatalyst' })
      do
