@@ -8,34 +8,36 @@
 
 (ns editor.rive
   (:require [clojure.java.io :as io]
-            [editor.protobuf :as protobuf]
             [dynamo.graph :as g]
+            [editor.buffers :as buffers]
             [editor.build-target :as bt]
-            [editor.graph-util :as gu]
+            [editor.defold-project :as project]
             [editor.geom :as geom]
-            [editor.math :as math]
             [editor.gl :as gl]
+            [editor.gl.attribute :as attribute]
+            [editor.gl.pass :as pass]
             [editor.gl.shader :as shader]
             [editor.gl.texture :as texture]
             [editor.gl.vertex2 :as vtx]
-            [editor.defold-project :as project]
-            [editor.resource :as resource]
-            [editor.resource-node :as resource-node]
-            [editor.render :as render]
-            [editor.validation :as validation]
-            [editor.workspace :as workspace]
-            [editor.gl.pass :as pass]
-            [editor.types :as types]
+            [editor.graph-util :as gu]
+            [editor.math :as math]
             [editor.outline :as outline]
             [editor.properties :as properties]
+            [editor.protobuf :as protobuf]
+            [editor.render-util :as render-util]
+            [editor.resource :as resource]
+            [editor.resource-node :as resource-node]
+            [editor.scene-picking :as scene-picking]
+            [editor.types :as types]
+            [editor.validation :as validation]
+            [editor.workspace :as workspace]
             [util.murmur :as murmur])
-  (:import [editor.gl.shader ShaderLifecycle]
-           [com.jogamp.opengl GL GL2]
-           [org.apache.commons.io IOUtils]
+  (:import [com.jogamp.opengl GL GL2]
+           [editor.gl.shader ShaderLifecycle]
            [java.io IOException]
            [java.nio FloatBuffer IntBuffer]
-           [javax.vecmath Matrix4d Vector3d Vector4d]))
-
+           [javax.vecmath Matrix4d Vector3d Vector4d]
+           [org.apache.commons.io IOUtils]))
 
 (set! *warn-on-reflection* true)
 
@@ -50,9 +52,13 @@
 (def rive-scene-icon "/defold-rive/editor/resources/icons/32/Icons_16-Rive-scene.png")
 (def rive-model-icon "/defold-rive/editor/resources/icons/32/Icons_15-Rive-model.png")
 (def rive-bone-icon "/defold-rive/editor/resources/icons/32/Icons_18-Rive-bone.png")
+
 ;; These should be read from the .proto file
 (def default-material-proj-path "/defold-rive/assets/rivemodel.material")
 (def default-blit-material-proj-path "/defold-rive/assets/shader-library/rivemodel_blit.material")
+
+;; Used for selection in the editor Scene View.
+(def selection-material-proj-path "/defold-rive/editor/resources/materials/rivemodel_selection.material")
 
 (def rive-file-ext "riv")
 (def rive-scene-ext "rivescene")
@@ -168,9 +174,6 @@
 ;; Represents a .riv file, a proprietary file format.
 (g/defnode RiveFileNode
   (inherits resource-node/ResourceNode)
-
-  (input scene-structure g/Any)
-  (output scene-structure g/Any (gu/passthrough scene-structure))
 
   (property content g/Any)
   (property rive-handle g/Any) ; The cpp pointer
@@ -322,26 +325,6 @@
 (defn- renderable->texture-set-pb [renderable]
   (get-in renderable [:user-data :texture-set-pb]))
 
-
-(shader/defshader rive-id-shader-vp
-  (attribute vec2 position)
-  (uniform vec4 cover)
-  (defn void main []
-    (setq vec4 pos (vec4 position.xy 0.0 1.0))
-    (setq gl_Position (+ (* (* gl_ModelViewProjectionMatrix pos) (- 1.0  cover.x)) (* cover.x pos)))
-    ))
-
-(shader/defshader rive-id-shader-fp
-  (uniform vec4 color)
-  (uniform vec4 id)
-  (defn void main []
-    (if (> color.a 0.05)
-      (setq gl_FragColor id)
-      (discard))
-    ))
-
-(def rive-id-shader (shader/make-shader ::id-shader rive-id-shader-vp rive-id-shader-fp {"id" :id}))
-
 (vtx/defvertex vtx-textured
  (vec2 position)
  (vec2 texcoord0))
@@ -349,15 +332,16 @@
 (set! *warn-on-reflection* false)
 
 (defn renderable->render-objects [renderable]
-  (let [handle (renderable->handle renderable)
+  (let [node-id (:node-id renderable)
+        handle (renderable->handle renderable)
         texture-set-pb (renderable->texture-set-pb renderable)
         vb-data (.vertices handle)
         vb-data-float-buffer (FloatBuffer/wrap vb-data)
         vb (vtx/wrap-vertex-buffer vtx-textured :static vb-data-float-buffer)
-
         ib-data (.indices handle)
-        ib (IntBuffer/wrap ib-data)
-
+        ib-data-int-buffer (IntBuffer/wrap ib-data)
+        ib-buffer-data (buffers/make-buffer-data ib-data-int-buffer)
+        ib (attribute/make-index-buffer node-id ib-buffer-data :static)
         render-objects (.renderObjects handle)]
     {:vertex-buffer vb
      :index-buffer ib
@@ -495,7 +479,6 @@
                                                           (:view render-args)
                                                           (:projection render-args)
                                                           (:texture render-args)))]
-
     (shader/set-uniform shader gl "world_view_proj" (:world-view-proj render-args))
     (set-constants! gl shader ro)
     (when (.setFaceWinding ro)
@@ -503,7 +486,7 @@
     (when (.setStencilTest ro)
       (set-stencil-test-params! gl (.stencilTestParams ro)))
 
-    (gl/gl-draw-elements gl gl-prim-type start count)))
+    (gl/gl-draw-elements gl gl-prim-type GL/GL_UNSIGNED_INT start count)))
 
   (set! *warn-on-reflection* true)
 
@@ -518,58 +501,54 @@
 
 (defn- render-group-transparent [^GL2 gl render-args override-shader group]
   (let [renderable (:renderable group)
+        is-selection-pass (:selection (:pass render-args))
         node-id (:node-id renderable)
         user-data (:user-data renderable)
         blend-mode (:blend-mode user-data)
-        gpu-texture (or (get user-data :gpu-texture) texture/white-pixel)
-        shader (if (not= override-shader nil) override-shader
-                   (:shader user-data))
+        gpu-texture (or (:gpu-texture user-data) texture/white-pixel)
+        shader (or override-shader (:shader user-data))
         vb (:vertex-buffer group)
         ib (:index-buffer group)
         render-objects (:render-objects group)
-        vertex-index-binding (vtx/use-with [node-id ::rive-trans] vb ib shader)]
-
-    (gl/with-gl-bindings gl render-args [gpu-texture shader vertex-index-binding]
+        vertex-binding (vtx/use-with [node-id ::rive-trans] vb shader)]
+    (gl/with-gl-bindings gl render-args [gpu-texture shader vertex-binding ib]
       (setup-gl gl)
-      (gl/set-blend-mode gl blend-mode)
+      (if is-selection-pass
+        (shader/set-uniform shader gl "id_color" (:id-color render-args))
+        (gl/set-blend-mode gl blend-mode))
       (doseq [ro render-objects]
         (do-render-object! gl render-args shader renderable ro))
       (restore-gl gl))))
 
 (defn- render-rive-scenes [^GL2 gl render-args renderables rcount]
-  (let [pass (:pass render-args)
+  ;; TODO: Go over batching, rendering, and scene generation properly.
+  (let [first-renderable (first renderables)
+        first-renderable-user-data (:user-data first-renderable)
+        selection-shader (:selection-shader first-renderable-user-data)
+        render-args (assoc render-args :id-color (scene-picking/renderable-picking-id-uniform first-renderable))
         render-groups (collect-render-groups renderables)]
-       (doseq [group render-groups]
-         (plugin-update-file (:handle group) 0.0 (:texture-set-pb group)))
-    (condp = pass
-      pass/transparent
-      (doseq [group render-groups]
-        (render-group-transparent gl render-args nil group))
+    (doseq [group render-groups]
+      (plugin-update-file (:handle group) 0.0 (:texture-set-pb group))
+      (condp = (:pass render-args)
+        pass/transparent
+        (render-group-transparent gl render-args nil group)
 
-      pass/selection
-      (doseq [group (collect-render-groups renderables)]
-        (render-group-transparent gl render-args rive-id-shader group)))))
+        pass/selection
+        (render-group-transparent gl render-args selection-shader group)))))
 
-(defn- render-rive-outlines [^GL2 gl render-args renderables rcount]
-  (assert (= (:pass render-args) pass/outline))
-  (render/render-aabb-outline gl render-args ::rive-outline renderables rcount))
-
-(g/defnk produce-main-scene [_node-id material-shader rive-file-handle aabb gpu-texture default-tex-params rive-scene-pb scene-structure texture-set-pb]
+(g/defnk produce-main-scene [_node-id material-shader selection-material-shader rive-file-handle aabb rive-scene-pb texture-set-pb]
   (when rive-file-handle
     (let [blend-mode :blend-mode-alpha]
       (assoc {:node-id _node-id :aabb aabb}
              :renderable {:render-fn render-rive-scenes
                           :tags #{:rive}
-                          :batch-key [gpu-texture material-shader]
+                          :batch-key material-shader
                           :select-batch-key _node-id
                           :user-data {:rive-scene-pb rive-scene-pb
                                       :rive-file-handle rive-file-handle
                                       :aabb aabb
-                                      :scene-structure {} ; TODO: Remove this remnant
                                       :shader material-shader
-                                      ;:gpu-texture gpu-texture
-                                      :gpu-texture (or gpu-texture texture/white-pixel)
-                                      ;:tex-params default-tex-params
+                                      :selection-shader selection-material-shader
                                       :texture-set-pb texture-set-pb
                                       :blend-mode blend-mode}
                           :passes [pass/transparent pass/selection]}))))
@@ -577,12 +556,9 @@
 (defn- make-rive-outline-scene [_node-id aabb]
   {:aabb aabb
    :node-id _node-id
-   :renderable {:render-fn render-rive-outlines
-                :tags #{:rive :outline}
-                :batch-key ::outline
-                :passes [pass/outline]}})
+   :renderable (render-util/make-aabb-outline-renderable #{:rive})})
 
-(g/defnk produce-rivescene [_node-id rive-file-handle aabb main-scene gpu-texture scene-structure]
+(g/defnk produce-rivescene [_node-id rive-file-handle aabb main-scene]
   (when rive-file-handle
     (if (some? main-scene)
       (-> main-scene
@@ -600,7 +576,6 @@
                                             [:resource :rive-file-resource]
                                             [:content :rive-scene]
                                             [:rive-handle :rive-file-handle]
-                                            [:structure :scene-structure]
                                             [:artboards :rive-artboards]
                                             [:artboard-id-list :rive-artboard-id-list]
                                             [:aabb :aabb]
@@ -622,20 +597,23 @@
             (dynamic error (g/fnk [_node-id atlas]
                                   (validate-scene-atlas _node-id atlas))))
 
-; This property isn't visible, but here to allow us to preview the .rivescene
+  ;; This property isn't visible, but here to allow us to preview the .rivescene
   (property material resource/Resource ; Default assigned in load-fn.
-            (value (gu/passthrough material-resource))
             (set (fn [evaluation-context self old-value new-value]
                    (project/resource-setter evaluation-context self old-value new-value
-                                            [:resource :material-resource]
-                                            [:shader :material-shader]
-                                            [:samplers :material-samplers])))
-            (dynamic edit-type (g/constantly {:type resource/Resource :ext "material"}))
+                                            [:shader :material-shader])))
+            (dynamic visible (g/constantly false)))
+
+  ;; This property isn't visible, but here to allow us to perform scene view
+  ;; picking against the .rivescene
+  (property selection-material resource/Resource ; Default assigned in load-fn.
+            (set (fn [evaluation-context self old-value new-value]
+                   (project/resource-setter evaluation-context self old-value new-value
+                                            [:shader :selection-material-shader])))
             (dynamic visible (g/constantly false)))
 
   (input material-shader ShaderLifecycle)
-  (input material-samplers g/Any)
-  (input material-resource resource/Resource) ; Just for being able to preview the asset
+  (input selection-material-shader ShaderLifecycle)
   (input rive-file-resource resource/Resource)
   (input rive-file-handle g/Any)
   (input rive-artboards g/Any)
@@ -651,7 +629,6 @@
   (input gpu-texture g/Any)
   (input dep-build-targets g/Any :array)
   (input rive-scene g/Any)
-  (input scene-structure g/Any)
 
   (output save-value g/Any :cached produce-rivescene-save-value)
   (output own-build-errors g/Any produce-rivescene-own-build-errors)
@@ -659,8 +636,6 @@
   (output rive-scene-pb g/Any :cached produce-rivescene-pb)
   (output main-scene g/Any :cached produce-main-scene)
   (output scene g/Any :cached produce-rivescene)
-  (output scene-structure g/Any (gu/passthrough scene-structure))
-  (output material-shader ShaderLifecycle (gu/passthrough material-shader))
   (output rive-file-handle g/Any :cached (gu/passthrough rive-file-handle))
   (output rive-artboards g/Any :cached (gu/passthrough rive-artboards))
   (output rive-artboard-id-list g/Any :cached (gu/passthrough rive-artboard-id-list))
@@ -673,6 +648,7 @@
     (concat
       (g/connect project :default-tex-params self :default-tex-params)
       (g/set-property self :material (resolve-resource default-material-proj-path))
+      (g/set-property self :selection-material (resolve-resource selection-material-proj-path))
       (gu/set-properties-from-pb-map self rive-scene-pb-class rive-scene-desc
         rive-file (resolve-resource :scene)
         atlas (resolve-resource :atlas)))))
@@ -730,7 +706,7 @@
 (defn- validate-model-rive-scene [node-id rive-scene]
   (prop-resource-error node-id :scene rive-scene "Rive Scene"))
 
-(g/defnk produce-model-own-build-errors [_node-id artboard default-animation default-state-machine material rive-artboards rive-artboard-id-list rive-scene scene-structure]
+(g/defnk produce-model-own-build-errors [_node-id artboard default-animation default-state-machine material rive-artboards rive-artboard-id-list rive-scene]
   (let [state-machine-ids (:state-machine-ids (get rive-artboard-id-list artboard))
         animation-ids (:animation-ids (get rive-artboard-id-list artboard))]
    (g/package-errors _node-id
@@ -774,8 +750,7 @@
                                             [:rive-artboards :rive-artboards]
                                             [:rive-artboard-id-list :rive-artboard-id-list]
                                             [:build-targets :dep-build-targets]
-                                            [:anim-data :anim-data]
-                                            [:scene-structure :scene-structure])))
+                                            [:anim-data :anim-data])))
             (dynamic edit-type (g/constantly {:type resource/Resource :ext rive-scene-ext}))
             (dynamic error (g/fnk [_node-id rive-scene]
                                   (validate-model-rive-scene _node-id rive-scene))))
@@ -841,7 +816,6 @@
   (input rive-file-handle g/Any)
   (input rive-scene-resource resource/Resource)
   (input rive-main-scene g/Any)
-  (input scene-structure g/Any)
   (input rive-artboards g/Any)
   (input rive-artboard-id-list g/Any)
   (input texture-set-pb g/Any)
@@ -884,7 +858,7 @@
                                                                    :icon rive-model-icon
                                                                    :outline-error? (g/error-fatal? own-build-errors)}
 
-                                                            (resource/openable-resource? scene)
+                                                            (resource/resource? scene)
                                                             (assoc :link scene :outline-reference? false))))
   (output save-value g/Any :cached produce-rivemodel-save-value)
   (output own-build-errors g/Any produce-model-own-build-errors)
