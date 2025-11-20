@@ -1,5 +1,5 @@
 diff --git a/build/rive_build_config.lua b/build/rive_build_config.lua
-index f8172084..5a6587ed 100644
+index f8172084..8cfcf749 100644
 --- a/build/rive_build_config.lua
 +++ b/build/rive_build_config.lua
 @@ -145,6 +145,19 @@ if _OPTIONS['with_optick'] then
@@ -22,7 +22,24 @@ index f8172084..5a6587ed 100644
  location(RIVE_BUILD_OUT)
  targetdir(RIVE_BUILD_OUT)
  objdir(RIVE_BUILD_OUT .. '/obj')
-@@ -422,7 +435,7 @@ if _OPTIONS['for_android'] then
+@@ -399,6 +412,7 @@ end
+ filter({ 'action:vs2022' })
+ do
+     flags({ 'MultiProcessorCompile' })
++    toolset('v142')
+ end
+ 
+ filter({})
+@@ -408,7 +422,7 @@ filter({})
+ -- use it directly, we will include more things than are strictly necessary.
+ --
+ -- Instead, make an alias that we can use instead that we set manually based on calls to system()
+--- Additionally, premake deprecated `--os=android` which is why the custom system() call is 
++-- Additionally, premake deprecated `--os=android` which is why the custom system() call is
+ -- needed in the first place (otherwise the build script would just be passing it in)
+ rive_target_os = os.target()
+ 
+@@ -422,7 +436,7 @@ if _OPTIONS['for_android'] then
  
      -- Detect the NDK.
      local EXPECTED_NDK_VERSION = 'r27c'
@@ -31,7 +48,7 @@ index f8172084..5a6587ed 100644
      if _OPTIONS['for_unreal'] then
          EXPECTED_NDK_VERSION = '25.1.8937393'
          NDK_LONG_VERSION_STRING = '25.1.8937393'
-@@ -559,6 +572,46 @@ end
+@@ -559,6 +573,46 @@ end
  
  filter({})
  
@@ -78,7 +95,6 @@ index f8172084..5a6587ed 100644
  filter('system:macosx')
  do
      defines({ 'RIVE_MACOSX' })
-
 diff --git a/renderer/premake5.lua b/renderer/premake5.lua
 index 57d5a28d..bd629f1a 100644
 --- a/renderer/premake5.lua
