@@ -212,23 +212,29 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up VS2022 environment (Developer Command Prompt x64)
+      - name: Setup VS DevCmd (x64)
         if: ${{ matrix.platform == 'x86_64-win32' }}
-        shell: cmd
-        run: |
-          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64 -vcvars_ver=14.20
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+          vsversion: 2022
+          toolset: 14.20
+          sdk: 10.0.20348.0
+
+      - name: Setup VS DevCmd (x86)
+        if: ${{ matrix.platform == 'x86-win32' }}
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86
+          vsversion: 2022
+          toolset: 14.20
+          sdk: 10.0.20348.0
 
       - name: MSBuild sanity check
         shell: pwsh
         run: |
           msbuild -version
           Get-Command msbuild.exe | Format-List -Property Source
-
-      - name: CL/Clang sanity check
-        shell: cmd
-        run: |
-          clang-cl.exe --version
-          echo int main(){} | clang-cl -E -x c++ -Xclang -dM - | findstr _MSC_VER
 
       - name: Install DirectX Shader Compiler (DXC)
         shell: bash
