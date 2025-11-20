@@ -212,26 +212,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
-
-      - name: Setup VS DevCmd (x64)
-        if: ${{ matrix.platform == 'x86_64-win32' }}
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x64
-
-      - name: Setup VS DevCmd (x86)
-        if: ${{ matrix.platform == 'x86-win32' }}
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x86
-
-      - name: MSBuild sanity check
-        shell: pwsh
+      - name: Set up VS2022 environment (Developer Command Prompt)
+        shell: cmd
         run: |
-          msbuild -version
-          Get-Command msbuild.exe | Format-List -Property Source
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64 -vcvars_ver=14.37
 
       - name: Install DirectX Shader Compiler (DXC)
         shell: bash
