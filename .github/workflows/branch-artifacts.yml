@@ -219,7 +219,6 @@ jobs:
           arch: x64
           vsversion: 2022
           toolset: 14.20
-          sdk: 10.0.20348.0
 
       - name: Setup VS DevCmd (x86)
         if: ${{ matrix.platform == 'x86-win32' }}
@@ -228,7 +227,6 @@ jobs:
           arch: x86
           vsversion: 2022
           toolset: 14.20
-          sdk: 10.0.20348.0
 
       - name: MSBuild sanity check
         shell: pwsh
