@@ -239,7 +239,8 @@ jobs:
       - name: CL/Clang sanity check
         shell: cmd
         run: |
-          clang-cl.exe -version
+          clang-cl.exe --version
+          echo int main(){} | clang-cl -E -x c++ -Xclang -dM - | findstr _MSC_VER
 
       - name: Install DirectX Shader Compiler (DXC)
         shell: bash
