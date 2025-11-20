@@ -40,8 +40,8 @@ index f8172084..5a6587ed 100644
 +filter({ 'system:linux' })
 +do
 +    pic('on')
-+    buildoptions({ '-fPIC', '-std=c++17' })
-+    linkoptions({ '-fPIC', '-std=c++17' })
++    buildoptions({ '-fPIC' })
++    linkoptions({ '-fPIC' })
 +end
 +
 +-- Cross-compilation helpers for Linux. When targeting a Linux architecture that does not match

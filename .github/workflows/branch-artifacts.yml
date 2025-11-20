@@ -202,7 +202,7 @@ jobs:
 
   build-windows:
     if: ${{ github.event.inputs.platform == 'x86-win32' || github.event.inputs.platform == 'x86_64-win32' || github.event.inputs.platform == 'all' }}
-    runs-on: windows-latest
+    runs-on: windows-2022
     strategy:
       matrix:
         platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["x86_64-win32"]' || format('["{0}"]', github.event.inputs.platform)) }}
