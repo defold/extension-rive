@@ -65,6 +65,21 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y uuid-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libxinerama-dev libxxf86vm-dev
 
+      - name: Setup LLVM/Clang 17
+        uses: KyleMayes/install-llvm-action@v2
+        with:
+          version: 17.0.6
+          directory: ${{ runner.temp }}/llvm
+
+      - name: Verify Clang version
+        shell: bash
+        run: |
+          set -euo pipefail
+          which clang || true
+          which clang++ || true
+          clang --version
+          clang++ --version
+
       - name: Build, (optionally) upload, and commit
         uses: ./.github/actions/rive-build
         with:
