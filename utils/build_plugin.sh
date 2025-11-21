@@ -45,6 +45,32 @@ if [ ! -f "${BOB}" ]; then
 fi
 export BOB
 
+case "$(uname -s)" in
+    Darwin)
+        if [ "$(uname -m)" = "arm64" ]; then
+            HOST_PLATFORM="arm64-macos"
+        else
+            HOST_PLATFORM="x86_64-macos"
+        fi
+        ;;
+    Linux)
+        HOST_PLATFORM="x86_64-linux"
+        ;;
+    MINGW*|MSYS*|CYGWIN*|Windows_NT)
+        HOST_PLATFORM="x86_64-win32"
+        ;;
+    *)
+        HOST_PLATFORM="x86_64-linux"
+        ;;
+esac
+
+PROTOBUF_BIN="${SCRIPT_DIR}/../build/protobuf-3.20.1-${HOST_PLATFORM}/bin/${HOST_PLATFORM}"
+if [ -d "${PROTOBUF_BIN}" ]; then
+    export PATH="${PROTOBUF_BIN}:${PATH}"
+else
+    echo "Warning: protobuf bin directory not found at ${PROTOBUF_BIN}" >&2
+fi
+
 mkdir -p "${BUILD_DIR}"
 
 cmake -S "${SCRIPT_DIR}/plugin" -B "${BUILD_DIR}" \

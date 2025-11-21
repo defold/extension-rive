@@ -6,14 +6,17 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 function usage() {
-    echo "usage: ${BASH_SOURCE[0]} --channel CHANNEL [--version VERSION]"
-    echo "If no version is provided, the version from https://d.defold.com/<channel>/info.json is used"
+    cat <<EOF
+usage: ${BASH_SOURCE[0]} --channel CHANNEL [--version VERSION] [--output-sdk DIR] [--host-platform PLATFORM]
+If no version is provided it is read from https://d.defold.com/<channel>/info.json.
+EOF
     exit 1
 }
 
 VERSION=""
 CHANNEL="stable"
 OUTPUT_SDK=""
+HOST_PLATFORM=""
 ARGS_PROVIDED=0
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -29,6 +32,11 @@ while [[ $# -gt 0 ]]; do
             ;;
         --output-sdk)
             OUTPUT_SDK="${2:-}"
+            shift 2
+            ARGS_PROVIDED=1
+            ;;
+        --host-platform)
+            HOST_PLATFORM="${2:-}"
             shift 2
             ARGS_PROVIDED=1
             ;;
@@ -56,7 +64,7 @@ if [ -z "${VERSION}" ]; then
 
     VERSION=$(curl -sSL https://d.defold.com/${CHANNEL}/info.json | jq -r .version)
     if [ -z "${VERSION}" ] || [ "${VERSION}" = "null" ]; then
-        echo "Failed to resolve version from https://d.defold.com/stable/info.json" >&2
+        echo "Failed to resolve version from https://d.defold.com/${CHANNEL}/info.json" >&2
         exit 1
     fi
 fi
@@ -101,8 +109,46 @@ if [ ! -d "${OUTPUT_SDK_ROOT}" ]; then
     exit 1
 fi
 
-echo "Downloading bob.jar (${BOB_URL})"
-curl -fSL -o "${BOB_JAR}" "${BOB_URL}"
-echo "Downloaded ${BOB_JAR}"
+if [ -f "${BOB_JAR}" ]; then
+    echo "bob.jar already exists at ${BOB_JAR}, skipping download"
+else
+    echo "Downloading bob.jar (${BOB_URL})"
+    curl -fSL -o "${BOB_JAR}" "${BOB_URL}"
+    echo "Downloaded ${BOB_JAR}"
+fi
 
 echo "Defold SDK ready at ${OUTPUT_SDK_ROOT}; bob.jar downloaded to ${BOB_JAR}"
+
+if [ -z "${HOST_PLATFORM}" ]; then
+    case "$(uname -s)" in
+        Darwin)
+            if [ "$(uname -m)" = "arm64" ]; then
+                HOST_PLATFORM="arm64-macos"
+            else
+                HOST_PLATFORM="x86_64-macos"
+            fi
+            ;;
+        Linux)
+            HOST_PLATFORM="x86_64-linux"
+            ;;
+        MINGW*|MSYS*|CYGWIN*|Windows_NT)
+            HOST_PLATFORM="x86_64-win32"
+            ;;
+        *)
+            HOST_PLATFORM="x86_64-linux"
+            ;;
+    esac
+fi
+
+PROTOBUF_URL="https://raw.githubusercontent.com/defold/defold/${VERSION}/packages/protobuf-3.20.1-${HOST_PLATFORM}.tar.gz"
+PROTOBUF_ARCHIVE="${REPO_ROOT}/build/protobuf-3.20.1-${HOST_PLATFORM}.tar.gz"
+PROTOBUF_DEST="${REPO_ROOT}/build"
+
+if [ -d "${PROTOBUF_DEST}/protobuf-3.20.1-${HOST_PLATFORM}" ]; then
+    echo "Protobuf already extracted at ${PROTOBUF_DEST}/protobuf-3.20.1-${HOST_PLATFORM}"
+else
+    mkdir -p "${REPO_ROOT}/build"
+    echo "Downloading protobuf bundle from ${PROTOBUF_URL}"
+    curl -fSL -o "${PROTOBUF_ARCHIVE}" "${PROTOBUF_URL}"
+    tar -xzf "${PROTOBUF_ARCHIVE}" -C "${PROTOBUF_DEST}"
+fi
