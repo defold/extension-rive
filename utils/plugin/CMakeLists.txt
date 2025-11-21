@@ -44,7 +44,7 @@ endif()
 message(STATUS "BOB=${BOB_JAR}")
 
 if(NOT EXISTS "${DYNAMO_HOME}/ext/bin")
-    message(FATAL_ERROR "Dynamo extension bin directory missing under ${DYNAMO_HOME}/ext/bin")
+    message(FATAL_ERROR "Dynamo extension bin directory missing under '${DYNAMO_HOME}/ext/bin'")
 endif()
 
 if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")

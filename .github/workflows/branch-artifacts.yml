@@ -311,7 +311,7 @@ jobs:
       - name: Build editor plugins
         shell: bash
         env:
-          DYNAMO_HOME: ${{ env.DOWNLOADDIR }}/defoldsdk
+          DYNAMO_HOME: ${{ env.DOWNLOADDIR }}/defoldsdk/defoldsdk
           BOB: ${{ github.workspace }}/bob.jar
         run: |
           set -euo pipefail
