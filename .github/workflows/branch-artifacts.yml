@@ -54,7 +54,7 @@ jobs:
         platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["x86_64-linux"]' || format('["{0}"]', github.event.inputs.platform)) }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -99,7 +99,7 @@ jobs:
   #       platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["arm64-macos","x86_64-macos","arm64-ios","x86_64-ios"]' || format('["{0}"]', github.event.inputs.platform)) }}
   #   steps:
   #     - name: Checkout repository
-  #       uses: actions/checkout@v6
+  #       uses: actions/checkout@v4
   #       with:
   #         fetch-depth: 0
 
@@ -127,7 +127,7 @@ jobs:
         platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["arm64-android","armv7-android"]' || format('["{0}"]', github.event.inputs.platform)) }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -178,7 +178,7 @@ jobs:
         platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["js-web","wasm-web","wasm_pthread-web"]' || format('["{0}"]', github.event.inputs.platform)) }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -208,7 +208,7 @@ jobs:
         platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["x86_64-win32"]' || format('["{0}"]', github.event.inputs.platform)) }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -259,7 +259,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
