@@ -91,33 +91,33 @@ jobs:
           commit_message: ${{ github.event.inputs.commit_message }}
           push_changes: ${{ github.event.inputs.push_changes }}
 
-  # build-macos:
-  #   if: ${{ github.event.inputs.platform == 'arm64-macos' || github.event.inputs.platform == 'x86_64-macos' || github.event.inputs.platform == 'arm64-ios' || github.event.inputs.platform == 'x86_64-ios' || github.event.inputs.platform == 'all' }}
-  #   runs-on: macos-latest
-  #   strategy:
-  #     matrix:
-  #       platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["arm64-macos","x86_64-macos","arm64-ios","x86_64-ios"]' || format('["{0}"]', github.event.inputs.platform)) }}
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@v4
-  #       with:
-  #         fetch-depth: 0
+  build-macos:
+    if: ${{ github.event.inputs.platform == 'arm64-macos' || github.event.inputs.platform == 'x86_64-macos' || github.event.inputs.platform == 'arm64-ios' || github.event.inputs.platform == 'x86_64-ios' || github.event.inputs.platform == 'all' }}
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["arm64-macos","x86_64-macos","arm64-ios","x86_64-ios"]' || format('["{0}"]', github.event.inputs.platform)) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-  #     - name: Select Xcode 16.2
-  #       uses: maxim-lobanov/setup-xcode@v1
-  #       with:
-  #         xcode-version: '16.2'
+      - name: Select Xcode 16.2
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.2'
 
-  #     - name: Build, (optionally) upload, and commit
-  #       uses: ./.github/actions/rive-build
-  #       with:
-  #         platform: ${{ matrix.platform }}
-  #         rive_repo_url: ${{ github.event.inputs.rive_repo_url }}
-  #         rive_ref: ${{ github.event.inputs.rive_ref }}
-  #         rive_sha: ${{ github.event.inputs.rive_sha }}
-  #         upload_artifact: ${{ github.event.inputs.upload_artifact }}
-  #         commit_message: ${{ github.event.inputs.commit_message }}
-  #         push_changes: ${{ github.event.inputs.push_changes }}
+      - name: Build, (optionally) upload, and commit
+        uses: ./.github/actions/rive-build
+        with:
+          platform: ${{ matrix.platform }}
+          rive_repo_url: ${{ github.event.inputs.rive_repo_url }}
+          rive_ref: ${{ github.event.inputs.rive_ref }}
+          rive_sha: ${{ github.event.inputs.rive_sha }}
+          upload_artifact: ${{ github.event.inputs.upload_artifact }}
+          commit_message: ${{ github.event.inputs.commit_message }}
+          push_changes: ${{ github.event.inputs.push_changes }}
 
   build-android:
     if: ${{ github.event.inputs.platform == 'arm64-android' || github.event.inputs.platform == 'armv7-android' || github.event.inputs.platform == 'all' }}
@@ -255,7 +255,7 @@ jobs:
 
   build-plugin-macos:
     if: ${{ github.event.inputs.platform == 'arm64-macos' || github.event.inputs.platform == 'x86_64-macos' || github.event.inputs.platform == 'all' }}
-    #needs: build-macos
+    needs: build-macos
     runs-on: macos-latest
     steps:
       - name: Checkout repository
