@@ -301,14 +301,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          TEMPDIR=$(mktemp -d)
-          echo "TEMPDIR=${TEMPDIR}" >> "$GITHUB_ENV"
-          ./utils/download_defoldsdk.sh --channel stable --output-sdk "${TEMPDIR}/defoldsdk"
+          DOWNLOADDIR=$(realpath ./build)
+          echo "DOWNLOADDIR=${DOWNLOADDIR}" >> "$GITHUB_ENV"
+          ./utils/download_defoldsdk.sh --channel stable --output-sdk "${DOWNLOADDIR}/defoldsdk"
+          ls "${DOWNLOADDIR}/defoldsdk"
 
       - name: Build editor plugins
         shell: bash
         env:
-          DYNAMO_HOME: ${{ env.TEMPDIR }}/defoldsdk
+          DYNAMO_HOME: ${{ env.DOWNLOADDIR }}/defoldsdk
           BOB: ${{ github.workspace }}/bob.jar
         run: |
           set -euo pipefail
