@@ -23,12 +23,27 @@ case $PLATFORM in
         ;;
 esac
 TARGET_LIB_DIR="${SCRIPT_DIR}/../defold-rive/plugins/lib/${EXTENDER_PLATFORM}"
-TARGET_SHARE_DIR="${SCRIPT_DIR}/../defold-rive/plugins/share/${EXTENDER_PLATFORM}"
+TARGET_SHARE_DIR="${SCRIPT_DIR}/../defold-rive/plugins/share"
 
 if [ -z "${DYNAMO_HOME:-}" ]; then
     echo "DYNAMO_HOME must be set before running $0" >&2
     exit 1
 fi
+
+DYNAMO_HOME="$(realpath "${DYNAMO_HOME}")"
+export DYNAMO_HOME
+
+if [ -z "${BOB:-}" ]; then
+    echo "BOB must be set before running $0" >&2
+    exit 1
+fi
+
+BOB="$(realpath "${BOB}")"
+if [ ! -f "${BOB}" ]; then
+    echo "BOB jar not found at ${BOB}" >&2
+    exit 1
+fi
+export BOB
 
 mkdir -p "${BUILD_DIR}"
 
@@ -44,7 +59,8 @@ case $PLATFORM in
         ;;
 esac
 
-#cp -v ${BUILD_DIR}/*.dylib ${TARGET_SHARE_DIR}
+mkdir -p ${TARGET_SHARE_DIR}
+cp -v ${BUILD_DIR}/pluginRiveExt.jar ${TARGET_SHARE_DIR}
 
 
 echo "Done."
