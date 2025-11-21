@@ -355,3 +355,105 @@ jobs:
             echo "Push failed after $max_attempts attempts"
             exit 1
           fi
+
+  build-plugin-linux:
+    if: ${{ github.event.inputs.platform == 'x86_64-macos' || github.event.inputs.platform == 'all' }}
+    needs: build-linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Temurin Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Verify Java
+        shell: bash
+        run: |
+          set -euo pipefail
+          java --version
+
+      - name: Setup CMake 4.1
+        uses: lukka/setup-cmake@v3
+        with:
+          cmake-version: '4.1.0'
+
+      - name: Verify CMake
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake --version
+
+      - name: Install protobuf and jq
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler jq
+
+      - name: Verify protoc
+        shell: bash
+        run: |
+          set -euo pipefail
+          protoc --version
+
+      - name: Download Defold SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ./build
+          DOWNLOADDIR=$(realpath ./build)
+          echo "DOWNLOADDIR=${DOWNLOADDIR}" >> "$GITHUB_ENV"
+          ./utils/download_defoldsdk.sh --channel stable --output-sdk "${DOWNLOADDIR}/defoldsdk"
+
+      - name: Build linux plugin
+        shell: bash
+        env:
+          DYNAMO_HOME: ${{ env.DOWNLOADDIR }}/defoldsdk/defoldsdk
+          BOB: ${{ github.workspace }}/bob.jar
+        run: |
+          set -euo pipefail
+          ./utils/build_plugin.sh x86_64-linux
+
+      - name: Commit linux plugin outputs
+        if: ${{ github.event.inputs.push_changes == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -v defold-rive/plugins || true
+          if git diff --cached --quiet; then
+            echo "No plugin changes to commit."
+            exit 0
+          fi
+          msg="ci: update linux plugin on ${{ github.ref_name }} [skip ci]"
+          if [ -n "${{ github.event.inputs.commit_message }}" ]; then
+            msg="$msg - ${{ github.event.inputs.commit_message }}"
+          fi
+          git commit -m "$msg"
+          max_attempts=3
+          attempt=1
+          until [ $attempt -gt $max_attempts ]; do
+            echo "Attempt $attempt: rebase + push"
+            if git pull --rebase origin "${{ github.ref_name }}"; then
+              if git push origin HEAD:"${{ github.ref_name }}"; then
+                echo "Push succeeded"
+                break
+              fi
+            else
+              echo "Rebase failed; aborting and retrying"
+              git rebase --abort || true
+            fi
+            attempt=$((attempt+1))
+            sleep $((attempt*2))
+          done
+          if [ $attempt -gt $max_attempts ]; then
+            echo "Push failed after $max_attempts attempts"
+            exit 1
+          fi
