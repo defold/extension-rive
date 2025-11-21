@@ -253,66 +253,71 @@ jobs:
           commit_message: ${{ github.event.inputs.commit_message }}
           push_changes: ${{ github.event.inputs.push_changes }}
 
-  build-editor-plugin:
-    # Build the editor plugin after native builds
-    needs: [build-linux, build-macos, build-windows]
-    runs-on: ubuntu-latest
+  build-plugin-macos:
+    if: ${{ github.event.inputs.platform == 'arm64-macos' || github.event.inputs.platform == 'x86_64-macos' || github.event.inputs.platform == 'all' }}
+    needs: build-macos
+    runs-on: macos-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Sync to latest branch tip
-        shell: bash
-        run: |
-          set -euo pipefail
-          git fetch origin "${{ github.ref_name }}"
-          # Fast-forward to the latest remote tip to include prior job commits
-          git checkout -B "${{ github.ref_name }}" "origin/${{ github.ref_name }}"
-
-      - name: Setup Java
+      - name: Setup Temurin Java 21
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '25'
+          java-version: '21'
 
-      - name: Install jq
+      - name: Verify Java
         shell: bash
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y jq
+          java --version
 
-      - name: Download bob.jar (Defold stable)
-        id: bob
+      - name: Setup CMake 4.1
+        uses: lukka/setup-cmake@v3
+        with:
+          cmake-version: '4.1.0'
+
+      - name: Verify CMake
         shell: bash
         run: |
           set -euo pipefail
-          SHA=$(curl -sSL https://d.defold.com/stable/info.json | jq -r .sha1)
-          if [ -z "$SHA" ] || [ "$SHA" = "null" ]; then
-            echo "Failed to resolve Defold stable sha1" >&2
-            exit 1
-          fi
-          echo "Resolved Defold stable sha1: $SHA"
-          mkdir -p "${RUNNER_TEMP}/bob"
-          curl -sSLo "${RUNNER_TEMP}/bob/bob.jar" \
-            "https://d.defold.com/archive/${SHA}/bob/bob.jar"
-          if [ ! -s "${RUNNER_TEMP}/bob/bob.jar" ]; then
-            echo "Downloaded bob.jar is missing or empty" >&2
-            exit 1
-          fi
+          cmake --version
 
-      - name: Build editor plugin
+      - name: Install protobuf and jq
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew update
+          brew install protobuf jq
+
+      - name: Verify protoc
+        shell: bash
+        run: |
+          set -euo pipefail
+          protoc --version
+
+      - name: Download Defold SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          TEMPDIR=$(mktemp -d)
+          echo "TEMPDIR=${TEMPDIR}" >> "$GITHUB_ENV"
+          ./utils/download_defoldsdk.sh --channel stable --output-sdk "${TEMPDIR}/defoldsdk"
+
+      - name: Build editor plugins
         shell: bash
         env:
-          BOB: ${{ runner.temp }}/bob/bob.jar
+          DYNAMO_HOME: ${{ env.TEMPDIR }}/defoldsdk
+          BOB: ${{ github.workspace }}/bob.jar
         run: |
           set -euo pipefail
-          echo "Using BOB=${BOB}"
-          bash ./utils/build_plugins.sh
+          ./utils/build_plugin.sh arm64-macos
+          ./utils/build_plugin.sh x86_64-macos
 
-      - name: Commit editor plugin outputs
+      - name: Commit plugin outputs
         if: ${{ github.event.inputs.push_changes == 'true' }}
         shell: bash
         run: |
@@ -321,7 +326,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -v defold-rive/plugins || true
           if git diff --cached --quiet; then
-            echo "No editor plugin changes to commit."
+            echo "No plugin changes to commit."
             exit 0
           fi
           msg="ci: update editor plugin on ${{ github.ref_name }} [skip ci]"
