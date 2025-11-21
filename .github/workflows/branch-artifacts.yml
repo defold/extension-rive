@@ -357,7 +357,7 @@ jobs:
           fi
 
   build-plugin-linux:
-    if: ${{ github.event.inputs.platform == 'x86_64-macos' || github.event.inputs.platform == 'all' }}
+    if: ${{ github.event.inputs.platform == 'x86_64-linux' || github.event.inputs.platform == 'all' }}
     needs: build-linux
     runs-on: ubuntu-latest
     steps:
