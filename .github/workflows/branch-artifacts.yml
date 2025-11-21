@@ -46,50 +46,50 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-linux:
-    if: ${{ github.event.inputs.platform == 'x86_64-linux' || github.event.inputs.platform == 'all' }}
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["x86_64-linux"]' || format('["{0}"]', github.event.inputs.platform)) }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  # build-linux:
+  #   if: ${{ github.event.inputs.platform == 'x86_64-linux' || github.event.inputs.platform == 'all' }}
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     matrix:
+  #       platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["x86_64-linux"]' || format('["{0}"]', github.event.inputs.platform)) }}
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
 
-      - name: Install Linux build dependencies (uuid, X11, Xcursor, Xrandr, Xi, Xinerama, Xf86VidMode)
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y uuid-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libxinerama-dev libxxf86vm-dev
+  #     - name: Install Linux build dependencies (uuid, X11, Xcursor, Xrandr, Xi, Xinerama, Xf86VidMode)
+  #       shell: bash
+  #       run: |
+  #         set -euo pipefail
+  #         sudo apt-get update
+  #         sudo apt-get install -y uuid-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libxinerama-dev libxxf86vm-dev
 
-      - name: Setup LLVM/Clang 17
-        uses: KyleMayes/install-llvm-action@v2
-        with:
-          version: 17.0.6
-          directory: ${{ runner.temp }}/llvm
+  #     - name: Setup LLVM/Clang 17
+  #       uses: KyleMayes/install-llvm-action@v2
+  #       with:
+  #         version: 17.0.6
+  #         directory: ${{ runner.temp }}/llvm
 
-      - name: Verify Clang version
-        shell: bash
-        run: |
-          set -euo pipefail
-          which clang || true
-          which clang++ || true
-          clang --version
-          clang++ --version
+  #     - name: Verify Clang version
+  #       shell: bash
+  #       run: |
+  #         set -euo pipefail
+  #         which clang || true
+  #         which clang++ || true
+  #         clang --version
+  #         clang++ --version
 
-      - name: Build, (optionally) upload, and commit
-        uses: ./.github/actions/rive-build
-        with:
-          platform: ${{ matrix.platform }}
-          rive_repo_url: ${{ github.event.inputs.rive_repo_url }}
-          rive_ref: ${{ github.event.inputs.rive_ref }}
-          rive_sha: ${{ github.event.inputs.rive_sha }}
-          upload_artifact: ${{ github.event.inputs.upload_artifact }}
-          commit_message: ${{ github.event.inputs.commit_message }}
-          push_changes: ${{ github.event.inputs.push_changes }}
+  #     - name: Build, (optionally) upload, and commit
+  #       uses: ./.github/actions/rive-build
+  #       with:
+  #         platform: ${{ matrix.platform }}
+  #         rive_repo_url: ${{ github.event.inputs.rive_repo_url }}
+  #         rive_ref: ${{ github.event.inputs.rive_ref }}
+  #         rive_sha: ${{ github.event.inputs.rive_sha }}
+  #         upload_artifact: ${{ github.event.inputs.upload_artifact }}
+  #         commit_message: ${{ github.event.inputs.commit_message }}
+  #         push_changes: ${{ github.event.inputs.push_changes }}
 
   build-macos:
     if: ${{ github.event.inputs.platform == 'arm64-macos' || github.event.inputs.platform == 'x86_64-macos' || github.event.inputs.platform == 'arm64-ios' || github.event.inputs.platform == 'x86_64-ios' || github.event.inputs.platform == 'all' }}
@@ -358,7 +358,7 @@ jobs:
 
   build-plugin-linux:
     if: ${{ github.event.inputs.platform == 'x86_64-linux' || github.event.inputs.platform == 'all' }}
-    needs: build-linux
+    #needs: build-linux
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -379,9 +379,7 @@ jobs:
           java --version
 
       - name: Setup CMake 4.1
-        uses: lukka/setup-cmake@v3
-        with:
-          cmake-version: '4.1.0'
+        uses: lukka/get-cmake@v4.1.1
 
       - name: Verify CMake
         shell: bash
