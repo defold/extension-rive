@@ -108,6 +108,12 @@ jobs:
         with:
           xcode-version: '16.2'
 
+      - name: Install tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew install tree
+
       - name: Build, (optionally) upload, and commit
         uses: ./.github/actions/rive-build
         with:
@@ -139,6 +145,12 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+
+      - name: Install tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew install tree
 
       - name: Set up Android NDK r25c (25.2.9519653)
         id: setup-ndk
@@ -188,6 +200,7 @@ jobs:
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y uuid-dev glslang-tools
+          sudo apt-get install -y tree
 
       - name: Build, (optionally) upload, and commit
         uses: ./.github/actions/rive-build
@@ -242,6 +255,12 @@ jobs:
           # Verify availability if installed
           dxc.exe -version 2> NUL || true
 
+      - name: Install tree
+        shell: pwsh
+        run: |
+          choco install tree -y || true
+          tree --version
+
       - name: Build, (optionally) upload, and commit
         uses: ./.github/actions/rive-build
         with:
@@ -290,6 +309,7 @@ jobs:
           set -euo pipefail
           brew update
           brew install jq
+          brew install tree
 
 
       - name: Download Defold SDK
@@ -388,7 +408,7 @@ jobs:
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y jq
-
+          sudo apt-get install -y tree
 
       - name: Download Defold SDK
         shell: bash
