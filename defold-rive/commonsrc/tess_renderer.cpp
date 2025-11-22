@@ -491,7 +491,7 @@ namespace dmRive
         VsUniforms vs_params = {};
         vs_params.world = transform();
 
-        FsUniforms fs_uniforms   = {0};
+        FsUniforms fs_uniforms = {};
         fs_uniforms.fillType     = (int) FillType::FILL_TYPE_TEXTURED;
         fs_uniforms.colors[0][3] = opacity;
 

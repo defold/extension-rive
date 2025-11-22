@@ -65,6 +65,11 @@ case "$(uname -s)" in
         ;;
 esac
 
+CMAKE_GENERATOR_FLAGS=()
+if [ "$HOST_PLATFORM" = "x86_64-win32" ]; then
+    CMAKE_GENERATOR_FLAGS+=("-A" "x64")
+fi
+
 PROTOBUF_BIN="${REPO_ROOT}/build/bin/${HOST_PLATFORM}"
 if [ -d "${PROTOBUF_BIN}" ]; then
     export PATH="${PROTOBUF_BIN}:${PATH}"
@@ -79,13 +84,21 @@ fi
 mkdir -p "${BUILD_DIR}"
 
 cmake -S "${SCRIPT_DIR}/plugin" -B "${BUILD_DIR}" \
-    -DTARGET_PLATFORM="${PLATFORM}"
+    -DTARGET_PLATFORM="${PLATFORM}" \
+    -DCMAKE_VERBOSE_MAKEFILE=ON \
+    "${CMAKE_GENERATOR_FLAGS[@]}"
 
 cmake --build "${BUILD_DIR}" --config "${CONFIG}"
 
 case $PLATFORM in
     "arm64-macos"|"x86_64-macos")
         cp -v ${BUILD_DIR}/*.dylib ${TARGET_LIB_DIR}
+        ;;
+    "arm64-linux"|"x86_64-linux")
+        cp -v ${BUILD_DIR}/*.so ${TARGET_LIB_DIR}
+        ;;
+    "x86_64-win32")
+        cp -v ${BUILD_DIR}/${CONFIG}/*.dll ${TARGET_LIB_DIR}
         ;;
 esac
 

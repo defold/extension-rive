@@ -46,7 +46,7 @@ namespace dmRive {
         float stops[4][4];
         int   stopCount;
 
-        VsUniforms()
+        FsUniforms()
         {
             memset(this, 0, sizeof(*this));
         }
@@ -88,7 +88,7 @@ namespace dmRive {
 
     class DefoldRenderPaint : public rive::RenderPaint {
     private:
-        FsUniforms                    m_uniforms = {0};
+        FsUniforms                    m_uniforms;
         rive::rcp<rive::RenderShader> m_shader;
         rive::RenderPaintStyle        m_style;
 

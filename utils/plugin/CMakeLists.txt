@@ -10,9 +10,7 @@ set(CMAKE_CONFIGURATION_TYPES "Debug;Release;RelWithDebInfo;MinSizeRel" CACHE ST
 if(TARGET_PLATFORM STREQUAL "x86_64-win32")
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/O2 /Zi")
     set(CMAKE_C_FLAGS_RELWITHDEBINFO "/O2 /Zi")
-    set(CMAKE_CXX_STANDARD 20)
-    set(CMAKE_CXX_STANDARD_REQUIRED ON)
-    set(CMAKE_CXX_EXTENSIONS OFF)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
 set(REPO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../..")
@@ -210,7 +208,9 @@ if(TARGET_PLATFORM STREQUAL "x86_64-win32")
             libdlib libmbedtls libddf
             libprofile_null libprofilerext_null
             libplatform_null librender libgraphics_null
-            libresource libscript libgamesys liblua)
+            librender_font_default libfont
+            libresource libscript libgamesys libluajit-5.1)
+    target_link_libraries(rive_plugin PRIVATE Iphlpapi.lib)
 else()
     target_link_libraries(rive_plugin PRIVATE
             dlib mbedtls ddf
@@ -245,7 +245,7 @@ foreach(dir IN LISTS DYNAMO_LINK_DIRS)
 endforeach()
 
 set_target_properties(rive_plugin PROPERTIES
-        CXX_STANDARD 17
+        CXX_STANDARD 20
         CXX_STANDARD_REQUIRED ON
         POSITION_INDEPENDENT_CODE ON
         OUTPUT_NAME "RiveExt"
