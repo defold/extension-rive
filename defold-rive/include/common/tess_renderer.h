@@ -35,6 +35,8 @@ namespace dmRive {
         rive::Vec2D gradientStart;
         rive::Vec2D gradientEnd;
         int fillType;
+
+        VsUniforms() : fillType(0) {}
     };
 
     struct FsUniforms
@@ -43,6 +45,11 @@ namespace dmRive {
         float colors[16][4];
         float stops[4][4];
         int   stopCount;
+
+        VsUniforms()
+        {
+            memset(this, 0, sizeof(*this));
+        }
     };
 
     enum DrawMode
