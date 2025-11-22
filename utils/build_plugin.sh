@@ -81,12 +81,6 @@ mkdir -p "${BUILD_DIR}"
 cmake -S "${SCRIPT_DIR}/plugin" -B "${BUILD_DIR}" \
     -DTARGET_PLATFORM="${PLATFORM}"
 
-PROJ="${REPO_ROOT}/utils/cmake/build/out_x86_64-win32/rive_plugin.vcxproj"
-ls -la ${PROJ}
-if [ -e "${PROJ}" ]; then
-    cat ${PROJ}
-fi
-
 cmake --build "${BUILD_DIR}" --config "${CONFIG}"
 
 case $PLATFORM in

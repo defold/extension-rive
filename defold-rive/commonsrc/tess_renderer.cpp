@@ -606,7 +606,7 @@ namespace dmRive
             }
         }
 
-        VsUniforms vs_uniforms = { .fillType = 0 };
+        VsUniforms vs_uniforms = {0};
         FsUniforms fs_uniforms = {0};
 
         // Decr any paths from the last clip that are gone.

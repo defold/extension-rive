@@ -31,13 +31,11 @@ void ApplyDrawMode(dmRender::RenderObject& ro, dmRive::DrawMode draw_mode, uint8
             stencil.m_ColorBufferMask    = 0;
             stencil.m_SeparateFaceStates = 0;
 
-            stencil.m_Front = {
-                .m_Func = dmGraphics::COMPARE_FUNC_ALWAYS,
-                .m_OpSFail  = dmGraphics::STENCIL_OP_KEEP,
-                .m_OpDPFail = dmGraphics::STENCIL_OP_KEEP,
-                .m_OpDPPass = dmGraphics::STENCIL_OP_DECR_WRAP,
-            };
-
+            stencil.m_Front = {0};
+            stencil.m_Front.m_Func = dmGraphics::COMPARE_FUNC_ALWAYS;
+            stencil.m_Front.m_OpSFail  = dmGraphics::STENCIL_OP_KEEP;
+            stencil.m_Front.m_OpDPFail = dmGraphics::STENCIL_OP_KEEP;
+            stencil.m_Front.m_OpDPPass = dmGraphics::STENCIL_OP_DECR_WRAP;
             break;
         case dmRive::DRAW_MODE_CLIP_INCR:
             stencil.m_Ref                = 0x0;
@@ -46,12 +44,11 @@ void ApplyDrawMode(dmRender::RenderObject& ro, dmRive::DrawMode draw_mode, uint8
             stencil.m_ColorBufferMask    = 0;
             stencil.m_SeparateFaceStates = 0;
 
-            stencil.m_Front = {
-                .m_Func = dmGraphics::COMPARE_FUNC_ALWAYS,
-                .m_OpSFail  = dmGraphics::STENCIL_OP_KEEP,
-                .m_OpDPFail = dmGraphics::STENCIL_OP_KEEP,
-                .m_OpDPPass = dmGraphics::STENCIL_OP_INCR_WRAP,
-            };
+            stencil.m_Front = {0};
+            stencil.m_Front.m_Func = dmGraphics::COMPARE_FUNC_ALWAYS;
+            stencil.m_Front.m_OpSFail  = dmGraphics::STENCIL_OP_KEEP;
+            stencil.m_Front.m_OpDPFail = dmGraphics::STENCIL_OP_KEEP;
+            stencil.m_Front.m_OpDPPass = dmGraphics::STENCIL_OP_INCR_WRAP;
             break;
         case dmRive::DRAW_MODE_DEFAULT:
             stencil.m_Ref          = clipIndex;
