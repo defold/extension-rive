@@ -10,8 +10,6 @@ set(CMAKE_CONFIGURATION_TYPES "Debug;Release;RelWithDebInfo;MinSizeRel" CACHE ST
 if(TARGET_PLATFORM STREQUAL "x86_64-win32")
   set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/O2 /Zi /Ob1 /DNDEBUG")
   set(CMAKE_C_FLAGS_RELWITHDEBINFO "/O2 /Zi /Ob1 /DNDEBUG")
-
-  message(STATUS "MAWE set")
 endif()
 
 set(REPO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../..")
@@ -193,11 +191,11 @@ endif()
 add_library(rive_plugin SHARED ${ALL_SOURCES})
 
 target_include_directories(rive_plugin PRIVATE
-        "${DYNAMO_HOME}/include"
-        "${DYNAMO_HOME}/sdk/include"
         "${REPO_ROOT}/defold-rive/include"
         "${REPO_ROOT}/defold-rive/commonsrc"
         "${REPO_ROOT}/defold-rive/pluginsrc"
+        "${DYNAMO_HOME}/include"
+        "${DYNAMO_HOME}/sdk/include"
 )
 
 target_include_directories(rive_plugin PRIVATE
