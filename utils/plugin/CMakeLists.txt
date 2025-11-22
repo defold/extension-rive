@@ -5,6 +5,8 @@ if(POLICY CMP0152)
     cmake_policy(SET CMP0152 NEW)
 endif()
 
+set(CMAKE_CONFIGURATION_TYPES "Debug;Release;RelWithDebInfo;MinSizeRel" CACHE STRING "" FORCE)
+
 set(REPO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../..")
 
 option(TARGET_PLATFORM "" "Target platform identifier, e.g. x86_64-linux, x86_64-win32, x86_64-macos, arm64-macos")
