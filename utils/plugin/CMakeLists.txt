@@ -54,7 +54,7 @@ if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
         set(PROTO_PLATFORM "x86_64-macos")
     endif()
 else()
-    set(PROTO_PLATFORM "${TARGET_PLATFORM}}")
+    set(PROTO_PLATFORM "${TARGET_PLATFORM}")
 endif()
 
 set(PROTOC_EXECUTABLE "${DYNAMO_HOME}/ext/bin/${PROTO_PLATFORM}/protoc")
