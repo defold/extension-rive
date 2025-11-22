@@ -23,7 +23,6 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 PREFIX=""
 ARCHS=""
 CONFIG="release"
-SYSROOT=""
 
 print_help() {
     cat <<EOF
@@ -33,7 +32,6 @@ Options:
   -p, --prefix PATH    Install prefix directory (required)
   -a, --archs LIST     Comma/space-separated: x64, arm64, arm (default: host arch)
   -c, --config NAME    Build config: release|debug (default: release)
-  -s, --sysroot PATH   Optional sysroot for cross builds (passed to premake: --sysroot=PATH)
   -h, --help           Show this help
 
 Examples:
@@ -54,10 +52,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         -c|--config)
             CONFIG="${2:-}"
-            shift 2
-            ;;
-        -s|--sysroot)
-            SYSROOT="${2:-}"
             shift 2
             ;;
         -h|--help)
@@ -142,13 +136,7 @@ for ARCH in "${ARCH_LIST[@]}"; do
     out_dir_rel="out/linux_${ARCH}_${CONFIG}"
     out_dir="$BUILD_DIR/$out_dir_rel"
 
-    # Force out dir naming and build only the libraries
-    # Build args
-    EXTRA_PREMAKE=()
-    if [[ -n "$SYSROOT" ]]; then
-        EXTRA_PREMAKE+=("--sysroot=$SYSROOT")
-    fi
-    RIVE_OUT="$out_dir_rel" "$BUILD_SCRIPT" ninja "$ARCH" "$CONFIG" --no-lto "${EXTRA_PREMAKE[@]}" --with-libs-only
+    RIVE_OUT="$out_dir_rel" "$BUILD_SCRIPT" ninja "$ARCH" "$CONFIG" --no-lto --with-pic --with-libs-only
 
     # Collect and install libraries
     install_arch="$ARCH"
