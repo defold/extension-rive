@@ -606,6 +606,8 @@ namespace dmRive
             }
         }
 
+
+
         VsUniforms vs_uniforms;
         FsUniforms fs_uniforms;
         memset(&vs_uniforms, 0, sizeof(vs_uniforms));
