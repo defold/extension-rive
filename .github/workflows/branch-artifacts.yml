@@ -461,10 +461,10 @@ jobs:
             attempt=$((attempt+1))
             sleep $((attempt*2))
           done
-        if [ $attempt -gt $max_attempts ]; then
-          echo "Push failed after $max_attempts attempts"
-          exit 1
-        fi
+          if [ $attempt -gt $max_attempts ]; then
+            echo "Push failed after $max_attempts attempts"
+            exit 1
+          fi
 
   build-plugin-windows:
     if: ${{ github.event.inputs.platform == 'x86_64-win32' || github.event.inputs.platform == 'all' }}
