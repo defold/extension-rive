@@ -205,13 +205,21 @@ target_include_directories(rive_plugin PRIVATE
         "${JAVA_HOME}/include"
 )
 
-target_link_libraries(rive_plugin PRIVATE
-        dlib mbedtls ddf
-        profile_null profilerext_null
-        platform_null render graphics_null
-        resource script gamesys lua
-        rivetess tess2
-        rive rive_sheenbidi rive_harfbuzz rive_yoga zlib)
+if(TARGET_PLATFORM STREQUAL "x86_64-win32")
+    target_link_libraries(rive_plugin PRIVATE
+            libdlib libmbedtls libddf
+            libprofile_null libprofilerext_null
+            libplatform_null librender libgraphics_null
+            libresource libscript libgamesys liblua)
+else()
+    target_link_libraries(rive_plugin PRIVATE
+            dlib mbedtls ddf
+            profile_null profilerext_null
+            platform_null render graphics_null
+            resource script gamesys lua)
+endif()
+
+target_link_libraries(rive_plugin PRIVATE rive rive_sheenbidi rive_harfbuzz rive_yoga zlib rivetess tess2)
 
 set(EXTENDER_PLATFORM "${TARGET_PLATFORM}")
 if(TARGET_PLATFORM STREQUAL "arm64-macos")
