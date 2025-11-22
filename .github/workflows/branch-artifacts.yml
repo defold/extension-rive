@@ -340,6 +340,10 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          CONFLICT_FILE="defold-rive/plugins/share/pluginRiveExt.jar"
+          if git ls-files -u "$CONFLICT_FILE" >/dev/null 2>&1; then
+            git checkout --ours "$CONFLICT_FILE"
+          fi
           git add -v defold-rive/plugins || true
           if git diff --cached --quiet; then
             echo "No plugin changes to commit."
@@ -435,6 +439,10 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          CONFLICT_FILE="defold-rive/plugins/share/pluginRiveExt.jar"
+          if git ls-files -u "$CONFLICT_FILE" >/dev/null 2>&1; then
+            git checkout --ours "$CONFLICT_FILE"
+          fi
           git add -v defold-rive/plugins || true
           if git diff --cached --quiet; then
             echo "No plugin changes to commit."
@@ -527,6 +535,10 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          CONFLICT_FILE="defold-rive/plugins/share/pluginRiveExt.jar"
+          if git ls-files -u "$CONFLICT_FILE" >/dev/null 2>&1; then
+            git checkout --ours "$CONFLICT_FILE"
+          fi
           git add -v defold-rive/plugins || true
           if git diff --cached --quiet; then
             echo "No plugin changes to commit."
