@@ -11,7 +11,7 @@ if [ $# -lt 1 ]; then
 fi
 
 PLATFORM="$1"
-CONFIG="RelWithDebugInfo"
+CONFIG="RelWithDebInfo"
 BUILD_DIR="${SCRIPT_DIR}/cmake/build/out_${PLATFORM}"
 
 EXTENDER_PLATFORM="${PLATFORM}"

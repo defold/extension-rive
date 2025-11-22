@@ -52,7 +52,6 @@ if(NOT PROTOC_EXECUTABLE)
     message(FATAL_ERROR "protoc executable not found on PATH")
 endif()
 message(STATUS "PROTOC=${PROTOC_EXECUTABLE}")
-message(STATUS "PROTOC=${PROTOC_EXECUTABLE}")
 
 execute_process(
     COMMAND "${JAVA_EXECUTABLE}" --version
