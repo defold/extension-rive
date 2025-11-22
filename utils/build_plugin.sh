@@ -87,7 +87,7 @@ if [ -e "${PROJ}" ]; then
     cat ${PROJ}
 fi
 
-cmake --build "${BUILD_DIR}" --config "${CONFIG}"
+cmake --build "${BUILD_DIR}" --config "${CONFIG}" -- VERBOSE=1
 
 case $PLATFORM in
     "arm64-macos"|"x86_64-macos")
