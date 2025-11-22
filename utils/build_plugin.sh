@@ -86,7 +86,7 @@ mkdir -p "${BUILD_DIR}"
 cmake -S "${SCRIPT_DIR}/plugin" -B "${BUILD_DIR}" \
     -DTARGET_PLATFORM="${PLATFORM}" \
     -DCMAKE_VERBOSE_MAKEFILE=ON \
-    "${CMAKE_GENERATOR_FLAGS[@]}"
+    "${CMAKE_GENERATOR_FLAGS[@]:-}"
 
 cmake --build "${BUILD_DIR}" --config "${CONFIG}"
 
