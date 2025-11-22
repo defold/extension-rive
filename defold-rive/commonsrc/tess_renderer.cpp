@@ -606,8 +606,10 @@ namespace dmRive
             }
         }
 
-        VsUniforms vs_uniforms = {0};
-        FsUniforms fs_uniforms = {0};
+        VsUniforms vs_uniforms;
+        FsUniforms fs_uniforms;
+        memset(&vs_uniforms, 0, sizeof(vs_uniforms));
+        memset(&fs_uniforms, 0, sizeof(fs_uniforms));
 
         // Decr any paths from the last clip that are gone.
         std::unordered_set<rive::RenderPath*> alreadyApplied;
