@@ -65,7 +65,7 @@ case "$(uname -s)" in
         ;;
 esac
 
-PROTOBUF_BIN="${REPO_ROOT}/build/protobuf-3.20.1-${HOST_PLATFORM}/bin/${HOST_PLATFORM}"
+PROTOBUF_BIN="${REPO_ROOT}/build/bin/${HOST_PLATFORM}"
 if [ -d "${PROTOBUF_BIN}" ]; then
     export PATH="${PROTOBUF_BIN}:${PATH}"
 else
@@ -73,7 +73,7 @@ else
 
     echo "build folder: ${REPO_ROOT}/build"
     ls -la ${REPO_ROOT}/build
-    tree ${REPO_ROOT}/build/protobuf-3.20.1-${HOST_PLATFORM}
+    tree ${PROTOBUF_BIN}
 fi
 
 mkdir -p "${BUILD_DIR}"
