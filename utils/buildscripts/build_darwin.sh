@@ -203,13 +203,13 @@ build_for_target_arch() {
 
     # Force the out directory naming to include target and architecture consistently.
     if [[ "$target" == "macos" ]]; then
-        RIVE_OUT="$out_dir_rel" "$BUILD_SCRIPT" ninja "$rive_os" "$arch" "$CONFIG" --with-libs-only
+        RIVE_OUT="$out_dir_rel" "$BUILD_SCRIPT" ninja "$rive_os" "$arch" "$CONFIG" -- rive_pls_renderer
     else
         # For iOS, use iossim when arch is x64 (variant emulator), otherwise ios.
         if [[ "$arch" == "x64" ]]; then
-            RIVE_OUT="$out_dir_rel" "$BUILD_SCRIPT" ninja iossim "$arch" "$CONFIG" --with-libs-only
+            RIVE_OUT="$out_dir_rel" "$BUILD_SCRIPT" ninja iossim "$arch" "$CONFIG" -- rive_pls_renderer
         else
-            RIVE_OUT="$out_dir_rel" "$BUILD_SCRIPT" ninja "$rive_os" "$arch" "$CONFIG" --with-libs-only
+            RIVE_OUT="$out_dir_rel" "$BUILD_SCRIPT" ninja "$rive_os" "$arch" "$CONFIG" -- rive_pls_renderer
         fi
     fi
 
