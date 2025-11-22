@@ -141,19 +141,35 @@ typedef enum LogSeverity
 
 #if defined(NDEBUG)
 
-#define dmLogDebug(format, ... ) do {} while(0);
-#define dmLogUserDebug(format, ... ) do {} while(0);
-#define dmLogInfo(format, args...) do {} while(0);
-#define dmLogWarning(format, args...) do {} while(0);
-#define dmLogError(format, args...) do {} while(0);
-#define dmLogFatal(format, args...) do {} while(0);
+#ifdef _MSC_VER
+    #define dmLogDebug(format, ... ) do {} while(0);
+    #define dmLogUserDebug(format, ... ) do {} while(0);
+    #define dmLogInfo(format, ... ) do {} while(0);
+    #define dmLogWarning(format, ... ) do {} while(0);
+    #define dmLogError(format, ... ) do {} while(0);
+    #define dmLogFatal(format, ... ) do {} while(0);
 
-#define dmLogOnceDebug(format, args... ) do {} while(0);
-#define dmLogOnceUserDebug(format, args... ) do {} while(0);
-#define dmLogOnceInfo(format, args... ) do {} while(0);
-#define dmLogOnceWarning(format, args... ) do {} while(0);
-#define dmLogOnceError(format, args... ) do {} while(0);
-#define dmLogOnceFatal(format, args... ) do {} while(0);
+    #define dmLogOnceDebug(format, ...  ) do {} while(0);
+    #define dmLogOnceUserDebug(format, ...  ) do {} while(0);
+    #define dmLogOnceInfo(format, ...  ) do {} while(0);
+    #define dmLogOnceWarning(format, ...  ) do {} while(0);
+    #define dmLogOnceError(format, ...  ) do {} while(0);
+    #define dmLogOnceFatal(format, ...  ) do {} while(0);
+#else
+    #define dmLogDebug(format, ... ) do {} while(0);
+    #define dmLogUserDebug(format, ... ) do {} while(0);
+    #define dmLogInfo(format, args...) do {} while(0);
+    #define dmLogWarning(format, args...) do {} while(0);
+    #define dmLogError(format, args...) do {} while(0);
+    #define dmLogFatal(format, args...) do {} while(0);
+
+    #define dmLogOnceDebug(format, args... ) do {} while(0);
+    #define dmLogOnceUserDebug(format, args... ) do {} while(0);
+    #define dmLogOnceInfo(format, args... ) do {} while(0);
+    #define dmLogOnceWarning(format, args... ) do {} while(0);
+    #define dmLogOnceError(format, args... ) do {} while(0);
+    #define dmLogOnceFatal(format, args... ) do {} while(0);
+#endif
 
 #else
 
