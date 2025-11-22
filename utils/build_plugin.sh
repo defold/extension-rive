@@ -71,6 +71,8 @@ if [ -d "${PROTOBUF_BIN}" ]; then
 else
     echo "Warning: protobuf bin directory not found at ${PROTOBUF_BIN}" >&2
 
+    echo "build folder: ${REPO_ROOT}/build"
+    ls -la ${REPO_ROOT}/build
     tree ${REPO_ROOT}/build/protobuf-3.20.1-${HOST_PLATFORM}
 fi
 
