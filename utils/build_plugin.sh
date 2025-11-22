@@ -3,6 +3,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+REPO_ROOT=$(realpath ${SCRIPT_DIR}/..)
 
 if [ $# -lt 1 ]; then
     echo "Usage: $0 <platform>"
@@ -22,8 +23,8 @@ case $PLATFORM in
         EXTENDER_PLATFORM="x86_64-osx"
         ;;
 esac
-TARGET_LIB_DIR="${SCRIPT_DIR}/../defold-rive/plugins/lib/${EXTENDER_PLATFORM}"
-TARGET_SHARE_DIR="${SCRIPT_DIR}/../defold-rive/plugins/share"
+TARGET_LIB_DIR="${REPO_ROOT}/defold-rive/plugins/lib/${EXTENDER_PLATFORM}"
+TARGET_SHARE_DIR="${REPO_ROOT}/defold-rive/plugins/share"
 
 if [ -z "${DYNAMO_HOME:-}" ]; then
     echo "DYNAMO_HOME must be set before running $0" >&2
@@ -64,11 +65,13 @@ case "$(uname -s)" in
         ;;
 esac
 
-PROTOBUF_BIN="${SCRIPT_DIR}/../build/protobuf-3.20.1-${HOST_PLATFORM}/bin/${HOST_PLATFORM}"
+PROTOBUF_BIN="${REPO_ROOT}/build/protobuf-3.20.1-${HOST_PLATFORM}/bin/${HOST_PLATFORM}"
 if [ -d "${PROTOBUF_BIN}" ]; then
     export PATH="${PROTOBUF_BIN}:${PATH}"
 else
     echo "Warning: protobuf bin directory not found at ${PROTOBUF_BIN}" >&2
+
+    tree ${REPO_ROOT}/build/protobuf-3.20.1-${HOST_PLATFORM}
 fi
 
 mkdir -p "${BUILD_DIR}"
