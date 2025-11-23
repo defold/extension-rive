@@ -241,7 +241,7 @@ jobs:
       - name: Install VS Build Tools 17.7.5 via Chocolatey
         shell: bash
         run: |
-          choco install visualstudio2022buildtools --version=17.7.5 -y \
+          choco install visualstudio2022buildtools --version=117.7.5.0 -y \
             --package-parameters="--add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 \
             --add Microsoft.VisualStudio.Component.VC.Tools.14.37 \
             --add Microsoft.VisualStudio.Component.Windows10SDK.20348 \
