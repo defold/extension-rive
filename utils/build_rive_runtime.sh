@@ -115,15 +115,12 @@ if [[ "$PLATFORM" == x86_64-win32 || "$PLATFORM" == x86-win32 ]]; then
 
     # Apply Windows-specific cppdialect patch before building
     RIVE_BUILD_CONFIG="$RIVECPP/build/rive_build_config.lua"
+    echo "RIVE_BUILD_CONFIG=${RIVE_BUILD_CONFIG}"
+    ls -la ${RIVE_BUILD_CONFIG}
+
     if [[ -f "$RIVE_BUILD_CONFIG" ]]; then
-        python - <<PY
-from pathlib import Path
-path = Path(r"${RIVE_BUILD_CONFIG}")
-text = path.read_text()
-patched = text.replace("cppdialect('c++latest')", "cppdialect('C++20')")
-if text != patched:
-    path.write_text(patched)
-PY
+        sed -i.bak "s/cppdialect('c++latest')/cppdialect('C++20')/g" "$RIVE_BUILD_CONFIG"
+        rm -f "${RIVE_BUILD_CONFIG}.bak"
     fi
 
 else
