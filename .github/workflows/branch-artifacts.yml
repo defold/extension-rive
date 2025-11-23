@@ -227,11 +227,11 @@ jobs:
 
       - name: Setup VS DevCmd (x64)
         if: ${{ matrix.platform == 'x86_64-win32' }}
-        uses: TheMrMilchmann/setup-msvc-dev@v1
+        uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
           vsversion: 2022
-          toolset: 14.37.32822
+          toolset: 14.20
 
       - name: Setup VS DevCmd (x86)
         if: ${{ matrix.platform == 'x86-win32' }}
