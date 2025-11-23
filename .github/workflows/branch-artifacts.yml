@@ -232,12 +232,29 @@ jobs:
           vs-version: '17.7.5'
           msbuild-architecture: x64
 
+      - name: Install VS 2022 17.7.5 Build Tools (toolset v143.37.32822)
+        shell: pwsh
+        run: |
+          $vsPath = 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools'
+          if (Test-Path $vsPath) {
+            Write-Host "VS Build Tools already installed at $vsPath"
+            exit 0
+          }
+          $installer = "$env:TEMP\vs_buildtools.exe"
+          Invoke-WebRequest "https://aka.ms/vs/17/release/vs_BuildTools.exe" -OutFile $installer
+          & $installer --quiet --wait --norestart --includeRecommended `
+            --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+            --installPath $vsPath `
+            --version 17.7.5.0
+          if ($LASTEXITCODE -ne 0) { throw "VS installer failed" }
+
       - name: Setup VS DevCmd (x64)
         if: ${{ matrix.platform == 'x86_64-win32' }}
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
           vsversion: 2022
+          toolset: 14.29.30133
 
       - name: Setup VS DevCmd (x86)
         if: ${{ matrix.platform == 'x86-win32' }}
@@ -245,6 +262,7 @@ jobs:
         with:
           arch: x86
           vsversion: 2022
+          toolset: 14.29.30133
 
       - name: Dump environment
         shell: pwsh
