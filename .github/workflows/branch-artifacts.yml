@@ -225,12 +225,27 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Visual Studio 2022 Update 17.7.5
-        uses: microsoft/setup-vs@v1
+      - name: Install MSBuild/VS tools 17.7.5
+        uses: microsoft/setup-msbuild@v1
         with:
+          version: '17.7.5'
           vs-version: '17.7.5'
-          include-msbuild: true
-          install-vscomponents: 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64'
+
+      - name: Setup VS DevCmd (x64)
+        if: ${{ matrix.platform == 'x86_64-win32' }}
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+          vsversion: 2022
+          toolset: 14.37
+
+      - name: Setup VS DevCmd (x86)
+        if: ${{ matrix.platform == 'x86-win32' }}
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86
+          vsversion: 2022
+          toolset: 14.37
 
       - name: Dump environment
         shell: pwsh
