@@ -259,7 +259,7 @@ jobs:
                   '--installPath', $installPath,
                   '--passive'
           $exitCode = & $installer @args
-          if ($exitCode -ne 0 -and $exitCode -ne 3010) {
+          if ($exitCode -and ($exitCode -ne 0 -and $exitCode -ne 3010)) {
             throw "Visual Studio Build Tools install failed (exit $exitCode)"
           }
 
