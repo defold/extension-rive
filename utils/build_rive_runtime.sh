@@ -108,11 +108,23 @@ echo "Writing version header ${VERSIONHEADER}"
 ${SCRIPT_DIR_UTILS}/build_version_header.sh ${VERSIONHEADER} ${RIVECPP}
 
 
-# Apply patch set. On Windows, the full patch may fail due to upstream changes; for
-# Windows we apply a minimal patch enabling --with-libs-only to avoid building apps.
+# Apply patch
 RIVEPATCH=${SCRIPT_DIR}/rive.patch
 if [[ "$PLATFORM" == x86_64-win32 || "$PLATFORM" == x86-win32 ]]; then
-    echo "Skipping patch for windows."
+    echo "Manual patch for windows."
+
+    # Apply Windows-specific cppdialect patch before building
+    RIVE_BUILD_CONFIG="$RIVECPP/build/rive_build_config.lua"
+    if [[ -f "$RIVE_BUILD_CONFIG" ]]; then
+        python - <<PY
+from pathlib import Path
+path = Path(r"${RIVE_BUILD_CONFIG}")
+text = path.read_text()
+patched = text.replace("cppdialect('c++latest')", "cppdialect('C++20')")
+if text != patched:
+    path.write_text(patched)
+PY
+    fi
 
 else
     echo "Applying patch ${RIVEPATCH}"
