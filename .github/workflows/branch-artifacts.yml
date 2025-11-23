@@ -257,17 +257,17 @@ jobs:
       #     set -euo pipefail
       #     choco install visualstudio2022community --version=117.10.5 -y || true
 
-      - name: Activate Visual Studio Community install
+      - name: Activate Visual Studio Build Tools install
         shell: pwsh
         run: |
-          $vsDir = 'C:\Program Files\Microsoft Visual Studio\2022\Community'
+          $vsDir = 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools'
           if (-not (Test-Path $vsDir)) {
-            throw "VS Community not installed at $vsDir"
+            throw "VS Build Tools not installed at $vsDir"
           }
           "VSINSTALLDIR=$vsDir" | Out-File -Encoding ascii -Append -FilePath $env:GITHUB_ENV
           "VCINSTALLDIR=$vsDir\VC" | Out-File -Encoding ascii -Append -FilePath $env:GITHUB_ENV
           "VCTOOLSINSTALLDIR=$vsDir\VC\Tools\MSVC" | Out-File -Encoding ascii -Append -FilePath $env:GITHUB_ENV
-          "VisualStudioVersion=17.10" | Out-File -Encoding ascii -Append -FilePath $env:GITHUB_ENV
+          "VisualStudioVersion=17.7" | Out-File -Encoding ascii -Append -FilePath $env:GITHUB_ENV
           "VS160COMNTOOLS=$vsDir\Common7\Tools" | Out-File -Encoding ascii -Append -FilePath $env:GITHUB_ENV
           "VS140COMNTOOLS=$vsDir\Common7\Tools" | Out-File -Encoding ascii -Append -FilePath $env:GITHUB_ENV
 
