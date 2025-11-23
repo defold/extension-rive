@@ -266,6 +266,12 @@ jobs:
           toolset: 14.29.30133
           sdk: 10.0.20348.0
 
+      - name: List installed versions
+        shell: bash
+        run: |
+          ls -la "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC"
+          ls -la "C:\Program Files (x86)\Windows Kits\10\include"
+
       - name: Dump environment
         shell: pwsh
         run: |
