@@ -241,6 +241,11 @@ jobs:
           vsversion: 2022
           toolset: 14.20
 
+      - name: Dump environment
+        shell: pwsh
+        run: |
+          Get-ChildItem env: | Sort-Object Name
+
       - name: MSBuild sanity check
         shell: pwsh
         run: |
