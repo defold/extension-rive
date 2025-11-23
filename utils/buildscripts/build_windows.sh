@@ -95,6 +95,19 @@ if [[ ! -x "$BUILD_SCRIPT" ]]; then
     fi
 fi
 
+# Apply Windows-specific cppdialect patch before building
+RIVE_BUILD_CONFIG="$ROOT_DIR/build/rive_build_config.lua"
+if [[ -f "$RIVE_BUILD_CONFIG" ]]; then
+    python - <<PY
+from pathlib import Path
+path = Path(r"${RIVE_BUILD_CONFIG}")
+text = path.read_text()
+patched = text.replace("cppdialect('c++latest')", "cppdialect('C++20')")
+if text != patched:
+    path.write_text(patched)
+PY
+fi
+
 # Normalize arch list
 IFS="," read -r -a ARCH_LIST_RAW <<< "$ARCHS"
 ARCH_LIST=()
@@ -154,4 +167,3 @@ done
 
 echo
 echo "Done. Installed to: $PREFIX"
-
