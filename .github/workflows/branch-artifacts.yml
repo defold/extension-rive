@@ -231,7 +231,7 @@ jobs:
         with:
           arch: x64
           vsversion: 2022
-          toolset: 14.20
+          toolset: 14.37
 
       - name: Setup VS DevCmd (x86)
         if: ${{ matrix.platform == 'x86-win32' }}
@@ -245,6 +245,11 @@ jobs:
         shell: pwsh
         run: |
           Get-ChildItem env: | Sort-Object Name
+
+      - name: Set PlatformToolset
+        shell: pwsh
+        run: |
+          'PlatformToolset=v143' | Out-File -Encoding ascii -Append -FilePath $env:GITHUB_ENV
 
       - name: MSBuild sanity check
         shell: pwsh
