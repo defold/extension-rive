@@ -225,26 +225,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup VS DevCmd (x64)
-        if: ${{ matrix.platform == 'x86_64-win32' }}
-        uses: ilammy/msvc-dev-cmd@v1
+      - name: Install Visual Studio 2022 Update 17.7.5
+        uses: microsoft/setup-vs@v1
         with:
-          arch: x64
-          vsversion: 2022
-          toolset: 14.00
-
-      - name: Setup VS DevCmd (x86)
-        if: ${{ matrix.platform == 'x86-win32' }}
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x86
-          vsversion: 2022
-          toolset: 14.00
-
-      - name: Set PlatformToolset
-        shell: pwsh
-        run: |
-          'PlatformToolset=v143' | Out-File -Encoding ascii -Append -FilePath $env:GITHUB_ENV
+          vs-version: '17.7.5'
+          include-msbuild: true
+          install-vscomponents: 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64'
 
       - name: Dump environment
         shell: pwsh
@@ -256,6 +242,11 @@ jobs:
         run: |
           msbuild -version
           Get-Command msbuild.exe | Format-List -Property Source
+
+      - name: Print _MSC_VER
+        shell: bash
+        run: |
+          echo int main(){} | clang-cl -E -x c++ -Xclang -dM - | findstr _MSC_VER
 
       - name: Install DirectX Shader Compiler (DXC)
         shell: bash

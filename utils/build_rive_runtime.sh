@@ -111,17 +111,7 @@ ${SCRIPT_DIR_UTILS}/build_version_header.sh ${VERSIONHEADER} ${RIVECPP}
 # Apply patch
 RIVEPATCH=${SCRIPT_DIR}/rive.patch
 if [[ "$PLATFORM" == x86_64-win32 || "$PLATFORM" == x86-win32 ]]; then
-    echo "Manual patch for windows."
-
-    # Apply Windows-specific cppdialect patch before building
-    RIVE_BUILD_CONFIG="$RIVECPP/build/rive_build_config.lua"
-    echo "RIVE_BUILD_CONFIG=${RIVE_BUILD_CONFIG}"
-    ls -la ${RIVE_BUILD_CONFIG}
-
-    if [[ -f "$RIVE_BUILD_CONFIG" ]]; then
-        sed -i.bak "s/cppdialect('c++latest')/cppdialect('C++20')/g" "$RIVE_BUILD_CONFIG"
-        rm -f "${RIVE_BUILD_CONFIG}.bak"
-    fi
+    echo "Skipping patch for windows."
 
 else
     echo "Applying patch ${RIVEPATCH}"
