@@ -248,18 +248,19 @@ jobs:
           }
           $installer = "$env:TEMP\vs_BuildTools.exe"
           Invoke-WebRequest "https://aka.ms/vs/17/release/vs_BuildTools.exe" -OutFile $installer
-          & $installer --quiet --wait --norestart --includeRecommended `
-            --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
-            --add Microsoft.VisualStudio.Component.VC.Tools.14.37 `
-            --add Microsoft.VisualStudio.Component.Windows10SDK.20348 `
-            --add Microsoft.VisualStudio.Component.Windows10SDK.20348.Desktop `
-            --add Microsoft.VisualStudio.Component.Windows10SDK.20348.Native `
-            --add Microsoft.VisualStudio.Component.Windows10SDK.20348.UWP `
-            --add Microsoft.VisualStudio.Component.Windows10SDK.20348.Scenarios `
-            --installPath $installPath `
-            --passive
-          if ($LASTEXITCODE -ne 0) {
-            throw "Visual Studio Build Tools install failed ($LASTEXITCODE)"
+          $args = '--quiet --wait --norestart --includeRecommended',
+                  '--add', 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64',
+                  '--add', 'Microsoft.VisualStudio.Component.VC.Tools.14.37',
+                  '--add', 'Microsoft.VisualStudio.Component.Windows10SDK.20348',
+                  '--add', 'Microsoft.VisualStudio.Component.Windows10SDK.20348.Desktop',
+                  '--add', 'Microsoft.VisualStudio.Component.Windows10SDK.20348.Native',
+                  '--add', 'Microsoft.VisualStudio.Component.Windows10SDK.20348.UWP',
+                  '--add', 'Microsoft.VisualStudio.Component.Windows10SDK.20348.Scenarios',
+                  '--installPath', $installPath,
+                  '--passive'
+          $exitCode = & $installer @args
+          if ($exitCode -ne 0 -and $exitCode -ne 3010) {
+            throw "Visual Studio Build Tools install failed (exit $exitCode)"
           }
 
       - name: List installed versions
