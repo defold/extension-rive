@@ -269,11 +269,31 @@ jobs:
           set -euo pipefail
           choco install visualstudio2022community --version=117.10.5 -y || true
 
+      - name: Activate Visual Studio Community install
+        shell: pwsh
+        run: |
+          $vsDir = 'C:\Program Files\Microsoft Visual Studio\2022\Community'
+          if (-not (Test-Path $vsDir)) {
+            throw "VS Community not installed at $vsDir"
+          }
+          "VSINSTALLDIR=$vsDir" | Out-File -Encoding ascii -Append -FilePath $env:GITHUB_ENV
+          "VCINSTALLDIR=$vsDir\VC" | Out-File -Encoding ascii -Append -FilePath $env:GITHUB_ENV
+          "VCTOOLSINSTALLDIR=$vsDir\VC\Tools\MSVC" | Out-File -Encoding ascii -Append -FilePath $env:GITHUB_ENV
+          "VisualStudioVersion=17.10" | Out-File -Encoding ascii -Append -FilePath $env:GITHUB_ENV
+          "VS160COMNTOOLS=$vsDir\Common7\Tools" | Out-File -Encoding ascii -Append -FilePath $env:GITHUB_ENV
+          "VS140COMNTOOLS=$vsDir\Common7\Tools" | Out-File -Encoding ascii -Append -FilePath $env:GITHUB_ENV
+
       # - name: Install Windows Kits 10.0.20348.0
       #   shell: bash
       #   run: |
       #     set -euo pipefail
       #     choco install windows-sdk-10.0 --version=10.0.20348.0 -y || true
+
+      - name: Install tree
+        shell: pwsh
+        run: |
+          choco install tree -y || true
+          tree --version
 
       - name: List installed versions
         shell: bash
@@ -282,8 +302,8 @@ jobs:
           ls -la "C:\Program Files\Microsoft Visual Studio\2022"
           echo "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC"
           ls -la "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC"
-          echo "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC"
-          ls -la "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC"
+          echo "C:\Program Files\Microsoft Visual Studio\2022\Community"
+          tree "C:\Program Files\Microsoft Visual Studio\2022\Community"
           echo "C:\Program Files (x86)\Windows Kits\10\include"
           ls -la "C:\Program Files (x86)\Windows Kits\10\include"
 
@@ -297,28 +317,28 @@ jobs:
         run: |
           echo "int main(){}" | clang-cl -E -x c++ -Xclang -dM - | findstr _MSC_VER
 
-      - name: Setup VS DevCmd (x64)
-        if: ${{ matrix.platform == 'x86_64-win32' }}
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x64
-          vsversion: 2022
-          toolset: 14.29.30133
-          sdk: 10.0.22621.0
+      # - name: Setup VS DevCmd (x64)
+      #   if: ${{ matrix.platform == 'x86_64-win32' }}
+      #   uses: ilammy/msvc-dev-cmd@v1
+      #   with:
+      #     arch: x64
+      #     vsversion: 2022
+      #     toolset: 14.29.30133
+      #     sdk: 10.0.22621.0
 
-      - name: Setup VS DevCmd (x86)
-        if: ${{ matrix.platform == 'x86-win32' }}
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x86
-          vsversion: 2022
-          toolset: 14.29.30133
-          sdk: 10.0.22621.0
+      # - name: Setup VS DevCmd (x86)
+      #   if: ${{ matrix.platform == 'x86-win32' }}
+      #   uses: ilammy/msvc-dev-cmd@v1
+      #   with:
+      #     arch: x86
+      #     vsversion: 2022
+      #     toolset: 14.29.30133
+      #     sdk: 10.0.22621.0
 
-      - name: Dump environment
-        shell: pwsh
-        run: |
-          Get-ChildItem env: | Sort-Object Name
+      # - name: Dump environment
+      #   shell: pwsh
+      #   run: |
+      #     Get-ChildItem env: | Sort-Object Name
 
       - name: MSBuild sanity check
         shell: pwsh
@@ -338,12 +358,6 @@ jobs:
           choco install directxshadercompiler -y || true
           # Verify availability if installed
           dxc.exe -version 2> NUL || true
-
-      - name: Install tree
-        shell: pwsh
-        run: |
-          choco install tree -y || true
-          tree --version
 
       - name: Build, (optionally) upload, and commit
         uses: ./.github/actions/rive-build
