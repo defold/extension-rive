@@ -130,7 +130,7 @@ for ARCH in "${ARCH_LIST[@]}"; do
     out_dir="$BUILD_DIR/$out_dir_rel"
 
     # Drive build (use windows token and arch)
-    RIVE_OUT="$out_dir_rel" "$BUILD_SCRIPT" --toolset=msc "$ARCH" "$CONFIG"
+    RIVE_OUT="$out_dir_rel" "$BUILD_SCRIPT" "$ARCH" "$CONFIG"
 
     # Collect and install libraries
     install_arch="$ARCH"
