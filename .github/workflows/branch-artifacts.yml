@@ -238,36 +238,24 @@ jobs:
           vs-version: '17.7.5'
           msbuild-architecture: x64
 
-      # - name: Ensure VS Build Tools 17.7.5 with SDK 10.0.20348.0
-      #   shell: pwsh
-      #   run: |
-      #     $installPath = 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools'
-      #     if (Test-Path $installPath) {
-      #       Write-Host "VS Build Tools installed at $installPath"
-      #       exit 0
-      #     }
-      #     $installer = "$env:TEMP\vs_BuildTools.exe"
-      #     Invoke-WebRequest "https://aka.ms/vs/17/release/vs_BuildTools.exe" -OutFile $installer
-      #     $args = '--quiet --wait --norestart --includeRecommended',
-      #             '--add', 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64',
-      #             '--add', 'Microsoft.VisualStudio.Component.VC.Tools.14.37',
-      #             '--add', 'Microsoft.VisualStudio.Component.Windows10SDK.20348',
-      #             '--add', 'Microsoft.VisualStudio.Component.Windows10SDK.20348.Desktop',
-      #             '--add', 'Microsoft.VisualStudio.Component.Windows10SDK.20348.Native',
-      #             '--add', 'Microsoft.VisualStudio.Component.Windows10SDK.20348.UWP',
-      #             '--add', 'Microsoft.VisualStudio.Component.Windows10SDK.20348.Scenarios',
-      #             '--installPath', $installPath,
-      #             '--passive'
-      #     $exitCode = & $installer @args
-      #     if ($exitCode -and ($exitCode -ne 0 -and $exitCode -ne 3010)) {
-      #       throw "Visual Studio Build Tools install failed (exit $exitCode)"
-      #     }
-
-      - name: Install Visual Studio 2022 Community
+      - name: Install VS Build Tools 17.7.5 via Chocolatey
         shell: bash
         run: |
-          set -euo pipefail
-          choco install visualstudio2022community --version=117.10.5 -y || true
+          choco install visualstudio2022buildtools --version=17.7.5 -y \
+            --package-parameters="--add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 \
+            --add Microsoft.VisualStudio.Component.VC.Tools.14.37 \
+            --add Microsoft.VisualStudio.Component.Windows10SDK.20348 \
+            --add Microsoft.VisualStudio.Component.Windows10SDK.20348.Desktop \
+            --add Microsoft.VisualStudio.Component.Windows10SDK.20348.Native \
+            --add Microsoft.VisualStudio.Component.Windows10SDK.20348.UWP \
+            --add Microsoft.VisualStudio.Component.Windows10SDK.20348.Scenarios \
+            --includeRecommended --passive --norestart"
+
+      # - name: Install Visual Studio 2022 Community
+      #   shell: bash
+      #   run: |
+      #     set -euo pipefail
+      #     choco install visualstudio2022community --version=117.10.5 -y || true
 
       - name: Activate Visual Studio Community install
         shell: pwsh
