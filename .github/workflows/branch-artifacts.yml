@@ -263,33 +263,27 @@ jobs:
       #       throw "Visual Studio Build Tools install failed (exit $exitCode)"
       #     }
 
-      - name: Install Visual Studio 14.37
-        shell: pwsh
+      - name: Install Visual Studio 2022 Community
+        shell: bash
         run: |
-          $installerUrl = "https://aka.ms/vs/17/release/vs_buildtools.exe"
-          $installerPath = Join-Path $env:TEMP "vs_BuildTools.exe"
-          Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath
-          Start-Process -FilePath $installerPath -ArgumentList "--quiet", "--wait", "--norestart", "--nocache", `
-            "--installPath", "C:\BuildTools", `
-            "--add", "Microsoft.VisualStudio.Workload.VCTools", `
-            "--add", "Microsoft.VisualStudio.Component.VC.Tools.14.37", `
-            "--add", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64", `
-            "--add", "Microsoft.VisualStudio.Component.Windows10SDK.20348", `
-            "--add", "Microsoft.VisualStudio.Component.Windows10SDK.20348.Desktop", `
-            "--add", "Microsoft.VisualStudio.Component.Windows10SDK.20348.Native", `
-            "--add", "Microsoft.VisualStudio.Component.Windows10SDK.20348.UWP", `
-            "--add", "Microsoft.VisualStudio.Component.Windows10SDK.20348.Scenarios", `
-            -Wait -NoNewWindow
+          set -euo pipefail
+          choco install visualstudio2022community -y || true
+
+      - name: Install Windows Kits 10.0.20348
+        shell: bash
+        run: |
+          set -euo pipefail
+          choco install windows-sdk-10.0 --version=10.0.20348 -y || true
 
       - name: List installed versions
         shell: bash
         run: |
+          echo "C:\Program Files\Microsoft Visual Studio\2022"
+          ls -la "C:\Program Files\Microsoft Visual Studio\2022"
           echo "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC"
           ls -la "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC"
           echo "C:\Program Files (x86)\Windows Kits\10\include"
           ls -la "C:\Program Files (x86)\Windows Kits\10\include"
-          echo "C:\BuildTools"
-          ls -la "C:\BuildTools"
 
       - name: Dump environment
         shell: pwsh
