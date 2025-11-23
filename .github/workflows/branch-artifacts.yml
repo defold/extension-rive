@@ -267,13 +267,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          choco install visualstudio2022community -y || true
+          choco install visualstudio2022community --version=117.10.5 -y || true
 
-      - name: Install Windows Kits 10.0.20348
-        shell: bash
-        run: |
-          set -euo pipefail
-          choco install windows-sdk-10.0 --version=10.0.20348 -y || true
+      # - name: Install Windows Kits 10.0.20348.0
+      #   shell: bash
+      #   run: |
+      #     set -euo pipefail
+      #     choco install windows-sdk-10.0 --version=10.0.20348.0 -y || true
 
       - name: List installed versions
         shell: bash
@@ -282,6 +282,8 @@ jobs:
           ls -la "C:\Program Files\Microsoft Visual Studio\2022"
           echo "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC"
           ls -la "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC"
+          echo "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC"
+          ls -la "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC"
           echo "C:\Program Files (x86)\Windows Kits\10\include"
           ls -la "C:\Program Files (x86)\Windows Kits\10\include"
 
