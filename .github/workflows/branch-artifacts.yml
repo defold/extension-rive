@@ -257,10 +257,15 @@ jobs:
           msbuild -version
           Get-Command msbuild.exe | Format-List -Property Source
 
+      - name: List installed versions
+        shell: bash
+        run: |
+          ls -la "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC"
+
       - name: Print _MSC_VER
         shell: bash
         run: |
-          echo int main(){} | clang-cl -E -x c++ -Xclang -dM - | findstr _MSC_VER
+          echo "int main(){}" | clang-cl -E -x c++ -Xclang -dM - | findstr _MSC_VER
 
       - name: Install DirectX Shader Compiler (DXC)
         shell: bash
