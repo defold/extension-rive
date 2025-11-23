@@ -238,36 +238,58 @@ jobs:
           vs-version: '17.7.5'
           msbuild-architecture: x64
 
-      - name: Ensure VS Build Tools 17.7.5 with SDK 10.0.20348.0
+      # - name: Ensure VS Build Tools 17.7.5 with SDK 10.0.20348.0
+      #   shell: pwsh
+      #   run: |
+      #     $installPath = 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools'
+      #     if (Test-Path $installPath) {
+      #       Write-Host "VS Build Tools installed at $installPath"
+      #       exit 0
+      #     }
+      #     $installer = "$env:TEMP\vs_BuildTools.exe"
+      #     Invoke-WebRequest "https://aka.ms/vs/17/release/vs_BuildTools.exe" -OutFile $installer
+      #     $args = '--quiet --wait --norestart --includeRecommended',
+      #             '--add', 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64',
+      #             '--add', 'Microsoft.VisualStudio.Component.VC.Tools.14.37',
+      #             '--add', 'Microsoft.VisualStudio.Component.Windows10SDK.20348',
+      #             '--add', 'Microsoft.VisualStudio.Component.Windows10SDK.20348.Desktop',
+      #             '--add', 'Microsoft.VisualStudio.Component.Windows10SDK.20348.Native',
+      #             '--add', 'Microsoft.VisualStudio.Component.Windows10SDK.20348.UWP',
+      #             '--add', 'Microsoft.VisualStudio.Component.Windows10SDK.20348.Scenarios',
+      #             '--installPath', $installPath,
+      #             '--passive'
+      #     $exitCode = & $installer @args
+      #     if ($exitCode -and ($exitCode -ne 0 -and $exitCode -ne 3010)) {
+      #       throw "Visual Studio Build Tools install failed (exit $exitCode)"
+      #     }
+
+      - name: Install Visual Studio 14.37
         shell: pwsh
         run: |
-          $installPath = 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools'
-          if (Test-Path $installPath) {
-            Write-Host "VS Build Tools installed at $installPath"
-            exit 0
-          }
-          $installer = "$env:TEMP\vs_BuildTools.exe"
-          Invoke-WebRequest "https://aka.ms/vs/17/release/vs_BuildTools.exe" -OutFile $installer
-          $args = '--quiet --wait --norestart --includeRecommended',
-                  '--add', 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64',
-                  '--add', 'Microsoft.VisualStudio.Component.VC.Tools.14.37',
-                  '--add', 'Microsoft.VisualStudio.Component.Windows10SDK.20348',
-                  '--add', 'Microsoft.VisualStudio.Component.Windows10SDK.20348.Desktop',
-                  '--add', 'Microsoft.VisualStudio.Component.Windows10SDK.20348.Native',
-                  '--add', 'Microsoft.VisualStudio.Component.Windows10SDK.20348.UWP',
-                  '--add', 'Microsoft.VisualStudio.Component.Windows10SDK.20348.Scenarios',
-                  '--installPath', $installPath,
-                  '--passive'
-          $exitCode = & $installer @args
-          if ($exitCode -and ($exitCode -ne 0 -and $exitCode -ne 3010)) {
-            throw "Visual Studio Build Tools install failed (exit $exitCode)"
-          }
+          $installerUrl = "https://aka.ms/vs/17/release/vs_buildtools.exe"
+          $installerPath = Join-Path $env:TEMP "vs_BuildTools.exe"
+          Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath
+          Start-Process -FilePath $installerPath -ArgumentList "--quiet", "--wait", "--norestart", "--nocache", `
+            "--installPath", "C:\BuildTools", `
+            "--add", "Microsoft.VisualStudio.Workload.VCTools", `
+            "--add", "Microsoft.VisualStudio.Component.VC.Tools.14.37", `
+            "--add", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64", `
+            "--add", "Microsoft.VisualStudio.Component.Windows10SDK.20348", `
+            "--add", "Microsoft.VisualStudio.Component.Windows10SDK.20348.Desktop", `
+            "--add", "Microsoft.VisualStudio.Component.Windows10SDK.20348.Native", `
+            "--add", "Microsoft.VisualStudio.Component.Windows10SDK.20348.UWP", `
+            "--add", "Microsoft.VisualStudio.Component.Windows10SDK.20348.Scenarios", `
+            -Wait -NoNewWindow
 
       - name: List installed versions
         shell: bash
         run: |
+          echo "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC"
           ls -la "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC"
+          echo "C:\Program Files (x86)\Windows Kits\10\include"
           ls -la "C:\Program Files (x86)\Windows Kits\10\include"
+          echo "C:\BuildTools"
+          ls -la "C:\BuildTools"
 
       - name: Dump environment
         shell: pwsh
