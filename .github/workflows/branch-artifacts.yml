@@ -220,62 +220,10 @@ jobs:
       matrix:
         platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["x86_64-win32"]' || format('["{0}"]', github.event.inputs.platform)) }}
     steps:
-      - name: List installed versions
-        shell: bash
-        run: |
-          ls -la "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC"
-          ls -la "C:\Program Files (x86)\Windows Kits\10\include"
-
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Install MSBuild/VS tools 17.7.5
-        uses: microsoft/setup-msbuild@v1
-        with:
-          version: '17.7.5'
-          vs-version: '17.7.5'
-          msbuild-architecture: x64
-
-      - name: Install VS Build Tools 17.7.5 via Chocolatey
-        shell: bash
-        run: |
-          choco install visualstudio2022buildtools --version=117.7.5.0 -y \
-            --package-parameters="--add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 \
-            --add Microsoft.VisualStudio.Component.VC.Tools.14.37 \
-            --add Microsoft.VisualStudio.Component.Windows10SDK.20348 \
-            --add Microsoft.VisualStudio.Component.Windows10SDK.20348.Desktop \
-            --add Microsoft.VisualStudio.Component.Windows10SDK.20348.Native \
-            --add Microsoft.VisualStudio.Component.Windows10SDK.20348.UWP \
-            --add Microsoft.VisualStudio.Component.Windows10SDK.20348.Scenarios \
-            --includeRecommended --passive --norestart"
-
-      # - name: Install Visual Studio 2022 Community
-      #   shell: bash
-      #   run: |
-      #     set -euo pipefail
-      #     choco install visualstudio2022community --version=117.10.5 -y || true
-
-      - name: Activate Visual Studio Build Tools install
-        shell: pwsh
-        run: |
-          $vsDir = 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools'
-          if (-not (Test-Path $vsDir)) {
-            throw "VS Build Tools not installed at $vsDir"
-          }
-          "VSINSTALLDIR=$vsDir" | Out-File -Encoding ascii -Append -FilePath $env:GITHUB_ENV
-          "VCINSTALLDIR=$vsDir\VC" | Out-File -Encoding ascii -Append -FilePath $env:GITHUB_ENV
-          "VCTOOLSINSTALLDIR=$vsDir\VC\Tools\MSVC" | Out-File -Encoding ascii -Append -FilePath $env:GITHUB_ENV
-          "VisualStudioVersion=17.7" | Out-File -Encoding ascii -Append -FilePath $env:GITHUB_ENV
-          "VS160COMNTOOLS=$vsDir\Common7\Tools" | Out-File -Encoding ascii -Append -FilePath $env:GITHUB_ENV
-          "VS140COMNTOOLS=$vsDir\Common7\Tools" | Out-File -Encoding ascii -Append -FilePath $env:GITHUB_ENV
-
-      # - name: Install Windows Kits 10.0.20348.0
-      #   shell: bash
-      #   run: |
-      #     set -euo pipefail
-      #     choco install windows-sdk-10.0 --version=10.0.20348.0 -y || true
 
       - name: Install tree
         shell: pwsh
@@ -283,61 +231,29 @@ jobs:
           choco install tree -y || true
           tree --version
 
-      - name: List installed versions
-        shell: bash
-        run: |
-          echo "C:\Program Files\Microsoft Visual Studio\2022"
-          ls -la "C:\Program Files\Microsoft Visual Studio\2022"
-          echo "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC"
-          ls -la "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC"
-          echo "C:\Program Files\Microsoft Visual Studio\2022\Community"
-          tree "C:\Program Files\Microsoft Visual Studio\2022\Community"
-          echo "C:\Program Files (x86)\Windows Kits\10\include"
-          ls -la "C:\Program Files (x86)\Windows Kits\10\include"
+      - name: Setup VS DevCmd (x64)
+        if: ${{ matrix.platform == 'x86_64-win32' }}
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+          vsversion: 2022
+          toolset: 14.30
+          sdk: 10.0.22621.0
 
-      - name: Dump environment
-        shell: pwsh
-        run: |
-          Get-ChildItem env: | Sort-Object Name
-
-      - name: Print _MSC_VER
-        shell: bash
-        run: |
-          echo "int main(){}" | clang-cl -E -x c++ -Xclang -dM - | findstr _MSC_VER
-
-      # - name: Setup VS DevCmd (x64)
-      #   if: ${{ matrix.platform == 'x86_64-win32' }}
-      #   uses: ilammy/msvc-dev-cmd@v1
-      #   with:
-      #     arch: x64
-      #     vsversion: 2022
-      #     toolset: 14.29.30133
-      #     sdk: 10.0.22621.0
-
-      # - name: Setup VS DevCmd (x86)
-      #   if: ${{ matrix.platform == 'x86-win32' }}
-      #   uses: ilammy/msvc-dev-cmd@v1
-      #   with:
-      #     arch: x86
-      #     vsversion: 2022
-      #     toolset: 14.29.30133
-      #     sdk: 10.0.22621.0
-
-      # - name: Dump environment
-      #   shell: pwsh
-      #   run: |
-      #     Get-ChildItem env: | Sort-Object Name
+      - name: Setup VS DevCmd (x86)
+        if: ${{ matrix.platform == 'x86-win32' }}
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86
+          vsversion: 2022
+          toolset: 14.30
+          sdk: 10.0.22621.0
 
       - name: MSBuild sanity check
         shell: pwsh
         run: |
           msbuild -version
           Get-Command msbuild.exe | Format-List -Property Source
-
-      - name: Print _MSC_VER
-        shell: bash
-        run: |
-          echo "int main(){}" | clang-cl -E -x c++ -Xclang -dM - | findstr _MSC_VER
 
       - name: Install DirectX Shader Compiler (DXC)
         shell: bash
