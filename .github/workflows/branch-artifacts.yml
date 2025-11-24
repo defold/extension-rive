@@ -597,7 +597,7 @@ jobs:
 
   build-plugin-windows:
     if: ${{ github.event.inputs.platform == 'x86_64-win32' || github.event.inputs.platform == 'all' }}
-    #needs: build-windows
+    needs: build-windows
     runs-on: windows-2022
     steps:
       - name: Checkout repository
