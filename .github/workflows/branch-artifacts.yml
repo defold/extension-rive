@@ -329,8 +329,8 @@ jobs:
           DOWNLOADDIR=$(realpath ./build)
           echo "DOWNLOADDIR=${DOWNLOADDIR}" >> "$GITHUB_ENV"
           ./utils/plugin/download_defoldsdk.sh --channel stable --version "${{ github.event.inputs.defold_version }}" --bob-only --output-sdk "${DOWNLOADDIR}/defoldsdk"
-          echo "Verifying bin dir: ${DOWNLOADDIR}/defoldsdk"
-          find ${DOWNLOADDIR}/defoldsdk -iname "protoc*"
+          echo "Verifying bob.jar"
+          ls -la ./bob.jar
 
       - name: Verify Bob
         shell: bash
