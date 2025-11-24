@@ -342,7 +342,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          BOB=./bob.jar ./utils/build_plugins.sh --rive ${{ env.RIVE_TMP_DIR }} ${{ matrix.platform }}
+          BOB=./bob.jar ./utils/build_plugins.sh --rive "$RIVE_TMP_DIR" "${{ matrix.platform }}"
 
       - name: Commit native libs
         if: ${{ github.event.inputs.push_changes == 'true' }}
