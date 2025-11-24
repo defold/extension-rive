@@ -1,11 +1,15 @@
 
 # Build and desploy steps
 
+* Rive runntime libraries
+* Editor plugin (desktop platforms)
+
 ## Build Rive Runtime
 
-*UPDATE 2025-09-20*
+*UPDATE 2025-11-23*
 
-For most platforms we now use the build system of the rive runtime.
+We now use the build system of the rive runtime to build  (most of) the libraries.
+We still use the old build steps for x86_64-win32 and x86-win32 libraries.
 
 The build scripts do several things:
 * Removes old headers
@@ -15,6 +19,32 @@ The build scripts do several things:
 * Builds and copies new libraries
 
 **NOTE** The build steps currently apply a small patch to the rive-runtiome in order to successfully build for all targets! See [rive.patch](./utils/rive.patch) for the details.
+
+## Github Actions
+
+Using Github Actions is the easiest way to update the libraries and editor plugins.
+By default, it will push the new headers, and libraries to the repo.
+
+Once it's done, you should verify that it works to build for all platforms.
+
+### Create branch
+
+Start with creating a branch. Use the sha1 name of the rive runtime you wish to use (for clarity)
+
+`git checkout -b update-<sha1>`
+
+### Run the Github Action workflow
+
+Using Github CLI (`brew install github`), you can invoke the build locally. Replace the sha1 with your version.
+
+`gh workflow run branch-artifacts.yml -r update-<sha1> -f platform=all -f push_changes=true -f rive_sha=<sha1>`
+
+You can replace the platform `all` with a specific target platform (e.g. `x86_64-win32`)
+
+Example:
+
+`gh workflow run branch-artifacts.yml -r update-a228887fa6032efd0e0e23af70455913dee4ac1f -f platform=x86_64-win32 -f push_changes=true -f rive_sha=a228887fa6032efd0e0e23af70455913dee4ac1f`
+
 
 ### Prerequisites
 
