@@ -278,9 +278,10 @@ jobs:
   #         commit_message: ${{ github.event.inputs.commit_message }}
   #         push_changes: ${{ github.event.inputs.push_changes }}
 
+
   build-windows:
     if: ${{ github.event.inputs.platform == 'x86-win32' || github.event.inputs.platform == 'x86_64-win32' || github.event.inputs.platform == 'all' }}
-    runs-on: windows-2022
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["x86_64-win32"]' || format('["{0}"]', github.event.inputs.platform)) }}
@@ -289,18 +290,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Install tree + wget
-        shell: pwsh
+      - name: Install Linux build tools
+        shell: bash
         run: |
-          choco install tree wget -y || true
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y tree wget python3-ply
           tree --version
-      - name: Install python dependency
-        shell: pwsh
-        run: |
-          python -m pip install --upgrade pip
-          pip install ply
-
       - name: Clone Rive runtime
         shell: bash
         run: |
@@ -313,19 +309,16 @@ jobs:
             (cd "$RIVE_TMP_DIR" && git fetch --depth 1 origin "${{ github.event.inputs.rive_ref }}" && git checkout --force "${{ github.event.inputs.rive_ref }}")
           fi
           echo "RIVE_TMP_DIR=$RIVE_TMP_DIR" >> "$GITHUB_ENV"
-
       - name: Setup Temurin Java 21
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
-
       - name: Verify Java
         shell: bash
         run: |
           set -euo pipefail
           java --version
-
       - name: Download Defold SDK
         shell: bash
         run: |
@@ -336,20 +329,16 @@ jobs:
           ./utils/plugin/download_defoldsdk.sh --channel stable --version "${{ github.event.inputs.defold_version }}" --bob-only --output-sdk "${DOWNLOADDIR}/defoldsdk"
           echo "Verifying bob.jar"
           ls -la ./bob.jar
-
       - name: Verify Bob
         shell: bash
         run: |
           set -euo pipefail
           java -jar ./bob.jar -version
-
       - name: Build libraries
         shell: bash
         run: |
           set -euo pipefail
-          echo "Rive dir: ${RIVE_TMP_DIR}"
-          BOB=./bob.jar ./utils/build_pls.sh --rive "${RIVE_TMP_DIR}" "${{ matrix.platform }}"
-
+          BOB=./bob.jar ./utils/build_plugins.sh --rive "$RIVE_TMP_DIR" "${{ matrix.platform }}"
       - name: Commit native libs
         if: ${{ github.event.inputs.push_changes == 'true' }}
         shell: bash
@@ -358,7 +347,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           PLATFORM_DIR="defold-rive/lib/${{ matrix.platform }}"
-          git add -v "${PLATFORM_DIR}" || true
+          git add -v "$PLATFORM_DIR" || true
           if git diff --cached --quiet; then
             echo "No native lib changes to commit."
             exit 0
@@ -388,17 +377,6 @@ jobs:
             echo "Push failed after $max_attempts attempts"
             exit 1
           fi
-
-      # - name: Build, (optionally) upload, and commit
-      #   uses: ./.github/actions/rive-build
-      #   with:
-      #     platform: ${{ matrix.platform }}
-      #     rive_repo_url: ${{ github.event.inputs.rive_repo_url }}
-      #     rive_ref: ${{ github.event.inputs.rive_ref }}
-      #     rive_sha: ${{ github.event.inputs.rive_sha }}
-      #     upload_artifact: ${{ github.event.inputs.upload_artifact }}
-      #     commit_message: ${{ github.event.inputs.commit_message }}
-      #     push_changes: ${{ github.event.inputs.push_changes }}
 
   build-plugin-macos:
     if: ${{ github.event.inputs.platform == 'arm64-macos' || github.event.inputs.platform == 'x86_64-macos' || github.event.inputs.platform == 'all' }}
