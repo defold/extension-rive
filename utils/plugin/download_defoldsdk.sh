@@ -86,6 +86,19 @@ BOB_JAR="${REPO_ROOT}/bob.jar"
 
 OUTPUT_SDK_ROOT="${OUTPUT_SDK:-${REPO_ROOT}/build/defoldsdk}"
 
+if [ -f "${BOB_JAR}" ]; then
+    echo "bob.jar already exists at ${BOB_JAR}, skipping download"
+else
+    echo "Downloading bob.jar (${BOB_URL})"
+    curl -fSL -o "${BOB_JAR}" "${BOB_URL}"
+    echo "Downloaded ${BOB_JAR}"
+fi
+
+if [ "${BOB_ONLY}" -eq 1 ]; then
+    echo "bob-only mode: exiting after bob.jar download."
+    exit 0
+fi
+
 SDK_PRESENT=0
 if [ -d "${OUTPUT_SDK_ROOT}" ]; then
     echo "Defold SDK already extracted at ${OUTPUT_SDK_ROOT}, skipping download/unzip."
@@ -115,20 +128,7 @@ if [ ! -d "${OUTPUT_SDK_ROOT}" ]; then
     exit 1
 fi
 
-if [ -f "${BOB_JAR}" ]; then
-    echo "bob.jar already exists at ${BOB_JAR}, skipping download"
-else
-    echo "Downloading bob.jar (${BOB_URL})"
-    curl -fSL -o "${BOB_JAR}" "${BOB_URL}"
-    echo "Downloaded ${BOB_JAR}"
-fi
-
-echo "Defold SDK ready at ${OUTPUT_SDK_ROOT}; bob.jar downloaded to ${BOB_JAR}"
-
-if [ "${BOB_ONLY}" -eq 1 ]; then
-    echo "bob-only mode: skipping SDK + protobuf download."
-    exit 0
-fi
+echo "Defold SDK ready at ${OUTPUT_SDK_ROOT}"
 
 if [ -z "${HOST_PLATFORM}" ]; then
     case "$(uname -s)" in
