@@ -7,8 +7,8 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 function usage() {
     cat <<EOF
-usage: ${BASH_SOURCE[0]} --channel CHANNEL [--version VERSION] [--output-sdk DIR] [--host-platform PLATFORM]
-If no version is provided it is read from https://d.defold.com/<channel>/info.json.
+usage: ${BASH_SOURCE[0]} --channel CHANNEL [--version VERSION] [--output-sdk DIR] [--host-platform PLATFORM] [--bob-only]
+If no version is provided or "latest" is requested it reads from https://d.defold.com/<channel>/info.json.
 EOF
     exit 1
 }
@@ -17,6 +17,7 @@ VERSION=""
 CHANNEL="stable"
 OUTPUT_SDK=""
 HOST_PLATFORM=""
+BOB_ONLY=0
 ARGS_PROVIDED=0
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -40,6 +41,11 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ARGS_PROVIDED=1
             ;;
+        --bob-only)
+            BOB_ONLY=1
+            shift
+            ARGS_PROVIDED=1
+            ;;
         -*)
             echo "Unknown option: $1" >&2
             usage
@@ -56,7 +62,7 @@ if [[ ${ARGS_PROVIDED} -eq 0 ]]; then
     usage
 fi
 
-if [ -z "${VERSION}" ]; then
+if [ -z "${VERSION}" ] || [ "${VERSION}" = "latest" ]; then
     if ! command -v jq >/dev/null 2>&1; then
         echo "jq is required to fetch the default Defold version" >&2
         exit 1
@@ -118,6 +124,11 @@ else
 fi
 
 echo "Defold SDK ready at ${OUTPUT_SDK_ROOT}; bob.jar downloaded to ${BOB_JAR}"
+
+if [ "${BOB_ONLY}" -eq 1 ]; then
+    echo "bob-only mode: skipping SDK + protobuf download."
+    exit 0
+fi
 
 if [ -z "${HOST_PLATFORM}" ]; then
     case "$(uname -s)" in
