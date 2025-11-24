@@ -290,10 +290,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install tree
+      - name: Install tree + wget
         shell: pwsh
         run: |
-          choco install tree -y || true
+          choco install tree wget -y || true
           tree --version
 
       - name: Clone Rive runtime
