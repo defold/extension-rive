@@ -1,0 +1,573 @@
+name: Branch Scripts and Artifacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "Target platform for Rive build"
+        required: true
+        type: choice
+        options: ["x86_64-linux", "arm64-macos", "x86_64-macos", "arm64-ios", "x86_64-ios", "arm64-android", "armv7-android", "js-web", "wasm-web", "wasm_pthread-web", "x86-win32", "x86_64-win32", "all"]
+        default: "x86_64-linux"
+      rive_repo_url:
+        description: "Rive runtime repo URL (HTTPS)"
+        required: true
+        default: "https://github.com/rive-app/rive-runtime.git"
+      rive_ref:
+        description: "Rive runtime ref (branch/tag/commit). Leave empty for default."
+        required: false
+        default: ""
+      rive_sha:
+        description: "Rive runtime commit SHA to checkout (overrides rive_ref)"
+        required: false
+        default: ""
+      upload_artifact:
+        description: "Upload tarball artifact (defold-rive/lib + include)"
+        required: true
+        type: choice
+        options: ["true", "false"]
+        default: "false"
+      commit_message:
+        description: "Optional commit message suffix"
+        required: false
+        default: ""
+      push_changes:
+        description: "Push changes back to the same branch"
+        required: true
+        type: choice
+        options: ["true", "false"]
+        default: "true"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: branch-artifacts-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build-linux:
+    if: ${{ github.event.inputs.platform == 'x86_64-linux' || github.event.inputs.platform == 'all' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["x86_64-linux"]' || format('["{0}"]', github.event.inputs.platform)) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Linux build dependencies (uuid, X11, Xcursor, Xrandr, Xi, Xinerama, Xf86VidMode)
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y uuid-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libxinerama-dev libxxf86vm-dev
+
+      - name: Setup LLVM/Clang 17
+        uses: KyleMayes/install-llvm-action@v2
+        with:
+          version: 17.0.6
+          directory: ${{ runner.temp }}/llvm
+
+      - name: Verify Clang version
+        shell: bash
+        run: |
+          set -euo pipefail
+          which clang || true
+          which clang++ || true
+          clang --version
+          clang++ --version
+
+      - name: Build, (optionally) upload, and commit
+        uses: ./.github/actions/rive-build
+        with:
+          platform: ${{ matrix.platform }}
+          rive_repo_url: ${{ github.event.inputs.rive_repo_url }}
+          rive_ref: ${{ github.event.inputs.rive_ref }}
+          rive_sha: ${{ github.event.inputs.rive_sha }}
+          upload_artifact: ${{ github.event.inputs.upload_artifact }}
+          commit_message: ${{ github.event.inputs.commit_message }}
+          push_changes: ${{ github.event.inputs.push_changes }}
+
+  build-macos:
+    if: ${{ github.event.inputs.platform == 'arm64-macos' || github.event.inputs.platform == 'x86_64-macos' || github.event.inputs.platform == 'arm64-ios' || github.event.inputs.platform == 'x86_64-ios' || github.event.inputs.platform == 'all' }}
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["arm64-macos","x86_64-macos","arm64-ios","x86_64-ios"]' || format('["{0}"]', github.event.inputs.platform)) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Select Xcode 16.2
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.2'
+
+      - name: Install tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew install tree
+
+      - name: Build, (optionally) upload, and commit
+        uses: ./.github/actions/rive-build
+        with:
+          platform: ${{ matrix.platform }}
+          rive_repo_url: ${{ github.event.inputs.rive_repo_url }}
+          rive_ref: ${{ github.event.inputs.rive_ref }}
+          rive_sha: ${{ github.event.inputs.rive_sha }}
+          upload_artifact: ${{ github.event.inputs.upload_artifact }}
+          commit_message: ${{ github.event.inputs.commit_message }}
+          push_changes: ${{ github.event.inputs.push_changes }}
+
+  build-android:
+    if: ${{ github.event.inputs.platform == 'arm64-android' || github.event.inputs.platform == 'armv7-android' || github.event.inputs.platform == 'all' }}
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["arm64-android","armv7-android"]' || format('["{0}"]', github.event.inputs.platform)) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew install tree
+
+      - name: Set up Android NDK r25c (25.2.9519653)
+        id: setup-ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r25c
+      - name: Export ANDROID_NDK env
+        shell: bash
+        run: |
+          echo "ANDROID_NDK=${{ steps.setup-ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
+          echo "Using ANDROID_NDK=${{ steps.setup-ndk.outputs.ndk-path }}"
+
+      - name: Configure Android toolchain environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "ANDROID_NDK_HOME=${ANDROID_NDK}" >> "$GITHUB_ENV"
+          echo "NDK_PATH=${ANDROID_NDK}" >> "$GITHUB_ENV"
+          # API 21 is a safe default for arm64 and armv7 toolchains
+          echo "ANDROID_API=21" >> "$GITHUB_ENV"
+      - name: Build, (optionally) upload, and commit
+        uses: ./.github/actions/rive-build
+        with:
+          platform: ${{ matrix.platform }}
+          rive_repo_url: ${{ github.event.inputs.rive_repo_url }}
+          rive_ref: ${{ github.event.inputs.rive_ref }}
+          rive_sha: ${{ github.event.inputs.rive_sha }}
+          upload_artifact: ${{ github.event.inputs.upload_artifact }}
+          commit_message: ${{ github.event.inputs.commit_message }}
+          push_changes: ${{ github.event.inputs.push_changes }}
+
+  build-web:
+    if: ${{ github.event.inputs.platform == 'js-web' || github.event.inputs.platform == 'wasm-web' || github.event.inputs.platform == 'wasm_pthread-web' || github.event.inputs.platform == 'all' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["js-web","wasm-web","wasm_pthread-web"]' || format('["{0}"]', github.event.inputs.platform)) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Linux dependencies (uuid, glslangValidator)
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y uuid-dev glslang-tools
+          sudo apt-get install -y tree
+
+      - name: Build, (optionally) upload, and commit
+        uses: ./.github/actions/rive-build
+        with:
+          platform: ${{ matrix.platform }}
+          rive_repo_url: ${{ github.event.inputs.rive_repo_url }}
+          rive_ref: ${{ github.event.inputs.rive_ref }}
+          rive_sha: ${{ github.event.inputs.rive_sha }}
+          upload_artifact: ${{ github.event.inputs.upload_artifact }}
+          commit_message: ${{ github.event.inputs.commit_message }}
+          push_changes: ${{ github.event.inputs.push_changes }}
+
+  build-windows:
+    if: ${{ github.event.inputs.platform == 'x86-win32' || github.event.inputs.platform == 'x86_64-win32' || github.event.inputs.platform == 'all' }}
+    runs-on: windows-2022
+    strategy:
+      matrix:
+        platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["x86_64-win32"]' || format('["{0}"]', github.event.inputs.platform)) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install tree
+        shell: pwsh
+        run: |
+          choco install tree -y || true
+          tree --version
+
+      - name: Setup VS DevCmd (x64)
+        if: ${{ matrix.platform == 'x86_64-win32' }}
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+          vsversion: 2022
+          toolset: 14.30
+          sdk: 10.0.22621.0
+
+      - name: Setup VS DevCmd (x86)
+        if: ${{ matrix.platform == 'x86-win32' }}
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86
+          vsversion: 2022
+          toolset: 14.30
+          sdk: 10.0.22621.0
+
+      - name: MSBuild sanity check
+        shell: pwsh
+        run: |
+          msbuild -version
+          Get-Command msbuild.exe | Format-List -Property Source
+
+      - name: Install DirectX Shader Compiler (DXC)
+        shell: bash
+        run: |
+          set -euo pipefail
+          choco install directxshadercompiler -y || true
+          # Verify availability if installed
+          dxc.exe -version 2> NUL || true
+
+      - name: Build, (optionally) upload, and commit
+        uses: ./.github/actions/rive-build
+        with:
+          platform: ${{ matrix.platform }}
+          rive_repo_url: ${{ github.event.inputs.rive_repo_url }}
+          rive_ref: ${{ github.event.inputs.rive_ref }}
+          rive_sha: ${{ github.event.inputs.rive_sha }}
+          upload_artifact: ${{ github.event.inputs.upload_artifact }}
+          commit_message: ${{ github.event.inputs.commit_message }}
+          push_changes: ${{ github.event.inputs.push_changes }}
+
+  build-plugin-macos:
+    if: ${{ github.event.inputs.platform == 'arm64-macos' || github.event.inputs.platform == 'x86_64-macos' || github.event.inputs.platform == 'all' }}
+    needs: build-macos
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Temurin Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Verify Java
+        shell: bash
+        run: |
+          set -euo pipefail
+          java --version
+
+      - name: Setup CMake 4.1
+        uses: lukka/get-cmake@v4.1.1
+
+      - name: Verify CMake
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake --version
+
+      - name: Install jq
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew update
+          brew install jq
+          brew install tree
+
+
+      - name: Download Defold SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ./build
+          DOWNLOADDIR=$(realpath ./build)
+          echo "DOWNLOADDIR=${DOWNLOADDIR}" >> "$GITHUB_ENV"
+          ./utils/plugin/download_defoldsdk.sh --channel stable --output-sdk "${DOWNLOADDIR}/defoldsdk"
+          echo "Verifying bin dir: ${DOWNLOADDIR}/defoldsdk"
+          find ${DOWNLOADDIR}/defoldsdk -iname "protoc*"
+
+      - name: Build editor plugins
+        shell: bash
+        env:
+          DYNAMO_HOME: ${{ env.DOWNLOADDIR }}/defoldsdk/defoldsdk
+          BOB: ${{ github.workspace }}/bob.jar
+        run: |
+          set -euo pipefail
+          ./utils/build_plugin.sh arm64-macos
+          ./utils/build_plugin.sh x86_64-macos
+
+      - name: Commit plugin outputs
+        if: ${{ github.event.inputs.push_changes == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          CONFLICT_FILE="defold-rive/plugins/share/pluginRiveExt.jar"
+          if git ls-files -u "$CONFLICT_FILE" >/dev/null 2>&1; then
+            git checkout --ours "$CONFLICT_FILE"
+          fi
+          git add -v defold-rive/plugins || true
+          if git diff --cached --quiet; then
+            echo "No plugin changes to commit."
+            exit 0
+          fi
+          msg="ci: update editor plugin on ${{ github.ref_name }} [skip ci]"
+          if [ -n "${{ github.event.inputs.commit_message }}" ]; then
+            msg="$msg - ${{ github.event.inputs.commit_message }}"
+          fi
+          git commit -m "$msg"
+          max_attempts=3
+          attempt=1
+          until [ $attempt -gt $max_attempts ]; do
+            echo "Attempt $attempt: rebase + push"
+            if git pull --rebase origin "${{ github.ref_name }}"; then
+              if git push origin HEAD:"${{ github.ref_name }}"; then
+                echo "Push succeeded"
+                break
+              fi
+            else
+              echo "Rebase failed; aborting and retrying"
+              git rebase --abort || true
+            fi
+            attempt=$((attempt+1))
+            sleep $((attempt*2))
+          done
+          if [ $attempt -gt $max_attempts ]; then
+            echo "Push failed after $max_attempts attempts"
+            exit 1
+          fi
+
+  build-plugin-linux:
+    if: ${{ github.event.inputs.platform == 'x86_64-linux' || github.event.inputs.platform == 'all' }}
+    needs: build-linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Temurin Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Verify Java
+        shell: bash
+        run: |
+          set -euo pipefail
+          java --version
+
+      - name: Setup CMake 4.1
+        uses: lukka/get-cmake@v4.1.1
+
+      - name: Verify CMake
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake --version
+
+      - name: Install jq
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y jq
+          sudo apt-get install -y tree
+
+      - name: Download Defold SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ./build
+          DOWNLOADDIR=$(realpath ./build)
+          echo "DOWNLOADDIR=${DOWNLOADDIR}" >> "$GITHUB_ENV"
+          ./utils/plugin/download_defoldsdk.sh --channel stable --output-sdk "${DOWNLOADDIR}/defoldsdk"
+
+      - name: Build linux plugin
+        shell: bash
+        env:
+          DYNAMO_HOME: ${{ env.DOWNLOADDIR }}/defoldsdk/defoldsdk
+          BOB: ${{ github.workspace }}/bob.jar
+        run: |
+          set -euo pipefail
+          ./utils/build_plugin.sh x86_64-linux
+
+      - name: Commit linux plugin outputs
+        if: ${{ github.event.inputs.push_changes == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          CONFLICT_FILE="defold-rive/plugins/share/pluginRiveExt.jar"
+          if git ls-files -u "$CONFLICT_FILE" >/dev/null 2>&1; then
+            git checkout --ours "$CONFLICT_FILE"
+          fi
+          git add -v defold-rive/plugins || true
+          if git diff --cached --quiet; then
+            echo "No plugin changes to commit."
+            exit 0
+          fi
+          msg="ci: update linux plugin on ${{ github.ref_name }} [skip ci]"
+          if [ -n "${{ github.event.inputs.commit_message }}" ]; then
+            msg="$msg - ${{ github.event.inputs.commit_message }}"
+          fi
+          git commit -m "$msg"
+          max_attempts=3
+          attempt=1
+          until [ $attempt -gt $max_attempts ]; do
+            echo "Attempt $attempt: rebase + push"
+            if git pull --rebase origin "${{ github.ref_name }}"; then
+              if git push origin HEAD:"${{ github.ref_name }}"; then
+                echo "Push succeeded"
+                break
+              fi
+            else
+              echo "Rebase failed; aborting and retrying"
+              git rebase --abort || true
+            fi
+            attempt=$((attempt+1))
+            sleep $((attempt*2))
+          done
+          if [ $attempt -gt $max_attempts ]; then
+            echo "Push failed after $max_attempts attempts"
+            exit 1
+          fi
+
+  build-plugin-windows:
+    if: ${{ github.event.inputs.platform == 'x86_64-win32' || github.event.inputs.platform == 'all' }}
+    needs: build-windows
+    runs-on: windows-2022
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Temurin Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Verify Java
+        shell: pwsh
+        run: |
+          java --version
+
+      - name: Setup CMake 4.1
+        uses: lukka/get-cmake@v4.1.1
+
+      - name: Verify CMake
+        shell: pwsh
+        run: |
+          cmake --version
+
+      - name: Install jq and tree
+        shell: pwsh
+        run: |
+          choco install jq tree -y || true
+          jq --version
+          tree --version
+
+      - name: Download Defold SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ./build
+          DOWNLOADDIR=$(realpath ./build)
+          echo "DOWNLOADDIR=${DOWNLOADDIR}" >> "$GITHUB_ENV"
+          ./utils/plugin/download_defoldsdk.sh --channel stable --output-sdk "${DOWNLOADDIR}/defoldsdk"
+
+      - name: Build windows plugin
+        shell: bash
+        env:
+          DYNAMO_HOME: ${{ env.DOWNLOADDIR }}/defoldsdk/defoldsdk
+          BOB: ${{ github.workspace }}/bob.jar
+        run: |
+          set -euo pipefail
+          ./utils/build_plugin.sh x86_64-win32
+
+      - name: Commit windows plugin outputs
+        if: ${{ github.event.inputs.push_changes == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          CONFLICT_FILE="defold-rive/plugins/share/pluginRiveExt.jar"
+          if git ls-files -u "$CONFLICT_FILE" >/dev/null 2>&1; then
+            git checkout --ours "$CONFLICT_FILE"
+          fi
+          git add -v defold-rive/plugins || true
+          if git diff --cached --quiet; then
+            echo "No plugin changes to commit."
+            exit 0
+          fi
+          msg="ci: update windows plugin on ${{ github.ref_name }} [skip ci]"
+          if [ -n "${{ github.event.inputs.commit_message }}" ]; then
+            msg="$msg - ${{ github.event.inputs.commit_message }}"
+          fi
+          git commit -m "$msg"
+          max_attempts=3
+          attempt=1
+          until [ $attempt -gt $max_attempts ]; do
+            echo "Attempt $attempt: rebase + push"
+            if git pull --rebase origin "${{ github.ref_name }}"; then
+              if git push origin HEAD:"${{ github.ref_name }}"; then
+                echo "Push succeeded"
+                break
+              fi
+            else
+              echo "Rebase failed; aborting and retrying"
+              git rebase --abort || true
+            fi
+            attempt=$((attempt+1))
+            sleep $((attempt*2))
+          done
+          if [ $attempt -gt $max_attempts ]; then
+            echo "Push failed after $max_attempts attempts"
+            exit 1
+          fi

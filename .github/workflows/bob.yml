@@ -20,4 +20,3 @@ jobs:
     uses: defold/github-actions-common/.github/workflows/bob.yml@master
     with:
       ignored_platforms: '[{"platform": "armv7-android"}]'
-

@@ -76,7 +76,7 @@ static rive::ViewModelInstanceRuntime* CreateViewModelInstanceRuntimeByHash(Rive
     if (name_hash != 0)
     {
         rive::ViewModelRuntime* vmr = FindViewModelRuntimeByHash(component, name_hash);
-        return vmr ? vmr->createInstance() : 0;
+        return vmr ? vmr->createInstance().release() : 0;
     }
 
     // Create a default view model instance
@@ -86,7 +86,7 @@ static rive::ViewModelInstanceRuntime* CreateViewModelInstanceRuntimeByHash(Rive
     rive::ViewModelRuntime* vmr = file->defaultArtboardViewModel(component->m_ArtboardInstance.get());
     if (vmr)
     {
-        return vmr->createDefaultInstance();
+        return vmr->createDefaultInstance().release();
     }
     return 0;
 }

@@ -1,42 +1,43 @@
 #!/usr/bin/env bash
 
-# build_linux.sh
+# build_windows.sh
 #
-# Build Rive C++ static libraries for Linux and install into a PREFIX directory.
-# Mirrors the patterns used by build_android.sh/build_emscripten.sh/build_darwin.sh.
+# Build Rive C++ static libraries for Windows and install into a PREFIX dir.
+# Intended for CI use on a Windows runner (Git Bash), with MSVC toolchain
+# available (e.g., Visual Studio 2022 on windows-latest).
 #
 # Usage:
-#   ./build_linux.sh --prefix /abs/prefix [--archs x64,arm64,arm] [--config release|debug]
+#   ./build_windows.sh --prefix /abs/path/to/prefix \
+#       [--archs x64,x86] [--config release|debug]
 #
 # Notes:
-# - Uses the repo's build/build_rive.sh (premake+ninja) with --with-libs-only.
-# - Installs headers via ./build_headers.sh into "$PREFIX/include".
-# - Installs libraries to "$PREFIX/lib/<arch>-linux" (with x64 mapped to x86_64).
+# - Uses the repo's build/build_rive.sh (premake+ninja) to produce libraries.
+# - Installs headers to "$PREFIX/include" and libs to
+#   "$PREFIX/lib/<arch>-win32" where <arch> is x86 or x86_64.
 
 set -euo pipefail
 shopt -s nullglob
 
 # Treat the current working directory as the repo root (do not depend on script location).
 ROOT_DIR="$(pwd -P)"
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 PREFIX=""
-ARCHS=""
+ARCHS="x64,x86"
 CONFIG="release"
-SYSROOT=""
 
 print_help() {
     cat <<EOF
-Build Linux libraries and install to a PREFIX directory.
+Build Windows static libraries and install to a PREFIX directory.
 
 Options:
   -p, --prefix PATH    Install prefix directory (required)
-  -a, --archs LIST     Comma/space-separated: x64, arm64, arm (default: host arch)
+  -a, --archs LIST     Comma/space-separated: x64, x86 (default: x64,x86)
   -c, --config NAME    Build config: release|debug (default: release)
-  -s, --sysroot PATH   Optional sysroot for cross builds (passed to premake: --sysroot=PATH)
   -h, --help           Show this help
 
 Examples:
-  ./build_linux.sh --prefix /tmp/rive-linux --archs x64,arm64 --config release
+  ./build_windows.sh --prefix /tmp/rive-win --archs x64,x86 --config release
 EOF
 }
 
@@ -53,10 +54,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         -c|--config)
             CONFIG="${2:-}"
-            shift 2
-            ;;
-        -s|--sysroot)
-            SYSROOT="${2:-}"
             shift 2
             ;;
         -h|--help)
@@ -98,28 +95,19 @@ if [[ ! -x "$BUILD_SCRIPT" ]]; then
     fi
 fi
 
-# Normalize archs; if none provided, detect host arch and use it.
+# Normalize arch list
+IFS="," read -r -a ARCH_LIST_RAW <<< "$ARCHS"
 ARCH_LIST=()
-if [[ -n "$ARCHS" ]]; then
-    IFS="," read -r -a ARCH_LIST_RAW <<< "$ARCHS"
-    for entry in "${ARCH_LIST_RAW[@]}"; do
-        for a in $entry; do
-            if [[ -n "$a" ]]; then
-                case "$a" in
-                    x64|arm64|arm) ARCH_LIST+=("$a") ;;
-                    *) echo "error: unsupported arch '$a' (supported: x64, arm64, arm)" >&2; exit 2 ;;
-                esac
-            fi
-        done
+for entry in "${ARCH_LIST_RAW[@]}"; do
+    for a in $entry; do
+        if [[ -n "$a" ]]; then
+            case "$a" in
+                x64|x86) ARCH_LIST+=("$a") ;;
+                *) echo "error: unsupported arch '$a' (supported: x64, x86)" >&2; exit 2 ;;
+            esac
+        fi
     done
-else
-    case "$(uname -m)" in
-        x86_64) ARCH_LIST+=("x64") ;;
-        aarch64) ARCH_LIST+=("arm64") ;;
-        armv7l|armv6l) ARCH_LIST+=("arm") ;;
-        *) echo "error: unsupported host arch '$(uname -m)'; specify --archs" >&2; exit 2 ;;
-    esac
-fi
+done
 
 # Ensure prefix subdirs (headers handled by build_headers.sh)
 INCLUDE_DST="$PREFIX/include"
@@ -127,7 +115,7 @@ LIB_ROOT="$PREFIX/lib"
 mkdir -p "$INCLUDE_DST" "$LIB_ROOT"
 
 # Install headers via shared helper
-"$ROOT_DIR/build_headers.sh" --prefix "$PREFIX" --root "$ROOT_DIR"
+"${SCRIPT_DIR}/build_headers.sh" --prefix "$PREFIX" --root "$ROOT_DIR"
 
 # Change into renderer directory before building so premake picks up renderer/premake5.lua
 BUILD_DIR="$ROOT_DIR/renderer"
@@ -136,30 +124,27 @@ cd "$BUILD_DIR"
 
 for ARCH in "${ARCH_LIST[@]}"; do
     echo
-    echo "==> Building: linux $ARCH ($CONFIG)"
+    echo "==> Building: windows $ARCH ($CONFIG)"
 
-    out_dir_rel="out/linux_${ARCH}_${CONFIG}"
+    out_dir_rel="out/windows_${ARCH}_${CONFIG}"
     out_dir="$BUILD_DIR/$out_dir_rel"
 
-    # Force out dir naming and build only the libraries
-    # Build args
-    EXTRA_PREMAKE=()
-    if [[ -n "$SYSROOT" ]]; then
-        EXTRA_PREMAKE+=("--sysroot=$SYSROOT")
-    fi
-    RIVE_OUT="$out_dir_rel" "$BUILD_SCRIPT" ninja "$ARCH" "$CONFIG" --no-lto "${EXTRA_PREMAKE[@]}" --with-libs-only
+    # Drive build (use windows token and arch)
+    RIVE_OUT="$out_dir_rel" "$BUILD_SCRIPT" --toolset=msc "$ARCH" "$CONFIG"
 
     # Collect and install libraries
     install_arch="$ARCH"
     if [[ "$install_arch" == "x64" ]]; then install_arch="x86_64"; fi
-    install_dir="$LIB_ROOT/${install_arch}-linux"
+    if [[ "$install_arch" == "x86" ]]; then install_arch="x86"; fi
+    install_dir="$LIB_ROOT/${install_arch}-win32"
     mkdir -p "$install_dir"
 
-    libs=( "$out_dir"/lib*.a "$out_dir"/*.so )
+    libs=( "$out_dir"/lib*.a "$out_dir"/*.lib "$out_dir"/*.dll )
     if (( ${#libs[@]} == 0 )); then
-        echo "error: no libraries found in $out_dir (expected lib*.a or *.so)" >&2
+        echo "error: no libraries found in $out_dir (expected *.lib or lib*.a)" >&2
         exit 2
     fi
+
     echo "Installing libraries to $install_dir/:"
     for lib in "${libs[@]}"; do
         echo "  - $(basename "$lib")"

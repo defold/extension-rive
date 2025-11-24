@@ -1,5 +1,6 @@
 
 #include <rive/refcnt.hpp>
+#include <rive/renderer.hpp>
 
 #include <defold/renderer.h>
 
