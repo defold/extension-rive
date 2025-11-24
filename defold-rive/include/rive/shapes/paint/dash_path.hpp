@@ -7,7 +7,7 @@
 #include "rive/shapes/shape_paint_path.hpp"
 #include "rive/renderer.hpp"
 #include "rive/math/raw_path.hpp"
-#include "rive/math/contour_measure.hpp"
+#include "rive/math/path_measure.hpp"
 #include <vector>
 
 namespace rive
@@ -29,7 +29,7 @@ protected:
 
 protected:
     ShapePaintPath m_path;
-    std::vector<rcp<ContourMeasure>> m_contours;
+    PathMeasure m_pathMeasure;
 
 public:
     float pathLength() const;
@@ -43,7 +43,8 @@ public:
     void invalidateEffect() override;
     void offsetChanged() override;
     void offsetIsPercentageChanged() override;
-    void updateEffect(const ShapePaintPath* source) override;
+    void updateEffect(const ShapePaintPath* source,
+                      ShapePaintType shapePaintType) override;
     ShapePaintPath* effectPath() override;
     void invalidateDash() override;
 

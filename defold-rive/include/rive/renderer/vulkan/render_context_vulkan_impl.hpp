@@ -7,28 +7,48 @@
 #ifdef RIVE_VULKAN
 
 #include <chrono>
-#include <unordered_map>
 #include <vulkan/vulkan.h>
-#include "rive/renderer/async_pipeline_manager.hpp"
 #include "rive/renderer/render_context_impl.hpp"
 #include "rive/renderer/vulkan/vulkan_context.hpp"
-#include "rive/shapes/paint/image_sampler.hpp"
 
 namespace rive::gpu
 {
+class RenderTargetVulkan;
 class RenderTargetVulkanImpl;
 class PipelineManagerVulkan;
 
 class RenderContextVulkanImpl : public RenderContextImpl
 {
 public:
+    struct ContextOptions
+    {
+        bool forceAtomicMode = false;
+        ShaderCompilationMode shaderCompilationMode =
+            ShaderCompilationMode::standard;
+    };
+
+    static std::unique_ptr<RenderContext> MakeContext(VkInstance,
+                                                      VkPhysicalDevice,
+                                                      VkDevice,
+                                                      const VulkanFeatures&,
+                                                      PFN_vkGetInstanceProcAddr,
+                                                      const ContextOptions&);
+
     static std::unique_ptr<RenderContext> MakeContext(
-        VkInstance,
-        VkPhysicalDevice,
-        VkDevice,
-        const VulkanFeatures&,
-        PFN_vkGetInstanceProcAddr,
-        ShaderCompilationMode = ShaderCompilationMode::standard);
+        VkInstance instance,
+        VkPhysicalDevice physicalDevice,
+        VkDevice device,
+        const VulkanFeatures& vulkanFeatures,
+        PFN_vkGetInstanceProcAddr fp_vkGetInstanceProcAddr)
+    {
+        return MakeContext(instance,
+                           physicalDevice,
+                           device,
+                           vulkanFeatures,
+                           fp_vkGetInstanceProcAddr,
+                           ContextOptions{});
+    }
+
     ~RenderContextVulkanImpl();
 
     VulkanContext* vulkanContext() const { return m_vk.get(); }
@@ -52,7 +72,8 @@ public:
 
 private:
     RenderContextVulkanImpl(rcp<VulkanContext>,
-                            const VkPhysicalDeviceProperties&);
+                            const VkPhysicalDeviceProperties&,
+                            const ContextOptions&);
 
     // Called outside the constructor so we can use virtual methods.
     void initGPUObjects(ShaderCompilationMode, uint32_t vendorID);
@@ -111,7 +132,37 @@ private:
     void resizeGradientTexture(uint32_t width, uint32_t height) override;
     void resizeTessellationTexture(uint32_t width, uint32_t height) override;
     void resizeAtlasTexture(uint32_t width, uint32_t height) override;
+    void resizeTransientPLSBacking(uint32_t width,
+                                   uint32_t height,
+                                   uint32_t planeCount) override;
+    void resizeAtomicCoverageBacking(uint32_t width, uint32_t height) override;
     void resizeCoverageBuffer(size_t sizeInBytes) override;
+
+    // Lazy accessors for PLS backing resources. These are lazy because our
+    // Vulkan backend needs different allocations based on interlock mode and
+    // other factors.
+    vkutil::Image* plsTransientImageArray();
+    vkutil::ImageView* plsTransientCoverageView();
+    vkutil::ImageView* plsTransientClipView();
+    vkutil::Texture2D* plsTransientScratchColorTexture();
+
+    // The offscreen color texture is not transient and supports PLS. It is used
+    // in place of the renderTarget (via copying in and out) when the
+    // renderTarget doesn't support PLS.
+    vkutil::Texture2D* accessPLSOffscreenColorTexture(
+        VkCommandBuffer,
+        const vkutil::ImageAccess&,
+        vkutil::ImageAccessAction =
+            vkutil::ImageAccessAction::preserveContents);
+    vkutil::Texture2D* clearPLSOffscreenColorTexture(
+        VkCommandBuffer,
+        ColorInt,
+        const vkutil::ImageAccess& dstAccessAfterClear);
+    vkutil::Texture2D* copyRenderTargetToPLSOffscreenColorTexture(
+        VkCommandBuffer,
+        RenderTargetVulkan*,
+        const IAABB& copyBounds,
+        const vkutil::ImageAccess& dstAccessAfterCopy);
 
     // Wraps a VkDescriptorPool created specifically for a PLS flush, and tracks
     // its allocated descriptor sets.
@@ -188,6 +239,17 @@ private:
     std::unique_ptr<AtlasPipeline> m_atlasPipeline;
     rcp<vkutil::Texture2D> m_atlasTexture;
     rcp<vkutil::Framebuffer> m_atlasFramebuffer;
+
+    // Pixel local storage backing resources.
+    VkImageUsageFlags m_plsTransientUsageFlags;
+    VkExtent3D m_plsExtent = {0, 0, 1};
+    uint32_t m_plsTransientPlaneCount = 0;
+    rcp<vkutil::Image> m_plsTransientImageArray;
+    rcp<vkutil::ImageView> m_plsTransientCoverageView;
+    rcp<vkutil::ImageView> m_plsTransientClipView;
+    rcp<vkutil::Texture2D> m_plsTransientScratchColorTexture;
+    rcp<vkutil::Texture2D> m_plsOffscreenColorTexture;
+    rcp<vkutil::Texture2D> m_plsAtomicCoverageTexture;
 
     // Coverage buffer used by shaders in clockwiseAtomic mode.
     rcp<vkutil::Buffer> m_coverageBuffer;
