@@ -211,15 +211,20 @@ if(TARGET_PLATFORM STREQUAL "x86_64-win32")
             librender_font_default libfont
             libresource libscript libgamesys libluajit-5.1)
     target_link_libraries(rive_plugin PRIVATE Iphlpapi.lib)
+
+    # old libraries built with build_pls.sh
+    target_link_libraries(rive_plugin PRIVATE rive sheenbidi harfbuzz yoga rivetess tess2)
+
 else()
     target_link_libraries(rive_plugin PRIVATE
             dlib mbedtls ddf
             profile_null profilerext_null
             platform_null render graphics_null
             resource script gamesys lua)
-endif()
 
-target_link_libraries(rive_plugin PRIVATE rive rive_sheenbidi rive_harfbuzz rive_yoga zlib rivetess tess2)
+    target_link_libraries(rive_plugin PRIVATE rive rive_sheenbidi rive_harfbuzz rive_yoga zlib rivetess tess2)
+
+endif()
 
 set(EXTENDER_PLATFORM "${TARGET_PLATFORM}")
 if(TARGET_PLATFORM STREQUAL "arm64-macos")
