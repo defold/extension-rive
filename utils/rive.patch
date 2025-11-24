@@ -11,7 +11,7 @@ index 45d41876..2b08d4e6 100644
  # Skia dependencies
  skia/dependencies/skia_recorder
 diff --git a/build/rive_build_config.lua b/build/rive_build_config.lua
-index f8172084..37c91538 100644
+index f8172084..a0e4c304 100644
 --- a/build/rive_build_config.lua
 +++ b/build/rive_build_config.lua
 @@ -145,6 +145,12 @@ if _OPTIONS['with_optick'] then
@@ -36,10 +36,19 @@ index f8172084..37c91538 100644
      if _OPTIONS['for_unreal'] then
          EXPECTED_NDK_VERSION = '25.1.8937393'
          NDK_LONG_VERSION_STRING = '25.1.8937393'
-@@ -559,6 +565,34 @@ end
+@@ -559,6 +565,43 @@ end
  
  filter({})
  
++-- Always build position independent code on Linux
++-- Ensures static libs can link into shared objects without relocation errors.
++filter({ 'system:linux' })
++do
++    pic('on')
++    buildoptions({ '-fPIC' })
++    linkoptions({ '-fPIC' })
++end
++
 +-- Cross-compilation helpers for Linux. When targeting a Linux architecture that does not match
 +-- the host, add an explicit target triple so clang uses the correct backend. Optionally honor a
 +-- provided --sysroot for both compilation and linking.

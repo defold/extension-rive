@@ -136,7 +136,7 @@ for ARCH in "${ARCH_LIST[@]}"; do
     out_dir_rel="out/linux_${ARCH}_${CONFIG}"
     out_dir="$BUILD_DIR/$out_dir_rel"
 
-    RIVE_OUT="$out_dir_rel" "$BUILD_SCRIPT" ninja "$ARCH" "$CONFIG" --no-lto --with-pic --with-libs-only
+    RIVE_OUT="$out_dir_rel" "$BUILD_SCRIPT" ninja "$ARCH" "$CONFIG" --no-lto --with-libs-only
 
     # Collect and install libraries
     install_arch="$ARCH"
