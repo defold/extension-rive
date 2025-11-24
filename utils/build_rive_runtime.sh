@@ -3,6 +3,7 @@
 set -e
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+SCRIPT_DIR_UTILS=${SCRIPT_DIR}/buildscripts
 
 PLATFORM=$1
 shift
@@ -24,6 +25,8 @@ function Usage {
     echo "  * x86_64-ios"
     echo "  * arm64-linux"
     echo "  * x86_64-linux"
+    echo "  * x86_64-win32"
+    echo "  * x86-win32"
     exit 1
 }
 
@@ -46,6 +49,8 @@ case $PLATFORM in
     arm64-macos|x86_64-macos|arm64-ios|x86_64-ios)
         ;;
     arm64-linux|x86_64-linux)
+        ;;
+    x86_64-win32|x86-win32)
         ;;
 
     *)
@@ -100,14 +105,24 @@ VERSIONHEADER=${PREFIX}/include/defold/rive_version.h
 # cp -v ${RIVECPP}/build_headers.sh ${SCRIPT_DIR}/
 
 echo "Writing version header ${VERSIONHEADER}"
-${SCRIPT_DIR}/build_version_header.sh ${VERSIONHEADER} ${RIVECPP}
+${SCRIPT_DIR_UTILS}/build_version_header.sh ${VERSIONHEADER} ${RIVECPP}
 
 
+# Apply patch
 RIVEPATCH=${SCRIPT_DIR}/rive.patch
-echo "Applying patch ${RIVEPATCH}"
-set +e
-(cd ${RIVECPP} && git apply ${RIVEPATCH})
-set -e
+if [[ "$PLATFORM" == x86_64-win32 || "$PLATFORM" == x86-win32 ]]; then
+    echo "Skipping patch for windows."
+
+else
+    echo "Applying patch ${RIVEPATCH}"
+    set +e
+    (cd ${RIVECPP} && git apply ${RIVEPATCH})
+    APPLY_RC=$?
+    set -e
+    if [ ${APPLY_RC} -ne 0 ]; then
+        echo "Simple apply failed; attempting 3-way with history..."
+    fi
+fi
 
 CONFIGURATION=release
 
@@ -120,7 +135,7 @@ case $PLATFORM in
         fi
 
         # expects ANDROID_NDK to be set
-        (cd ${RIVECPP} && ${SCRIPT_DIR}/build_android.sh --prefix ${PREFIX} --abis ${ARCH} --config ${CONFIGURATION})
+        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_android.sh --prefix ${PREFIX} --abis ${ARCH} --config ${CONFIGURATION})
         ;;
 
     wasm-web|wasm_pthread-web|js-web)
@@ -144,11 +159,11 @@ case $PLATFORM in
             fi
             echo "Using RIVE_EMSDK_VERSION=${RIVE_EMSDK_VERSION}"
         fi
-        (cd ${RIVECPP} && ${SCRIPT_DIR}/build_emscripten.sh --prefix ${PREFIX} --targets ${ARCH} --config ${CONFIGURATION})
+        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_emscripten.sh --prefix ${PREFIX} --targets ${ARCH} --config ${CONFIGURATION})
 
         if [ "js-web" != "${PLATFORM}" ]; then
             echo "Building for Wagyu"
-            (cd ${RIVECPP} && ${SCRIPT_DIR}/build_emscripten.sh --with-wagyu --prefix ${PREFIX} --targets ${ARCH} --config ${CONFIGURATION})
+            (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_emscripten.sh --with-wagyu --prefix ${PREFIX} --targets ${ARCH} --config ${CONFIGURATION})
         fi
 
         ;;
@@ -159,7 +174,7 @@ case $PLATFORM in
             ARCH=x64
         fi
 
-        (cd ${RIVECPP} && ${SCRIPT_DIR}/build_darwin.sh --prefix ${PREFIX} --targets macos --archs ${ARCH} --config ${CONFIGURATION})
+        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_darwin.sh --prefix ${PREFIX} --targets macos --archs ${ARCH} --config ${CONFIGURATION})
         ;;
 
     arm64-ios|x86_64-ios)
@@ -168,7 +183,7 @@ case $PLATFORM in
             ARCH=x64
         fi
 
-        (cd ${RIVECPP} && ${SCRIPT_DIR}/build_darwin.sh --prefix ${PREFIX} --targets ios --archs ${ARCH} --config ${CONFIGURATION})
+        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_darwin.sh --prefix ${PREFIX} --targets ios --archs ${ARCH} --config ${CONFIGURATION})
         ;;
 
     arm64-linux|x86_64-linux)
@@ -177,7 +192,16 @@ case $PLATFORM in
             ARCH=x64
         fi
 
-        (cd ${RIVECPP} && ${SCRIPT_DIR}/build_linux.sh --prefix ${PREFIX} --archs ${ARCH} --config ${CONFIGURATION})
+        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_linux.sh --prefix ${PREFIX} --archs ${ARCH} --config ${CONFIGURATION})
+        ;;
+
+    x86_64-win32|x86-win32)
+        ARCH=x64
+        if [ "x86-win32" == "${PLATFORM}" ]; then
+            ARCH=x86
+        fi
+
+        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_windows.sh --prefix ${PREFIX} --archs ${ARCH} --config ${CONFIGURATION})
         ;;
 
     *)
@@ -186,5 +210,10 @@ case $PLATFORM in
         ;;
 
 esac
+
+echo "Removing unwanted files:"
+# Be resilient if nothing matches; remove quietly if present
+find "${SCRIPT_DIR}/../defold-rive/lib" -type f -iname "*glfw3.*" -exec rm -f -v {} + 2>/dev/null || true
+find "${SCRIPT_DIR}/../defold-rive/lib" -type f -iname "*path_fiddle.*" -exec rm -f -v {} + 2>/dev/null || true
 
 echo "Done!"

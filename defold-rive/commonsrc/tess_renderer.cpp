@@ -491,7 +491,7 @@ namespace dmRive
         VsUniforms vs_params = {};
         vs_params.world = transform();
 
-        FsUniforms fs_uniforms   = {0};
+        FsUniforms fs_uniforms = {};
         fs_uniforms.fillType     = (int) FillType::FILL_TYPE_TEXTURED;
         fs_uniforms.colors[0][3] = opacity;
 
@@ -606,8 +606,10 @@ namespace dmRive
             }
         }
 
-        VsUniforms vs_uniforms = { .fillType = 0 };
-        FsUniforms fs_uniforms = {0};
+
+
+        VsUniforms vs_uniforms;
+        FsUniforms fs_uniforms;
 
         // Decr any paths from the last clip that are gone.
         std::unordered_set<rive::RenderPath*> alreadyApplied;
