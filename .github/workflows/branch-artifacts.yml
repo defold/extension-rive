@@ -213,66 +213,66 @@ jobs:
           commit_message: ${{ github.event.inputs.commit_message }}
           push_changes: ${{ github.event.inputs.push_changes }}
 
-  build-windows:
-    if: ${{ github.event.inputs.platform == 'x86-win32' || github.event.inputs.platform == 'x86_64-win32' || github.event.inputs.platform == 'all' }}
-    runs-on: windows-2022
-    strategy:
-      matrix:
-        platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["x86_64-win32"]' || format('["{0}"]', github.event.inputs.platform)) }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  # build-windows:
+  #   if: ${{ github.event.inputs.platform == 'x86-win32' || github.event.inputs.platform == 'x86_64-win32' || github.event.inputs.platform == 'all' }}
+  #   runs-on: windows-2022
+  #   strategy:
+  #     matrix:
+  #       platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["x86_64-win32"]' || format('["{0}"]', github.event.inputs.platform)) }}
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
 
-      - name: Install tree
-        shell: pwsh
-        run: |
-          choco install tree -y || true
-          tree --version
+  #     - name: Install tree
+  #       shell: pwsh
+  #       run: |
+  #         choco install tree -y || true
+  #         tree --version
 
-      - name: Setup VS DevCmd (x64)
-        if: ${{ matrix.platform == 'x86_64-win32' }}
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x64
-          vsversion: 2022
-          toolset: 14.30
-          sdk: 10.0.22621.0
+  #     - name: Setup VS DevCmd (x64)
+  #       if: ${{ matrix.platform == 'x86_64-win32' }}
+  #       uses: ilammy/msvc-dev-cmd@v1
+  #       with:
+  #         arch: x64
+  #         vsversion: 2022
+  #         toolset: 14.20
+  #         sdk: 10.0.22621.0
 
-      - name: Setup VS DevCmd (x86)
-        if: ${{ matrix.platform == 'x86-win32' }}
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x86
-          vsversion: 2022
-          toolset: 14.30
-          sdk: 10.0.22621.0
+  #     - name: Setup VS DevCmd (x86)
+  #       if: ${{ matrix.platform == 'x86-win32' }}
+  #       uses: ilammy/msvc-dev-cmd@v1
+  #       with:
+  #         arch: x86
+  #         vsversion: 2022
+  #         toolset: 14.20
+  #         sdk: 10.0.22621.0
 
-      - name: MSBuild sanity check
-        shell: pwsh
-        run: |
-          msbuild -version
-          Get-Command msbuild.exe | Format-List -Property Source
+  #     - name: MSBuild sanity check
+  #       shell: pwsh
+  #       run: |
+  #         msbuild -version
+  #         Get-Command msbuild.exe | Format-List -Property Source
 
-      - name: Install DirectX Shader Compiler (DXC)
-        shell: bash
-        run: |
-          set -euo pipefail
-          choco install directxshadercompiler -y || true
-          # Verify availability if installed
-          dxc.exe -version 2> NUL || true
+  #     - name: Install DirectX Shader Compiler (DXC)
+  #       shell: bash
+  #       run: |
+  #         set -euo pipefail
+  #         choco install directxshadercompiler -y || true
+  #         # Verify availability if installed
+  #         dxc.exe -version 2> NUL || true
 
-      - name: Build, (optionally) upload, and commit
-        uses: ./.github/actions/rive-build
-        with:
-          platform: ${{ matrix.platform }}
-          rive_repo_url: ${{ github.event.inputs.rive_repo_url }}
-          rive_ref: ${{ github.event.inputs.rive_ref }}
-          rive_sha: ${{ github.event.inputs.rive_sha }}
-          upload_artifact: ${{ github.event.inputs.upload_artifact }}
-          commit_message: ${{ github.event.inputs.commit_message }}
-          push_changes: ${{ github.event.inputs.push_changes }}
+  #     - name: Build, (optionally) upload, and commit
+  #       uses: ./.github/actions/rive-build
+  #       with:
+  #         platform: ${{ matrix.platform }}
+  #         rive_repo_url: ${{ github.event.inputs.rive_repo_url }}
+  #         rive_ref: ${{ github.event.inputs.rive_ref }}
+  #         rive_sha: ${{ github.event.inputs.rive_sha }}
+  #         upload_artifact: ${{ github.event.inputs.upload_artifact }}
+  #         commit_message: ${{ github.event.inputs.commit_message }}
+  #         push_changes: ${{ github.event.inputs.push_changes }}
 
   build-plugin-macos:
     if: ${{ github.event.inputs.platform == 'arm64-macos' || github.event.inputs.platform == 'x86_64-macos' || github.event.inputs.platform == 'all' }}
@@ -478,7 +478,7 @@ jobs:
 
   build-plugin-windows:
     if: ${{ github.event.inputs.platform == 'x86_64-win32' || github.event.inputs.platform == 'all' }}
-    needs: build-windows
+    #needs: build-windows
     runs-on: windows-2022
     steps:
       - name: Checkout repository
