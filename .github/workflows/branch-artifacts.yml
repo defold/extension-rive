@@ -295,6 +295,11 @@ jobs:
         run: |
           choco install tree wget -y || true
           tree --version
+      - name: Install python dependency
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          pip install ply
 
       - name: Clone Rive runtime
         shell: bash
