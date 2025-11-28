@@ -14,6 +14,7 @@
 
 #include <dmsdk/dlib/hash.h>
 #include <dmsdk/dlib/log.h>
+#include <dmsdk/extension/extension.h>
 #include <dmsdk/resource/resource.h>
 
 // Rive includes
@@ -31,6 +32,7 @@
 #include <common/atlas.h>
 #include <common/font.h>
 #include <common/factory.h>
+#include <common/commands.h>
 
 namespace dmRive
 {
@@ -92,7 +94,7 @@ namespace dmRive
     {
         HRenderContext render_context_res = (HRenderContext) params->m_Context;
 
-        rive::Factory* rive_factory = GetRiveFactory(render_context_res);
+        rive::Factory* rive_factory = dmRiveCommands::GetFactory();
         assert(rive_factory);
 
         rive::Span<const uint8_t> data((const uint8_t*)params->m_Buffer, params->m_BufferSize);
@@ -144,7 +146,8 @@ namespace dmRive
         HRenderContext render_context_res = (HRenderContext) params->m_Context;
         rive::Span<uint8_t> data((uint8_t*)params->m_Buffer, params->m_BufferSize);
 
-        rive::Factory* rive_factory = GetRiveFactory(render_context_res);
+        rive::Factory* rive_factory = dmRiveCommands::GetFactory();
+        assert(rive_factory != 0);
 
         rive::rcp<AtlasNameResolver> atlas_resolver(new AtlasNameResolver(params->m_Factory, render_context_res));
 
@@ -180,7 +183,8 @@ namespace dmRive
 
     static ResourceResult RegisterResourceType_RiveData(HResourceTypeContext ctx, HResourceType type)
     {
-        HRenderContext rive_render_context = NewRenderContext();
+        HRenderContext rive_render_context = dmRiveCommands::GetDefoldRenderContext();
+        assert(rive_render_context != 0);
 
         return (ResourceResult)dmResource::SetupType(ctx,
                                                      type,
@@ -195,8 +199,8 @@ namespace dmRive
 
     static ResourceResult DeregisterResourceType_RiveData(HResourceTypeContext ctx, HResourceType type)
     {
-        HRenderContext context = (HRenderContext)ResourceTypeGetContext(type);
-        DeleteRenderContext(context);
+        // HRenderContext context = (HRenderContext)ResourceTypeGetContext(type);
+        // DeleteRenderContext(context);
         return RESOURCE_RESULT_OK;
     }
 

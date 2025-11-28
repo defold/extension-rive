@@ -1,4 +1,4 @@
-// Copyright 2020 The Defold Foundation
+// Copyright 2020-2025 The Defold Foundation
 // Licensed under the Defold License version 1.0 (the "License"); you may not use
 // this file except in compliance with the License.
 //
@@ -38,6 +38,7 @@
 #include "res_rive_model.h"
 
 #include <common/bones.h>
+#include <common/commands.h>
 #include <common/vertices.h>
 #include <common/factory.h>
 
@@ -110,6 +111,7 @@ namespace dmRive
         dmRender::HRenderContext m_RenderContext;
         dmGraphics::HContext     m_GraphicsContext;
         dmGraphics::HTexture     m_NullTexture;
+        HRenderContext           m_RiveRenderContext;
         uint32_t                 m_MaxInstanceCount;
     };
 
@@ -139,6 +141,7 @@ namespace dmRive
         world->m_RenderConstants.SetSize(context->m_MaxInstanceCount);
         world->m_BlitMaterial = 0;
         world->m_DidWork = false;
+        world->m_RiveRenderContext = context->m_RiveRenderContext;
 
         float bottom = 0.0f;
         float top    = 1.0f;
@@ -515,7 +518,6 @@ namespace dmRive
         RiveComponent*              first    = (RiveComponent*) buf[*begin].m_UserData;
         dmRive::RiveSceneResource* scene_res = first->m_Resource->m_Scene;
         dmRive::RiveSceneData* data          = (dmRive::RiveSceneData*) scene_res->m_Scene;
-        world->m_RiveRenderContext           = data->m_RiveRenderContext;
 
         RenderBegin(world->m_RiveRenderContext, world->m_Ctx->m_Factory, g_RenderBeginParams);
 
@@ -1299,6 +1301,9 @@ namespace dmRive
     static dmGameObject::Result ComponentTypeCreate(const dmGameObject::ComponentTypeCreateCtx* ctx, dmGameObject::ComponentType* type)
     {
         CompRiveContext* rivectx    = new CompRiveContext;
+        rivectx->m_RiveRenderContext = dmRiveCommands::GetDefoldRenderContext();
+        assert(rivectx->m_RiveRenderContext != 0);
+
         rivectx->m_Factory          = ctx->m_Factory;
         rivectx->m_GraphicsContext  = *(dmGraphics::HContext*)ctx->m_Contexts.Get(dmHashString64("graphics"));
         rivectx->m_RenderContext    = *(dmRender::HRenderContext*)ctx->m_Contexts.Get(dmHashString64("render"));
