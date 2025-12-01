@@ -7,8 +7,8 @@
     #include <rive/renderer/webgpu/wagyu-port/old/include/webgpu/webgpu.h>
     #include <rive/renderer/webgpu/wagyu-port/old/include/webgpu/webgpu_cpp.h>
 #elif RIVE_WEBGPU == 2
-    #include <rive/renderer/webgpu/wagyu-port/new/include/webgpu/webgpu.h>
-    #include <rive/renderer/webgpu/wagyu-port/new/include/webgpu/webgpu_cpp.h>
+    #include <rive/renderer/webgpu/wagyu-port/include/webgpu/webgpu.h>
+    #include <rive/renderer/webgpu/wagyu-port/include/webgpu/webgpu_cpp.h>
 #else
     #error "Unsupported value for RIVE_WEBGPU!"
 #endif
