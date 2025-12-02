@@ -216,11 +216,22 @@ if(TARGET_PLATFORM STREQUAL "x86_64-win32")
     target_link_libraries(rive_plugin PRIVATE rive sheenbidi harfbuzz yoga rivetess tess2)
 
 else()
-    target_link_libraries(rive_plugin PRIVATE
-            dlib mbedtls ddf
-            profile_null profilerext_null
-            platform_null render graphics_null
-            resource script gamesys lua)
+
+    if(TARGET_PLATFORM MATCHES "linux")
+        target_link_libraries(rive_plugin PRIVATE
+                "-Wl,--whole-archive"
+                dlib mbedtls ddf
+                profile_null profilerext_null
+                platform_null render graphics_null
+                resource script gamesys lua
+                "-Wl,--no-whole-archive")
+    else()
+        target_link_libraries(rive_plugin PRIVATE
+                dlib mbedtls ddf
+                profile_null profilerext_null
+                platform_null render graphics_null
+                resource script gamesys lua)
+    endif()
 
     target_link_libraries(rive_plugin PRIVATE rive rive_sheenbidi rive_harfbuzz rive_yoga zlib rivetess tess2)
 
