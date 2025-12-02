@@ -3,15 +3,8 @@
 
 #include "renderer_context.h"
 
-#if RIVE_WEBGPU == 1
-    #include <rive/renderer/webgpu/wagyu-port/old/include/webgpu/webgpu.h>
-    #include <rive/renderer/webgpu/wagyu-port/old/include/webgpu/webgpu_cpp.h>
-#elif RIVE_WEBGPU == 2
-    #include <rive/renderer/webgpu/wagyu-port/include/webgpu/webgpu.h>
-    #include <rive/renderer/webgpu/wagyu-port/include/webgpu/webgpu_cpp.h>
-#else
-    #error "Unsupported value for RIVE_WEBGPU!"
-#endif
+#include <webgpu/webgpu.h>
+#include <webgpu/webgpu_cpp.h>
 
 #include <rive/renderer/rive_renderer.hpp>
 #include <rive/renderer/texture.hpp>
@@ -44,7 +37,7 @@ namespace dmRive
             m_Device = wgpu::Device(webgpu_device);
             m_Queue = wgpu::Queue(webgpu_queue);
 
-            dmLogInfo("Before creating WebGPU context. (RIVE_WEBGPU=%d)", RIVE_WEBGPU);
+            dmLogInfo("Before creating WebGPU context");
 
             rive::gpu::RenderContextWebGPUImpl::ContextOptions contextOptions;
             m_RenderContext = rive::gpu::RenderContextWebGPUImpl::MakeContext(m_Adapter, m_Device, m_Queue, contextOptions);
