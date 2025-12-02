@@ -188,7 +188,7 @@ jobs:
 
   build-web:
     if: ${{ github.event.inputs.platform == 'js-web' || github.event.inputs.platform == 'wasm-web' || github.event.inputs.platform == 'wasm_pthread-web' || github.event.inputs.platform == 'all' }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["js-web","wasm-web","wasm_pthread-web"]' || format('["{0}"]', github.event.inputs.platform)) }}
