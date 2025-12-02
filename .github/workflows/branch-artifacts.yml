@@ -198,7 +198,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Linux dependencies (uuid, glslangValidator)
+      - name: Install Linux dependencies (uuid, glslangValidator, spirv-tools)
         shell: bash
         run: |
           set -euo pipefail
@@ -206,6 +206,12 @@ jobs:
           sudo apt-get install -y uuid-dev glslang-tools
           sudo apt-get install -y tree
           sudo apt-get install -y spirv-tools
+
+      - name: Verify spirv-tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          spirv-opt --version
 
       - name: Build, (optionally) upload, and commit
         uses: ./.github/actions/rive-build
