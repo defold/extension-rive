@@ -63,7 +63,6 @@ void ApplyDrawMode(dmRender::RenderObject& ro, dmRive::DrawMode draw_mode, uint8
 void CopyVertices(const dmRive::DrawDescriptor& draw_desc, uint32_t vertex_offset, RiveVertex* out_vertices, uint16_t* out_indices)
 {
     uint32_t vertex_count = draw_desc.m_VerticesCount;
-    uint32_t tc_count = draw_desc.m_TexCoordsCount;
     bool has_texcoords = draw_desc.m_TexCoords != 0;
 
     for (int i = 0; i < vertex_count; ++i)

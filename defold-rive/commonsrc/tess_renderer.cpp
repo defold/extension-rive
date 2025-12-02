@@ -408,12 +408,12 @@ namespace dmRive
         m_Projection[15] = 1.0f;
     }
 
-    static void print_mat2d(const rive::Mat2D& m)
-    {
-        dmLogInfo(
-            "[%f,%f\n %f,%f\n %f,%f]",
-            m[0], m[1], m[2], m[3], m[4], m[5]);
-    }
+    // static void print_mat2d(const rive::Mat2D& m)
+    // {
+    //     dmLogInfo(
+    //         "[%f,%f\n %f,%f\n %f,%f]",
+    //         m[0], m[1], m[2], m[3], m[4], m[5]);
+    // }
 
     void DefoldTessRenderer::putImage(DrawDescriptor& draw_desc, dmRive::Region* region, const rive::Mat2D& uv_transform)
     {
@@ -528,9 +528,9 @@ namespace dmRive
                                           rive::BlendMode blendMode,
                                           float opacity)
     {
+        /*
         DefoldRenderImage* image = (DefoldRenderImage*)_image;
 
-        /*
         dmRive::Region* region = dmRive::FindAtlasRegion(m_Atlas, image->m_NameHash);
         if (!region)
         {

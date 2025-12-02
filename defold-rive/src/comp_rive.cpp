@@ -422,36 +422,36 @@ namespace dmRive
         return dmGameObject::CREATE_RESULT_OK;
     }
 
-    static void GetBlendFactorsFromBlendMode(dmRiveDDF::RiveModelDesc::BlendMode blend_mode, dmGraphics::BlendFactor* src, dmGraphics::BlendFactor* dst)
-    {
-        switch (blend_mode)
-        {
-            case dmRiveDDF::RiveModelDesc::BLEND_MODE_ALPHA:
-                *src = dmGraphics::BLEND_FACTOR_ONE;
-                *dst = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-            break;
+    // static void GetBlendFactorsFromBlendMode(dmRiveDDF::RiveModelDesc::BlendMode blend_mode, dmGraphics::BlendFactor* src, dmGraphics::BlendFactor* dst)
+    // {
+    //     switch (blend_mode)
+    //     {
+    //         case dmRiveDDF::RiveModelDesc::BLEND_MODE_ALPHA:
+    //             *src = dmGraphics::BLEND_FACTOR_ONE;
+    //             *dst = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    //         break;
 
-            case dmRiveDDF::RiveModelDesc::BLEND_MODE_ADD:
-                *src = dmGraphics::BLEND_FACTOR_ONE;
-                *dst = dmGraphics::BLEND_FACTOR_ONE;
-            break;
+    //         case dmRiveDDF::RiveModelDesc::BLEND_MODE_ADD:
+    //             *src = dmGraphics::BLEND_FACTOR_ONE;
+    //             *dst = dmGraphics::BLEND_FACTOR_ONE;
+    //         break;
 
-            case dmRiveDDF::RiveModelDesc::BLEND_MODE_MULT:
-                *src = dmGraphics::BLEND_FACTOR_DST_COLOR;
-                *dst = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-            break;
+    //         case dmRiveDDF::RiveModelDesc::BLEND_MODE_MULT:
+    //             *src = dmGraphics::BLEND_FACTOR_DST_COLOR;
+    //             *dst = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    //         break;
 
-            case dmRiveDDF::RiveModelDesc::BLEND_MODE_SCREEN:
-                *src = dmGraphics::BLEND_FACTOR_ONE_MINUS_DST_COLOR;
-                *dst = dmGraphics::BLEND_FACTOR_ONE;
-            break;
+    //         case dmRiveDDF::RiveModelDesc::BLEND_MODE_SCREEN:
+    //             *src = dmGraphics::BLEND_FACTOR_ONE_MINUS_DST_COLOR;
+    //             *dst = dmGraphics::BLEND_FACTOR_ONE;
+    //         break;
 
-            default:
-                dmLogError("Unknown blend mode: %d\n", blend_mode);
-                assert(0);
-            break;
-        }
-    }
+    //         default:
+    //             dmLogError("Unknown blend mode: %d\n", blend_mode);
+    //             assert(0);
+    //         break;
+    //     }
+    // }
 
     static void RenderBatchEnd(RiveWorld* world, dmRender::HRenderContext render_context)
     {
@@ -693,7 +693,6 @@ namespace dmRive
 
         if (component->m_Callback)
         {
-            dmScript::LuaCallbackInfo* callback = component->m_Callback;
             CompRiveRunCallback(component, dmRiveDDF::RiveEventTrigger::m_DDFDescriptor, (const char*)&message, &sender);
 
             // note that we are not clearing the callback here since multiple events can fire at
@@ -796,7 +795,7 @@ namespace dmRive
                 component.m_Enabled = false;
                 continue;
             }
-            rive::AABB artboard_bounds  = artboard->bounds();
+            //rive::AABB artboard_bounds  = artboard->bounds();
 
             if (component.m_StateMachineInstance)
             {
@@ -1382,8 +1381,6 @@ namespace dmRive
 
         uint32_t num_bones = component->m_BoneGOs.Size();
         DM_PROPERTY_ADD_U32(rmtp_RiveBones, num_bones);
-
-        dmVMath::Point3 go_pos = dmGameObject::GetPosition(component->m_Instance);
 
         for (uint32_t i = 0; i < num_bones; ++i)
         {
