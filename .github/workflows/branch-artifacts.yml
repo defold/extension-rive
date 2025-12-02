@@ -518,6 +518,21 @@ jobs:
           set -euo pipefail
           cmake --version
 
+      - name: Setup LLVM/Clang 17
+        uses: KyleMayes/install-llvm-action@v2
+        with:
+          version: 17.0.6
+          directory: ${{ runner.temp }}/llvm
+
+      - name: Verify Clang version
+        shell: bash
+        run: |
+          set -euo pipefail
+          which clang || true
+          which clang++ || true
+          clang --version
+          clang++ --version
+
       - name: Install jq
         shell: bash
         run: |
