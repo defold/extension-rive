@@ -31,10 +31,8 @@ if [ -z "${DYNAMO_HOME:-}" ]; then
     exit 1
 fi
 
-if command -v clang >/dev/null 2>&1; then
-    export CMAKE_C_COMPILER="$(which clang)"
-    export CMAKE_CXX_COMPILER="$(which clang++)"
-fi
+export CMAKE_C_COMPILER="$(which clang)"
+export CMAKE_CXX_COMPILER="$(which clang++)"
 
 DYNAMO_HOME="$(realpath "${DYNAMO_HOME}")"
 export DYNAMO_HOME
@@ -91,6 +89,8 @@ mkdir -p "${BUILD_DIR}"
 cmake -S "${SCRIPT_DIR}/plugin" -B "${BUILD_DIR}" \
     -DTARGET_PLATFORM="${PLATFORM}" \
     -DCMAKE_VERBOSE_MAKEFILE=ON \
+    -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" \
+    -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
     "${CMAKE_GENERATOR_FLAGS[@]:-}"
 
 cmake --build "${BUILD_DIR}" --config "${CONFIG}" -- VERBOSE=1
