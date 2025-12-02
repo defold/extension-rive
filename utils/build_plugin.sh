@@ -73,15 +73,20 @@ if [ "$HOST_PLATFORM" = "x86_64-win32" ]; then
     CMAKE_GENERATOR_FLAGS+=("-A" "x64")
 fi
 
-PROTOBUF_BIN="${REPO_ROOT}/build/bin/${HOST_PLATFORM}"
-if [ -d "${PROTOBUF_BIN}" ]; then
-    export PATH="${PROTOBUF_BIN}:${PATH}"
-else
-    echo "Warning: protobuf bin directory not found at ${PROTOBUF_BIN}" >&2
 
-    echo "build folder: ${REPO_ROOT}/build"
-    ls -la ${REPO_ROOT}/build
-    tree ${PROTOBUF_BIN}
+if [ -n "${PROTOC:-}" ] && [ -x "${PROTOC}" ]; then
+    PROTOC_DIR="$(dirname "${PROTOC}")"
+    export PATH="${PROTOC_DIR}:${PATH}"
+else
+    PROTOBUF_BIN="${REPO_ROOT}/build/bin/${HOST_PLATFORM}"
+    if [ -d "${PROTOBUF_BIN}" ]; then
+        export PATH="${PROTOBUF_BIN}:${PATH}"
+    else
+        echo "Warning: protobuf bin directory not found at ${PROTOBUF_BIN}" >&2
+        echo "build folder: ${REPO_ROOT}/build"
+        ls -la ${REPO_ROOT}/build
+        tree ${PROTOBUF_BIN}
+    fi
 fi
 
 mkdir -p "${BUILD_DIR}"
