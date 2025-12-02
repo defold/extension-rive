@@ -52,7 +52,7 @@ concurrency:
 jobs:
   build-linux:
     if: ${{ github.event.inputs.platform == 'x86_64-linux' || github.event.inputs.platform == 'all' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["x86_64-linux"]' || format('["{0}"]', github.event.inputs.platform)) }}
@@ -188,7 +188,7 @@ jobs:
 
   build-web:
     if: ${{ github.event.inputs.platform == 'js-web' || github.event.inputs.platform == 'wasm-web' || github.event.inputs.platform == 'wasm_pthread-web' || github.event.inputs.platform == 'all' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["js-web","wasm-web","wasm_pthread-web"]' || format('["{0}"]', github.event.inputs.platform)) }}
@@ -281,7 +281,7 @@ jobs:
 
   build-windows:
     if: ${{ github.event.inputs.platform == 'x86-win32' || github.event.inputs.platform == 'x86_64-win32' || github.event.inputs.platform == 'all' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["x86_64-win32"]' || format('["{0}"]', github.event.inputs.platform)) }}
@@ -490,7 +490,7 @@ jobs:
   build-plugin-linux:
     if: ${{ github.event.inputs.platform == 'x86_64-linux' || github.event.inputs.platform == 'all' }}
     needs: build-linux
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
