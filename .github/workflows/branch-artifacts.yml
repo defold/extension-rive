@@ -205,6 +205,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y uuid-dev glslang-tools
           sudo apt-get install -y tree
+          sudo apt-get install -y spirv-tools
 
       - name: Build, (optionally) upload, and commit
         uses: ./.github/actions/rive-build
