@@ -126,6 +126,7 @@ namespace dmRive
             }
 
             int samples = (int) params.m_DoFinalBlit ? 0 : params.m_BackbufferSamples;
+            (void)samples;
 
         #if defined(DM_PLATFORM_MACOS) || defined(DM_PLATFORM_IOS)
             if (!params.m_DoFinalBlit)
