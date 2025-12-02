@@ -14,7 +14,6 @@
 
 #include <string.h> // memset
 
-
 #include <rive/animation/linear_animation_instance.hpp>
 #include <rive/animation/loop.hpp>
 #include <rive/animation/state_machine.hpp>
