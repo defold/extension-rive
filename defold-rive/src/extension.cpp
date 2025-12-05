@@ -48,7 +48,7 @@ static dmExtension::Result InitializeRive(dmExtension::Params* params)
     return dmExtension::RESULT_OK;
 }
 
-static dmExtension::Result AppFinalizeRive(dmExtension::AppParams* params)
+static dmExtension::Result UpdateRive(dmExtension::Params* params)
 {
     return dmExtension::RESULT_OK;
 }
@@ -61,4 +61,9 @@ static dmExtension::Result FinalizeRive(dmExtension::Params* params)
     return dmExtension::RESULT_OK;
 }
 
-DM_DECLARE_EXTENSION(RiveExt, "RiveExt", AppInitializeRive, AppFinalizeRive, InitializeRive, 0, 0, FinalizeRive);
+static dmExtension::Result AppFinalizeRive(dmExtension::AppParams* params)
+{
+    return dmExtension::RESULT_OK;
+}
+
+DM_DECLARE_EXTENSION(RiveExt, "RiveExt", AppInitializeRive, AppFinalizeRive, InitializeRive, UpdateRive, 0, FinalizeRive);

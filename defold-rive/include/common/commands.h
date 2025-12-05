@@ -14,6 +14,11 @@
 
 #include <defold/renderer.h>
 
+#include <rive/animation/state_machine_instance.hpp>
+#include <rive/refcnt.hpp>
+
+#include <rive/command_queue.hpp>
+
 namespace rive
 {
     class Factory;
@@ -44,6 +49,7 @@ namespace dmRiveCommands
     Result ProcessMessages();
 
     // Getters
-    rive::Factory*          GetFactory();
-    dmRive::HRenderContext  GetDefoldRenderContext();
+    rive::Factory*                  GetFactory();
+    dmRive::HRenderContext          GetDefoldRenderContext();
+    rive::rcp<rive::CommandQueue>   GetCommandQueue();
 }

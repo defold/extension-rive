@@ -1,5 +1,5 @@
 [bootstrap]
-main_collection = /main/loader.collectionc
+main_collection = /main/egg/egg.collectionc
 render = /defold-rive/lua/rive.renderc
 
 [script]

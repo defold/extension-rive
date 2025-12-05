@@ -34,103 +34,161 @@
 #include <common/factory.h>
 #include <common/commands.h>
 
+#include <string>
+
 namespace dmRive
 {
-    static void SetupData(RiveSceneData* scene_data, rive::File* file, const char* path, HRenderContext rive_render_context)
+    class SimpleFileListener : public rive::CommandQueue::FileListener
     {
+    public:
+        virtual void onArtboardsListed(const rive::FileHandle fileHandle, uint64_t requestId, std::vector<std::string> artboardNames) override
+        {
+            uint32_t size = (uint32_t)artboardNames.size();
+            m_SceneData->m_ArtboardNames.SetCapacity(size);
+            for (uint32_t i = 0; i < size; ++i)
+            {
+                m_SceneData->m_ArtboardNames.Push(dmHashString64(artboardNames[i].c_str()));
+            }
+        }
+
+        virtual void onFileError(const rive::FileHandle, uint64_t requestId, std::string error) override
+        {
+            dmLogError("%s: %s", m_Path, error.c_str());
+        }
+
+        const char*    m_Path;
+        RiveSceneData* m_SceneData;
+    };
+
+    static rive::FileHandle LoadFile(rive::rcp<rive::CommandQueue> queue, const char* path, const void* data, uint32_t data_size, RiveSceneData* scene_data)
+    {
+        SimpleFileListener listener;
+        listener.m_SceneData = scene_data;
+        listener.m_Path = path;
+
+        // RIVE: Currently their api doesn't support passing the bytes directly, but require you to make a copy of it.
+        const uint8_t* _data = (const uint8_t*)data;
+        std::vector<uint8_t> rive_data(_data, _data + data_size); // FULL COPY!!!
+
+        rive::FileHandle file = queue->loadFile(rive_data, &listener);
+
+        return file;
+    }
+
+    static void SetupData(RiveSceneData* scene_data, rive::FileHandle file, const char* path, HRenderContext rive_render_context)
+    {
+        // rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+        // rive::Factory* rive_factory = dmRiveCommands::GetFactory();
+
         scene_data->m_File = file;
         scene_data->m_RiveRenderContext = rive_render_context;
-        scene_data->m_ArtboardDefault = scene_data->m_File->artboardDefault();
-        if (!scene_data->m_ArtboardDefault.get())
-        {
-            return;
-        }
 
-        size_t artboard_count = scene_data->m_File->artboardCount();
+        //scene_data->m_ArtboardDefault = queue->
 
-        scene_data->m_ArtboardIdLists.SetCapacity(artboard_count);
-        scene_data->m_ArtboardIdLists.SetSize(artboard_count);
+        // scene_data->m_ArtboardDefault = scene_data->m_File->artboardDefault();
+        // if (!scene_data->m_ArtboardDefault)
+        // {
+        //     return;
+        // }
 
-        for (int i = 0; i < artboard_count; ++i)
-        {
-            rive::Artboard* artboard = scene_data->m_File->artboard(i);
+        // size_t artboard_count = scene_data->m_File->artboardCount();
 
-            RiveArtboardIdList* id_list = new RiveArtboardIdList();
-            scene_data->m_ArtboardIdLists[i] = id_list;
+        // scene_data->m_ArtboardIdLists.SetCapacity(artboard_count);
+        // scene_data->m_ArtboardIdLists.SetSize(artboard_count);
 
-            id_list->m_ArtboardNameHash = dmHashString64(artboard->name().c_str());
+        // for (int i = 0; i < artboard_count; ++i)
+        // {
+        //     rive::Artboard* artboard = scene_data->m_File->artboard(i);
 
-            // Setup state machine ID lists
-            uint32_t state_machine_count = (uint32_t)artboard->stateMachineCount();
-            if (state_machine_count)
-            {
-                id_list->m_StateMachines.SetCapacity(state_machine_count);
-                id_list->m_StateMachines.SetSize(state_machine_count);
+        //     RiveArtboardIdList* id_list = new RiveArtboardIdList();
+        //     scene_data->m_ArtboardIdLists[i] = id_list;
 
-                for (int j = 0; j < state_machine_count; ++j)
-                {
-                    rive::StateMachine* state_machine = artboard->stateMachine(j);
-                    id_list->m_StateMachines[j] = dmHashString64(state_machine->name().c_str());
-                }
-            }
+        //     id_list->m_ArtboardNameHash = dmHashString64(artboard->name().c_str());
 
-            // Setup animation ID lists
-            uint32_t animation_count = (uint32_t)artboard->animationCount();
-            if (animation_count)
-            {
-                id_list->m_LinearAnimations.SetCapacity(animation_count);
-                id_list->m_LinearAnimations.SetSize(animation_count);
+        //     // Setup state machine ID lists
+        //     uint32_t state_machine_count = (uint32_t)artboard->stateMachineCount();
+        //     if (state_machine_count)
+        //     {
+        //         id_list->m_StateMachines.SetCapacity(state_machine_count);
+        //         id_list->m_StateMachines.SetSize(state_machine_count);
 
-                for (int j = 0; j < animation_count; ++j)
-                {
-                    rive::LinearAnimation* animation = artboard->animation(j);
-                    id_list->m_LinearAnimations[j] = dmHashString64(animation->name().c_str());
-                }
-            }
-        }
+        //         for (int j = 0; j < state_machine_count; ++j)
+        //         {
+        //             rive::StateMachine* state_machine = artboard->stateMachine(j);
+        //             id_list->m_StateMachines[j] = dmHashString64(state_machine->name().c_str());
+        //         }
+        //     }
+
+        //     // Setup animation ID lists
+        //     uint32_t animation_count = (uint32_t)artboard->animationCount();
+        //     if (animation_count)
+        //     {
+        //         id_list->m_LinearAnimations.SetCapacity(animation_count);
+        //         id_list->m_LinearAnimations.SetSize(animation_count);
+
+        //         for (int j = 0; j < animation_count; ++j)
+        //         {
+        //             rive::LinearAnimation* animation = artboard->animation(j);
+        //             id_list->m_LinearAnimations[j] = dmHashString64(animation->name().c_str());
+        //         }
+        //     }
+        // }
     }
 
     static dmResource::Result ResourceType_RiveData_Create(const dmResource::ResourceCreateParams* params)
     {
         HRenderContext render_context_res = (HRenderContext) params->m_Context;
 
+        rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
         rive::Factory* rive_factory = dmRiveCommands::GetFactory();
         assert(rive_factory);
 
-        rive::Span<const uint8_t> data((const uint8_t*)params->m_Buffer, params->m_BufferSize);
-
-        // Creates DefoldRenderImage with a hashed name for each image resource
-        rive::rcp<AtlasNameResolver> atlas_resolver(new AtlasNameResolver(params->m_Factory, render_context_res));
-
-        rive::ImportResult result;
-        rive::rcp<rive::File> file = rive::File::import(data,
-                                                        rive_factory,
-                                                        &result,
-                                                        atlas_resolver);
-
-        if (result != rive::ImportResult::success)
+        RiveSceneData* scene_data = new RiveSceneData();
+        scene_data->m_File = LoadFile(queue, params->m_Filename, params->m_Buffer, params->m_BufferSize, scene_data);
+        if (!scene_data->m_File)
         {
-            dmResource::SetResource(params->m_Resource, 0);
+            dmLogError("Failed to load '%s'", params->m_Filename);
+            delete scene_data;
             return dmResource::RESULT_INVALID_DATA;
         }
 
-        RiveSceneData* scene_data = new RiveSceneData();
-        scene_data->m_FileAssets.Swap(atlas_resolver->GetAssets());
-        SetupData(scene_data, file.release(), params->m_Filename, render_context_res);
+        // // Creates DefoldRenderImage with a hashed name for each image resource
+        // rive::rcp<AtlasNameResolver> atlas_resolver(new AtlasNameResolver(params->m_Factory, render_context_res));
+
+        // rive::ImportResult result;
+        // rive::rcp<rive::File> file = rive::File::import(data,
+        //                                                 rive_factory,
+        //                                                 &result,
+        //                                                 atlas_resolver);
+
+        // if (result != rive::ImportResult::success)
+        // {
+        //     dmResource::SetResource(params->m_Resource, 0);
+        //     return dmResource::RESULT_INVALID_DATA;
+        // }
+
+        //scene_data->m_FileAssets.Swap(atlas_resolver->GetAssets());
+
+        SetupData(scene_data, scene_data->m_File, params->m_Filename, render_context_res);
 
         dmResource::SetResource(params->m_Resource, scene_data);
-        dmResource::SetResourceSize(params->m_Resource, 0);
+        dmResource::SetResourceSize(params->m_Resource, params->m_BufferSize);
 
         return dmResource::RESULT_OK;
     }
 
     static void DeleteData(RiveSceneData* scene_data)
     {
-        for (int i = 0; i < scene_data->m_ArtboardIdLists.Size(); ++i)
-        {
-            delete scene_data->m_ArtboardIdLists[i];
-        }
-        delete scene_data->m_File;
+        rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+
+        // for (int i = 0; i < scene_data->m_ArtboardIdLists.Size(); ++i)
+        // {
+        //     delete scene_data->m_ArtboardIdLists[i];
+        // }
+        //delete scene_data->m_File;
+
+        //queue->deleteArtboard(scene_data->m_ArtboardDefault);
+        queue->deleteFile(scene_data->m_File);
         delete scene_data;
     }
 
@@ -143,40 +201,52 @@ namespace dmRive
 
     static dmResource::Result ResourceType_RiveData_Recreate(const dmResource::ResourceRecreateParams* params)
     {
+        // HRenderContext render_context_res = (HRenderContext) params->m_Context;
+        // rive::Span<uint8_t> data((uint8_t*)params->m_Buffer, params->m_BufferSize);
+
+        // rive::Factory* rive_factory = dmRiveCommands::GetFactory();
+        // assert(rive_factory != 0);
+
+        // rive::rcp<AtlasNameResolver> atlas_resolver(new AtlasNameResolver(params->m_Factory, render_context_res));
+
+        // rive::ImportResult result;
+        // rive::rcp<rive::File> file = rive::File::import(data,
+        //                                                 rive_factory,
+        //                                                 &result,
+        //                                                 atlas_resolver);
+
+        // if (result != rive::ImportResult::success)
+        // {
+        //     // If we cannot load the new file, let's keep the old one
+        //     return dmResource::RESULT_INVALID_DATA;
+        // }
+
         HRenderContext render_context_res = (HRenderContext) params->m_Context;
-        rive::Span<uint8_t> data((uint8_t*)params->m_Buffer, params->m_BufferSize);
+        rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
 
-        rive::Factory* rive_factory = dmRiveCommands::GetFactory();
-        assert(rive_factory != 0);
-
-        rive::rcp<AtlasNameResolver> atlas_resolver(new AtlasNameResolver(params->m_Factory, render_context_res));
-
-        rive::ImportResult result;
-        rive::rcp<rive::File> file = rive::File::import(data,
-                                                        rive_factory,
-                                                        &result,
-                                                        atlas_resolver);
-
-        if (result != rive::ImportResult::success)
+        RiveSceneData* scene_data = new RiveSceneData();
+        scene_data->m_File = LoadFile(queue, params->m_Filename, params->m_Buffer, params->m_BufferSize, scene_data);
+        if (!scene_data->m_File)
         {
-            // If we cannot load the new file, let's keep the old one
+            dmLogError("Failed to load '%s'", params->m_Filename);
+            delete scene_data;
             return dmResource::RESULT_INVALID_DATA;
         }
 
         RiveSceneData* old_data = (RiveSceneData*)dmResource::GetResource(params->m_Resource);
-        if (old_data != 0)
-        {
-            dmResource::SetResource(params->m_Resource, 0);
-            DeleteData(old_data);
-        }
+        assert(old_data == 0);
 
-        RiveSceneData* scene_data = new RiveSceneData();
+        // We don't want to delete the old resource, as the pointer may be "live"
+        old_data->m_ArtboardNames.Swap(scene_data->m_ArtboardNames);
+        rive::FileHandle tmp_handle = scene_data->m_File;
+        scene_data->m_File = old_data->m_File;
+        old_data->m_File = tmp_handle;
 
-        scene_data->m_FileAssets.Swap(atlas_resolver->GetAssets());
-        SetupData(scene_data, file.release(), params->m_Filename, render_context_res);
+        DeleteData(scene_data);
 
-        dmResource::SetResource(params->m_Resource, scene_data);
-        dmResource::SetResourceSize(params->m_Resource, 0);
+        SetupData(old_data, scene_data->m_File, params->m_Filename, render_context_res);
+
+        dmResource::SetResourceSize(params->m_Resource, params->m_BufferSize);
 
         return dmResource::RESULT_OK;
     }
@@ -199,8 +269,6 @@ namespace dmRive
 
     static ResourceResult DeregisterResourceType_RiveData(HResourceTypeContext ctx, HResourceType type)
     {
-        // HRenderContext context = (HRenderContext)ResourceTypeGetContext(type);
-        // DeleteRenderContext(context);
         return RESOURCE_RESULT_OK;
     }
 
@@ -208,14 +276,15 @@ namespace dmRive
 
     static rive::FileAsset* FindAsset(RiveSceneData* resource, const char* asset_name)
     {
-        for (uint32_t i = 0; i < resource->m_FileAssets.Size(); ++i)
-        {
-            rive::FileAsset* _asset = resource->m_FileAssets[i];
-            const std::string& name = _asset->name();
-            const char* name_str = name.c_str();
-            if (strcmp(asset_name, name_str) == 0)
-                return _asset;
-        }
+        dmLogError("MAWE TODO: Reimplement somehow!");
+        // for (uint32_t i = 0; i < resource->m_FileAssets.Size(); ++i)
+        // {
+        //     rive::FileAsset* _asset = resource->m_FileAssets[i];
+        //     const std::string& name = _asset->name();
+        //     const char* name_str = name.c_str();
+        //     if (strcmp(asset_name, name_str) == 0)
+        //         return _asset;
+        // }
         return 0;
     }
 

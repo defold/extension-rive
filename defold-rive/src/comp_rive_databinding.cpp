@@ -54,83 +54,89 @@ static rive::ViewModelInstanceRuntime* FromHandle(RiveComponent* component, uint
 
 static rive::ViewModelRuntime* FindViewModelRuntimeByHash(RiveComponent* component, dmhash_t name_hash)
 {
-    dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
-    rive::File* file = data->m_File;
-
-    size_t n = file->viewModelCount();
-    for (size_t i = 0; i < n; ++i)
-    {
-        rive::ViewModelRuntime* vmr = file->viewModelByIndex(i);
-        dmhash_t hash = dmHashString64(vmr->name().c_str());
-        if (hash == name_hash)
-            return vmr;
-    }
+    assert(0 && "TODO: UNIMPLEMENTED");
     return 0;
+    // dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
+    // rive::File* file = data->m_File;
+
+    // size_t n = file->viewModelCount();
+    // for (size_t i = 0; i < n; ++i)
+    // {
+    //     rive::ViewModelRuntime* vmr = file->viewModelByIndex(i);
+    //     dmhash_t hash = dmHashString64(vmr->name().c_str());
+    //     if (hash == name_hash)
+    //         return vmr;
+    // }
+    // return 0;
 }
 
 static rive::ViewModelInstanceRuntime* CreateViewModelInstanceRuntimeByHash(RiveComponent* component, dmhash_t name_hash)
 {
-    dmRive::RiveSceneData* data = component->m_Resource->m_Scene->m_Scene;
-    rive::File* file = data->m_File;
-
-    if (name_hash != 0)
-    {
-        rive::ViewModelRuntime* vmr = FindViewModelRuntimeByHash(component, name_hash);
-        return vmr ? vmr->createInstance() : 0;
-    }
-
-    // Create a default view model instance
-    if (!component->m_ArtboardInstance)
-        return 0;
-
-    rive::ViewModelRuntime* vmr = file->defaultArtboardViewModel(component->m_ArtboardInstance.get());
-    if (vmr)
-    {
-        return vmr->createDefaultInstance();
-    }
+    assert(0 && "TODO: UNIMPLEMENTED");
     return 0;
+    // dmRive::RiveSceneData* data = component->m_Resource->m_Scene->m_Scene;
+    // rive::File* file = data->m_File;
+
+    // if (name_hash != 0)
+    // {
+    //     rive::ViewModelRuntime* vmr = FindViewModelRuntimeByHash(component, name_hash);
+    //     return vmr ? vmr->createInstance() : 0;
+    // }
+
+    // // Create a default view model instance
+    // if (!component->m_ArtboardInstance)
+    //     return 0;
+
+    // rive::ViewModelRuntime* vmr = file->defaultArtboardViewModel(component->m_ArtboardInstance.get());
+    // if (vmr)
+    // {
+    //     return vmr->createDefaultInstance();
+    // }
+    // return 0;
 }
 
 void SetViewModelInstanceRuntime(RiveComponent* component, rive::ViewModelInstanceRuntime* vmir)
 {
-    if (component->m_ArtboardInstance)
-    {
-        component->m_ArtboardInstance->bindViewModelInstance(vmir->instance());
-    }
+    // if (component->m_ArtboardInstance)
+    // {
+    //     component->m_ArtboardInstance->bindViewModelInstance(vmir->instance());
+    // }
 
-    if (component->m_StateMachineInstance)
-    {
-        component->m_StateMachineInstance->bindViewModelInstance(vmir->instance());
-    }
+    // if (component->m_StateMachineInstance)
+    // {
+    //     component->m_StateMachineInstance->bindViewModelInstance(vmir->instance());
+    // }
 }
 
 void DebugModelViews(RiveComponent* component)
 {
-    dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
+    assert(0 && "TODO: UNIMPLEMENTED");
+    return;
+    // dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
 
-    size_t num_viewmodels = data->m_File->viewModelCount();
-    for (size_t i = 0; i < num_viewmodels; ++i)
-    {
-        rive::ViewModelRuntime* vmr = data->m_File->viewModelByIndex(i);
+    // size_t num_viewmodels = data->m_File->viewModelCount();
+    // for (size_t i = 0; i < num_viewmodels; ++i)
+    // {
+    //     rive::ViewModelRuntime* vmr = data->m_File->viewModelByIndex(i);
 
-        dmLogInfo("NAME: '%s'\n", vmr->name().c_str());
+    //     dmLogInfo("NAME: '%s'\n", vmr->name().c_str());
 
-        size_t num_properties = vmr->propertyCount();
-        std::vector<rive::PropertyData> pdatas = vmr->properties();
-        for (size_t j = 0; j < num_properties; ++j)
-        {
-            rive::PropertyData& property = pdatas[j];
-            dmLogInfo("  DATA: %d '%s'\n", (int)property.type, property.name.c_str());
-        }
+    //     size_t num_properties = vmr->propertyCount();
+    //     std::vector<rive::PropertyData> pdatas = vmr->properties();
+    //     for (size_t j = 0; j < num_properties; ++j)
+    //     {
+    //         rive::PropertyData& property = pdatas[j];
+    //         dmLogInfo("  DATA: %d '%s'\n", (int)property.type, property.name.c_str());
+    //     }
 
-        size_t num_instances = vmr->instanceCount();
-        dmLogInfo("  #instances: %u\n", (uint32_t)num_instances);
-        std::vector<std::string> names = vmr->instanceNames();
-        for (size_t j = 0; j < names.size(); ++j)
-        {
-            dmLogInfo("  INST: '%s'\n", names[j].c_str());
-        }
-    }
+    //     size_t num_instances = vmr->instanceCount();
+    //     dmLogInfo("  #instances: %u\n", (uint32_t)num_instances);
+    //     std::vector<std::string> names = vmr->instanceNames();
+    //     for (size_t j = 0; j < names.size(); ++j)
+    //     {
+    //         dmLogInfo("  INST: '%s'\n", names[j].c_str());
+    //     }
+    // }
 }
 
 void DebugVMIR(rive::ViewModelInstanceRuntime* vmir)

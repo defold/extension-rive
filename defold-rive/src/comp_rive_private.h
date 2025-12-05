@@ -27,6 +27,8 @@
 #include "rive_ddf.h"
 
 #include <rive/math/mat2d.hpp>
+#include <rive/refcnt.hpp>
+#include <rive/command_queue.hpp>
 
 namespace rive
 {
@@ -74,9 +76,14 @@ namespace dmRive
         uint32_t                                m_CallbackId;
         rive::Mat2D                             m_InverseRendererTransform;
 
-        std::unique_ptr<rive::ArtboardInstance>             m_ArtboardInstance;
-        std::unique_ptr<rive::LinearAnimationInstance>      m_AnimationInstance;
-        std::unique_ptr<rive::StateMachineInstance>         m_StateMachineInstance;
+        rive::ArtboardHandle                    m_Artboard;
+        rive::StateMachineHandle                m_StateMachine;
+        rive::DrawKey                           m_DrawKey;
+        float                                   m_Dt;
+
+        //std::unique_ptr<rive::ArtboardInstance>             m_ArtboardInstance;
+        //std::unique_ptr<rive::LinearAnimationInstance>      m_AnimationInstance;
+        //std::unique_ptr<rive::StateMachineInstance>         m_StateMachineInstance;
         dmHashTable32<rive::ViewModelInstanceRuntime*>      m_ViewModelInstanceRuntimes;
 
         dmArray<std::unique_ptr<rive::StateMachineInstance>> m_AllSMSInstances;

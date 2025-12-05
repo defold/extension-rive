@@ -136,6 +136,7 @@ namespace dmRive
             }
         #endif
 
+
             renderer->m_RenderContext->BeginFrame({
                 .renderTargetWidth      = width,
                 .renderTargetHeight     = height,

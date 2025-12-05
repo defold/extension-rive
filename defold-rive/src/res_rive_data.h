@@ -18,12 +18,8 @@
 #include <dmsdk/dlib/hash.h>
 #include "defold/renderer.h"
 
-namespace rive
-{
-    class File;
-    class FileAsset;
-    class ArtboardInstance;
-}
+#include <rive/refcnt.hpp>
+#include <rive/command_queue.hpp>
 
 namespace dmRive
 {
@@ -36,13 +32,20 @@ namespace dmRive
         dmArray<dmhash_t>                       m_StateMachines;
     };
 
+    // struct RiveSceneDataOld
+    // {
+    //     rive::File*                             m_File;
+    //     HRenderContext                          m_RiveRenderContext;
+    //     std::unique_ptr<rive::ArtboardInstance> m_ArtboardDefault;
+    //     dmArray<RiveArtboardIdList*>            m_ArtboardIdLists;
+    //     dmArray<rive::FileAsset*>               m_FileAssets;       // For runtime swapping
+    // };
+
     struct RiveSceneData
     {
-        rive::File*                             m_File;
-        HRenderContext                          m_RiveRenderContext;
-        std::unique_ptr<rive::ArtboardInstance> m_ArtboardDefault;
-        dmArray<RiveArtboardIdList*>            m_ArtboardIdLists;
-        dmArray<rive::FileAsset*>               m_FileAssets;       // For runtime swapping
+        rive::FileHandle    m_File;
+        HRenderContext      m_RiveRenderContext;
+        dmArray<dmhash_t>   m_ArtboardNames;
     };
 
     dmResource::Result  ResRiveDataSetAssetFromMemory(RiveSceneData* resource, const char* asset_name, void* payload, uint32_t payload_size);

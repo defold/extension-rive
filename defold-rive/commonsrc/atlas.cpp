@@ -246,34 +246,36 @@ namespace dmRive {
     {
         DEBUGLOG("loadContents");
 
-        if (m_Assets.Full())
-        {
-            m_Assets.OffsetCapacity(8);
-        }
-        m_Assets.Push(&_asset);
+        dmLogError("MAWE TODO UNIMPLEMENTED: %s", __FUNCTION__);
 
-        bool out_of_band = inBandBytes.size() == 0;
-        if (_asset.is<rive::ImageAsset>())
-        {
-            rive::ImageAsset* asset = _asset.as<rive::ImageAsset>();
-            const std::string& name = asset->name();
+        // if (m_Assets.Full())
+        // {
+        //     m_Assets.OffsetCapacity(8);
+        // }
+        // m_Assets.Push(&_asset);
 
-            rive::rcp<rive::RenderImage> image;
+        // bool out_of_band = inBandBytes.size() == 0;
+        // if (_asset.is<rive::ImageAsset>())
+        // {
+        //     rive::ImageAsset* asset = _asset.as<rive::ImageAsset>();
+        //     const std::string& name = asset->name();
 
-            if (out_of_band)
-            {
-                image = LoadImageFromFactory(m_Factory, m_RiveRenderContext, name.c_str());
-            }
+        //     rive::rcp<rive::RenderImage> image;
 
-            if (!image)
-            {
-                image = CreateRiveRenderImage(m_RiveRenderContext, (void*) inBandBytes.data(), inBandBytes.size());
-                DEBUGLOG("  In band asset: file: '%s' data: %u bytes", name.c_str(), (uint32_t)inBandBytes.size());
-            }
+        //     if (out_of_band)
+        //     {
+        //         image = LoadImageFromFactory(m_Factory, m_RiveRenderContext, name.c_str());
+        //     }
 
-            asset->renderImage(image);
-            return (bool)image;
-        }
+        //     if (!image)
+        //     {
+        //         image = CreateRiveRenderImage(m_RiveRenderContext, (void*) inBandBytes.data(), inBandBytes.size());
+        //         DEBUGLOG("  In band asset: file: '%s' data: %u bytes", name.c_str(), (uint32_t)inBandBytes.size());
+        //     }
+
+        //     asset->renderImage(image);
+        //     return (bool)image;
+        // }
 
         return false;
     }

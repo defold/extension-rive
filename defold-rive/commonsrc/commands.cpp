@@ -96,6 +96,11 @@ Result Finalize()
     return RESULT_OK;
 }
 
+rive::rcp<rive::CommandQueue> GetCommandQueue()
+{
+    return g_Context->m_CommandQueue;
+}
+
 rive::Factory* GetFactory()
 {
     assert(g_Context != 0);
