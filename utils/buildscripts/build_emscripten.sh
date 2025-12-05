@@ -26,7 +26,6 @@ PREFIX=""
 TARGETS="wasm"
 CONFIG="release"
 WITH_WAGYU=false
-RIVE_EMSDK_VERSION=4.0.6
 
 print_help() {
     cat <<EOF
@@ -43,7 +42,7 @@ Env:
   EMSDK                    If set, sources \$EMSDK/emsdk_env.sh and uses that SDK.
 
 Examples:
-  EMSDK=~/dev/emsdk ./build_emscripten.sh --prefix /tmp/rive-emsdk --targets wasm,js --config release
+  EMSDK=~/dev/emsdk ./build_emscripten.sh --prefix /path/to/extension-rive/defold-rive --targets wasm,js --config release
 EOF
 }
 
