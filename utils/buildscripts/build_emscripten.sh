@@ -26,6 +26,7 @@ PREFIX=""
 TARGETS="wasm"
 CONFIG="release"
 WITH_WAGYU=false
+RIVE_EMSDK_VERSION=4.0.6
 
 print_help() {
     cat <<EOF
