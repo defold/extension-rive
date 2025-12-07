@@ -79,7 +79,6 @@ namespace dmRive
         rive::ArtboardHandle                    m_Artboard;
         rive::StateMachineHandle                m_StateMachine;
         rive::DrawKey                           m_DrawKey;
-        float                                   m_Dt;
 
         //std::unique_ptr<rive::ArtboardInstance>             m_ArtboardInstance;
         //std::unique_ptr<rive::LinearAnimationInstance>      m_AnimationInstance;
@@ -94,6 +93,9 @@ namespace dmRive
         dmArray<rive::Bone*>                    m_Bones;
         dmArray<dmGameObject::HInstance>        m_BoneGOs;
         dmArray<dmhash_t>                       m_StateMachineInputs; // A list of the hashed names for the state machine inputs. Index corresponds 1:1 to the statemachine inputs
+
+        rive::Fit                               m_Fit;
+        rive::Alignment                         m_Alignment;
 
         uint32_t                                m_VertexCount;
         uint32_t                                m_IndexCount;

@@ -16,6 +16,7 @@
 #include <stdint.h>
 #include <dmsdk/dlib/array.h>
 #include <dmsdk/dlib/hash.h>
+#include <dmsdk/dlib/hashtable.h>
 #include "defold/renderer.h"
 
 #include <rive/refcnt.hpp>
@@ -43,14 +44,17 @@ namespace dmRive
 
     struct RiveSceneData
     {
-        rive::FileHandle    m_File;
-        HRenderContext      m_RiveRenderContext;
-        dmArray<dmhash_t>   m_ArtboardNames;
+        dmhash_t                    m_PathHash;
+        rive::FileHandle            m_File;
+        HRenderContext              m_RiveRenderContext;
+        dmHashTable64<const char*>  m_ArtboardNames;
     };
 
     dmResource::Result  ResRiveDataSetAssetFromMemory(RiveSceneData* resource, const char* asset_name, void* payload, uint32_t payload_size);
     dmResource::Result  ResRiveDataSetAsset(dmResource::HFactory factory, RiveSceneData* resource, const char* asset_name, const char* path);
     rive::RenderImage*  ResRiveDataCreateRenderImage(dmResource::HFactory factory, RiveSceneData* resource, uint8_t* data, uint32_t data_length);
+
+    const char* ResRiveDataFindArtboardName(RiveSceneData* resource, dmhash_t name_hash);
 }
 
 #endif // DM_RES_RIVE_DATA_H

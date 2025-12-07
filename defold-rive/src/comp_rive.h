@@ -23,6 +23,8 @@
 
 #include "rive_ddf.h"
 
+#include <rive/command_queue.hpp> // handles
+
 namespace dmRive
 {
     /////////////////////////////////////////////////////////////////////////////////////
@@ -73,13 +75,23 @@ namespace dmRive
     // state machine impl
     StateMachineInputData::Result CompRiveGetStateMachineInput(RiveComponent* component, const char* input_name, const char* nested_artboard_path, StateMachineInputData& data);
     StateMachineInputData::Result CompRiveSetStateMachineInput(RiveComponent* component, const char* input_name, const char* nested_artboard_path, const StateMachineInputData& data);
-    void CompRivePointerMove(RiveComponent* component, float x, float y);
-    void CompRivePointerUp(RiveComponent* component, float x, float y);
-    void CompRivePointerDown(RiveComponent* component, float x, float y);
 
-    // bool CompRiveSetIKTargetInstance(RiveComponent* component, dmhash_t constraint_id, float mix, dmhash_t instance_id);
-    // bool CompRiveSetIKTargetPosition(RiveComponent* component, dmhash_t constraint_id, float mix, Vectormath::Aos::Point3 position);
-    // bool CompRiveResetIKTarget(RiveComponent* component, dmhash_t constraint_id);
+
+    // Scripting
+    bool                        CompRiveSetArtboard(RiveComponent* component, const char* name);
+    rive::ArtboardHandle        CompRiveGetArtboard(RiveComponent* component);
+    bool                        CompRiveSetStateMachine(RiveComponent* component, const char* name);
+    rive::StateMachineHandle    CompRiveGetStateMachine(RiveComponent* component);
+
+    enum PointerAction
+    {
+        POINTER_MOVE,
+        POINTER_DOWN,
+        POINTER_UP,
+        POINTER_EXIT,
+    };
+
+    void CompRivePointerAction(RiveComponent* component, PointerAction cmd, float x, float y);
 }
 
 #endif // DM_GAMESYS_COMP_RIVE_H

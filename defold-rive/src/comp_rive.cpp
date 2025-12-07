@@ -83,12 +83,12 @@ namespace dmRive
 {
     using namespace dmVMath;
 
-    static const dmhash_t PROP_ANIMATION          = dmHashString64("animation");
-    static const dmhash_t PROP_CURSOR             = dmHashString64("cursor");
-    static const dmhash_t PROP_PLAYBACK_RATE      = dmHashString64("playback_rate");
-    static const dmhash_t PROP_MATERIAL           = dmHashString64("material");
-    static const dmhash_t MATERIAL_EXT_HASH       = dmHashString64("materialc");
-    static const dmhash_t PROP_RIVE_FILE          = dmHashString64("rive_file");
+    static const dmhash_t PROP_ARTBOARD         = dmHashString64("artboard");
+    static const dmhash_t PROP_STATE_MACHINE    = dmHashString64("state_machine");
+    static const dmhash_t PROP_PLAYBACK_RATE    = dmHashString64("playback_rate");
+    static const dmhash_t PROP_MATERIAL         = dmHashString64("material");
+    static const dmhash_t MATERIAL_EXT_HASH     = dmHashString64("materialc");
+    static const dmhash_t PROP_RIVE_FILE        = dmHashString64("rive_file");
 
     static float g_DisplayFactor = 0.0f;
     static float g_OriginalWindowWidth = 0.0f;
@@ -146,6 +146,39 @@ namespace dmRive
 
         //std::vector<std::string> m_stateMachineNames;
     };
+
+    static inline rive::Fit DDFToRiveFit(dmRiveDDF::RiveModelDesc::Fit fit)
+    {
+        switch(fit)
+        {
+            case dmRiveDDF::RiveModelDesc::FIT_FILL:         return rive::Fit::fill;
+            case dmRiveDDF::RiveModelDesc::FIT_CONTAIN:      return rive::Fit::contain;
+            case dmRiveDDF::RiveModelDesc::FIT_COVER:        return rive::Fit::cover;
+            case dmRiveDDF::RiveModelDesc::FIT_FIT_WIDTH:    return rive::Fit::fitWidth;
+            case dmRiveDDF::RiveModelDesc::FIT_FIT_HEIGHT:   return rive::Fit::fitHeight;
+            case dmRiveDDF::RiveModelDesc::FIT_NONE:         return rive::Fit::none;
+            case dmRiveDDF::RiveModelDesc::FIT_SCALE_DOWN:   return rive::Fit::scaleDown;
+            case dmRiveDDF::RiveModelDesc::FIT_LAYOUT:       return rive::Fit::layout;
+        }
+        return rive::Fit::none;
+    }
+
+    static inline rive::Alignment DDFToRiveAlignment(dmRiveDDF::RiveModelDesc::Alignment alignment)
+    {
+        switch(alignment)
+        {
+            case dmRiveDDF::RiveModelDesc::ALIGNMENT_TOP_LEFT:      return rive::Alignment::topLeft;
+            case dmRiveDDF::RiveModelDesc::ALIGNMENT_TOP_CENTER:    return rive::Alignment::topCenter;
+            case dmRiveDDF::RiveModelDesc::ALIGNMENT_TOP_RIGHT:     return rive::Alignment::topRight;
+            case dmRiveDDF::RiveModelDesc::ALIGNMENT_CENTER_LEFT:   return rive::Alignment::centerLeft;
+            case dmRiveDDF::RiveModelDesc::ALIGNMENT_CENTER:        return rive::Alignment::center;
+            case dmRiveDDF::RiveModelDesc::ALIGNMENT_CENTER_RIGHT:  return rive::Alignment::centerRight;
+            case dmRiveDDF::RiveModelDesc::ALIGNMENT_BOTTOM_LEFT:   return rive::Alignment::bottomLeft;
+            case dmRiveDDF::RiveModelDesc::ALIGNMENT_BOTTOM_CENTER: return rive::Alignment::bottomCenter;
+            case dmRiveDDF::RiveModelDesc::ALIGNMENT_BOTTOM_RIGHT:  return rive::Alignment::bottomRight;
+        }
+        return rive::Alignment::center;
+    }
 
     dmGameObject::CreateResult CompRiveNewWorld(const dmGameObject::ComponentNewWorldParams& params)
     {
@@ -209,20 +242,6 @@ namespace dmRive
         return dmGameObject::CREATE_RESULT_OK;
     }
 
-    // RiveArtboardIdList* FindArtboardIdList(rive::Artboard* artboard, dmRive::RiveSceneData* data)
-    // {
-    //     dmhash_t artboard_id = dmHashString64(artboard->name().c_str());
-
-    //     for (int i = 0; i < data->m_ArtboardIdLists.Size(); ++i)
-    //     {
-    //         if (data->m_ArtboardIdLists[i]->m_ArtboardNameHash == artboard_id)
-    //         {
-    //             return data->m_ArtboardIdLists[i];
-    //         }
-    //     }
-    //     return 0x0;
-    // }
-
     static inline dmGameSystem::MaterialResource* GetMaterialResource(const RiveComponent* component, const RiveModelResource* resource)
     {
         return component->m_Material ? component->m_Material : resource->m_Material;
@@ -270,7 +289,12 @@ namespace dmRive
         return GetComponentFromIndex(world, index);
     }
 
-    static void InstantiateArtboard(RiveComponent* component, const char* artboard_name)
+    rive::ArtboardHandle CompRiveGetArtboard(RiveComponent* component)
+    {
+        return component->m_Artboard;
+    }
+
+    bool CompRiveSetArtboard(RiveComponent* component, const char* artboard_name)
     {
         dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
         rive::FileHandle file = data->m_File;
@@ -291,9 +315,16 @@ namespace dmRive
             component->m_Artboard = queue->instantiateDefaultArtboard(file);
             printf("Created default artboard\n");
         }
+
+        return component->m_Artboard != 0;
     }
 
-    static void InstantiateStateMachine(RiveComponent* component, const char* state_machine_name)
+    rive::StateMachineHandle CompRiveGetStateMachine(RiveComponent* component)
+    {
+        return component->m_StateMachine;
+    }
+
+    bool CompRiveSetStateMachine(RiveComponent* component, const char* state_machine_name)
     {
         rive::ArtboardHandle artboard = component->m_Artboard;
         rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
@@ -313,6 +344,9 @@ namespace dmRive
             component->m_StateMachine = queue->instantiateDefaultStateMachine(artboard);
             printf("Created default state machine: %p\n", component->m_StateMachine);
         }
+
+        component->m_Enabled = component->m_StateMachine != 0;
+        return component->m_Enabled;
     }
 
     dmGameObject::CreateResult CompRiveCreate(const dmGameObject::ComponentCreateParams& params)
@@ -348,11 +382,37 @@ namespace dmRive
         component->m_HandleCounter = 0;
         component->m_DrawKey = queue->createDrawKey();
 
-        InstantiateArtboard(component, component->m_Resource->m_DDF->m_Artboard);
+        dmRiveDDF::RiveModelDesc* ddf = component->m_Resource->m_DDF;
 
-        InstantiateStateMachine(component, component->m_Resource->m_DDF->m_DefaultStateMachine);
+        component->m_Fit = rive::Fit::layout;
+        component->m_Alignment = rive::Alignment::center;
+        if (ddf->m_CoordinateSystem == dmRiveDDF::RiveModelDesc::COORDINATE_SYSTEM_RIVE)
+        {
+            component->m_Fit = DDFToRiveFit(ddf->m_ArtboardFit);
+            component->m_Alignment = DDFToRiveAlignment(ddf->m_ArtboardAlignment);
+        }
 
-        //component->m_Artboard->advance(0.0f);
+            // if (ddf->m_CoordinateSystem == dmRiveDDF::RiveModelDesc::COORDINATE_SYSTEM_FULLSCREEN)
+            // {
+            //     // Apply the world matrix from the component to the artboard transform
+            //     rive::Mat2D transform;
+            //     Mat4ToMat2D(c->m_World, transform);
+
+            //     rive::Mat2D centerAdjustment  = rive::Mat2D::fromTranslate(-bounds.width() / 2.0f, -bounds.height() / 2.0f);
+            //     rive::Mat2D scaleDpi          = rive::Mat2D::fromScale(1,-1);
+            //     rive::Mat2D invertAdjustment  = rive::Mat2D::fromScaleAndTranslation(g_DisplayFactor, -g_DisplayFactor, 0, window_height);
+            //     rive::Mat2D rendererTransform = invertAdjustment * viewTransform * transform * scaleDpi * centerAdjustment;
+
+            //     renderer->transform(rendererTransform);
+            //     c->m_InverseRendererTransform = rendererTransform.invertOrIdentity();
+            // }
+            // else if (ddf->m_CoordinateSystem == dmRiveDDF::RiveModelDesc::COORDINATE_SYSTEM_RIVE)
+            // {
+            //     rive::Fit rive_fit         = DDFToRiveFit(ddf->m_ArtboardFit);
+            //     rive::Alignment rive_align = DDFToRiveAlignment(ddf->m_ArtboardAlignment);
+
+        CompRiveSetArtboard(component, ddf->m_Artboard);
+        CompRiveSetStateMachine(component, ddf->m_DefaultStateMachine);
 
         // if (component->m_Resource->m_CreateGoBones)
         // {
@@ -514,7 +574,7 @@ namespace dmRive
     {
         if (world->m_RiveRenderContext)
         {
-            dmRiveCommands::ProcessMessages();
+            dmRiveCommands::ProcessMessages(); // Flush any draw() messages
             RenderEnd(world->m_RiveRenderContext);
 
             if (g_RenderBeginParams.m_DoFinalBlit)
@@ -533,39 +593,6 @@ namespace dmRive
                 dmRender::AddToRender(render_context, &ro);
             }
         }
-    }
-
-    static inline rive::Fit DDFToRiveFit(dmRiveDDF::RiveModelDesc::Fit fit)
-    {
-        switch(fit)
-        {
-            case dmRiveDDF::RiveModelDesc::FIT_FILL:         return rive::Fit::fill;
-            case dmRiveDDF::RiveModelDesc::FIT_CONTAIN:      return rive::Fit::contain;
-            case dmRiveDDF::RiveModelDesc::FIT_COVER:        return rive::Fit::cover;
-            case dmRiveDDF::RiveModelDesc::FIT_FIT_WIDTH:    return rive::Fit::fitWidth;
-            case dmRiveDDF::RiveModelDesc::FIT_FIT_HEIGHT:   return rive::Fit::fitHeight;
-            case dmRiveDDF::RiveModelDesc::FIT_NONE:         return rive::Fit::none;
-            case dmRiveDDF::RiveModelDesc::FIT_SCALE_DOWN:   return rive::Fit::scaleDown;
-            case dmRiveDDF::RiveModelDesc::FIT_LAYOUT:       return rive::Fit::layout;
-        }
-        return rive::Fit::none;
-    }
-
-    static inline rive::Alignment DDFToRiveAlignment(dmRiveDDF::RiveModelDesc::Alignment alignment)
-    {
-        switch(alignment)
-        {
-            case dmRiveDDF::RiveModelDesc::ALIGNMENT_TOP_LEFT:      return rive::Alignment::topLeft;
-            case dmRiveDDF::RiveModelDesc::ALIGNMENT_TOP_CENTER:    return rive::Alignment::topCenter;
-            case dmRiveDDF::RiveModelDesc::ALIGNMENT_TOP_RIGHT:     return rive::Alignment::topRight;
-            case dmRiveDDF::RiveModelDesc::ALIGNMENT_CENTER_LEFT:   return rive::Alignment::centerLeft;
-            case dmRiveDDF::RiveModelDesc::ALIGNMENT_CENTER:        return rive::Alignment::center;
-            case dmRiveDDF::RiveModelDesc::ALIGNMENT_CENTER_RIGHT:  return rive::Alignment::centerRight;
-            case dmRiveDDF::RiveModelDesc::ALIGNMENT_BOTTOM_LEFT:   return rive::Alignment::bottomLeft;
-            case dmRiveDDF::RiveModelDesc::ALIGNMENT_BOTTOM_CENTER: return rive::Alignment::bottomCenter;
-            case dmRiveDDF::RiveModelDesc::ALIGNMENT_BOTTOM_RIGHT:  return rive::Alignment::bottomRight;
-        }
-        return rive::Alignment::center;
     }
 
     static void RenderBatch(RiveWorld* world, dmRender::HRenderContext render_context, dmRender::RenderListEntry *buf, uint32_t* begin, uint32_t* end)
@@ -642,12 +669,12 @@ namespace dmRive
             // From command_buffer_example.cpp
 
             const rive::ArtboardHandle      artboardHandle     = c->m_Artboard;
-            const rive::StateMachineHandle  stateMachineHandle = c->m_StateMachine;
-            const float dt = c->m_Dt * c->m_AnimationPlaybackRate;
+            // const rive::StateMachineHandle  stateMachineHandle = c->m_StateMachine;
+            // const float dt = c->m_Dt * c->m_AnimationPlaybackRate;
 
             auto drawLoop = [artboardHandle,
-                             stateMachineHandle,
-                             dt,
+                             //stateMachineHandle,
+                             //dt,
                              renderer,
                              width,
                              height](rive::DrawKey drawKey, rive::CommandServer* server)
@@ -658,27 +685,13 @@ namespace dmRive
                     return;
                 }
 
-                rive::StateMachineInstance* stateMachine = server->getStateMachineInstance(stateMachineHandle);
+                // rive::StateMachineInstance* stateMachine = server->getStateMachineInstance(stateMachineHandle);
+                // if (stateMachine == 0)
+                // {
+                //     return;
+                // }
 
-                printf("  stateMachine: %p -> %p\n", stateMachineHandle, stateMachine);
-                if (stateMachine != 0)
-                {
-                    stateMachine->advanceAndApply(dt);
-                }
-                else
-                {
-                    // std::unique_ptr<rive::StateMachineInstance> sm = artboard->defaultStateMachine();
-                    // if (!sm)
-                    // {
-                    // printf("  AB SM == 0\n");
-                    //     return;
-                    // }
-                    // printf("  AB SM advanceAndApply: %f\n", dt);
-                    // sm->advanceAndApply(dt);
-
-                    //std::unique_ptr<rive::Scene> scene = artboard->defaultScene();
-                    return;
-                }
+                // stateMachine->advanceAndApply(dt);
 
                 rive::Factory* factory = server->factory();
 
@@ -882,13 +895,15 @@ namespace dmRive
     dmGameObject::UpdateResult CompRiveUpdate(const dmGameObject::ComponentsUpdateParams& params, dmGameObject::ComponentsUpdateResult& update_result)
     {
         DM_PROFILE("RiveModel");
-        RiveWorld* world    = (RiveWorld*)params.m_World;
+        RiveWorld* world = (RiveWorld*)params.m_World;
 
         float dt = params.m_UpdateContext->m_DT;
 
         dmArray<RiveComponent*>& components = world->m_Components.GetRawObjects();
         const uint32_t count = components.Size();
         DM_PROPERTY_ADD_U32(rmtp_RiveComponents, count);
+
+        rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
 
         for (uint32_t i = 0; i < count; ++i)
         {
@@ -956,7 +971,7 @@ namespace dmRive
             //     component.m_Artboard->advance(dt * component.m_AnimationPlaybackRate);
             // }
 
-            component.m_Dt = dt;
+            queue->advanceStateMachine(component.m_StateMachine, dt * component.m_AnimationPlaybackRate);
 
             if (component.m_Resource->m_CreateGoBones)
                 UpdateBones(&component); // after the artboard->advance();
@@ -969,8 +984,20 @@ namespace dmRive
             component.m_DoRender = 1;
         }
 
+        dmRiveCommands::ProcessMessages(); // Update the command server
+
         // If the child bones have been updated, we need to return true
         update_result.m_TransformsUpdated = false;
+
+        return dmGameObject::UPDATE_RESULT_OK;
+    }
+
+    dmGameObject::UpdateResult CompRiveLateUpdate(const dmGameObject::ComponentsUpdateParams& params, dmGameObject::ComponentsUpdateResult& update_result)
+    {
+        DM_PROFILE("RiveModel");
+        RiveWorld* world = (RiveWorld*)params.m_World;
+
+        // TODO: Update bone position -> game object positions
 
         return dmGameObject::UPDATE_RESULT_OK;
     }
@@ -1212,7 +1239,7 @@ namespace dmRive
     //     CompRiveClearCallback(component);
 
     //     // For now, we need to create a new state machine instance when playing a state machine, because of nested artboards+state machine events
-    //     InstantiateArtboard(component, component->m_Resource->m_DDF->m_Artboard);
+    //     CompRiveSetArtboard(component, component->m_Resource->m_DDF->m_Artboard);
 
     //     component->m_CallbackId++;
     //     component->m_Callback              = callback_info;
@@ -1305,26 +1332,15 @@ namespace dmRive
         RiveComponent* component = GetComponentFromIndex(world, *params.m_UserData);
         dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
 
-        if (params.m_PropertyId == PROP_ANIMATION)
+        if (params.m_PropertyId == PROP_ARTBOARD)
         {
-            return dmGameObject::PROPERTY_RESULT_NOT_FOUND;
-            //RiveArtboardIdList* id_list = FindArtboardIdList(component->m_Artboard.get(), data);
-            // if (component->m_AnimationInstance && component->m_AnimationIndex < id_list->m_LinearAnimations.Size())
-            // {
-            //     out_value.m_Variant = dmGameObject::PropertyVar(id_list->m_LinearAnimations[component->m_AnimationIndex]);
-            // }
-            // return dmGameObject::PROPERTY_RESULT_OK;
+            out_value.m_Variant = dmGameObject::PropertyVar((dmhash_t)component->m_Artboard);
+            return dmGameObject::PROPERTY_RESULT_OK;
         }
-        else if (params.m_PropertyId == PROP_CURSOR)
+        else if (params.m_PropertyId == PROP_STATE_MACHINE)
         {
-            return dmGameObject::PROPERTY_RESULT_NOT_FOUND;
-            // if (component->m_AnimationInstance)
-            // {
-            //     const rive::LinearAnimation* animation = component->m_AnimationInstance->animation();
-            //     float cursor_value                     = (component->m_AnimationInstance->time() - animation->startSeconds()) / animation->durationSeconds();
-            //     out_value.m_Variant                    = dmGameObject::PropertyVar(cursor_value);
-            // }
-            // return dmGameObject::PROPERTY_RESULT_OK;
+            out_value.m_Variant = dmGameObject::PropertyVar((dmhash_t)component->m_StateMachine);
+            return dmGameObject::PROPERTY_RESULT_OK;
         }
         else if (params.m_PropertyId == PROP_PLAYBACK_RATE)
         {
@@ -1341,18 +1357,6 @@ namespace dmRive
             RiveSceneData* resource = GetRiveResource(component, component->m_Resource);
             return dmGameSystem::GetResourceProperty(context->m_Factory, resource, out_value);
         }
-        else
-        {
-            return dmGameObject::PROPERTY_RESULT_NOT_FOUND;
-            // if (component->m_StateMachine)
-            // {
-            //     int index = FindStateMachineInputIndex(component, params.m_PropertyId);
-            //     if (index >= 0)
-            //     {
-            //         return GetStateMachineInput(component, index, params, out_value);
-            //     }
-            // }
-        }
         return dmGameSystem::GetMaterialConstant(GetMaterial(component, component->m_Resource), params.m_PropertyId, params.m_Options.m_Index, out_value, false, CompRiveGetConstantCallback, component);
     }
 
@@ -1360,22 +1364,34 @@ namespace dmRive
     {
         RiveWorld* world = (RiveWorld*)params.m_World;
         RiveComponent* component = world->m_Components.Get(*params.m_UserData);
-        if (params.m_PropertyId == PROP_CURSOR)
-        {
-            return dmGameObject::PROPERTY_RESULT_NOT_FOUND;
-            // if (params.m_Value.m_Type != dmGameObject::PROPERTY_TYPE_NUMBER)
-            //     return dmGameObject::PROPERTY_RESULT_TYPE_MISMATCH;
+        rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
 
-            // if (component->m_AnimationInstance)
-            // {
-            //     const rive::LinearAnimation* animation = component->m_AnimationInstance->animation();
-            //     float cursor = params.m_Value.m_Number * animation->durationSeconds() + animation->startSeconds();
-            //     component->m_AnimationInstance->time(cursor);
-            // }
+        // if (params.m_PropertyId == PROP_ARTBOARD)
+        // {
+        //     if (params.m_Value.m_Type != dmGameObject::PROPERTY_TYPE_HASH)
+        //         return dmGameObject::PROPERTY_RESULT_TYPE_MISMATCH;
 
-            // return dmGameObject::PROPERTY_RESULT_OK;
-        }
-        else if (params.m_PropertyId == PROP_PLAYBACK_RATE)
+        //     RiveSceneData* resource = GetRiveResource(component, component->m_Resource);
+
+        //     const char* name = 0;
+        //     if (params.m_Value.m_Hash != 0)
+        //     {
+        //         name = ResRiveDataFindArtboardName(resource, params.m_Value.m_Hash);
+        //     }
+
+        //     rive::ArtboardHandle old_artboard = component->m_Artboard;
+
+        //     CompRiveSetArtboard(component, name);
+
+        //     queue->deleteArtboard(old_artboard);
+        //     return dmGameObject::PROPERTY_RESULT_OK;
+        // }
+        // else if (params.m_PropertyId == PROP_STATE_MACHINE)
+        // {
+        //     out_value.m_Variant = PropertyVar((dmhash_t)component->m_StateMachine);
+        //     return dmGameObject::PROPERTY_RESULT_OK;
+        // }
+        if (params.m_PropertyId == PROP_PLAYBACK_RATE)
         {
             if (params.m_Value.m_Type != dmGameObject::PROPERTY_TYPE_NUMBER)
                 return dmGameObject::PROPERTY_RESULT_TYPE_MISMATCH;
@@ -1389,16 +1405,17 @@ namespace dmRive
             dmGameObject::PropertyResult res = dmGameSystem::SetResourceProperty(context->m_Factory, params.m_Value, MATERIAL_EXT_HASH, (void**)&component->m_Material);
             component->m_ReHash |= res == dmGameObject::PROPERTY_RESULT_OK;
             return res;
-        } else {
-            if (component->m_StateMachine)
-            {
-                int index = FindStateMachineInputIndex(component, params.m_PropertyId);
-                if (index >= 0)
-                {
-                    return SetStateMachineInput(component, index, params);
-                }
-            }
         }
+        // else {
+        //     if (component->m_StateMachine)
+        //     {
+        //         int index = FindStateMachineInputIndex(component, params.m_PropertyId);
+        //         if (index >= 0)
+        //         {
+        //             return SetStateMachineInput(component, index, params);
+        //         }
+        //     }
+        // }
         return dmGameSystem::SetMaterialConstant(GetMaterial(component, component->m_Resource), params.m_PropertyId, params.m_Value, params.m_Options.m_Index, CompRiveSetConstantCallback, component);
     }
 
@@ -1467,6 +1484,7 @@ namespace dmRive
         ComponentTypeSetDestroyFn(type, CompRiveDestroy);
         ComponentTypeSetAddToUpdateFn(type, CompRiveAddToUpdate);
         ComponentTypeSetUpdateFn(type, CompRiveUpdate);
+        ComponentTypeSetLateUpdateFn(type, CompRiveLateUpdate);
         ComponentTypeSetRenderFn(type, CompRiveRender);
         ComponentTypeSetOnMessageFn(type, CompRiveOnMessage);
             // ComponentTypeSetOnInputFn(type, CompRiveOnInput);
@@ -1644,10 +1662,44 @@ namespace dmRive
         float normalized_x = x / g_OriginalWindowWidth;
         float normalized_y = 1 - (y / g_OriginalWindowHeight);
 
-        rive::Vec2D p_local = component->m_InverseRendererTransform * rive::Vec2D(normalized_x * window_width, normalized_y * window_height);
+        //rive::Vec2D p_local = component->m_InverseRendererTransform * rive::Vec2D(normalized_x * window_width, normalized_y * window_height);
+        rive::Vec2D p_local = rive::Vec2D(normalized_x * window_width, normalized_y * window_height);
+        //printf("    WorldToLocal: %f, %f -> %f %f\n", x, y, p_local.x, p_local.y);
         return p_local;
     }
 
+    static void FillPointerEvent(RiveComponent* component, rive::CommandQueue::PointerEvent& event, rive::Vec2D& pos)
+    {
+        dmGraphics::HContext graphics_context = dmGraphics::GetInstalledContext();
+        float window_width = (float) dmGraphics::GetWindowWidth(graphics_context);
+        float window_height = (float) dmGraphics::GetWindowHeight(graphics_context);
+
+        event.fit = component->m_Fit;
+        event.alignment = component->m_Alignment;
+        event.screenBounds.x = window_width;
+        event.screenBounds.y = window_height;
+        event.position = pos;
+        event.scaleFactor = CompRiveGetDisplayScaleFactor();
+
+        //printf("    FillEvent: w/h: %f, %f  fit: %d  align: %f,%f\n", window_width, window_height, (int)event.fit, event.alignment.x(), event.alignment.y());
+    }
+
+    void CompRivePointerAction(RiveComponent* component, dmRive::PointerAction action, float x, float y)
+    {
+
+        rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+        rive::Vec2D p = WorldToLocal(component, x, y);
+        rive::CommandQueue::PointerEvent event;
+        FillPointerEvent(component, event, p);
+
+        switch(action)
+        {
+        case dmRive::PointerAction::POINTER_MOVE:   queue->pointerMove(component->m_StateMachine, event); break;
+        case dmRive::PointerAction::POINTER_UP:     queue->pointerUp(component->m_StateMachine, event); break;
+        case dmRive::PointerAction::POINTER_DOWN:   queue->pointerDown(component->m_StateMachine, event); break;
+        case dmRive::PointerAction::POINTER_EXIT:   queue->pointerExit(component->m_StateMachine, event); break;
+        }
+    }
     static inline rive::TextValueRun* GetTextRun(rive::ArtboardInstance* artboard, const char* name, const char* nested_artboard_path)
     {
         if (nested_artboard_path)

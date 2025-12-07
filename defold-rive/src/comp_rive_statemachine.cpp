@@ -279,51 +279,6 @@ namespace dmRive
 
         // return StateMachineInputData::RESULT_NOT_FOUND;
     }
-
-    static void FillPointerEvent(RiveComponent* component, rive::CommandQueue::PointerEvent& event, rive::Vec2D& pos)
-    {
-        event.fit = rive::Fit::layout; // TODO:
-        event.alignment = rive::Alignment::center; // TODO:
-        event.screenBounds.x = 1024;
-        event.screenBounds.y = 768;
-        event.position = pos;
-        event.scaleFactor = CompRiveGetDisplayScaleFactor();
-    }
-    void CompRivePointerMove(RiveComponent* component, float x, float y)
-    {
-        if (!component->m_StateMachine)
-            return;
-
-        rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
-        rive::Vec2D p = WorldToLocal(component, x, y);
-        rive::CommandQueue::PointerEvent event;
-        FillPointerEvent(component, event, p);
-        queue->pointerMove(component->m_StateMachine, event);
-    }
-
-    void CompRivePointerUp(RiveComponent* component, float x, float y)
-    {
-        if (!component->m_StateMachine)
-            return;
-
-        rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
-        rive::Vec2D p = WorldToLocal(component, x, y);
-        rive::CommandQueue::PointerEvent event;
-        FillPointerEvent(component, event, p);
-        queue->pointerUp(component->m_StateMachine, event);
-    }
-
-    void CompRivePointerDown(RiveComponent* component, float x, float y)
-    {
-        if (!component->m_StateMachine)
-            return;
-
-        rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
-        rive::Vec2D p = WorldToLocal(component, x, y);
-        rive::CommandQueue::PointerEvent event;
-        FillPointerEvent(component, event, p);
-        queue->pointerDown(component->m_StateMachine, event);
-    }
 }
 
 #endif

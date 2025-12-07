@@ -14,10 +14,15 @@
 #define DM_GAMESYS_SCRIPT_RIVE_H
 
 #include <dmsdk/resource/resource.h>
+#include <rive/command_queue.hpp>
 
 namespace dmRive
 {
     void ScriptRegister(lua_State* L, dmResource::HFactory factory);
+    void ScriptUnregister(lua_State* L, dmResource::HFactory factory);
+
+    rive::CommandQueue::FileListener*               ScriptGetFileListener();
+    rive::CommandQueue::ViewModelInstanceListener*  ScriptGetViewModelInstanceListener();
 }
 
 #endif // DM_GAMESYS_SCRIPT_RIVE_H

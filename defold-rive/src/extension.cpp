@@ -48,16 +48,14 @@ static dmExtension::Result InitializeRive(dmExtension::Params* params)
     return dmExtension::RESULT_OK;
 }
 
-static dmExtension::Result UpdateRive(dmExtension::Params* params)
-{
-    return dmExtension::RESULT_OK;
-}
-
 static dmExtension::Result FinalizeRive(dmExtension::Params* params)
 {
     dmRiveCommands::Finalize();
     dmRive::DeleteRenderContext(g_RenderContext);
     g_RenderContext = 0;
+
+    dmResource::HFactory factory = dmExtension::GetContextAsType<dmResource::HFactory>(params, "factory");
+    dmRive::ScriptUnregister(params->m_L, factory);
     return dmExtension::RESULT_OK;
 }
 
@@ -66,4 +64,4 @@ static dmExtension::Result AppFinalizeRive(dmExtension::AppParams* params)
     return dmExtension::RESULT_OK;
 }
 
-DM_DECLARE_EXTENSION(RiveExt, "RiveExt", AppInitializeRive, AppFinalizeRive, InitializeRive, UpdateRive, 0, FinalizeRive);
+DM_DECLARE_EXTENSION(RiveExt, "RiveExt", AppInitializeRive, AppFinalizeRive, InitializeRive, 0, 0, FinalizeRive);

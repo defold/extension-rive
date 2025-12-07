@@ -28,6 +28,7 @@
 
 // Extension includes
 #include "res_rive_data.h"
+#include "script_rive.h"
 #include "defold/renderer.h"
 #include <common/atlas.h>
 #include <common/font.h>
@@ -38,48 +39,24 @@
 
 namespace dmRive
 {
-    class SimpleFileListener : public rive::CommandQueue::FileListener
-    {
-    public:
-        virtual void onArtboardsListed(const rive::FileHandle fileHandle, uint64_t requestId, std::vector<std::string> artboardNames) override
-        {
-            uint32_t size = (uint32_t)artboardNames.size();
-            m_SceneData->m_ArtboardNames.SetCapacity(size);
-            for (uint32_t i = 0; i < size; ++i)
-            {
-                m_SceneData->m_ArtboardNames.Push(dmHashString64(artboardNames[i].c_str()));
-            }
-        }
-
-        virtual void onFileError(const rive::FileHandle, uint64_t requestId, std::string error) override
-        {
-            dmLogError("%s: %s", m_Path, error.c_str());
-        }
-
-        const char*    m_Path;
-        RiveSceneData* m_SceneData;
-    };
-
     static rive::FileHandle LoadFile(rive::rcp<rive::CommandQueue> queue, const char* path, const void* data, uint32_t data_size, RiveSceneData* scene_data)
     {
-        SimpleFileListener listener;
-        listener.m_SceneData = scene_data;
-        listener.m_Path = path;
+        rive::CommandQueue::FileListener* listener = ScriptGetFileListener();
 
         // RIVE: Currently their api doesn't support passing the bytes directly, but require you to make a copy of it.
         const uint8_t* _data = (const uint8_t*)data;
         std::vector<uint8_t> rive_data(_data, _data + data_size); // FULL COPY!!!
 
-        rive::FileHandle file = queue->loadFile(rive_data, &listener);
-
+        rive::FileHandle file = queue->loadFile(rive_data, listener, (uint64_t)(uintptr_t)scene_data);
         return file;
     }
 
     static void SetupData(RiveSceneData* scene_data, rive::FileHandle file, const char* path, HRenderContext rive_render_context)
     {
-        // rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+        rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
         // rive::Factory* rive_factory = dmRiveCommands::GetFactory();
 
+        scene_data->m_PathHash = dmHashString64(path);
         scene_data->m_File = file;
         scene_data->m_RiveRenderContext = rive_render_context;
 
@@ -181,13 +158,11 @@ namespace dmRive
     {
         rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
 
-        // for (int i = 0; i < scene_data->m_ArtboardIdLists.Size(); ++i)
-        // {
-        //     delete scene_data->m_ArtboardIdLists[i];
-        // }
-        //delete scene_data->m_File;
-
-        //queue->deleteArtboard(scene_data->m_ArtboardDefault);
+        dmHashTable64<const char*>::Iterator iter = scene_data->m_ArtboardNames.GetIterator();
+        while(iter.Next())
+        {
+            free((void*)iter.GetValue()); // Free the name
+        }
         queue->deleteFile(scene_data->m_File);
         delete scene_data;
     }
@@ -372,6 +347,12 @@ namespace dmRive
     {
         rive::rcp<rive::RenderImage> image = dmRive::LoadImageFromMemory(resource->m_RiveRenderContext, data, data_length);
         return image.release();
+    }
+
+    const char* ResRiveDataFindArtboardName(RiveSceneData* resource, dmhash_t name_hash)
+    {
+        const char** name = resource->m_ArtboardNames.Get(name_hash);
+        return name != 0 ? *name : 0;
     }
 }
 
