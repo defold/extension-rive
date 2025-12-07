@@ -20,10 +20,21 @@
 
 #include <common/commands.h>
 
+#include <rive/shapes/paint/color.hpp>
+
 namespace dmRive
 {
 
 static dmResource::HFactory g_ResourceFactory = 0;
+
+static bool CheckBoolean(lua_State* L, int index)
+{
+    if (lua_isboolean(L, index))
+    {
+        return lua_toboolean(L, index);
+    }
+    return luaL_error(L, "Argument %d must be a boolean", index);
+}
 
 template<typename INTEGER>
 static void CheckStringOrInteger(lua_State* L, int index, const char** string, INTEGER* integer)
@@ -70,6 +81,53 @@ static int Script_instantiateDefaultViewModelInstance(lua_State* L)
     else
         handle = queue->instantiateDefaultViewModelInstance(file, artboard);
 
+    lua_pushinteger(L, (lua_Integer)handle);
+    return 1;
+}
+
+static int Script_instantiateViewModelInstanceNamed(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
+    rive::FileHandle file = (rive::FileHandle)luaL_checkinteger(L, 1);
+
+    rive::ArtboardHandle artboard = 0;
+    const char* viewmodel_name = 0;
+    CheckStringOrInteger(L, 2, &viewmodel_name, &artboard);
+
+    const char* view_model_instance_name = luaL_checkstring(L, 3);
+
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    rive::ViewModelInstanceHandle handle = 0;
+    if (viewmodel_name)
+        handle = queue->instantiateViewModelInstanceNamed(file, viewmodel_name, view_model_instance_name);
+    else
+        handle = queue->instantiateViewModelInstanceNamed(file, artboard, view_model_instance_name);
+
+    lua_pushinteger(L, (lua_Integer)handle);
+    return 1;
+}
+
+static int Script_referenceNestedViewModelInstance(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
+    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    const char* path = luaL_checkstring(L, 2);
+
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    handle = queue->referenceNestedViewModelInstance(handle, path);
+    lua_pushinteger(L, (lua_Integer)handle);
+    return 1;
+}
+
+static int Script_referenceListViewModelInstance(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
+    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    const char* path = luaL_checkstring(L, 2);
+    int index = luaL_checkinteger(L, 3);
+
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    handle = queue->referenceListViewModelInstance(handle, path, index);
     lua_pushinteger(L, (lua_Integer)handle);
     return 1;
 }
@@ -137,15 +195,27 @@ static int Script_bindViewModelInstance(lua_State* L)
 
 // *****************************************************************************************
 
-static int Script_setViewModelInstanceImage(lua_State* L)
+
+static int Script_fireViewModelTrigger(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
     rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
-    rive::RenderImageHandle value  = (rive::RenderImageHandle)luaL_checkinteger(L, 3);
     const char* path = luaL_checkstring(L, 2);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
-    queue->setViewModelInstanceImage(handle, path, value);
+    queue->fireViewModelTrigger(handle, path);
+    return 0;
+}
+
+static int Script_setViewModelInstanceBool(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    bool value  = CheckBoolean(L, 3);
+    const char* path = luaL_checkstring(L, 2);
+
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    queue->setViewModelInstanceBool(handle, path, value);
     return 0;
 }
 
@@ -158,6 +228,55 @@ static int Script_setViewModelInstanceNumber(lua_State* L)
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->setViewModelInstanceNumber(handle, path, value);
+    return 0;
+}
+
+static int Script_setViewModelInstanceColor(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    const char* path = luaL_checkstring(L, 2);
+    dmVMath::Vector4* color = dmScript::CheckVector4(L, 3);
+    rive::ColorInt value = rive::colorARGB(255 * color->getW(), 255 * color->getX(), 255 * color->getY(), 255 * color->getZ());
+
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    queue->setViewModelInstanceColor(handle, path, value);
+    return 0;
+}
+
+static int Script_setViewModelInstanceEnum(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    const char* path = luaL_checkstring(L, 2);
+    const char* value = luaL_checkstring(L, 3);
+
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    queue->setViewModelInstanceEnum(handle, path, value);
+    return 0;
+}
+
+static int Script_setViewModelInstanceString(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    const char* path = luaL_checkstring(L, 2);
+    const char* value = luaL_checkstring(L, 3);
+
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    queue->setViewModelInstanceString(handle, path, value);
+    return 0;
+}
+
+static int Script_setViewModelInstanceImage(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    rive::RenderImageHandle value  = (rive::RenderImageHandle)luaL_checkinteger(L, 3);
+    const char* path = luaL_checkstring(L, 2);
+
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    queue->setViewModelInstanceImage(handle, path, value);
     return 0;
 }
 
@@ -190,6 +309,10 @@ static const luaL_reg RIVE_COMMAND_FUNCTIONS[] =
 {
     {"instantiateBlankViewModelInstance", Script_instantiateBlankViewModelInstance},
     {"instantiateDefaultViewModelInstance", Script_instantiateDefaultViewModelInstance},
+    {"instantiateViewModelInstanceNamed", Script_instantiateViewModelInstanceNamed},
+    {"referenceNestedViewModelInstance", Script_referenceNestedViewModelInstance},
+    {"referenceListViewModelInstance", Script_referenceListViewModelInstance},
+
     {"appendViewModelInstanceListViewModel", Script_appendViewModelInstanceListViewModel},
 
     {"removeViewModelInstanceListViewModelIndex", Script_removeViewModelInstanceListViewModelIndex},
@@ -197,8 +320,13 @@ static const luaL_reg RIVE_COMMAND_FUNCTIONS[] =
 
     {"bindViewModelInstance", Script_bindViewModelInstance},
 
-    {"setViewModelInstanceNumber", Script_setViewModelInstanceNumber},
-    {"setViewModelInstanceImage", Script_setViewModelInstanceImage},
+    {"fireViewModelTrigger",        Script_fireViewModelTrigger},
+    {"setViewModelInstanceBool",    Script_setViewModelInstanceBool},
+    {"setViewModelInstanceNumber",  Script_setViewModelInstanceNumber},
+    {"setViewModelInstanceColor",   Script_setViewModelInstanceColor},
+    {"setViewModelInstanceEnum",    Script_setViewModelInstanceEnum},
+    {"setViewModelInstanceString",  Script_setViewModelInstanceString},
+    {"setViewModelInstanceImage",   Script_setViewModelInstanceImage},
 
     {"deleteViewModelInstance", Script_deleteViewModelInstance},
 
