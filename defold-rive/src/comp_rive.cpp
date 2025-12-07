@@ -289,6 +289,12 @@ namespace dmRive
         return GetComponentFromIndex(world, index);
     }
 
+    rive::FileHandle CompRiveGetFile(RiveComponent* component)
+    {
+        RiveSceneData* resource = GetRiveResource(component, component->m_Resource);
+        return resource->m_File;
+    }
+
     rive::ArtboardHandle CompRiveGetArtboard(RiveComponent* component)
     {
         return component->m_Artboard;

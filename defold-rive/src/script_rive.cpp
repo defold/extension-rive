@@ -41,6 +41,8 @@
 #include "rive_ddf.h"
 #include "res_rive_data.h"
 
+#include "script_rive.h"
+#include "script_rive_cmd.h"
 
 namespace dmRive
 {
@@ -115,9 +117,16 @@ public:
                              uint64_t requestId,
                              std::string error) override
     {
-        dmLogInfo("FileListener: %s", __FUNCTION__);
+        dmLogInfo("FileListener: %s: req: %llx", __FUNCTION__, requestId);
         RiveSceneData* scene = (RiveSceneData*)requestId;
-        dmLogError("%s: %s", dmHashReverseSafe64(scene->m_PathHash), error.c_str());
+        if (scene)
+        {
+            dmLogError("%s: %s", dmHashReverseSafe64(scene->m_PathHash), error.c_str());
+        }
+        else
+        {
+            dmLogError("%s", error.c_str());
+        }
     }
 
     virtual void onFileDeleted(const rive::FileHandle, uint64_t requestId) override
@@ -674,6 +683,15 @@ static int RiveComp_SetFileListener(lua_State* L)
     return 0;
 }
 
+static int RiveComp_GetFile(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
+    RiveComponent* component = 0;
+    dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
+    lua_pushinteger(L, (lua_Integer) CompRiveGetFile(component));
+    return 1;
+}
+
 static int RiveComp_SetArtboard(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 1);
@@ -738,6 +756,7 @@ static const luaL_reg RIVE_FUNCTIONS[] =
     // new api
     {"set_file_listener", RiveComp_SetFileListener},
 
+    {"get_file",            RiveComp_GetFile},
     {"set_artboard",        RiveComp_SetArtboard},
     {"get_artboard",        RiveComp_GetArtboard},
     {"set_state_machine",   RiveComp_SetStateMachine},
@@ -762,7 +781,7 @@ rive::CommandQueue::ViewModelInstanceListener* ScriptGetViewModelInstanceListene
 void ScriptRegister(lua_State* L, dmResource::HFactory factory)
 {
     luaL_register(L, "rive", RIVE_FUNCTIONS);
-        //ScriptInitializeDataBinding(L, factory);
+        ScriptCmdRegister(L, factory);
     lua_pop(L, 1);
 
     g_Factory = factory;
@@ -770,6 +789,7 @@ void ScriptRegister(lua_State* L, dmResource::HFactory factory)
 
 void ScriptUnregister(lua_State* L, dmResource::HFactory factory)
 {
+    ScriptCmdUnregister(L, factory);
     g_Factory = 0;
 }
 

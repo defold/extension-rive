@@ -78,6 +78,7 @@ namespace dmRive
 
 
     // Scripting
+    rive::FileHandle            CompRiveGetFile(RiveComponent* component);
     bool                        CompRiveSetArtboard(RiveComponent* component, const char* name);
     rive::ArtboardHandle        CompRiveGetArtboard(RiveComponent* component);
     bool                        CompRiveSetStateMachine(RiveComponent* component, const char* name);
