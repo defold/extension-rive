@@ -132,6 +132,31 @@ static int Script_referenceListViewModelInstance(lua_State* L)
     return 1;
 }
 
+static int Script_setViewModelInstanceNestedViewModel(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    rive::ViewModelInstanceHandle value  = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 3);
+    const char* path = luaL_checkstring(L, 2);
+
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    queue->setViewModelInstanceNestedViewModel(handle, path, value);
+    return 0;
+}
+
+static int Script_insertViewModelInstanceListViewModel(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    rive::ViewModelInstanceHandle value  = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 3);
+    const char* path = luaL_checkstring(L, 2);
+    int index = luaL_checkinteger(L, 4);
+
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    queue->insertViewModelInstanceListViewModel(handle, path, value, index);
+    return 0;
+}
+
 static int Script_appendViewModelInstanceListViewModel(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
@@ -280,6 +305,18 @@ static int Script_setViewModelInstanceImage(lua_State* L)
     return 0;
 }
 
+static int Script_setViewModelInstanceArtboard(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    rive::ArtboardHandle value  = (rive::ArtboardHandle)luaL_checkinteger(L, 3);
+    const char* path = luaL_checkstring(L, 2);
+
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    queue->setViewModelInstanceArtboard(handle, path, value);
+    return 0;
+}
+
 // *****************************************************************************************
 
 static int Script_decodeImage(lua_State* L)
@@ -313,7 +350,9 @@ static const luaL_reg RIVE_COMMAND_FUNCTIONS[] =
     {"referenceNestedViewModelInstance", Script_referenceNestedViewModelInstance},
     {"referenceListViewModelInstance", Script_referenceListViewModelInstance},
 
-    {"appendViewModelInstanceListViewModel", Script_appendViewModelInstanceListViewModel},
+    {"setViewModelInstanceNestedViewModel",     Script_setViewModelInstanceNestedViewModel},
+    {"insertViewModelInstanceListViewModel",    Script_insertViewModelInstanceListViewModel},
+    {"appendViewModelInstanceListViewModel",    Script_appendViewModelInstanceListViewModel},
 
     {"removeViewModelInstanceListViewModelIndex", Script_removeViewModelInstanceListViewModelIndex},
     {"removeViewModelInstanceListViewModel", Script_removeViewModelInstanceListViewModel},
@@ -327,6 +366,7 @@ static const luaL_reg RIVE_COMMAND_FUNCTIONS[] =
     {"setViewModelInstanceEnum",    Script_setViewModelInstanceEnum},
     {"setViewModelInstanceString",  Script_setViewModelInstanceString},
     {"setViewModelInstanceImage",   Script_setViewModelInstanceImage},
+    {"setViewModelInstanceArtboard",Script_setViewModelInstanceArtboard},
 
     {"deleteViewModelInstance", Script_deleteViewModelInstance},
 
