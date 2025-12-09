@@ -33,9 +33,6 @@ static dmExtension::Result AppInitializeRive(dmExtension::AppParams* params)
 
 static dmExtension::Result InitializeRive(dmExtension::Params* params)
 {
-    dmResource::HFactory factory = dmExtension::GetContextAsType<dmResource::HFactory>(params, "factory");
-    dmRive::ScriptRegister(params->m_L, factory);
-
     g_RenderContext = dmRive::NewRenderContext();
     assert(g_RenderContext != 0);
 
@@ -44,18 +41,24 @@ static dmExtension::Result InitializeRive(dmExtension::Params* params)
     cmd_params.m_RenderContext = g_RenderContext;
     dmRiveCommands::Initialize(&cmd_params);
 
+    // relies on the command queue for registering listeners
+    dmResource::HFactory factory = dmExtension::GetContextAsType<dmResource::HFactory>(params, "factory");
+    dmRive::ScriptRegister(params->m_L, factory);
+
     dmLogInfo("Registered Rive extension:  %s  %s\n", RIVE_RUNTIME_DATE, RIVE_RUNTIME_SHA1);
     return dmExtension::RESULT_OK;
 }
 
 static dmExtension::Result FinalizeRive(dmExtension::Params* params)
 {
+    dmResource::HFactory factory = dmExtension::GetContextAsType<dmResource::HFactory>(params, "factory");
+    dmRive::ScriptUnregister(params->m_L, factory);
+
     dmRiveCommands::Finalize();
+
     dmRive::DeleteRenderContext(g_RenderContext);
     g_RenderContext = 0;
 
-    dmResource::HFactory factory = dmExtension::GetContextAsType<dmResource::HFactory>(params, "factory");
-    dmRive::ScriptUnregister(params->m_L, factory);
     return dmExtension::RESULT_OK;
 }
 

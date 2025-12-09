@@ -22,11 +22,6 @@
  * @namespace rive
  */
 
-#include <rive/animation/linear_animation.hpp>
-#include <rive/animation/linear_animation_instance.hpp>
-#include <rive/animation/state_machine.hpp>
-#include <rive/animation/state_machine_instance.hpp>
-
 #include <dmsdk/sdk.h>
 #include <dmsdk/dlib/hash.h>
 #include <dmsdk/dlib/message.h>
@@ -43,6 +38,9 @@
 
 #include "script_rive.h"
 #include "script_rive_cmd.h"
+#include "script_rive_listeners.h"
+
+#include <common/commands.h>
 
 namespace dmRive
 {
@@ -51,604 +49,64 @@ static const dmhash_t RIVE_EXT_HASH = dmHashString64(RIVE_EXT);
 
 static dmResource::HFactory g_Factory = 0;
 
-static bool SetupCallback(dmScript::LuaCallbackInfo* callback, const char* message_name, uint64_t requestId)
+FileListener                g_FileListener;
+ArtboardListener            g_ArtboardListener;
+StateMachineListener        g_StateMachineListener;
+ViewModelInstanceListener   g_ViewModelInstanceListener;
+RenderImageListener         g_RenderImageListener;
+AudioSourceListener         g_AudioSourceListener;
+FontListener                g_FontListener;
+
+static int Script_PointerAction(lua_State* L, dmRive::PointerAction action)
 {
-    // TODO: Make sure this is run on the Lua thread!
+    DM_LUA_STACK_CHECK(L, 0);
 
-    if (!callback)
-        return false;
+    RiveComponent* component = 0;
+    dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
+    lua_Number x = luaL_checknumber(L, 2);
+    lua_Number y = luaL_checknumber(L, 3);
 
-    lua_State* L = dmScript::GetCallbackLuaContext(callback);
-
-    if (!dmScript::SetupCallback(callback))
-    {
-        return false;
-    }
-
-    lua_pushstring(L, message_name); // from rive::Message
-    lua_newtable(L);
-        lua_pushinteger(L, requestId);
-        lua_setfield(L, -2, "requestId");
-
-    return true;
+    CompRivePointerAction(component, action, x, y);
+    return 0;
 }
 
-static void InvokeCallback(lua_State* L, dmScript::LuaCallbackInfo* callback)
+static int Script_PointerMove(lua_State* L)
 {
-    // TODO: Make sure this is run on the Lua thread!
-
-    // We assume that the SetupCallback was successful in adding [self, messageName, table] on the stack
-    dmScript::PCall(L, 3, 0); // self + # user arguments
-    dmScript::TeardownCallback(callback);
+    return Script_PointerAction(L, dmRive::PointerAction::POINTER_MOVE);
 }
 
-
-class SimpleFileListener : public rive::CommandQueue::FileListener
+static int Script_PointerUp(lua_State* L)
 {
-public:
-    virtual void onArtboardsListed(const rive::FileHandle fileHandle, uint64_t requestId, std::vector<std::string> artboardNames) override
-    {
-        dmLogInfo("FileListener: %s", __FUNCTION__);
+    return Script_PointerAction(L, dmRive::PointerAction::POINTER_UP);
+}
 
-        RiveSceneData* scene = (RiveSceneData*)requestId;
-
-        uint32_t size = (uint32_t)artboardNames.size();
-        scene->m_ArtboardNames.SetCapacity(size);
-        for (uint32_t i = 0; i < size; ++i)
-        {
-            char* name = strdup(artboardNames[i].c_str());
-            dmhash_t name_hash = dmHashString64(name);
-            scene->m_ArtboardNames.Put(name_hash, name);
-        }
-
-        if (requestId != 0 && SetupCallback(m_Callback, "artboardsListed", requestId))
-        {
-            lua_State* L = dmScript::GetCallbackLuaContext(m_Callback);
-            for (uint32_t i = 0; i < size; ++i)
-            {
-                lua_pushstring(L, artboardNames[i].c_str());
-            }
-
-            InvokeCallback(L, m_Callback);
-        }
-    }
-
-    virtual void onFileError(const rive::FileHandle,
-                             uint64_t requestId,
-                             std::string error) override
-    {
-        dmLogInfo("FileListener: %s: req: %llx", __FUNCTION__, requestId);
-        RiveSceneData* scene = (RiveSceneData*)requestId;
-        if (scene)
-        {
-            dmLogError("%s: %s", dmHashReverseSafe64(scene->m_PathHash), error.c_str());
-        }
-        else
-        {
-            dmLogError("%s", error.c_str());
-        }
-    }
-
-    virtual void onFileDeleted(const rive::FileHandle, uint64_t requestId) override
-    {
-        dmLogInfo("FileListener: %s", __FUNCTION__);
-    }
-
-    virtual void onFileLoaded(const rive::FileHandle, uint64_t requestId) override
-    {
-        dmLogInfo("FileListener: %s", __FUNCTION__);
-    }
-
-    virtual void onViewModelsListed(const rive::FileHandle,
-                                    uint64_t requestId,
-                                    std::vector<std::string> viewModelNames) override
-    {
-        uint32_t size = (uint32_t)viewModelNames.size();
-        dmLogInfo("FileListener: %s: %u", __FUNCTION__, size);
-
-
-        for (uint32_t i = 0; i < size; ++i)
-        {
-            printf("  %s\n", viewModelNames[i].c_str());
-        }
-    }
-
-    virtual void onViewModelInstanceNamesListed(
-        const rive::FileHandle,
-        uint64_t requestId,
-        std::string viewModelName,
-        std::vector<std::string> instanceNames) override
-    {
-        dmLogInfo("FileListener: %s", __FUNCTION__);
-    }
-
-    // struct ViewModelPropertyData
-    // {
-    //     DataType type = DataType::none;
-    //     std::string name = "";
-    //     std::string metaData = "";
-    // };
-
-    virtual void onViewModelPropertiesListed(
-        const rive::FileHandle,
-        uint64_t requestId,
-        std::string viewModelName,
-        std::vector<ViewModelPropertyData> properties) override
-    {
-        dmLogInfo("FileListener: %s", __FUNCTION__);
-    }
-
-    virtual void onViewModelEnumsListed(const rive::FileHandle,
-                                        uint64_t requestId,
-                                        std::vector<rive::ViewModelEnum> enums) override
-    {
-        dmLogInfo("FileListener: %s", __FUNCTION__);
-    }
-
-    dmScript::LuaCallbackInfo* m_Callback;
-};
-
-class SimpleViewModelInstanceListener : public rive::CommandQueue::ViewModelInstanceListener
+static int Script_PointerDown(lua_State* L)
 {
-public:
-    virtual void onViewModelInstanceError(const rive::ViewModelInstanceHandle,
-                                          uint64_t requestId,
-                                          std::string error) override
-    {}
+    return Script_PointerAction(L, dmRive::PointerAction::POINTER_DOWN);
+}
 
-    virtual void onViewModelDeleted(const rive::ViewModelInstanceHandle,
-                                    uint64_t requestId) override
-    {}
+static int Script_PointerExit(lua_State* L)
+{
+    return Script_PointerAction(L, dmRive::PointerAction::POINTER_EXIT);
+}
 
-    virtual void onViewModelDataReceived(const rive::ViewModelInstanceHandle,
-                                         uint64_t requestId,
-                                         rive::CommandQueue::ViewModelInstanceData) override
-    {}
+static int Script_GetProjectionMatrix(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
 
-    virtual void onViewModelListSizeReceived(const rive::ViewModelInstanceHandle,
-                                             uint64_t requestId,
-                                             std::string path,
-                                             size_t size) override
-    {}
-};
+    dmGraphics::HContext graphics_context = dmGraphics::GetInstalledContext();
 
-SimpleFileListener              g_RiveFileListener;
-SimpleViewModelInstanceListener g_RiveViewModelInstanceListener;
+    float scale_factor = CompRiveGetDisplayScaleFactor();
+    float right = (float) dmGraphics::GetWindowWidth(graphics_context) / scale_factor;
+    float top = (float) dmGraphics::GetWindowHeight(graphics_context) / scale_factor;
 
-    /*# play an animation on a rive model
-     * Plays a specified animation on a rive model component with specified playback
-     * mode and parameters.
-     */
-    static int RiveComp_PlayAnim(lua_State* L)
-    {
-        // DM_LUA_STACK_CHECK(L, 0);
-        // int top = lua_gettop(L);
+    dmScript::PushMatrix4(L, dmVMath::Matrix4::orthographic(0, right, 0, top, -1, 1));
 
-        // RiveComponent* component = 0;
-        // dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
-
-        // dmRiveDDF::RivePlayAnimation ddf;
-        // ddf.m_AnimationId       = dmScript::CheckHashOrString(L, 2);;
-        // ddf.m_Playback          = luaL_checkinteger(L, 3);
-        // ddf.m_Offset            = 0.0;
-        // ddf.m_PlaybackRate      = 1.0;
-        // ddf.m_IsStateMachine    = false;
-
-        // if (top > 3) // table with args
-        // {
-        //     if (lua_istable(L, 4))
-        //     {
-        //         luaL_checktype(L, 4, LUA_TTABLE);
-        //         lua_pushvalue(L, 4);
-
-        //         lua_getfield(L, -1, "offset");
-        //         ddf.m_Offset = lua_isnil(L, -1) ? 0.0 : luaL_checknumber(L, -1);
-        //         lua_pop(L, 1);
-
-        //         lua_getfield(L, -1, "playback_rate");
-        //         ddf.m_PlaybackRate = lua_isnil(L, -1) ? 1.0 : luaL_checknumber(L, -1);
-        //         lua_pop(L, 1);
-
-        //         lua_pop(L, 1);
-        //     }
-        // }
-
-        // dmScript::LuaCallbackInfo* cbk = 0x0;
-        // if (top > 4) // completed cb
-        // {
-        //     if (lua_isfunction(L, 5))
-        //     {
-        //         cbk = dmScript::CreateCallback(L, 5);
-        //     }
-        // }
-
-        // if (!CompRivePlayAnimation(component, &ddf, cbk))
-        // {
-        //     if (cbk)
-        //     {
-        //         dmScript::DestroyCallback(cbk);
-        //     }
-        // }
-
-        return 0;
-    }
-
-    /*# play a state machine on a rive model
-     * Plays a specified state machine on a rive model component with specified playback
-     * mode and parameters.
-     */
-    static int RiveComp_PlayStateMachine(lua_State* L)
-    {
-        // DM_LUA_STACK_CHECK(L, 0);
-        // int top = lua_gettop(L);
-
-        // RiveComponent* component = 0;
-        // dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
-
-        // dmRiveDDF::RivePlayAnimation ddf;
-        // ddf.m_AnimationId       = dmScript::CheckHashOrString(L, 2);
-        // ddf.m_Playback          = 0;
-        // ddf.m_Offset            = 0.0;
-        // ddf.m_PlaybackRate      = 1.0;
-        // ddf.m_IsStateMachine    = true;
-
-        // if (top > 2) // table with args
-        // {
-        //     if (lua_istable(L, 3))
-        //     {
-        //         luaL_checktype(L, 3, LUA_TTABLE);
-        //         lua_pushvalue(L, 3);
-
-        //         lua_getfield(L, -1, "offset");
-        //         ddf.m_Offset = lua_isnil(L, -1) ? 0.0 : luaL_checknumber(L, -1);
-        //         lua_pop(L, 1);
-
-        //         lua_getfield(L, -1, "playback_rate");
-        //         ddf.m_PlaybackRate = lua_isnil(L, -1) ? 1.0 : luaL_checknumber(L, -1);
-        //         lua_pop(L, 1);
-
-        //         lua_pop(L, 1);
-        //     }
-        // }
-
-        // dmScript::LuaCallbackInfo* cbk = 0x0;
-        // if (top > 3) // completed cb
-        // {
-        //     if (lua_isfunction(L, 4))
-        //     {
-        //         cbk = dmScript::CreateCallback(L, 4);
-        //     }
-        // }
-
-        // if (!CompRivePlayStateMachine(component, &ddf, cbk))
-        // {
-        //     if (cbk)
-        //     {
-        //         dmScript::DestroyCallback(cbk);
-        //     }
-        // }
-
-        return 0;
-    }
-
-    // Can cancel both a single animation and a state machine playing
-    static int RiveComp_Cancel(lua_State* L)
-    {
-        // DM_LUA_STACK_CHECK(L, 0);
-
-        // dmGameObject::HInstance instance = dmScript::CheckGOInstance(L);
-
-        // dmMessage::URL receiver;
-        // dmMessage::URL sender;
-        // dmScript::ResolveURL(L, 1, &receiver, &sender);
-
-        // dmRiveDDF::RiveCancelAnimation msg;
-        // dmMessage::Post(&sender, &receiver, dmRiveDDF::RiveCancelAnimation::m_DDFDescriptor->m_NameHash, (uintptr_t)instance, 0, (uintptr_t)dmRiveDDF::RiveCancelAnimation::m_DDFDescriptor, &msg, sizeof(msg), 0);
-        return 0;
-    }
-
-    /*# retrieve the game object corresponding to a rive artboard skeleton bone
-     * Returns the id of the game object that corresponds to a specified skeleton bone.
-     * The returned game object can be used for parenting and transform queries.
-     * This function has complexity `O(n)`, where `n` is the number of bones in the rive model skeleton.
-     * Game objects corresponding to a rive model skeleton bone can not be individually deleted.
-     *
-     * @name rive.get_go
-     * @param url [type:string|hash|url] the rive model to query
-     * @param bone_id [type:string|hash] id of the corresponding bone
-     * @return id [type:hash] id of the game object
-     * @examples
-     *
-     * The following examples assumes that the rive model has id "rivemodel".
-     *
-     * How to parent the game object of the calling script to the "right_hand" bone of the rive model in a player game object:
-     *
-     * ```lua
-     * function init(self)
-     *   local parent = rive.get_go("player#rivemodel", "right_hand")
-     *   msg.post(".", "set_parent", {parent_id = parent})
-     * end
-     * ```
-     */
-    static int RiveComp_GetGO(lua_State* L)
-    {
-        DM_LUA_STACK_CHECK(L, 1);
-
-        RiveComponent* component = 0;
-        dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
-
-        dmhash_t bone_name = dmScript::CheckHashOrString(L, 2);
-
-        dmhash_t instance_id = 0;
-        if (!CompRiveGetBoneID(component, bone_name, &instance_id)) {
-            return DM_LUA_ERROR("the bone '%s' could not be found", dmHashReverseSafe64(bone_name));
-        }
-
-        dmScript::PushHash(L, instance_id);
-        return 1;
-    }
-
-    static int RiveComp_PointerAction(lua_State* L, dmRive::PointerAction action)
-    {
-        DM_LUA_STACK_CHECK(L, 0);
-
-        RiveComponent* component = 0;
-        dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
-        lua_Number x = luaL_checknumber(L, 2);
-        lua_Number y = luaL_checknumber(L, 3);
-
-        CompRivePointerAction(component, action, x, y);
-        return 0;
-    }
-
-    static int RiveComp_PointerMove(lua_State* L)
-    {
-        return RiveComp_PointerAction(L, dmRive::PointerAction::POINTER_MOVE);
-    }
-
-    static int RiveComp_PointerUp(lua_State* L)
-    {
-        return RiveComp_PointerAction(L, dmRive::PointerAction::POINTER_UP);
-    }
-
-    static int RiveComp_PointerDown(lua_State* L)
-    {
-        return RiveComp_PointerAction(L, dmRive::PointerAction::POINTER_DOWN);
-    }
-
-    static int RiveComp_PointerExit(lua_State* L)
-    {
-        return RiveComp_PointerAction(L, dmRive::PointerAction::POINTER_EXIT);
-    }
-
-    static int RiveComp_GetTextRun(lua_State* L)
-    {
-        // DM_LUA_STACK_CHECK(L, 1);
-
-        // RiveComponent* component = 0;
-        // dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
-
-        // const char* name = luaL_checkstring(L, 2);
-        // const char* nested_artboard_path = 0;
-
-        // if (lua_isstring(L, 3))
-        // {
-        //     nested_artboard_path = lua_tostring(L, 3);
-        // }
-
-        // const char* text_run = CompRiveGetTextRun(component, name, nested_artboard_path);
-
-        // if (!text_run)
-        // {
-        //     return DM_LUA_ERROR("The text-run '%s' could not be found.", name);
-        // }
-
-        // lua_pushstring(L, text_run);
-        // return 1;
-        return 0;
-    }
-
-    static int RiveComp_SetTextRun(lua_State* L)
-    {
-        // DM_LUA_STACK_CHECK(L, 0);
-
-        // RiveComponent* component = 0;
-        // dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
-
-        // const char* name = luaL_checkstring(L, 2);
-        // const char* text_run = luaL_checkstring(L, 3);
-        // const char* nested_artboard_path = 0;
-
-        // if (lua_isstring(L, 4))
-        // {
-        //     nested_artboard_path = lua_tostring(L, 4);
-        // }
-
-        // if (!CompRiveSetTextRun(component, name, text_run, nested_artboard_path))
-        // {
-        //     return DM_LUA_ERROR("The text-run '%s' could not be found.", name);
-        // }
-
-        return 0;
-    }
-
-    static int RiveComp_GetProjectionMatrix(lua_State* L)
-    {
-        DM_LUA_STACK_CHECK(L, 1);
-
-        dmGraphics::HContext graphics_context = dmGraphics::GetInstalledContext();
-
-        float scale_factor = CompRiveGetDisplayScaleFactor();
-        float right = (float) dmGraphics::GetWindowWidth(graphics_context) / scale_factor;
-        float top = (float) dmGraphics::GetWindowHeight(graphics_context) / scale_factor;
-
-        dmScript::PushMatrix4(L, dmVMath::Matrix4::orthographic(0, right, 0, top, -1, 1));
-
-        return 1;
-    }
-
-    static int RiveComp_SetStateMachineInput(lua_State* L)
-    {
-        DM_LUA_STACK_CHECK(L, 0);
-
-        RiveComponent* component = 0;
-        dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
-
-        const char* input_name = luaL_checkstring(L, 2);
-        const char* nested_artboard_path = 0; // optional
-
-        StateMachineInputData data = {};
-
-        if (lua_isnumber(L, 3))
-        {
-            data.m_Type = StateMachineInputData::TYPE_NUMBER;
-            data.m_NumberValue = lua_tonumber(L,3);
-        }
-        else if (lua_isboolean(L,3))
-        {
-            data.m_Type = StateMachineInputData::TYPE_BOOL;
-            data.m_BoolValue = lua_toboolean(L,3);
-        }
-        else
-        {
-            return DM_LUA_ERROR("Cannot set input '%s' with an unsupported type.", input_name);
-        }
-        
-        if (lua_isstring(L, 4))
-        {
-            nested_artboard_path = lua_tostring(L, 4);
-        }
-
-        StateMachineInputData::Result res = CompRiveSetStateMachineInput(component, input_name, nested_artboard_path, data);
-        if (res != StateMachineInputData::RESULT_OK)
-        {
-            if (res == StateMachineInputData::RESULT_TYPE_MISMATCH)
-            {
-                return DM_LUA_ERROR("Type mismatch for input '%s'.", input_name);
-            }
-            assert(res == StateMachineInputData::RESULT_NOT_FOUND);
-            return DM_LUA_ERROR("The input '%s' could not be found (or an unknown error happened).", input_name);
-        }
-        return 0;
-    }
-
-    static int RiveComp_GetStateMachineInput(lua_State* L)
-    {
-        DM_LUA_STACK_CHECK(L, 1);
-
-        RiveComponent* component = 0;
-        dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
-
-        const char* input_name = luaL_checkstring(L, 2);
-        const char* nested_artboard_path = 0; // optional
-
-        if (lua_isstring(L, 3))
-        {
-            nested_artboard_path = lua_tostring(L, 3);
-        }
-
-        StateMachineInputData data;
-        StateMachineInputData::Result res = CompRiveGetStateMachineInput(component, input_name, nested_artboard_path, data);
-
-        if (res != StateMachineInputData::RESULT_OK)
-        {
-            if (res == StateMachineInputData::RESULT_TYPE_UNSUPPORTED)
-            {
-                return DM_LUA_ERROR("The input '%s' has an unsupported type.", input_name);
-            }
-            assert(res == StateMachineInputData::RESULT_NOT_FOUND);
-            return DM_LUA_ERROR("The input '%s' could not be found (or an unknown error happened).", input_name);
-        }
-
-        switch(data.m_Type)
-        {
-            case StateMachineInputData::TYPE_BOOL:
-                lua_pushboolean(L, data.m_BoolValue);
-                break;
-            case StateMachineInputData::TYPE_NUMBER:
-                lua_pushnumber(L, data.m_NumberValue);
-                break;
-            case StateMachineInputData::TYPE_INVALID:
-                break;
-        }
-        return 1;
-    }
-
-    const char* GetString(lua_State* L, int index, const char* key, uint32_t* out_length)
-    {
-        const char* result = 0;
-        lua_getfield(L, -1, key);
-        if (lua_isstring(L, -1))
-        {
-            size_t len = 0;
-            result = lua_tolstring(L, index, &len);
-            if (out_length)
-                *out_length = (uint32_t)len;
-        }
-        lua_pop(L, 1);
-        return result;
-    }
-
-    static int RiveComp_RivSwapAsset(lua_State* L)
-    {
-        DM_LUA_STACK_CHECK(L, 0);
-
-        dmhash_t rivc_path_hash     = dmScript::CheckHashOrString(L, 1); // path to .rivc
-        const char* riv_asset_name  = luaL_checkstring(L, 2); // Name of asset inside the .riv file
-
-        const char* path = 0;
-        const char* payload = 0;
-        uint32_t payload_size = 0;
-
-        luaL_checktype(L, 3, LUA_TTABLE);
-        lua_pushvalue(L, 3);
-
-            path = GetString(L, -1, "path", 0);
-            payload = GetString(L, -1, "payload", &payload_size);
-
-        lua_pop(L, 1);
-
-        if (path == 0 && (payload == 0 || payload_size == 0))
-        {
-            return DM_LUA_ERROR("You must specify either a path or a payload");
-        }
-
-        // Temporarily get a reference to the file
-        dmRive::RiveSceneData* resource;
-        dmResource::Result r = dmResource::Get(g_Factory, rivc_path_hash, (void**)&resource);
-        if (dmResource::RESULT_OK != r)
-        {
-            return DM_LUA_ERROR("Resource was not found: '%s'", dmHashReverseSafe64(rivc_path_hash));
-        }
-
-        if (payload)
-            r = dmRive::ResRiveDataSetAssetFromMemory(resource, riv_asset_name, (void*)payload, payload_size);
-        else
-            r = dmRive::ResRiveDataSetAsset(g_Factory, resource, riv_asset_name, path);
-
-        if (dmResource::RESULT_OK != r)
-        {
-            if (dmResource::RESULT_NOT_SUPPORTED == r)
-            {
-                return DM_LUA_ERROR("Asset type not supported: '%s'", riv_asset_name);
-            }
-
-            if (payload)
-            {
-                return DM_LUA_ERROR("Failed to load payload for asset: '%s'", riv_asset_name);
-            }
-            else
-            {
-                return DM_LUA_ERROR("Failed to load asset: '%s' with path: '%s'", riv_asset_name, path);
-            }
-        }
-
-        dmResource::Release(g_Factory, resource);
-        return 0;
-    }
+    return 1;
+}
 
 // This is an "all bets are off" mode.
-static int RiveComp_DebugSetBlitMode(lua_State* L)
+static int Script_DebugSetBlitMode(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
 
@@ -661,29 +119,68 @@ static int RiveComp_DebugSetBlitMode(lua_State* L)
     return 0;
 }
 
-static int RiveComp_SetFileListener(lua_State* L)
+// ****************************************************************************
+
+template<typename LISTENER>
+static int SetListenerCallback(lua_State* L, LISTENER* listener)
 {
-    if (g_RiveFileListener.m_Callback)
-        dmScript::DestroyCallback(g_RiveFileListener.m_Callback);
-    g_RiveFileListener.m_Callback = 0;
+    if (listener->m_Callback)
+        dmScript::DestroyCallback(listener->m_Callback);
+    listener->m_Callback = 0;
 
     if (lua_isnil(L, 1))
     {
         return 0;
     }
 
-    g_RiveFileListener.m_Callback = dmScript::CreateCallback(L, 1);
+    listener->m_Callback = dmScript::CreateCallback(L, 1);
 
-    if (!dmScript::IsCallbackValid(g_RiveFileListener.m_Callback))
+    if (!dmScript::IsCallbackValid(listener->m_Callback))
     {
-        g_RiveFileListener.m_Callback = 0;
+        listener->m_Callback = 0;
         return luaL_error(L, "Failed to create callback");
     }
-
     return 0;
 }
 
-static int RiveComp_GetFile(lua_State* L)
+static int Script_SetFileListener(lua_State* L)
+{
+    return SetListenerCallback(L, &g_FileListener);
+}
+
+static int Script_SetArtboardListener(lua_State* L)
+{
+    return SetListenerCallback(L, &g_ArtboardListener);
+}
+
+static int Script_SetStateMachineListener(lua_State* L)
+{
+    return SetListenerCallback(L, &g_StateMachineListener);
+}
+
+static int Script_SetViewModelInstanceListener(lua_State* L)
+{
+    return SetListenerCallback(L, &g_ViewModelInstanceListener);
+}
+
+static int Script_SetRenderImageListener(lua_State* L)
+{
+    return SetListenerCallback(L, &g_RenderImageListener);
+}
+
+static int Script_SetAudioSourceListener(lua_State* L)
+{
+    return SetListenerCallback(L, &g_AudioSourceListener);
+}
+
+static int Script_SetFontListener(lua_State* L)
+{
+    return SetListenerCallback(L, &g_FontListener);
+}
+
+// ****************************************************************************
+
+static int Script_GetFile(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 1);
     RiveComponent* component = 0;
@@ -692,7 +189,7 @@ static int RiveComp_GetFile(lua_State* L)
     return 1;
 }
 
-static int RiveComp_SetArtboard(lua_State* L)
+static int Script_SetArtboard(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 1);
     RiveComponent* component = 0;
@@ -704,7 +201,7 @@ static int RiveComp_SetArtboard(lua_State* L)
     return 1;
 }
 
-static int RiveComp_GetArtboard(lua_State* L)
+static int Script_GetArtboard(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 1);
     RiveComponent* component = 0;
@@ -713,7 +210,7 @@ static int RiveComp_GetArtboard(lua_State* L)
     return 1;
 }
 
-static int RiveComp_SetStateMachine(lua_State* L)
+static int Script_SetStateMachine(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 1);
     RiveComponent* component = 0;
@@ -724,7 +221,7 @@ static int RiveComp_SetStateMachine(lua_State* L)
     return 1;
 }
 
-static int RiveComp_GetStateMachine(lua_State* L)
+static int Script_GetStateMachine(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 1);
     RiveComponent* component = 0;
@@ -736,50 +233,44 @@ static int RiveComp_GetStateMachine(lua_State* L)
 
 static const luaL_reg RIVE_FUNCTIONS[] =
 {
-    {"play_anim",               RiveComp_PlayAnim},
-    {"play_state_machine",      RiveComp_PlayStateMachine},
-    {"cancel",                  RiveComp_Cancel},
-    {"get_go",                  RiveComp_GetGO},
-    {"pointer_move",            RiveComp_PointerMove},
-    {"pointer_up",              RiveComp_PointerUp},
-    {"pointer_down",            RiveComp_PointerDown},
-    {"pointer_exit",            RiveComp_PointerExit},
-    {"set_text_run",            RiveComp_SetTextRun},
-    {"get_text_run",            RiveComp_GetTextRun},
-    {"get_projection_matrix",   RiveComp_GetProjectionMatrix},
-    {"get_state_machine_input", RiveComp_GetStateMachineInput},
-    {"set_state_machine_input", RiveComp_SetStateMachineInput},
-    {"debug_set_blit_mode",     RiveComp_DebugSetBlitMode},
+    {"pointer_move",            Script_PointerMove},
+    {"pointer_up",              Script_PointerUp},
+    {"pointer_down",            Script_PointerDown},
+    {"pointer_exit",            Script_PointerExit},
+    {"get_projection_matrix",   Script_GetProjectionMatrix},
 
-    {"riv_swap_asset",          RiveComp_RivSwapAsset},
+    {"set_file_listener",               Script_SetFileListener},
+    {"set_artboard_listener",           Script_SetArtboardListener},
+    {"set_state_machine_listener",      Script_SetStateMachineListener},
+    {"set_view_model_instance_listener",Script_SetViewModelInstanceListener},
+    {"set_render_image_listener",       Script_SetRenderImageListener},
+    {"set_audio_source_listener",       Script_SetAudioSourceListener},
+    {"set_font_listener",               Script_SetFontListener},
 
-    // new api
-    {"set_file_listener", RiveComp_SetFileListener},
+    {"get_file",            Script_GetFile},
+    {"set_artboard",        Script_SetArtboard},
+    {"get_artboard",        Script_GetArtboard},
+    {"set_state_machine",   Script_SetStateMachine},
+    {"get_state_machine",   Script_GetStateMachine},
 
-    {"get_file",            RiveComp_GetFile},
-    {"set_artboard",        RiveComp_SetArtboard},
-    {"get_artboard",        RiveComp_GetArtboard},
-    {"set_state_machine",   RiveComp_SetStateMachine},
-    {"get_state_machine",   RiveComp_GetStateMachine},
+    // debug
+    {"debug_set_blit_mode",     Script_DebugSetBlitMode},
 
     {0, 0}
 };
 
-//extern void ScriptInitializeDataBinding(lua_State* L, dmResource::HFactory factory);
-
-
-rive::CommandQueue::FileListener* ScriptGetFileListener()
-{
-    return &g_RiveFileListener;
-}
-
-rive::CommandQueue::ViewModelInstanceListener* ScriptGetViewModelInstanceListener()
-{
-    return &g_RiveViewModelInstanceListener;
-}
-
 void ScriptRegister(lua_State* L, dmResource::HFactory factory)
 {
+    // Setup the global listeners
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    queue->setGlobalFileListener(&g_FileListener);
+    queue->setGlobalArtboardListener(&g_ArtboardListener);
+    queue->setGlobalStateMachineListener(&g_StateMachineListener);
+    queue->setGlobalViewModelInstanceListener(&g_ViewModelInstanceListener);
+    queue->setGlobalRenderImageListener(&g_RenderImageListener);
+    queue->setGlobalAudioSourceListener(&g_AudioSourceListener);
+    queue->setGlobalFontListener(&g_FontListener);
+
     luaL_register(L, "rive", RIVE_FUNCTIONS);
         ScriptCmdRegister(L, factory);
     lua_pop(L, 1);
@@ -789,6 +280,15 @@ void ScriptRegister(lua_State* L, dmResource::HFactory factory)
 
 void ScriptUnregister(lua_State* L, dmResource::HFactory factory)
 {
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    queue->setGlobalFileListener(0);
+    queue->setGlobalArtboardListener(0);
+    queue->setGlobalStateMachineListener(0);
+    queue->setGlobalViewModelInstanceListener(0);
+    queue->setGlobalRenderImageListener(0);
+    queue->setGlobalAudioSourceListener(0);
+    queue->setGlobalFontListener(0);
+
     ScriptCmdUnregister(L, factory);
     g_Factory = 0;
 }

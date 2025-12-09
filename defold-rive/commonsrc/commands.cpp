@@ -18,8 +18,6 @@
 
 #include <rive/artboard.hpp>
 #include <rive/factory.hpp>
-#include <rive/text/raw_text.hpp>
-#include <rive/animation/state_machine_instance.hpp>
 #include <rive/refcnt.hpp>
 
 #include <rive/command_queue.hpp>
