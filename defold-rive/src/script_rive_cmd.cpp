@@ -324,10 +324,10 @@ static int Script_decodeImage(lua_State* L)
     DM_LUA_STACK_CHECK(L, 1);
     size_t data_length = 0;
     const uint8_t* data = (const uint8_t*)luaL_checklstring(L, 1, &data_length);
-    std::vector<uint8_t> imageEncodedBytes(data, data + data_length);
+    std::vector<uint8_t> encodedBytes(data, data + data_length);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
-    rive::RenderImageHandle image = queue->decodeImage(imageEncodedBytes);
+    rive::RenderImageHandle image = queue->decodeImage(encodedBytes);
 
     lua_pushinteger(L, (lua_Integer)image);
     return 1;
@@ -341,6 +341,54 @@ static int Script_deleteImage(lua_State* L)
     queue->deleteImage(handle);
     return 0;
 }
+
+static int Script_decodeAudio(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
+    size_t data_length = 0;
+    const uint8_t* data = (const uint8_t*)luaL_checklstring(L, 1, &data_length);
+    std::vector<uint8_t> encodedBytes(data, data + data_length);
+
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    rive::AudioSourceHandle handle = queue->decodeAudio(encodedBytes);
+
+    lua_pushinteger(L, (lua_Integer)handle);
+    return 1;
+}
+
+static int Script_deleteAudio(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::AudioSourceHandle handle = (rive::AudioSourceHandle)luaL_checkinteger(L, 1);
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    queue->deleteAudio(handle);
+    return 0;
+}
+
+static int Script_decodeFont(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
+    size_t data_length = 0;
+    const uint8_t* data = (const uint8_t*)luaL_checklstring(L, 1, &data_length);
+    std::vector<uint8_t> encodedBytes(data, data + data_length);
+
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    rive::FontHandle handle = queue->decodeFont(encodedBytes);
+
+    lua_pushinteger(L, (lua_Integer)handle);
+    return 1;
+}
+
+static int Script_deleteFont(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::FontHandle handle = (rive::FontHandle)luaL_checkinteger(L, 1);
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    queue->deleteFont(handle);
+    return 0;
+}
+
+// *****************************************************************************************
 
 static const luaL_reg RIVE_COMMAND_FUNCTIONS[] =
 {
@@ -372,6 +420,10 @@ static const luaL_reg RIVE_COMMAND_FUNCTIONS[] =
 
     {"decodeImage", Script_decodeImage},
     {"deleteImage", Script_deleteImage},
+    {"decodeAudio", Script_decodeAudio},
+    {"deleteAudio", Script_deleteAudio},
+    {"decodeFont",  Script_decodeFont},
+    {"deleteFont",  Script_deleteFont},
 
     {0, 0}
 };
