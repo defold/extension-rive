@@ -45,6 +45,31 @@ static void CheckStringOrInteger(lua_State* L, int index, const char** string, I
         *integer = (INTEGER)luaL_checkinteger(L, index);
 }
 
+static int Script_instantiateArtboardNamed(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
+    rive::FileHandle file = (rive::FileHandle)luaL_checkinteger(L, 1);
+    const char* viewmodel_name = luaL_checkstring(L, 2);
+
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    rive::ArtboardHandle handle = queue->instantiateArtboardNamed(file, viewmodel_name);
+
+    lua_pushinteger(L, (lua_Integer)handle);
+    return 1;
+}
+
+static int Script_instantiateDefaultArtboard(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
+    rive::FileHandle file = (rive::FileHandle)luaL_checkinteger(L, 1);
+
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    rive::ArtboardHandle handle = queue->instantiateDefaultArtboard(file);
+
+    lua_pushinteger(L, (lua_Integer)handle);
+    return 1;
+}
+
 static int Script_instantiateBlankViewModelInstance(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 1);
@@ -203,6 +228,19 @@ static int Script_deleteViewModelInstance(lua_State* L)
     return 0;
 }
 
+static int Script_swapViewModelInstanceListValues(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    const char* path = luaL_checkstring(L, 2);
+    int indexa = luaL_checkinteger(L, 3);
+    int indexb = luaL_checkinteger(L, 4);
+
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    queue->swapViewModelInstanceListValues(handle, path, indexa, indexb);
+    return 0;
+}
+
 // *****************************************************************************************
 
 
@@ -317,7 +355,54 @@ static int Script_setViewModelInstanceArtboard(lua_State* L)
     return 0;
 }
 
+static int Script_subscribeToViewModelProperty(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    const char* path = luaL_checkstring(L, 2);
+    rive::DataType type = (rive::DataType)luaL_checkinteger(L, 3);
+
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    queue->subscribeToViewModelProperty(handle, path, type);
+    return 0;
+}
+
+static int Script_unsubscribeToViewModelProperty(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    const char* path = luaL_checkstring(L, 2);
+    rive::DataType type = (rive::DataType)luaL_checkinteger(L, 3);
+
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    queue->unsubscribeToViewModelProperty(handle, path, type);
+    return 0;
+}
+
 // *****************************************************************************************
+
+static int Script_loadFile(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
+    size_t data_length = 0;
+    const uint8_t* data = (const uint8_t*)luaL_checklstring(L, 1, &data_length);
+    std::vector<uint8_t> rivBytes(data, data + data_length);
+
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    rive::FileHandle image = queue->loadFile(rivBytes);
+
+    lua_pushinteger(L, (lua_Integer)image);
+    return 1;
+}
+
+static int Script_deleteFile(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::FileHandle handle = (rive::FileHandle)luaL_checkinteger(L, 1);
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    queue->deleteFile(handle);
+    return 0;
+}
 
 static int Script_decodeImage(lua_State* L)
 {
@@ -388,24 +473,86 @@ static int Script_deleteFont(lua_State* L)
     return 0;
 }
 
+static int Script_addGlobalImageAsset(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    const char* name = luaL_checkstring(L, 1);
+    rive::RenderImageHandle handle = (rive::RenderImageHandle)luaL_checkinteger(L, 2);
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    queue->addGlobalImageAsset(name, handle);
+    return 0;
+}
+
+static int Script_removeGlobalImageAsset(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    const char* name = luaL_checkstring(L, 1);
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    queue->removeGlobalImageAsset(name);
+    return 0;
+}
+
+static int Script_addGlobalFontAsset(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    const char* name = luaL_checkstring(L, 1);
+    rive::FontHandle handle = (rive::FontHandle)luaL_checkinteger(L, 2);
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    queue->addGlobalFontAsset(name, handle);
+    return 0;
+}
+
+static int Script_removeGlobalFontAsset(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    const char* name = luaL_checkstring(L, 1);
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    queue->removeGlobalFontAsset(name);
+    return 0;
+}
+
+static int Script_addGlobalAudioAsset(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    const char* name = luaL_checkstring(L, 1);
+    rive::AudioSourceHandle handle = (rive::AudioSourceHandle)luaL_checkinteger(L, 2);
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    queue->addGlobalAudioAsset(name, handle);
+    return 0;
+}
+
+static int Script_removeGlobalAudioAsset(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    const char* name = luaL_checkstring(L, 1);
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    queue->removeGlobalAudioAsset(name);
+    return 0;
+}
+
+
 // *****************************************************************************************
 
 static const luaL_reg RIVE_COMMAND_FUNCTIONS[] =
 {
-    {"instantiateBlankViewModelInstance", Script_instantiateBlankViewModelInstance},
+    {"instantiateArtboardNamed",            Script_instantiateArtboardNamed},
+    {"instantiateDefaultArtboard",          Script_instantiateDefaultArtboard},
+    {"instantiateBlankViewModelInstance",   Script_instantiateBlankViewModelInstance},
     {"instantiateDefaultViewModelInstance", Script_instantiateDefaultViewModelInstance},
-    {"instantiateViewModelInstanceNamed", Script_instantiateViewModelInstanceNamed},
-    {"referenceNestedViewModelInstance", Script_referenceNestedViewModelInstance},
-    {"referenceListViewModelInstance", Script_referenceListViewModelInstance},
+    {"instantiateViewModelInstanceNamed",   Script_instantiateViewModelInstanceNamed},
+    {"referenceNestedViewModelInstance",    Script_referenceNestedViewModelInstance},
+    {"referenceListViewModelInstance",      Script_referenceListViewModelInstance},
 
     {"setViewModelInstanceNestedViewModel",     Script_setViewModelInstanceNestedViewModel},
     {"insertViewModelInstanceListViewModel",    Script_insertViewModelInstanceListViewModel},
     {"appendViewModelInstanceListViewModel",    Script_appendViewModelInstanceListViewModel},
+    {"swapViewModelInstanceListValues",         Script_swapViewModelInstanceListValues},
 
-    {"removeViewModelInstanceListViewModelIndex", Script_removeViewModelInstanceListViewModelIndex},
-    {"removeViewModelInstanceListViewModel", Script_removeViewModelInstanceListViewModel},
+    {"removeViewModelInstanceListViewModelIndex",Script_removeViewModelInstanceListViewModelIndex},
+    {"removeViewModelInstanceListViewModel",    Script_removeViewModelInstanceListViewModel},
 
-    {"bindViewModelInstance", Script_bindViewModelInstance},
+    {"bindViewModelInstance",       Script_bindViewModelInstance},
+    {"deleteViewModelInstance",     Script_deleteViewModelInstance},
 
     {"fireViewModelTrigger",        Script_fireViewModelTrigger},
     {"setViewModelInstanceBool",    Script_setViewModelInstanceBool},
@@ -416,14 +563,27 @@ static const luaL_reg RIVE_COMMAND_FUNCTIONS[] =
     {"setViewModelInstanceImage",   Script_setViewModelInstanceImage},
     {"setViewModelInstanceArtboard",Script_setViewModelInstanceArtboard},
 
-    {"deleteViewModelInstance", Script_deleteViewModelInstance},
+    {"subscribeToViewModelProperty",    Script_subscribeToViewModelProperty},
+    {"unsubscribeToViewModelProperty",  Script_unsubscribeToViewModelProperty},
 
+    {"loadFile",    Script_loadFile},
+    {"deleteFile",  Script_deleteFile},
     {"decodeImage", Script_decodeImage},
     {"deleteImage", Script_deleteImage},
     {"decodeAudio", Script_decodeAudio},
     {"deleteAudio", Script_deleteAudio},
     {"decodeFont",  Script_decodeFont},
     {"deleteFont",  Script_deleteFont},
+
+    {"addGlobalImageAsset",     Script_addGlobalImageAsset},
+    {"removeGlobalImageAsset",  Script_removeGlobalImageAsset},
+    {"addGlobalAudioAsset",     Script_addGlobalAudioAsset},
+    {"removeGlobalAudioAsset",  Script_removeGlobalAudioAsset},
+    {"addGlobalFontAsset",     Script_addGlobalFontAsset},
+    {"removeGlobalFontAsset",  Script_removeGlobalFontAsset},
+
+// requestViewModelNames et.al
+
 
     {0, 0}
 };
