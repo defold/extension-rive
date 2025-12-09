@@ -530,6 +530,120 @@ static int Script_removeGlobalAudioAsset(lua_State* L)
     return 0;
 }
 
+// *****************************************************************************************
+
+static int Script_requestViewModelNames(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::FileHandle file = (rive::FileHandle)luaL_checkinteger(L, 1);
+    dmRiveCommands::GetCommandQueue()->requestViewModelNames(file);
+    return 0;
+}
+
+static int Script_requestArtboardNames(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::FileHandle file = (rive::FileHandle)luaL_checkinteger(L, 1);
+    dmRiveCommands::GetCommandQueue()->requestArtboardNames(file);
+    return 0;
+}
+
+static int Script_requestViewModelEnums(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::FileHandle file = (rive::FileHandle)luaL_checkinteger(L, 1);
+    dmRiveCommands::GetCommandQueue()->requestViewModelEnums(file);
+    return 0;
+}
+
+static int Script_requestViewModelPropertyDefinitions(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::FileHandle file = (rive::FileHandle)luaL_checkinteger(L, 1);
+    const char* viewmodel_name = luaL_checkstring(L, 2);
+    dmRiveCommands::GetCommandQueue()->requestViewModelPropertyDefinitions(file, viewmodel_name);
+    return 0;
+}
+
+static int Script_requestViewModelInstanceNames(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::FileHandle file = (rive::FileHandle)luaL_checkinteger(L, 1);
+    const char* viewmodel_name = luaL_checkstring(L, 2);
+    dmRiveCommands::GetCommandQueue()->requestViewModelInstanceNames(file, viewmodel_name);
+    return 0;
+}
+
+static int Script_requestViewModelInstanceBool(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    const char* viewmodel_name = luaL_checkstring(L, 2);
+    dmRiveCommands::GetCommandQueue()->requestViewModelInstanceBool(handle, viewmodel_name);
+    return 0;
+}
+
+static int Script_requestViewModelInstanceNumber(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    const char* viewmodel_name = luaL_checkstring(L, 2);
+    dmRiveCommands::GetCommandQueue()->requestViewModelInstanceNumber(handle, viewmodel_name);
+    return 0;
+}
+
+static int Script_requestViewModelInstanceColor(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    const char* viewmodel_name = luaL_checkstring(L, 2);
+    dmRiveCommands::GetCommandQueue()->requestViewModelInstanceColor(handle, viewmodel_name);
+    return 0;
+}
+
+static int Script_requestViewModelInstanceEnum(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    const char* viewmodel_name = luaL_checkstring(L, 2);
+    dmRiveCommands::GetCommandQueue()->requestViewModelInstanceEnum(handle, viewmodel_name);
+    return 0;
+}
+
+static int Script_requestViewModelInstanceString(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    const char* viewmodel_name = luaL_checkstring(L, 2);
+    dmRiveCommands::GetCommandQueue()->requestViewModelInstanceString(handle, viewmodel_name);
+    return 0;
+}
+
+static int Script_requestViewModelInstanceListSize(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    const char* viewmodel_name = luaL_checkstring(L, 2);
+    dmRiveCommands::GetCommandQueue()->requestViewModelInstanceListSize(handle, viewmodel_name);
+    return 0;
+}
+
+static int Script_requestStateMachineNames(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::ArtboardHandle artboard = (rive::ArtboardHandle)luaL_checkinteger(L, 1);
+    dmRiveCommands::GetCommandQueue()->requestStateMachineNames(artboard);
+    return 0;
+}
+
+static int Script_requestDefaultViewModelInfo(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::ArtboardHandle artboard = (rive::ArtboardHandle)luaL_checkinteger(L, 1);
+    rive::FileHandle file = (rive::FileHandle)luaL_checkinteger(L, 2);
+    dmRiveCommands::GetCommandQueue()->requestDefaultViewModelInfo(artboard, file);
+    return 0;
+}
 
 // *****************************************************************************************
 
@@ -579,11 +693,24 @@ static const luaL_reg RIVE_COMMAND_FUNCTIONS[] =
     {"removeGlobalImageAsset",  Script_removeGlobalImageAsset},
     {"addGlobalAudioAsset",     Script_addGlobalAudioAsset},
     {"removeGlobalAudioAsset",  Script_removeGlobalAudioAsset},
-    {"addGlobalFontAsset",     Script_addGlobalFontAsset},
-    {"removeGlobalFontAsset",  Script_removeGlobalFontAsset},
+    {"addGlobalFontAsset",      Script_addGlobalFontAsset},
+    {"removeGlobalFontAsset",   Script_removeGlobalFontAsset},
 
-// requestViewModelNames et.al
+    {"requestViewModelNames",   Script_requestViewModelNames},
+    {"requestArtboardNames",    Script_requestArtboardNames},
+    {"requestViewModelEnums",   Script_requestViewModelEnums},
 
+    {"requestViewModelPropertyDefinitions", Script_requestViewModelPropertyDefinitions},
+    {"requestViewModelInstanceNames",       Script_requestViewModelInstanceNames},
+    {"requestViewModelInstanceBool",        Script_requestViewModelInstanceBool},
+    {"requestViewModelInstanceNumber",      Script_requestViewModelInstanceNumber},
+    {"requestViewModelInstanceColor",       Script_requestViewModelInstanceColor},
+    {"requestViewModelInstanceEnum",        Script_requestViewModelInstanceEnum},
+    {"requestViewModelInstanceString",      Script_requestViewModelInstanceString},
+    {"requestViewModelInstanceListSize",    Script_requestViewModelInstanceListSize},
+
+    {"requestStateMachineNames",            Script_requestStateMachineNames},
+    {"requestDefaultViewModelInfo",         Script_requestDefaultViewModelInfo},
 
     {0, 0}
 };
