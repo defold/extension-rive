@@ -5,23 +5,103 @@
 -- dynamic_modal.riv by https://rive.app/@drawsgood/:
 --   https://rive.app/marketplace/19673-37017-dynamic-modal/
 
+local function set_listeners(self)
+	rive.set_file_listener(function (self, message_id, message)
+			pprint("FILE LISTENER", message_id, message)
+		end)
+
+	rive.set_artboard_listener(function (self, message_id, message)
+			pprint("ARTBOARD LISTENER", message_id, message)
+		end)
+
+	rive.set_state_machine_listener(function (self, message_id, message)
+			pprint("STATEMACHINE LISTENER", message_id, message)
+		end)
+
+	rive.set_view_model_instance_listener(function (self, message_id, message)
+			pprint("VIEWMODEL LISTENER", message_id, message)
+		end)
+
+	rive.set_render_image_listener(function (self, message_id, message)
+			pprint("RENDERIMAGE LISTENER", message_id, message)
+		end)
+
+	rive.set_audio_source_listener(function (self, message_id, message)
+			pprint("AUDIO SOURCE LISTENER", message_id, message)
+		end)
+
+	rive.set_font_listener(function (self, message_id, message)
+			pprint("FONT LISTENER", message_id, message)
+		end)
+end
+
 function init(self)
 	msg.post(".", "acquire_input_focus")
 
-	self.url = msg.url("#modal")
-	self.handle, err = rive.databind.create_view_model_instance_runtime(self.url, "") --select the first view model
-	if self.handle == nil then
-		print("ERROR:", err)
-		return
-	end
-	rive.databind.set_view_model_instance_runtime(self.url, self.handle)
+	set_listeners(self)
 
-	self.data = {
-		menuIsOpen = true,
-		accentColor = vmath.vector4(1,1,0,1),
-		modalCopy = "Hello Folks! This is a test of data bindings between the Rive scene and the Defold Game Engine!",
-	}
-	rive.databind.set_properties(self.url, self.handle, self.data)
+	self.url = msg.url("#rivemodel")
+	self.file = rive.get_file(self.url)
+	self.artboard = rive.get_artboard(self.url)
+	self.state_machine = rive.get_state_machine(self.url)
+	self.view_model = rive.get_view_model_instance(self.url)
+
+	-- debugging
+	rive.cmd.requestViewModelNames(self.file)
+	rive.cmd.requestArtboardNames(self.file)
+	rive.cmd.requestViewModelEnums(self.file)
+	rive.cmd.requestStateMachineNames(self.artboard)
+	rive.cmd.requestDefaultViewModelInfo(self.artboard, self.file)
+
+	rive.cmd.requestViewModelInstanceNames(self.file, "vmAchiementBadge")
+	rive.cmd.requestViewModelPropertyDefinitions(self.file, "vmAchiementBadge")
+
+	rive.cmd.requestViewModelInstanceNames(self.file, "vmBadge")
+	rive.cmd.requestViewModelPropertyDefinitions(self.file, "vmBadge")
+
+	rive.cmd.requestViewModelInstanceNames(self.file, "vmRating")
+	rive.cmd.requestViewModelPropertyDefinitions(self.file, "vmRating")
+
+	-- end debugging
+
+	-- {"requestViewModelNames",   Script_requestViewModelNames},
+    -- {"requestArtboardNames",    Script_requestArtboardNames},
+    -- {"requestViewModelEnums",   Script_requestViewModelEnums},
+
+    -- {"requestViewModelPropertyDefinitions", Script_requestViewModelPropertyDefinitions},
+    -- {"requestViewModelInstanceNames",       Script_requestViewModelInstanceNames},
+    -- {"requestViewModelInstanceBool",        Script_requestViewModelInstanceBool},
+    -- {"requestViewModelInstanceNumber",      Script_requestViewModelInstanceNumber},
+    -- {"requestViewModelInstanceColor",       Script_requestViewModelInstanceColor},
+    -- {"requestViewModelInstanceEnum",        Script_requestViewModelInstanceEnum},
+    -- {"requestViewModelInstanceString",      Script_requestViewModelInstanceString},
+    -- {"requestViewModelInstanceListSize",    Script_requestViewModelInstanceListSize},
+
+    -- {"requestStateMachineNames",            Script_requestStateMachineNames},
+    -- {"requestDefaultViewModelInfo",         Script_requestDefaultViewModelInfo},
+
+
+	--self.view_model = rive.cmd.instantiateDefaultViewModelInstance(self.file, self.artboard)
+	self.view_model_flag = rive.cmd.referenceNestedViewModelInstance(self.view_model, "property of vmFlag")
+	self.view_model_badge = rive.cmd.referenceNestedViewModelInstance(self.view_model, "property of vmBadge")
+	self.view_model_rating = rive.cmd.referenceNestedViewModelInstance(self.view_model, "property of vmRating")
+
+	-- no need to bind, as it has "autobind" selected
+	--rive.cmd.bindViewModelInstance(self.state_machine, self.view_model)
+
+	self.isOpen = true
+	rive.cmd.setViewModelInstanceBool(self.view_model, "isOpen", self.isOpen)
+
+	rive.cmd.setViewModelInstanceString(self.view_model_flag, "flagText", "DEFOLD!")
+	rive.cmd.setViewModelInstanceColor(self.view_model_flag, "flagColor", vmath.vector4(0.5, 0.3, 0.4, 1.0))
+
+	-- 1 = "Froggo",
+	-- 2 = "Skulla",
+	-- 3 = "Castela"
+	rive.cmd.setViewModelInstanceEnum(self.view_model_badge, "badgeDesign", "Castela")
+
+	rive.cmd.setViewModelInstanceNumber(self.view_model_rating, "stars", 5)
+
 end
 
 function final(self)
@@ -44,12 +124,16 @@ end
 
 function on_input(self, action_id, action)
 	if not action_id or action_id == hash("touch") then
+
 		if action.pressed then
-			rive.pointer_down(self.url, action.x, action.y)
+			self.isOpen = not self.isOpen
+			rive.cmd.setViewModelInstanceBool(self.view_model, "isOpen", self.isOpen)
+
+			--rive.pointer_down(self.url, action.x, action.y)
 		elseif action.released then
-			rive.pointer_up(self.url, action.x, action.y)
+			--rive.pointer_up(self.url, action.x, action.y)
 		else
-			rive.pointer_move(self.url, action.x, action.y)
+			--rive.pointer_move(self.url, action.x, action.y)
 		end
 	end
 end

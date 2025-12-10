@@ -230,6 +230,26 @@ static int Script_GetStateMachine(lua_State* L)
     return 1;
 }
 
+static int Script_SetViewModelInstance(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
+    RiveComponent* component = 0;
+    dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
+    const char* name = luaL_checkstring(L, 2);
+    bool result = CompRiveSetViewModelInstance(component, name);
+    lua_pushboolean(L, result);
+    return 1;
+}
+
+static int Script_GetViewModelInstance(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
+    RiveComponent* component = 0;
+    dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
+    lua_pushinteger(L, (lua_Integer) CompRiveGetStateMachine(component));
+    return 1;
+}
+
 
 static const luaL_reg RIVE_FUNCTIONS[] =
 {
@@ -247,11 +267,13 @@ static const luaL_reg RIVE_FUNCTIONS[] =
     {"set_audio_source_listener",       Script_SetAudioSourceListener},
     {"set_font_listener",               Script_SetFontListener},
 
-    {"get_file",            Script_GetFile},
-    {"set_artboard",        Script_SetArtboard},
-    {"get_artboard",        Script_GetArtboard},
-    {"set_state_machine",   Script_SetStateMachine},
-    {"get_state_machine",   Script_GetStateMachine},
+    {"get_file",                Script_GetFile},
+    {"set_artboard",            Script_SetArtboard},
+    {"get_artboard",            Script_GetArtboard},
+    {"set_state_machine",       Script_SetStateMachine},
+    {"get_state_machine",       Script_GetStateMachine},
+    {"set_view_model_instance", Script_SetViewModelInstance},
+    {"get_view_model_instance", Script_GetViewModelInstance},
 
     // debug
     {"debug_set_blit_mode",     Script_DebugSetBlitMode},

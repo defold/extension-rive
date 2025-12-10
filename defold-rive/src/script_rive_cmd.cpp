@@ -75,6 +75,11 @@ static int Script_instantiateBlankViewModelInstance(lua_State* L)
     DM_LUA_STACK_CHECK(L, 1);
     rive::FileHandle file = (rive::FileHandle)luaL_checkinteger(L, 1);
 
+    if (lua_isnil(L, 2) || lua_isnone(L, 2))
+    {
+        return luaL_error(L, "Argument #2 must be an integer (artboard handle) or a string (view model name)");
+    }
+
     rive::ArtboardHandle artboard = 0;
     const char* viewmodel_name = 0;
     CheckStringOrInteger(L, 2, &viewmodel_name, &artboard);
@@ -95,6 +100,11 @@ static int Script_instantiateDefaultViewModelInstance(lua_State* L)
     DM_LUA_STACK_CHECK(L, 1);
     rive::FileHandle file = (rive::FileHandle)luaL_checkinteger(L, 1);
 
+    if (lua_isnil(L, 2) || lua_isnone(L, 2))
+    {
+        return luaL_error(L, "Argument #2 must be an integer (artboard handle) or a string (view model name)");
+    }
+
     rive::ArtboardHandle artboard = 0;
     const char* viewmodel_name = 0;
     CheckStringOrInteger(L, 2, &viewmodel_name, &artboard);
@@ -114,6 +124,11 @@ static int Script_instantiateViewModelInstanceNamed(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 1);
     rive::FileHandle file = (rive::FileHandle)luaL_checkinteger(L, 1);
+
+    if (lua_isnil(L, 2) || lua_isnone(L, 2))
+    {
+        return luaL_error(L, "Argument #2 must be an integer (artboard handle) or a string (view model name)");
+    }
 
     rive::ArtboardHandle artboard = 0;
     const char* viewmodel_name = 0;

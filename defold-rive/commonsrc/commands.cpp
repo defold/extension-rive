@@ -108,7 +108,6 @@ rive::Factory* GetFactory()
 dmRive::HRenderContext GetDefoldRenderContext()
 {
     assert(g_Context != 0);
-    printf("GetDefoldRenderContext: %p\n", g_Context->m_RenderContext);
     return g_Context->m_RenderContext;
 }
 

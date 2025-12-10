@@ -355,6 +355,37 @@ namespace dmRive
         return component->m_Enabled;
     }
 
+    bool CompRiveSetViewModelInstance(RiveComponent* component, const char* viewmodel_name)
+    {
+        rive::FileHandle file = CompRiveGetFile(component);
+        rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+
+        if (viewmodel_name && viewmodel_name[0] != '\0')
+        {
+            component->m_ViewModelInstance = queue->instantiateDefaultViewModelInstance(file, viewmodel_name);
+            if (!component->m_ViewModelInstance)
+            {
+                dmLogWarning("Could not find view model instance with name '%s'", viewmodel_name);
+            }
+            printf("Created view model instance by name '%s'\n", viewmodel_name);
+        }
+
+        if (!component->m_ViewModelInstance)
+        {
+            component->m_ViewModelInstance = queue->instantiateDefaultViewModelInstance(file, component->m_Artboard);
+            printf("Created default view model instance: %p\n", component->m_ViewModelInstance);
+        }
+
+        component->m_Enabled = component->m_ViewModelInstance != 0;
+        return component->m_Enabled;
+    }
+
+    static void BindViewModelInstance(RiveComponent* component)
+    {
+        rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+        queue->bindViewModelInstance(component->m_StateMachine, component->m_ViewModelInstance);
+    }
+
     dmGameObject::CreateResult CompRiveCreate(const dmGameObject::ComponentCreateParams& params)
     {
         RiveWorld* world = (RiveWorld*)params.m_World;
@@ -385,7 +416,6 @@ namespace dmRive
         component->m_DoRender = 0;
         component->m_RenderConstants = 0;
         component->m_CurrentViewModelInstanceRuntime = INVALID_HANDLE;
-        component->m_HandleCounter = 0;
         component->m_DrawKey = queue->createDrawKey();
 
         dmRiveDDF::RiveModelDesc* ddf = component->m_Resource->m_DDF;
@@ -420,53 +450,18 @@ namespace dmRive
         CompRiveSetArtboard(component, ddf->m_Artboard);
         CompRiveSetStateMachine(component, ddf->m_DefaultStateMachine);
 
+        if (component->m_Resource->m_DDF->m_AutoBind)
+        {
+            CompRiveSetViewModelInstance(component, 0);
+            BindViewModelInstance(component);
+        }
+
         // if (component->m_Resource->m_CreateGoBones)
         // {
         //     dmRive::GetAllBones(component->m_Artboard.get(), &component->m_Bones);
         //     CreateBones(world, component);
         //     UpdateBones(component);
         // }
-
-        // dmhash_t empty_id = dmHashString64("");
-        // dmhash_t anim_id = dmHashString64(component->m_Resource->m_DDF->m_DefaultAnimation);
-        // dmhash_t state_machine_id = dmHashString64(component->m_Resource->m_DDF->m_DefaultStateMachine);
-
-        // dmRiveDDF::RivePlayAnimation ddf;
-        // ddf.m_Offset            = 0.0;
-        // ddf.m_PlaybackRate      = 1.0;
-
-        // bool use_default_state_machine = component->m_Artboard->defaultStateMachineIndex() >= 0;
-        // if (empty_id != state_machine_id || use_default_state_machine)
-        // {
-        //     ddf.m_Playback          = dmGameObject::PLAYBACK_NONE;
-        //     ddf.m_AnimationId       = use_default_state_machine ? 0 : state_machine_id;
-        //     ddf.m_IsStateMachine    = true;
-        //     if (!CompRivePlayStateMachine(component, &ddf, 0))
-        //     {
-        //         dmLogError("Couldn't play state machine named '%s'", dmHashReverseSafe64(state_machine_id));
-        //     }
-        // }
-        // else
-        // {
-        //     ddf.m_AnimationId       = anim_id; // May be 0
-        //     ddf.m_Playback          = dmGameObject::PLAYBACK_LOOP_FORWARD;
-        //     ddf.m_IsStateMachine    = false;
-        //     if (!CompRivePlayAnimation(component, &ddf, 0))
-        //     {
-        //         dmLogError("Couldn't play animation named '%s'", dmHashReverseSafe64(anim_id));
-        //     }
-        // }
-
-        component->m_CurrentViewModelInstanceRuntime = 0xFFFFFFFF;
-        // if (component->m_Resource->m_DDF->m_AutoBind)
-        // {
-        //     component->m_CurrentViewModelInstanceRuntime = CompRiveCreateViewModelInstanceRuntime(component, 0);
-        //     if (component->m_CurrentViewModelInstanceRuntime != dmRive::INVALID_HANDLE)
-        //     {
-        //         CompRiveSetViewModelInstanceRuntime(component, component->m_CurrentViewModelInstanceRuntime);
-        //     }
-        // }
-
 
         component->m_ReHash = 1;
 
@@ -921,66 +916,10 @@ namespace dmRive
                 continue;
             }
 
-            // // RIVE UPDATE
-            // dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component.m_Resource->m_Scene->m_Scene;
-            // rive::File* f               = data->m_File;
-            // rive::Artboard* artboard    = f->artboard();
-
-            // if (!artboard)
-            // {
-            //     component.m_Enabled = false;
-            //     continue;
-            // }
-            // rive::AABB artboard_bounds  = artboard->bounds();
-
-            // if (component.m_StateMachine)
-            // {
-            //     size_t event_count = component.m_StateMachine->reportedEventCount();
-            //     for (size_t i = 0; i < event_count; i++)
-            //     {
-            //         rive::EventReport reported_event = component.m_StateMachine->reportedEventAt(i);
-            //         rive::Event* event = reported_event.event();
-            //         CompRiveEventTriggerCallback(&component, event);
-            //     }
-
-            //     component.m_StateMachine->advanceAndApply(dt * component.m_AnimationPlaybackRate);
-            // }
-            // else if (component.m_AnimationInstance)
-            // {
-            //     component.m_AnimationInstance->advanceAndApply(dt * component.m_AnimationPlaybackRate);
-
-            //     if (component.m_AnimationInstance->didLoop())
-            //     {
-            //         bool did_finish = false;
-            //         switch(component.m_AnimationPlayback)
-            //         {
-            //             case dmGameObject::PLAYBACK_ONCE_FORWARD:
-            //                 did_finish = true;
-            //                 break;
-            //             case dmGameObject::PLAYBACK_ONCE_BACKWARD:
-            //                 did_finish = true;
-            //                 break;
-            //             case dmGameObject::PLAYBACK_ONCE_PINGPONG:
-            //                 did_finish = component.m_AnimationInstance->direction() > 0;
-            //                 break;
-            //             default:break;
-            //         }
-
-            //         if (did_finish)
-            //         {
-            //             CompRiveAnimationDoneCallback(&component);
-            //             CompRiveAnimationReset(&component);
-            //         }
-            //     }
-            // }
-            // else {
-            //     component.m_Artboard->advance(dt * component.m_AnimationPlaybackRate);
-            // }
-
             queue->advanceStateMachine(component.m_StateMachine, dt * component.m_AnimationPlaybackRate);
 
-            if (component.m_Resource->m_CreateGoBones)
-                UpdateBones(&component); // after the artboard->advance();
+            // if (component.m_Resource->m_CreateGoBones)
+            //     UpdateBones(&component); // after the artboard->advance();
 
             if (component.m_ReHash || (component.m_RenderConstants && dmGameSystem::AreRenderConstantsUpdated(component.m_RenderConstants)))
             {
@@ -1300,147 +1239,147 @@ namespace dmRive
         return dmGameObject::RESULT_OK;
     }
 
-    static void DeleteBones(RiveComponent* component)
-    {
-        dmLogOnceError("MAWE Missing implementation; %s", __FUNCTION__);
+    // static void DeleteBones(RiveComponent* component)
+    // {
+    //     dmLogOnceError("MAWE Missing implementation; %s", __FUNCTION__);
 
-        // dmGameObject::HInstance rive_instance = component->m_Instance;
-        // dmGameObject::HCollection collection = dmGameObject::GetCollection(rive_instance);
+    //     // dmGameObject::HInstance rive_instance = component->m_Instance;
+    //     // dmGameObject::HCollection collection = dmGameObject::GetCollection(rive_instance);
 
-        // uint32_t num_bones = component->m_BoneGOs.Size();
-        // for (uint32_t i = 0; i < num_bones; ++i)
-        // {
-        //     dmGameObject::HInstance bone_instance = component->m_BoneGOs[i];
-        //     if (bone_instance)
-        //     {
-        //         dmGameObject::Delete(collection, bone_instance, false);
-        //     }
-        // }
-        // component->m_BoneGOs.SetSize(0);
-    }
+    //     // uint32_t num_bones = component->m_BoneGOs.Size();
+    //     // for (uint32_t i = 0; i < num_bones; ++i)
+    //     // {
+    //     //     dmGameObject::HInstance bone_instance = component->m_BoneGOs[i];
+    //     //     if (bone_instance)
+    //     //     {
+    //     //         dmGameObject::Delete(collection, bone_instance, false);
+    //     //     }
+    //     // }
+    //     // component->m_BoneGOs.SetSize(0);
+    // }
 
-    static void UpdateBones(RiveComponent* component)
-    {
-        dmLogOnceError("MAWE Missing implementation; %s", __FUNCTION__);
-        // rive::Artboard* artboard = component->m_Artboard.get();
+    // static void UpdateBones(RiveComponent* component)
+    // {
+    //     dmLogOnceError("MAWE Missing implementation; %s", __FUNCTION__);
+    //     // rive::Artboard* artboard = component->m_Artboard.get();
 
-        // rive::AABB bounds = artboard->bounds();
-        // float cx = (bounds.maxX - bounds.minX) * 0.5f;
-        // float cy = (bounds.maxY - bounds.minY) * 0.5f;
+    //     // rive::AABB bounds = artboard->bounds();
+    //     // float cx = (bounds.maxX - bounds.minX) * 0.5f;
+    //     // float cy = (bounds.maxY - bounds.minY) * 0.5f;
 
-        // uint32_t num_bones = component->m_BoneGOs.Size();
-        // DM_PROPERTY_ADD_U32(rmtp_RiveBones, num_bones);
+    //     // uint32_t num_bones = component->m_BoneGOs.Size();
+    //     // DM_PROPERTY_ADD_U32(rmtp_RiveBones, num_bones);
 
-        // dmVMath::Point3 go_pos = dmGameObject::GetPosition(component->m_Instance);
+    //     // dmVMath::Point3 go_pos = dmGameObject::GetPosition(component->m_Instance);
 
-        // for (uint32_t i = 0; i < num_bones; ++i)
-        // {
-        //     dmGameObject::HInstance bone_instance = component->m_BoneGOs[i];
-        //     rive::Bone* bone = component->m_Bones[i];
+    //     // for (uint32_t i = 0; i < num_bones; ++i)
+    //     // {
+    //     //     dmGameObject::HInstance bone_instance = component->m_BoneGOs[i];
+    //     //     rive::Bone* bone = component->m_Bones[i];
 
-        //     const rive::Mat2D& rt = bone->worldTransform();
+    //     //     const rive::Mat2D& rt = bone->worldTransform();
 
-        //     dmVMath::Vector4 x_axis(rt.xx(), rt.xy(), 0, 0);
-        //     dmVMath::Vector4 y_axis(rt.yx(), rt.yy(), 0, 0);
+    //     //     dmVMath::Vector4 x_axis(rt.xx(), rt.xy(), 0, 0);
+    //     //     dmVMath::Vector4 y_axis(rt.yx(), rt.yy(), 0, 0);
 
-        //     float scale_x = length(x_axis);
-        //     float scale_y = length(y_axis);
-        //     dmVMath::Vector3 scale(scale_x, scale_y, 1);
+    //     //     float scale_x = length(x_axis);
+    //     //     float scale_y = length(y_axis);
+    //     //     dmVMath::Vector3 scale(scale_x, scale_y, 1);
 
-        //     float angle = atan2f(x_axis.getY(), x_axis.getX());
-        //     Quat rotation = Quat::rotationZ(-angle);
+    //     //     float angle = atan2f(x_axis.getY(), x_axis.getX());
+    //     //     Quat rotation = Quat::rotationZ(-angle);
 
-        //     // Since the Rive space is different, we need to flip the y axis
-        //     dmVMath::Vector3 pos(rt.tx() - cx, -rt.ty() + cy, 0);
+    //     //     // Since the Rive space is different, we need to flip the y axis
+    //     //     dmVMath::Vector3 pos(rt.tx() - cx, -rt.ty() + cy, 0);
 
-        //     dmVMath::Matrix4 world_transform(rotation, pos);
+    //     //     dmVMath::Matrix4 world_transform(rotation, pos);
 
-        //     dmTransform::Transform transform = dmTransform::ToTransform(world_transform);
+    //     //     dmTransform::Transform transform = dmTransform::ToTransform(world_transform);
 
-        //     dmGameObject::SetPosition(bone_instance, Point3(transform.GetTranslation()));
-        //     dmGameObject::SetRotation(bone_instance, transform.GetRotation());
-        //     dmGameObject::SetScale(bone_instance, transform.GetScale());
-        // }
-    }
+    //     //     dmGameObject::SetPosition(bone_instance, Point3(transform.GetTranslation()));
+    //     //     dmGameObject::SetRotation(bone_instance, transform.GetRotation());
+    //     //     dmGameObject::SetScale(bone_instance, transform.GetScale());
+    //     // }
+    // }
 
-    static bool CreateBones(RiveWorld* world, RiveComponent* component)
-    {
-        dmLogOnceError("MAWE Missing implementation; %s", __FUNCTION__);
+    // static bool CreateBones(RiveWorld* world, RiveComponent* component)
+    // {
+    //     dmLogOnceError("MAWE Missing implementation; %s", __FUNCTION__);
 
-        // dmGameObject::HInstance rive_instance = component->m_Instance;
-        // dmGameObject::HCollection collection = dmGameObject::GetCollection(rive_instance);
+    //     // dmGameObject::HInstance rive_instance = component->m_Instance;
+    //     // dmGameObject::HCollection collection = dmGameObject::GetCollection(rive_instance);
 
-        // uint32_t num_bones = component->m_Bones.Size();
+    //     // uint32_t num_bones = component->m_Bones.Size();
 
-        // component->m_BoneGOs.SetCapacity(num_bones);
-        // component->m_BoneGOs.SetSize(num_bones);
+    //     // component->m_BoneGOs.SetCapacity(num_bones);
+    //     // component->m_BoneGOs.SetSize(num_bones);
 
-        // for (uint32_t i = 0; i < num_bones; ++i)
-        // {
-        //     dmGameObject::HInstance bone_instance = dmGameObject::New(collection, 0x0);
-        //     if (bone_instance == 0x0) {
-        //         DeleteBones(component);
-        //         return false;
-        //     }
+    //     // for (uint32_t i = 0; i < num_bones; ++i)
+    //     // {
+    //     //     dmGameObject::HInstance bone_instance = dmGameObject::New(collection, 0x0);
+    //     //     if (bone_instance == 0x0) {
+    //     //         DeleteBones(component);
+    //     //         return false;
+    //     //     }
 
-        //     component->m_BoneGOs[i] = bone_instance;
+    //     //     component->m_BoneGOs[i] = bone_instance;
 
-        //     uint32_t index = dmGameObject::AcquireInstanceIndex(collection);
-        //     if (index == dmGameObject::INVALID_INSTANCE_POOL_INDEX)
-        //     {
-        //         DeleteBones(component);
-        //         return false;
-        //     }
+    //     //     uint32_t index = dmGameObject::AcquireInstanceIndex(collection);
+    //     //     if (index == dmGameObject::INVALID_INSTANCE_POOL_INDEX)
+    //     //     {
+    //     //         DeleteBones(component);
+    //     //         return false;
+    //     //     }
 
-        //     dmhash_t id = dmGameObject::CreateInstanceId();
-        //     dmGameObject::AssignInstanceIndex(index, bone_instance);
+    //     //     dmhash_t id = dmGameObject::CreateInstanceId();
+    //     //     dmGameObject::AssignInstanceIndex(index, bone_instance);
 
-        //     dmGameObject::Result result = dmGameObject::SetIdentifier(collection, bone_instance, id);
-        //     if (dmGameObject::RESULT_OK != result)
-        //     {
-        //         DeleteBones(component);
-        //         return false;
-        //     }
+    //     //     dmGameObject::Result result = dmGameObject::SetIdentifier(collection, bone_instance, id);
+    //     //     if (dmGameObject::RESULT_OK != result)
+    //     //     {
+    //     //         DeleteBones(component);
+    //     //         return false;
+    //     //     }
 
-        //     dmGameObject::SetBone(bone_instance, true);
+    //     //     dmGameObject::SetBone(bone_instance, true);
 
-        //     // Since we're given the "world" coordinates from the rive bones,
-        //     // we don't really need a full hierarchy. So we use the actual game object as parent
-        //     dmGameObject::SetParent(bone_instance, rive_instance);
-        // }
+    //     //     // Since we're given the "world" coordinates from the rive bones,
+    //     //     // we don't really need a full hierarchy. So we use the actual game object as parent
+    //     //     dmGameObject::SetParent(bone_instance, rive_instance);
+    //     // }
 
-        return true;
-    }
+    //     return true;
+    // }
 
     // ******************************************************************************
     // SCRIPTING HELPER FUNCTIONS
     // ******************************************************************************
 
-    bool CompRiveGetBoneID(RiveComponent* component, dmhash_t bone_name, dmhash_t* id)
-    {
-        uint32_t num_bones = component->m_Bones.Size();
+    // bool CompRiveGetBoneID(RiveComponent* component, dmhash_t bone_name, dmhash_t* id)
+    // {
+    //     uint32_t num_bones = component->m_Bones.Size();
 
-        // We need the arrays to be matching 1:1 (for lookup using the same indices)
-        if (num_bones == 0 || component->m_BoneGOs.Size() != num_bones) {
-            return false;
-        }
+    //     // We need the arrays to be matching 1:1 (for lookup using the same indices)
+    //     if (num_bones == 0 || component->m_BoneGOs.Size() != num_bones) {
+    //         return false;
+    //     }
 
-        for (uint32_t i = 0; i < num_bones; ++i)
-        {
-            rive::Bone* bone = component->m_Bones[i];
+    //     for (uint32_t i = 0; i < num_bones; ++i)
+    //     {
+    //         rive::Bone* bone = component->m_Bones[i];
 
-            // Getting bones by name is rare, so I think it is ok to do the hash now, as opposed to have an array in each of the components.
-            dmhash_t name_hash = dmHashString64(bone->name().c_str());
-            if (bone_name == name_hash)
-            {
-                dmGameObject::HInstance bone_instance = component->m_BoneGOs[i];
-                *id = dmGameObject::GetIdentifier(bone_instance);
-                return true;
-            }
-        }
+    //         // Getting bones by name is rare, so I think it is ok to do the hash now, as opposed to have an array in each of the components.
+    //         dmhash_t name_hash = dmHashString64(bone->name().c_str());
+    //         if (bone_name == name_hash)
+    //         {
+    //             dmGameObject::HInstance bone_instance = component->m_BoneGOs[i];
+    //             *id = dmGameObject::GetIdentifier(bone_instance);
+    //             return true;
+    //         }
+    //     }
 
-        return false;
-    }
+    //     return false;
+    // }
 
     float CompRiveGetDisplayScaleFactor()
     {
@@ -1495,49 +1434,6 @@ namespace dmRive
         case dmRive::PointerAction::POINTER_DOWN:   queue->pointerDown(component->m_StateMachine, event); break;
         case dmRive::PointerAction::POINTER_EXIT:   queue->pointerExit(component->m_StateMachine, event); break;
         }
-    }
-    static inline rive::TextValueRun* GetTextRun(rive::ArtboardInstance* artboard, const char* name, const char* nested_artboard_path)
-    {
-        if (nested_artboard_path)
-        {
-            auto nested = artboard->nestedArtboardAtPath(nested_artboard_path);
-            auto nested_instance = nested ? nested->artboardInstance() : 0;
-
-            if (nested_instance)
-            {
-                return nested_instance->find<rive::TextValueRun>(name);
-            }
-        }
-        else
-        {
-            return artboard->find<rive::TextValueRun>(name);
-        }
-        return 0;
-    }
-
-    bool CompRiveSetTextRun(RiveComponent* component, const char* name, const char* text_run, const char* nested_artboard_path)
-    {
-        dmLogError("%s not implemented", __FUNCTION__);
-        return false;
-        // rive::TextValueRun* text_run_value = GetTextRun(component->m_Artboard.get(), name, nested_artboard_path);
-        // if (!text_run_value)
-        // {
-        //     return false;
-        // }
-        // text_run_value->text(text_run);
-        // return true;
-    }
-
-    const char* CompRiveGetTextRun(RiveComponent* component, const char* name, const char* nested_artboard_path)
-    {
-        dmLogError("%s not implemented", __FUNCTION__);
-        return 0;
-        // rive::TextValueRun* text_run_value = GetTextRun(component->m_Artboard.get(), name, nested_artboard_path);
-        // if (!text_run_value)
-        // {
-        //     return 0;
-        // }
-        // return text_run_value->text().c_str();
     }
 
     void CompRiveDebugSetBlitMode(bool value)

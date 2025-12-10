@@ -72,17 +72,15 @@ namespace dmRive
     float CompRiveGetDisplayScaleFactor();
     void  CompRiveDebugSetBlitMode(bool value);
 
-    // state machine impl
-    StateMachineInputData::Result CompRiveGetStateMachineInput(RiveComponent* component, const char* input_name, const char* nested_artboard_path, StateMachineInputData& data);
-    StateMachineInputData::Result CompRiveSetStateMachineInput(RiveComponent* component, const char* input_name, const char* nested_artboard_path, const StateMachineInputData& data);
-
-
     // Scripting
     rive::FileHandle            CompRiveGetFile(RiveComponent* component);
     bool                        CompRiveSetArtboard(RiveComponent* component, const char* name);
     rive::ArtboardHandle        CompRiveGetArtboard(RiveComponent* component);
     bool                        CompRiveSetStateMachine(RiveComponent* component, const char* name);
     rive::StateMachineHandle    CompRiveGetStateMachine(RiveComponent* component);
+
+    bool                            CompRiveSetViewModelInstance(RiveComponent* component, const char* name);
+    rive::ViewModelInstanceHandle   CompRiveGetViewModelInstance(RiveComponent* component);
 
     enum PointerAction
     {
