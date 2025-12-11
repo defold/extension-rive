@@ -13,9 +13,11 @@
 
 namespace rive::gpu
 {
+class DrawPipelineLayoutVulkan;
 class RenderTargetVulkan;
 class RenderTargetVulkanImpl;
 class PipelineManagerVulkan;
+enum class RenderPassOptionsVulkan;
 
 class RenderContextVulkanImpl : public RenderContextImpl
 {
@@ -71,12 +73,10 @@ public:
     void hotloadShaders(rive::Span<const uint32_t> spirvData);
 
 private:
-    RenderContextVulkanImpl(rcp<VulkanContext>,
-                            const VkPhysicalDeviceProperties&,
-                            const ContextOptions&);
+    RenderContextVulkanImpl(rcp<VulkanContext>, const ContextOptions&);
 
     // Called outside the constructor so we can use virtual methods.
-    void initGPUObjects(ShaderCompilationMode, uint32_t vendorID);
+    void initGPUObjects(ShaderCompilationMode);
 
     void prepareToFlush(uint64_t nextFrameNumber,
                         uint64_t safeFrameNumber) override;
@@ -179,6 +179,14 @@ private:
         VkDescriptorPool m_vkDescriptorPool;
     };
 
+    const DrawPipelineLayoutVulkan& beginDrawRenderPass(
+        const FlushDescriptor& desc,
+        RenderPassOptionsVulkan,
+        const IAABB& drawBounds,
+        VkImageView colorImageView,
+        VkImageView msaaColorSeedImageView,
+        VkImageView msaaResolveImageView);
+
     void flush(const FlushDescriptor&) override;
 
     void postFlush(const RenderContext::FlushResources&) override;
@@ -190,6 +198,16 @@ private:
     }
 
     const rcp<VulkanContext> m_vk;
+
+    struct DriverWorkarounds
+    {
+        // Some early Android tilers are known to crash when a render pass is
+        // too complex. On these devices, we limit the maximum number of
+        // instances that can be issued in a single render pass.
+        uint32_t maxInstancesPerRenderPass = UINT32_MAX;
+    };
+
+    const DriverWorkarounds m_workarounds;
 
     // Rive buffer pools. These don't need to be rcp<> because the destructor of
     // RenderContextVulkanImpl is already synchronized.
@@ -232,6 +250,7 @@ private:
     std::unique_ptr<TessellatePipeline> m_tessellatePipeline;
     rcp<vkutil::Buffer> m_tessSpanIndexBuffer;
     rcp<vkutil::Texture2D> m_tessTexture;
+    rcp<vkutil::Texture2D> m_tesselationSyncIssueWorkaroundTexture;
     rcp<vkutil::Framebuffer> m_tessTextureFramebuffer;
 
     // Renders feathers to the atlas.
