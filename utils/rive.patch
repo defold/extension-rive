@@ -131,18 +131,3 @@ index 266b3ed4..8933c2e2 100644
          buildoptions({ RIVE_WAGYU_PORT })
          linkoptions({ RIVE_WAGYU_PORT })
      end
-diff --git a/renderer/src/webgpu/render_context_webgpu_impl.cpp b/renderer/src/webgpu/render_context_webgpu_impl.cpp
-index ee1a8ca3..88550263 100644
---- a/renderer/src/webgpu/render_context_webgpu_impl.cpp
-+++ b/renderer/src/webgpu/render_context_webgpu_impl.cpp
-@@ -1219,6 +1219,10 @@ static void parse_vendor_extensions(WGPUAdapter adapter,
-                                     WGPUDevice device,
-                                     RenderContextWebGPUImpl::Capabilities* caps)
- {
-+    printf("MAWE: %s %d\n", __FUNCTION__, __LINE__);
-+    printf("MAWE: texture format: WGPUTextureFormat_BC2RGBAUnorm: %d 0x%x\n", WGPUTextureFormat_BC2RGBAUnorm, WGPUTextureFormat_BC2RGBAUnorm);
-+    printf("MAWE: texture format: WGPUTextureFormat_ASTC6x6Unorm: %d 0x%x\n", WGPUTextureFormat_ASTC6x6Unorm, WGPUTextureFormat_ASTC6x6Unorm);
-+
-     WGPUWagyuStringArray extensions = WGPU_WAGYU_STRING_ARRAY_INIT;
-     if (caps->backendType == wgpu::BackendType::Vulkan)
-     {
