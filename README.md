@@ -9,3 +9,10 @@ Defold [native extension](https://www.defold.com/manuals/extensions/) for intera
 # Platform support
 
 All platforms are supported except WebGL1, Android with armv7 and consoles. WebGL2 and arm64 for Android are supported however.
+
+
+# Credits
+
+* https://rive.app/marketplace/14447-40690-game-achievement-badge-data-binding/ (CC-BY 4.0)
+
+  * By https://rive.app/@setyosn/
