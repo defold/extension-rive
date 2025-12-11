@@ -98,7 +98,7 @@ cmake -S "${SCRIPT_DIR}/plugin" -B "${BUILD_DIR}" \
     -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
     "${CMAKE_GENERATOR_FLAGS[@]:-}"
 
-cmake --build "${BUILD_DIR}" --config "${CONFIG}" -- VERBOSE=1
+cmake --build "${BUILD_DIR}" --config "${CONFIG}"
 
 case $PLATFORM in
     "arm64-macos"|"x86_64-macos")
