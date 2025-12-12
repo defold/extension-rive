@@ -118,7 +118,7 @@ function init(self)
 
 				print("FONT", font)
 
-				rive.cmd.addGlobalImageAsset("Inter", font)
+				rive.cmd.addGlobalFontAsset("MyFont", font)
 			end
 		end)
 	end)

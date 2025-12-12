@@ -2,8 +2,8 @@ local dirtylarry = require "dirtylarry/dirtylarry"
 
 
 local BUTTONS = {
-	{ id = "car", text = "Car" },
-	{ id = "lights", text = "Lights" },
+	-- { id = "car", text = "Car" },
+	-- { id = "lights", text = "Lights" },
 	--{ id = "bones", text = "Bones" },
 	--{ id = "cursor", text = "Cursor" },
 	--{ id = "state", text = "State" },
@@ -13,7 +13,7 @@ local BUTTONS = {
 	{ id = "takethis", text = "Take This!" },
 	{ id = "ac2", text = "Assassin" },
 	{ id = "grimley", text = "Grimley" },
-	{ id = "fighting-game", text = "Fight!" },
+	-- { id = "fighting-game", text = "Fight!" },
 	{ id = "ghost", text = "Ghost UI" },
 	{ id = "layout", text = "Layouts" },
 	{ id = "egg", text = "Feathering" },
