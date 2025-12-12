@@ -1,11 +1,5 @@
 
--- CREDITS:
---  calc.riv is from user https://rive.app/@thefloridianfreak/:
--- https://rive.app/marketplace/19344-36364-supplied-mutliplication/
--- dynamic_modal.riv by https://rive.app/@drawsgood/:
---   https://rive.app/marketplace/19673-37017-dynamic-modal/
-
-local function set_listeners(self)
+local function set_listeners(self)	
 	rive.set_file_listener(function (self, message_id, message)
 			pprint("FILE LISTENER", message_id, message)
 		end)

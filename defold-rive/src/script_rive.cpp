@@ -73,7 +73,7 @@ static int Script_PointerAction(lua_State* L, dmRive::PointerAction action)
 /**
  * Lua wrapper for pointer movement.
  * @name rive.pointer_move(component, x, y)
- * @param component [type: url] Component receiving the pointer move.
+ * @param url [type: url] Component receiving the pointer move.
  * @param x [type: number] Pointer x coordinate in component space.
  * @param y [type: number] Pointer y coordinate in component space.
  */
@@ -85,7 +85,7 @@ static int Script_PointerMove(lua_State* L)
 /**
  * Lua wrapper for pointer up events.
  * @name rive.pointer_up(component, x, y)
- * @param component [type: url] Component receiving the pointer release.
+ * @param url [type: url] Component receiving the pointer release.
  * @param x [type: number] Pointer x coordinate.
  * @param y [type: number] Pointer y coordinate.
  */
@@ -97,7 +97,7 @@ static int Script_PointerUp(lua_State* L)
 /**
  * Lua wrapper for pointer down events.
  * @name rive.pointer_down(component, x, y)
- * @param component [type: url] Component receiving the pointer press.
+ * @param url [type: url] Component receiving the pointer press.
  * @param x [type: number] Pointer x coordinate.
  * @param y [type: number] Pointer y coordinate.
  */
@@ -109,7 +109,7 @@ static int Script_PointerDown(lua_State* L)
 /**
  * Lua wrapper for pointer exit events.
  * @name rive.pointer_exit(component, x, y)
- * @param component [type: url] Component receiving the pointer leave.
+ * @param url [type: url] Component receiving the pointer leave.
  * @param x [type: number] Pointer x coordinate.
  * @param y [type: number] Pointer y coordinate.
  */
@@ -121,7 +121,7 @@ static int Script_PointerExit(lua_State* L)
 /**
  * Returns the projection matrix in render coordinates.
  * @name rive.get_projection_matrix()
- * @return matrix [type: matrix4] Current projection matrix for the window.
+ * @return matrix [type: vmath.matrix4] Current projection matrix for the window.
  */
 static int Script_GetProjectionMatrix(lua_State* L)
 {
@@ -366,7 +366,7 @@ static int Script_SetFontListener(lua_State* L)
 /**
  * Returns the Rive file handle tied to the component.
  * @name rive.get_file(component)
- * @param component [type: url] Component whose file handle to query.
+ * @param url [type: url] Component whose file handle to query.
  * @return file_handle [type: FileHandle] Handle identifying the loaded Rive file.
  */
 static int Script_GetFile(lua_State* L)
@@ -381,7 +381,7 @@ static int Script_GetFile(lua_State* L)
 /**
  * Switches the active artboard for the component.
  * @name rive.set_artboard(component, name)
- * @param component [type: url] Component using the artboard.
+ * @param url [type: url] Component using the artboard.
  * @param name [type: string] Name of the artboard to activate.
  * @return success [type: boolean] True if the artboard was found and activated.
  */
@@ -400,7 +400,7 @@ static int Script_SetArtboard(lua_State* L)
 /**
  * Queries the current artboard handle for the component.
  * @name rive.get_artboard(component)
- * @param component [type: url] Component whose artboard handle to return.
+ * @param url [type: url] Component whose artboard handle to return.
  * @return artboard_handle [type: ArtboardHandle] Active artboard handle.
  */
 static int Script_GetArtboard(lua_State* L)
@@ -415,7 +415,7 @@ static int Script_GetArtboard(lua_State* L)
 /**
  * Selects a state machine by name on the component.
  * @name rive.set_state_machine(component, name)
- * @param component [type: url] Component owning the state machine.
+ * @param url [type: url] Component owning the state machine.
  * @param name [type: string] Name of the state machine to activate.
  * @return success [type: boolean] True if the state machine was activated.
  */
@@ -433,7 +433,7 @@ static int Script_SetStateMachine(lua_State* L)
 /**
  * Returns the active state machine handle for the component.
  * @name rive.get_state_machine(component)
- * @param component [type: url] Component whose active state machine to query.
+ * @param url [type: url] Component whose active state machine to query.
  * @return state_machine_handle [type: StateMachineHandle] Current state machine handle.
  */
 static int Script_GetStateMachine(lua_State* L)
@@ -448,7 +448,7 @@ static int Script_GetStateMachine(lua_State* L)
 /**
  * Selects a view model instance by name.
  * @name rive.set_view_model_instance(component, name)
- * @param component [type: url] Component owning the view model instance.
+ * @param url [type: url] Component owning the view model instance.
  * @param name [type: string] View model instance name to activate.
  * @return success [type: boolean] True if the view model instance was activated.
  */
@@ -466,7 +466,7 @@ static int Script_SetViewModelInstance(lua_State* L)
 /**
  * Returns the handle of the currently bound view model instance.
  * @name rive.get_view_model_instance(component)
- * @param component [type: url] Component whose view model instance handle to query.
+ * @param url [type: url] Component whose view model instance handle to query.
  * @return view_model_instance_handle [type: ViewModelInstanceHandle] Handle for the active view model instance.
  */
 static int Script_GetViewModelInstance(lua_State* L)
