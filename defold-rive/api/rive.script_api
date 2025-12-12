@@ -319,12 +319,12 @@
         type: url
         desc: Component using the artboard.
       - name: name
-        type: string
-        desc: Name of the artboard to activate.
+        type: string|nil
+        desc: Name of the artboard to create and set. Pass nil to create a default artboard.
     return:
-      - name: success
-        type: boolean
-        desc: True if the artboard was found and activated.
+      - name: artboard
+        type: ArtboardHandle
+        desc: Old artboard handle
 
 #*****************************************************************************************************
 
@@ -336,7 +336,7 @@
         type: url
         desc: Component whose artboard handle to return.
     return:
-      - name: artboard_handle
+      - name: artboard
         type: ArtboardHandle
         desc: Active artboard handle.
 
@@ -350,12 +350,12 @@
         type: url
         desc: Component owning the state machine.
       - name: name
-        type: string
-        desc: Name of the state machine to activate.
+        type: string|nil
+        desc: Name of the state machine to create and set. Pass nil to create a default state machine.
     return:
-      - name: success
-        type: boolean
-        desc: True if the state machine was activated.
+      - name: state_machine
+        type: StateMachineHandle
+        desc: Old state machine handle
 
 #*****************************************************************************************************
 
@@ -367,7 +367,7 @@
         type: url
         desc: Component whose active state machine to query.
     return:
-      - name: state_machine_handle
+      - name: state_machine
         type: StateMachineHandle
         desc: Current state machine handle.
 
@@ -529,6 +529,70 @@
       - name: view_model_handle
         type: ViewModelInstanceHandle
         desc: Handle to the referenced list entry.
+
+#*****************************************************************************************************
+
+  - name: deleteArtboard
+    type: function
+    desc: Deletes an instantiated artboard.
+    parameters:
+      - name: artboard_handle
+        type: ArtboardHandle
+        desc: Handle to the artboard that should be removed.
+
+#*****************************************************************************************************
+
+  - name: instantiateStateMachineNamed
+    type: function
+    desc: Creates a named state machine for the provided artboard.
+    parameters:
+      - name: artboard_handle
+        type: ArtboardHandle
+        desc: Artboard where the state machine resides.
+      - name: name
+        type: string
+        desc: Name to assign to the new state machine.
+    return:
+      - name: state_machine_handle
+        type: StateMachineHandle
+        desc: Handle referencing the created state machine.
+
+#*****************************************************************************************************
+
+  - name: instantiateDefaultStateMachine
+    type: function
+    desc: Creates the default state machine for an artboard.
+    parameters:
+      - name: artboard_handle
+        type: ArtboardHandle
+        desc: Artboard used as the source for the state machine.
+    return:
+      - name: state_machine_handle
+        type: StateMachineHandle
+        desc: Handle referencing the created state machine.
+
+#*****************************************************************************************************
+
+  - name: advanceStateMachine
+    type: function
+    desc: Advances the state machine by the requested delta time.
+    parameters:
+      - name: state_machine_handle
+        type: StateMachineHandle
+        desc: State machine to advance.
+      - name: delta
+        type: number
+        desc: Time in seconds to advance the state machine.
+
+#*****************************************************************************************************
+
+  - name: deleteStateMachine
+    type: function
+    desc: Deletes a created state machine.
+    parameters:
+      - name: state_machine_handle
+        type: StateMachineHandle
+        desc: Handle to the state machine to delete.
 
 #*****************************************************************************************************
 

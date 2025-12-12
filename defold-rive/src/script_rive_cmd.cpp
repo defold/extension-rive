@@ -45,6 +45,22 @@ static void CheckStringOrInteger(lua_State* L, int index, const char** string, I
         *integer = (INTEGER)luaL_checkinteger(L, index);
 }
 
+// *************************************************************************************************
+
+/**
+ * Deletes an instantiated artboard.
+ * @name cmd.deleteArtboard(artboard_handle)
+ * @param artboard_handle [type: ArtboardHandle] Handle to the artboard that should be removed.
+ */
+static int Script_deleteArtboard(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::ArtboardHandle handle = (rive::ArtboardHandle)luaL_checkinteger(L, 1);
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    queue->deleteArtboard(handle);
+    return 0;
+}
+
 /**
  * Returns the artboard handle created for the named view model.
  * @name cmd.instantiateArtboardNamed(file_handle, viewmodel_name)
@@ -82,6 +98,77 @@ static int Script_instantiateDefaultArtboard(lua_State* L)
     lua_pushinteger(L, (lua_Integer)handle);
     return 1;
 }
+
+// *******************************************************************************************************
+
+/**
+ * Creates the default state machine for an artboard.
+ * @name cmd.instantiateDefaultStateMachine(artboard_handle)
+ * @param artboard_handle [type: ArtboardHandle] Artboard used as the source for the state machine.
+ * @return state_machine_handle [type: StateMachineHandle] Handle referencing the created state machine.
+ */
+static int Script_instantiateDefaultStateMachine(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
+    rive::ArtboardHandle artboard = (rive::ArtboardHandle)luaL_checkinteger(L, 1);
+
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    rive::StateMachineHandle handle = queue->instantiateDefaultStateMachine(artboard);
+    lua_pushinteger(L, (lua_Integer)handle);
+    return 1;
+}
+
+/**
+ * Creates a named state machine for the provided artboard.
+ * @name cmd.instantiateStateMachineNamed(artboard_handle, name)
+ * @param artboard_handle [type: ArtboardHandle] Artboard where the state machine resides.
+ * @param name [type: string] Name to assign to the new state machine.
+ * @return state_machine_handle [type: StateMachineHandle] Handle referencing the created state machine.
+ */
+static int Script_instantiateStateMachineNamed(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
+    rive::ArtboardHandle artboard = (rive::ArtboardHandle)luaL_checkinteger(L, 1);
+    const char* name = luaL_checkstring(L, 2);
+
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    rive::StateMachineHandle handle = queue->instantiateStateMachineNamed(artboard, name);
+    lua_pushinteger(L, (lua_Integer)handle);
+    return 1;
+}
+
+/**
+ * Advances the state machine by the requested delta time.
+ * @name cmd.advanceStateMachine(state_machine_handle, delta)
+ * @param state_machine_handle [type: StateMachineHandle] State machine to advance.
+ * @param delta [type: number] Time in seconds to advance the state machine.
+ */
+static int Script_advanceStateMachine(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::StateMachineHandle state_machine = (rive::StateMachineHandle)luaL_checkinteger(L, 1);
+    float dt = (float)luaL_checknumber(L, 2);
+
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    queue->advanceStateMachine(state_machine, dt);
+    return 0;
+}
+
+/**
+ * Deletes a created state machine.
+ * @name cmd.deleteStateMachine(state_machine_handle)
+ * @param state_machine_handle [type: StateMachineHandle] Handle to the state machine to delete.
+ */
+static int Script_deleteStateMachine(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::StateMachineHandle handle = (rive::StateMachineHandle)luaL_checkinteger(L, 1);
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    queue->deleteStateMachine(handle);
+    return 0;
+}
+
+// *******************************************************************************************************
 
 /**
  * Returns a blank view model instance handle for the given artboard or view model.
@@ -991,6 +1078,14 @@ static const luaL_reg RIVE_COMMAND_FUNCTIONS[] =
 {
     {"instantiateArtboardNamed",            Script_instantiateArtboardNamed},
     {"instantiateDefaultArtboard",          Script_instantiateDefaultArtboard},
+    {"deleteArtboard",                      Script_deleteArtboard},
+
+    {"instantiateStateMachineNamed",        Script_instantiateStateMachineNamed},
+    {"instantiateDefaultStateMachine",      Script_instantiateDefaultStateMachine},
+    {"advanceStateMachine",                 Script_advanceStateMachine},
+    {"bindViewModelInstance",               Script_bindViewModelInstance},
+    {"deleteStateMachine",                  Script_deleteStateMachine},
+
     {"instantiateBlankViewModelInstance",   Script_instantiateBlankViewModelInstance},
     {"instantiateDefaultViewModelInstance", Script_instantiateDefaultViewModelInstance},
     {"instantiateViewModelInstanceNamed",   Script_instantiateViewModelInstanceNamed},
@@ -1005,7 +1100,6 @@ static const luaL_reg RIVE_COMMAND_FUNCTIONS[] =
     {"removeViewModelInstanceListViewModelIndex",Script_removeViewModelInstanceListViewModelIndex},
     {"removeViewModelInstanceListViewModel",    Script_removeViewModelInstanceListViewModel},
 
-    {"bindViewModelInstance",       Script_bindViewModelInstance},
     {"deleteViewModelInstance",     Script_deleteViewModelInstance},
 
     {"fireViewModelTrigger",        Script_fireViewModelTrigger},

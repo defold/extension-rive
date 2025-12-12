@@ -382,18 +382,21 @@ static int Script_GetFile(lua_State* L)
  * Switches the active artboard for the component.
  * @name rive.set_artboard(component, name)
  * @param url [type: url] Component using the artboard.
- * @param name [type: string] Name of the artboard to activate.
- * @return success [type: boolean] True if the artboard was found and activated.
+ * @param name [type: string|nil] Name of the artboard to create and set. Pass nil to create a default artboard.
+ * @return artboard [type: ArtboardHandle] Old artboard handle
  */
 static int Script_SetArtboard(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 1);
     RiveComponent* component = 0;
     dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
-    const char* name = luaL_checkstring(L, 2);
-    bool result = CompRiveSetArtboard(component, name);
-    // TODO: Allow it to set a new statemachine at the same time!
-    lua_pushboolean(L, result);
+    const char* name;
+    if (lua_isnil(L, 2))
+        name = 0;
+    else
+        name = luaL_checkstring(L, 2);
+    rive::ArtboardHandle old_handle = CompRiveSetArtboard(component, name);
+    lua_pushinteger(L, old_handle);
     return 1;
 }
 
@@ -401,7 +404,7 @@ static int Script_SetArtboard(lua_State* L)
  * Queries the current artboard handle for the component.
  * @name rive.get_artboard(component)
  * @param url [type: url] Component whose artboard handle to return.
- * @return artboard_handle [type: ArtboardHandle] Active artboard handle.
+ * @return artboard [type: ArtboardHandle] Active artboard handle.
  */
 static int Script_GetArtboard(lua_State* L)
 {
@@ -416,17 +419,21 @@ static int Script_GetArtboard(lua_State* L)
  * Selects a state machine by name on the component.
  * @name rive.set_state_machine(component, name)
  * @param url [type: url] Component owning the state machine.
- * @param name [type: string] Name of the state machine to activate.
- * @return success [type: boolean] True if the state machine was activated.
+ * @param name [type: string|nil] Name of the state machine to create and set. Pass nil to create a default state machine.
+ * @return state_machine [type: StateMachineHandle] Old state machine handle
  */
 static int Script_SetStateMachine(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 1);
     RiveComponent* component = 0;
     dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
-    const char* name = luaL_checkstring(L, 2);
-    bool result = CompRiveSetStateMachine(component, name);
-    lua_pushboolean(L, result);
+    const char* name;
+    if (lua_isnil(L, 2))
+        name = 0;
+    else
+        name = luaL_checkstring(L, 2);
+    rive::StateMachineHandle old_handle = CompRiveSetStateMachine(component, name);
+    lua_pushinteger(L, old_handle);
     return 1;
 }
 
@@ -434,7 +441,7 @@ static int Script_SetStateMachine(lua_State* L)
  * Returns the active state machine handle for the component.
  * @name rive.get_state_machine(component)
  * @param url [type: url] Component whose active state machine to query.
- * @return state_machine_handle [type: StateMachineHandle] Current state machine handle.
+ * @return state_machine [type: StateMachineHandle] Current state machine handle.
  */
 static int Script_GetStateMachine(lua_State* L)
 {

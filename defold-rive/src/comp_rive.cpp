@@ -300,11 +300,13 @@ namespace dmRive
         return component->m_Artboard;
     }
 
-    bool CompRiveSetArtboard(RiveComponent* component, const char* artboard_name)
+    rive::ArtboardHandle CompRiveSetArtboard(RiveComponent* component, const char* artboard_name)
     {
         dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
         rive::FileHandle file = data->m_File;
         rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+
+        rive::ArtboardHandle old_handle = component->m_Artboard;
 
         if (artboard_name && artboard_name[0] != '\0')
         {
@@ -322,7 +324,7 @@ namespace dmRive
             printf("Created default artboard\n");
         }
 
-        return component->m_Artboard != 0;
+        return old_handle;
     }
 
     rive::StateMachineHandle CompRiveGetStateMachine(RiveComponent* component)
@@ -330,10 +332,12 @@ namespace dmRive
         return component->m_StateMachine;
     }
 
-    bool CompRiveSetStateMachine(RiveComponent* component, const char* state_machine_name)
+    rive::StateMachineHandle CompRiveSetStateMachine(RiveComponent* component, const char* state_machine_name)
     {
         rive::ArtboardHandle artboard = component->m_Artboard;
         rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+
+        rive::StateMachineHandle old_handle = component->m_StateMachine;
 
         if (state_machine_name && state_machine_name[0] != '\0')
         {
@@ -352,13 +356,22 @@ namespace dmRive
         }
 
         component->m_Enabled = component->m_StateMachine != 0;
-        return component->m_Enabled;
+
+        if (component->m_StateMachine && component->m_Resource->m_DDF->m_AutoBind)
+        {
+            CompRiveSetViewModelInstance(component, 0);
+            BindViewModelInstance(component);
+        }
+
+        return old_handle;
     }
 
-    bool CompRiveSetViewModelInstance(RiveComponent* component, const char* viewmodel_name)
+    rive::ViewModelInstanceHandle CompRiveSetViewModelInstance(RiveComponent* component, const char* viewmodel_name)
     {
         rive::FileHandle file = CompRiveGetFile(component);
         rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+
+        rive::ViewModelInstanceHandle old_handle = component->m_ViewModelInstance;
 
         if (viewmodel_name && viewmodel_name[0] != '\0')
         {
@@ -377,7 +390,7 @@ namespace dmRive
         }
 
         component->m_Enabled = component->m_ViewModelInstance != 0;
-        return component->m_Enabled;
+        return old_handle;
     }
 
     static void BindViewModelInstance(RiveComponent* component)
@@ -428,40 +441,8 @@ namespace dmRive
             component->m_Alignment = DDFToRiveAlignment(ddf->m_ArtboardAlignment);
         }
 
-            // if (ddf->m_CoordinateSystem == dmRiveDDF::RiveModelDesc::COORDINATE_SYSTEM_FULLSCREEN)
-            // {
-            //     // Apply the world matrix from the component to the artboard transform
-            //     rive::Mat2D transform;
-            //     Mat4ToMat2D(c->m_World, transform);
-
-            //     rive::Mat2D centerAdjustment  = rive::Mat2D::fromTranslate(-bounds.width() / 2.0f, -bounds.height() / 2.0f);
-            //     rive::Mat2D scaleDpi          = rive::Mat2D::fromScale(1,-1);
-            //     rive::Mat2D invertAdjustment  = rive::Mat2D::fromScaleAndTranslation(g_DisplayFactor, -g_DisplayFactor, 0, window_height);
-            //     rive::Mat2D rendererTransform = invertAdjustment * viewTransform * transform * scaleDpi * centerAdjustment;
-
-            //     renderer->transform(rendererTransform);
-            //     c->m_InverseRendererTransform = rendererTransform.invertOrIdentity();
-            // }
-            // else if (ddf->m_CoordinateSystem == dmRiveDDF::RiveModelDesc::COORDINATE_SYSTEM_RIVE)
-            // {
-            //     rive::Fit rive_fit         = DDFToRiveFit(ddf->m_ArtboardFit);
-            //     rive::Alignment rive_align = DDFToRiveAlignment(ddf->m_ArtboardAlignment);
-
         CompRiveSetArtboard(component, ddf->m_Artboard);
         CompRiveSetStateMachine(component, ddf->m_DefaultStateMachine);
-
-        if (component->m_Resource->m_DDF->m_AutoBind)
-        {
-            CompRiveSetViewModelInstance(component, 0);
-            BindViewModelInstance(component);
-        }
-
-        // if (component->m_Resource->m_CreateGoBones)
-        // {
-        //     dmRive::GetAllBones(component->m_Artboard.get(), &component->m_Bones);
-        //     CreateBones(world, component);
-        //     UpdateBones(component);
-        // }
 
         component->m_ReHash = 1;
 

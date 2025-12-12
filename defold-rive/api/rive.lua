@@ -132,24 +132,24 @@ function rive.get_file(url) end
 
 --- Switches the active artboard for the component.
 ---@param url url Component using the artboard.
----@param name string Name of the artboard to activate.
----@return boolean success True if the artboard was found and activated.
+---@param name? string Name of the artboard to create and set. Pass nil to create a default artboard.
+---@return ArtboardHandle artboard Old artboard handle
 function rive.set_artboard(url, name) end
 
 --- Queries the current artboard handle for the component.
 ---@param url url Component whose artboard handle to return.
----@return ArtboardHandle artboard_handle Active artboard handle.
+---@return ArtboardHandle artboard Active artboard handle.
 function rive.get_artboard(url) end
 
 --- Selects a state machine by name on the component.
 ---@param url url Component owning the state machine.
----@param name string Name of the state machine to activate.
----@return boolean success True if the state machine was activated.
+---@param name? string Name of the state machine to create and set. Pass nil to create a default state machine.
+---@return StateMachineHandle state_machine Old state machine handle
 function rive.set_state_machine(url, name) end
 
 --- Returns the active state machine handle for the component.
 ---@param url url Component whose active state machine to query.
----@return StateMachineHandle state_machine_handle Current state machine handle.
+---@return StateMachineHandle state_machine Current state machine handle.
 function rive.get_state_machine(url) end
 
 --- Selects a view model instance by name.
@@ -208,6 +208,30 @@ function rive.cmd.referenceNestedViewModelInstance(view_model_handle, path) end
 ---@param index number Index within the list entry to reference.
 ---@return ViewModelInstanceHandle view_model_handle Handle to the referenced list entry.
 function rive.cmd.referenceListViewModelInstance(view_model_handle, path, index) end
+
+--- Deletes an instantiated artboard.
+---@param artboard_handle ArtboardHandle Handle to the artboard that should be removed.
+function rive.cmd.deleteArtboard(artboard_handle) end
+
+--- Creates a named state machine for the provided artboard.
+---@param artboard_handle ArtboardHandle Artboard where the state machine resides.
+---@param name string Name to assign to the new state machine.
+---@return StateMachineHandle state_machine_handle Handle referencing the created state machine.
+function rive.cmd.instantiateStateMachineNamed(artboard_handle, name) end
+
+--- Creates the default state machine for an artboard.
+---@param artboard_handle ArtboardHandle Artboard used as the source for the state machine.
+---@return StateMachineHandle state_machine_handle Handle referencing the created state machine.
+function rive.cmd.instantiateDefaultStateMachine(artboard_handle) end
+
+--- Advances the state machine by the requested delta time.
+---@param state_machine_handle StateMachineHandle State machine to advance.
+---@param delta number Time in seconds to advance the state machine.
+function rive.cmd.advanceStateMachine(state_machine_handle, delta) end
+
+--- Deletes a created state machine.
+---@param state_machine_handle StateMachineHandle Handle to the state machine to delete.
+function rive.cmd.deleteStateMachine(state_machine_handle) end
 
 --- Replaces the nested view model at the given path with the supplied handle.
 ---@param view_model_handle ViewModelInstanceHandle View model instance whose nested child is updated.

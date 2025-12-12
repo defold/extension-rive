@@ -74,12 +74,12 @@ namespace dmRive
 
     // Scripting
     rive::FileHandle            CompRiveGetFile(RiveComponent* component);
-    bool                        CompRiveSetArtboard(RiveComponent* component, const char* name);
+    rive::FileHandle            CompRiveSetArtboard(RiveComponent* component, const char* name);
     rive::ArtboardHandle        CompRiveGetArtboard(RiveComponent* component);
-    bool                        CompRiveSetStateMachine(RiveComponent* component, const char* name);
+    rive::StateMachineHandle    CompRiveSetStateMachine(RiveComponent* component, const char* name);
     rive::StateMachineHandle    CompRiveGetStateMachine(RiveComponent* component);
 
-    bool                            CompRiveSetViewModelInstance(RiveComponent* component, const char* name);
+    rive::ViewModelInstanceHandle   CompRiveSetViewModelInstance(RiveComponent* component, const char* name);
     rive::ViewModelInstanceHandle   CompRiveGetViewModelInstance(RiveComponent* component);
 
     enum PointerAction
