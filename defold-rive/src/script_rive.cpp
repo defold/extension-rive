@@ -70,26 +70,59 @@ static int Script_PointerAction(lua_State* L, dmRive::PointerAction action)
     return 0;
 }
 
+/**
+ * Lua wrapper for pointer movement.
+ * @name rive.pointer_move(component, x, y)
+ * @param component [type: url] Component receiving the pointer move.
+ * @param x [type: number] Pointer x coordinate in component space.
+ * @param y [type: number] Pointer y coordinate in component space.
+ */
 static int Script_PointerMove(lua_State* L)
 {
     return Script_PointerAction(L, dmRive::PointerAction::POINTER_MOVE);
 }
 
+/**
+ * Lua wrapper for pointer up events.
+ * @name rive.pointer_up(component, x, y)
+ * @param component [type: url] Component receiving the pointer release.
+ * @param x [type: number] Pointer x coordinate.
+ * @param y [type: number] Pointer y coordinate.
+ */
 static int Script_PointerUp(lua_State* L)
 {
     return Script_PointerAction(L, dmRive::PointerAction::POINTER_UP);
 }
 
+/**
+ * Lua wrapper for pointer down events.
+ * @name rive.pointer_down(component, x, y)
+ * @param component [type: url] Component receiving the pointer press.
+ * @param x [type: number] Pointer x coordinate.
+ * @param y [type: number] Pointer y coordinate.
+ */
 static int Script_PointerDown(lua_State* L)
 {
     return Script_PointerAction(L, dmRive::PointerAction::POINTER_DOWN);
 }
 
+/**
+ * Lua wrapper for pointer exit events.
+ * @name rive.pointer_exit(component, x, y)
+ * @param component [type: url] Component receiving the pointer leave.
+ * @param x [type: number] Pointer x coordinate.
+ * @param y [type: number] Pointer y coordinate.
+ */
 static int Script_PointerExit(lua_State* L)
 {
     return Script_PointerAction(L, dmRive::PointerAction::POINTER_EXIT);
 }
 
+/**
+ * Returns the projection matrix in render coordinates.
+ * @name rive.get_projection_matrix()
+ * @return matrix [type: matrix4] Current projection matrix for the window.
+ */
 static int Script_GetProjectionMatrix(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 1);
@@ -143,36 +176,186 @@ static int SetListenerCallback(lua_State* L, LISTENER* listener)
     return 0;
 }
 
+/**
+ * Sets or clears the global file listener callback.
+ * @name rive.set_file_listener(callback)
+ * @param callback [type:function(self, event, data)|nil] Callback invoked for file system events; pass nil to disable.
+ *
+ * `self`
+ * : [type:object] The calling script instance.
+ *
+ * `event`
+ * : [type: string] One of:
+ *   - `onFileLoaded`
+ *   - `onFileDeleted`
+ *   - `onFileError`
+ *   - `onArtboardsListed`
+ *   - `onViewModelsListed`
+ *   - `onViewModelInstanceNamesListed`
+ *   - `onViewModelPropertiesListed`
+ *   - `onViewModelEnumsListed`
+ *
+ * `data`
+ * : [type:table] Additional fields vary by event. Common keys include:
+ *   - `file`: [type:handle] File handle involved in the event.
+ *   - `viewModelName`: [type:string] View model name for the request, when applicable.
+ *   - `instanceNames`: [type:table] Array of instance name strings.
+ *   - `artboardNames`: [type:table] Array of artboard name strings.
+ *   - `properties`: [type:table] Array of property metadata tables.
+ *   - `enums`: [type:table] Array of enum definitions.
+ *   - `error`: [type:string] Error message when a failure occurs.
+ */
 static int Script_SetFileListener(lua_State* L)
 {
     return SetListenerCallback(L, &g_FileListener);
 }
 
+/**
+ * Sets or clears the artboard listener callback.
+ * @name rive.set_artboard_listener(callback)
+ * @param callback [type:function(self, event, data)|nil] Callback invoked for artboard-related events; pass nil to disable.
+ *
+ * `self`
+ * : [type:object] The calling script instance.
+ *
+ * `event`
+ * : [type: string] One of:
+ *   - `onArtboardError`
+ *   - `onDefaultViewModelInfoReceived`
+ *   - `onArtboardDeleted`
+ *   - `onStateMachinesListed`
+ *
+ * `data`
+ * : [type:table] Additional data per event, typically:
+ *   - `artboard`: [type:handle] Artboard handle involved.
+ *   - `viewModelName`: [type:string] View model name for defaults (received event).
+ *   - `instanceName`: [type:string] Instance name for defaults.
+ *   - `stateMachineNames`: [type:table] Array of state machine name strings.
+ *   - `error`: [type:string] Error message when an error event fires.
+ */
 static int Script_SetArtboardListener(lua_State* L)
 {
     return SetListenerCallback(L, &g_ArtboardListener);
 }
 
+/**
+ * Sets or clears the state machine listener callback.
+ * @name rive.set_state_machine_listener(callback)
+ * @param callback [type:function(self, event, data)|nil] Callback invoked for state machine events; pass nil to disable.
+ *
+ * `self`
+ * : [type:object] The calling script instance.
+ *
+ * `event`
+ * : [type: string] One of:
+ *   - `onStateMachineError`
+ *   - `onStateMachineDeleted`
+ *   - `onStateMachineSettled`
+ *
+ * `data`
+ * : [type:table] Event-specific details:
+ *   - `stateMachine`: [type:handle] Active state machine handle.
+ *   - `error`: [type:string] Error message when an error occurs.
+ */
 static int Script_SetStateMachineListener(lua_State* L)
 {
     return SetListenerCallback(L, &g_StateMachineListener);
 }
 
+/**
+ * Sets or clears the view model instance listener callback.
+ * @name rive.set_view_model_instance_listener(callback)
+ * @param callback [type:function(self, event, data)|nil] Callback invoked for view model instance events; pass nil to disable.
+ *
+ * `self`
+ * : [type:object] The calling script instance.
+ *
+ * `event`
+ * : [type: string] One of:
+ *   - `onViewModelInstanceError`
+ *   - `onViewModelDeleted`
+ *   - `onViewModelDataReceived`
+ *   - `onViewModelListSizeReceived`
+ *
+ * `data`
+ * : [type:table] Additional payload per event:
+ *   - `viewModel`: [type:handle] Handle of the affected view model instance.
+ *   - `error`: [type:string] Error description when an error fires.
+ *   - `path`: [type:string] Path being inspected when list size arrives.
+ *   - `size`: [type:number] List size value for list-size events.
+ */
 static int Script_SetViewModelInstanceListener(lua_State* L)
 {
     return SetListenerCallback(L, &g_ViewModelInstanceListener);
 }
 
+/**
+ * Sets or clears the render image listener callback.
+ * @name rive.set_render_image_listener(callback)
+ * @param callback [type:function(self, event, data)|nil] Callback invoked for render image events; pass nil to disable.
+ *
+ * `self`
+ * : [type:object] The calling script instance.
+ *
+ * `event`
+ * : [type: string] One of:
+ *   - `onRenderImageDecoded`
+ *   - `onRenderImageError`
+ *   - `onRenderImageDeleted`
+ *
+ * `data`
+ * : [type:table] Additional fields:
+ *   - `renderImage`: [type:handle] Handle of the render image.
+ *   - `error`: [type:string] Error message for the failure event.
+ */
 static int Script_SetRenderImageListener(lua_State* L)
 {
     return SetListenerCallback(L, &g_RenderImageListener);
 }
 
+/**
+ * Sets or clears the audio source listener callback.
+ * @name rive.set_audio_source_listener(callback)
+ * @param callback [type:function(self, event, data)|nil] Callback invoked for audio source events; pass nil to disable.
+ *
+ * `self`
+ * : [type:object] The calling script instance.
+ *
+ * `event`
+ * : [type: string] One of:
+ *   - `onAudioSourceDecoded`
+ *   - `onAudioSourceError`
+ *   - `onAudioSourceDeleted`
+ *
+ * `data`
+ * : [type:table] Additional fields:
+ *   - `audioSource`: [type:handle] Audio source handle for the event.
+ *   - `error`: [type:string] Error message when provided.
+ */
 static int Script_SetAudioSourceListener(lua_State* L)
 {
     return SetListenerCallback(L, &g_AudioSourceListener);
 }
 
+/**
+ * Sets or clears the font listener callback.
+ * @name rive.set_font_listener(callback)
+ * @param callback [type:function(self, event, data)|nil] Callback invoked for font events; pass nil to disable.
+ *
+ * `self`
+ * : [type:object] The calling script instance.
+ *
+ * `event`
+ * : [type: string] One of:
+ *   - `onFontDecoded`
+ *   - `onFontError`
+ *   - `onFontDeleted`
+ *
+ * `data`
+ * : [type:table] Additional fields:
+ *   - `font`: [type:handle] Font handle for the associated event.
+ *   - `error`: [type:string] Error message for failure events.
+ */
 static int Script_SetFontListener(lua_State* L)
 {
     return SetListenerCallback(L, &g_FontListener);
@@ -180,6 +363,12 @@ static int Script_SetFontListener(lua_State* L)
 
 // ****************************************************************************
 
+/**
+ * Returns the Rive file handle tied to the component.
+ * @name rive.get_file(component)
+ * @param component [type: url] Component whose file handle to query.
+ * @return file_handle [type: FileHandle] Handle identifying the loaded Rive file.
+ */
 static int Script_GetFile(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 1);
@@ -189,6 +378,13 @@ static int Script_GetFile(lua_State* L)
     return 1;
 }
 
+/**
+ * Switches the active artboard for the component.
+ * @name rive.set_artboard(component, name)
+ * @param component [type: url] Component using the artboard.
+ * @param name [type: string] Name of the artboard to activate.
+ * @return success [type: boolean] True if the artboard was found and activated.
+ */
 static int Script_SetArtboard(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 1);
@@ -201,6 +397,12 @@ static int Script_SetArtboard(lua_State* L)
     return 1;
 }
 
+/**
+ * Queries the current artboard handle for the component.
+ * @name rive.get_artboard(component)
+ * @param component [type: url] Component whose artboard handle to return.
+ * @return artboard_handle [type: ArtboardHandle] Active artboard handle.
+ */
 static int Script_GetArtboard(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 1);
@@ -210,6 +412,13 @@ static int Script_GetArtboard(lua_State* L)
     return 1;
 }
 
+/**
+ * Selects a state machine by name on the component.
+ * @name rive.set_state_machine(component, name)
+ * @param component [type: url] Component owning the state machine.
+ * @param name [type: string] Name of the state machine to activate.
+ * @return success [type: boolean] True if the state machine was activated.
+ */
 static int Script_SetStateMachine(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 1);
@@ -221,6 +430,12 @@ static int Script_SetStateMachine(lua_State* L)
     return 1;
 }
 
+/**
+ * Returns the active state machine handle for the component.
+ * @name rive.get_state_machine(component)
+ * @param component [type: url] Component whose active state machine to query.
+ * @return state_machine_handle [type: StateMachineHandle] Current state machine handle.
+ */
 static int Script_GetStateMachine(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 1);
@@ -230,6 +445,13 @@ static int Script_GetStateMachine(lua_State* L)
     return 1;
 }
 
+/**
+ * Selects a view model instance by name.
+ * @name rive.set_view_model_instance(component, name)
+ * @param component [type: url] Component owning the view model instance.
+ * @param name [type: string] View model instance name to activate.
+ * @return success [type: boolean] True if the view model instance was activated.
+ */
 static int Script_SetViewModelInstance(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 1);
@@ -241,6 +463,12 @@ static int Script_SetViewModelInstance(lua_State* L)
     return 1;
 }
 
+/**
+ * Returns the handle of the currently bound view model instance.
+ * @name rive.get_view_model_instance(component)
+ * @param component [type: url] Component whose view model instance handle to query.
+ * @return view_model_instance_handle [type: ViewModelInstanceHandle] Handle for the active view model instance.
+ */
 static int Script_GetViewModelInstance(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 1);
