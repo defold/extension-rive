@@ -332,6 +332,12 @@ namespace dmRive
         return component->m_StateMachine;
     }
 
+    static void BindViewModelInstance(RiveComponent* component)
+    {
+        rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+        queue->bindViewModelInstance(component->m_StateMachine, component->m_ViewModelInstance);
+    }
+
     rive::StateMachineHandle CompRiveSetStateMachine(RiveComponent* component, const char* state_machine_name)
     {
         rive::ArtboardHandle artboard = component->m_Artboard;
@@ -391,12 +397,6 @@ namespace dmRive
 
         component->m_Enabled = component->m_ViewModelInstance != 0;
         return old_handle;
-    }
-
-    static void BindViewModelInstance(RiveComponent* component)
-    {
-        rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
-        queue->bindViewModelInstance(component->m_StateMachine, component->m_ViewModelInstance);
     }
 
     dmGameObject::CreateResult CompRiveCreate(const dmGameObject::ComponentCreateParams& params)

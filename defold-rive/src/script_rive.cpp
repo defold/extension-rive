@@ -396,7 +396,7 @@ static int Script_SetArtboard(lua_State* L)
     else
         name = luaL_checkstring(L, 2);
     rive::ArtboardHandle old_handle = CompRiveSetArtboard(component, name);
-    lua_pushinteger(L, old_handle);
+    lua_pushinteger(L, (lua_Integer) old_handle);
     return 1;
 }
 
@@ -433,7 +433,7 @@ static int Script_SetStateMachine(lua_State* L)
     else
         name = luaL_checkstring(L, 2);
     rive::StateMachineHandle old_handle = CompRiveSetStateMachine(component, name);
-    lua_pushinteger(L, old_handle);
+    lua_pushinteger(L, (lua_Integer) old_handle);
     return 1;
 }
 
