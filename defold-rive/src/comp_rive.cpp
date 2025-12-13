@@ -265,12 +265,12 @@ namespace dmRive
         HashState32 state;
         bool reverse = false;
         RiveModelResource* resource = component->m_Resource;
-        dmRiveDDF::RiveModelDesc* ddf = resource->m_DDF;
+        //dmRiveDDF::RiveModelDesc* ddf = resource->m_DDF;
         dmRender::HMaterial material = GetMaterial(component, resource);
         dmGameSystem::TextureSetResource* texture_set = resource->m_Scene->m_TextureSet;
         dmHashInit32(&state, reverse);
         dmHashUpdateBuffer32(&state, &material, sizeof(material));
-        //dmHashUpdateBuffer32(&state, &ddf->m_BlendMode, sizeof(ddf->m_BlendMode));
+        //dmHashUpdateBuffer32(&state, &ddf->m_BlendMode, sizeof(ddf->m_BlendMode)); // not currently used
         if (texture_set)
             dmHashUpdateBuffer32(&state, &texture_set, sizeof(texture_set));
         component->m_MixedHash = dmHashFinal32(&state);
@@ -692,138 +692,7 @@ namespace dmRive
         component->m_AnimationIndex        = 0xff;
         component->m_AnimationPlaybackRate = 1.0f;
         component->m_AnimationPlayback     = dmGameObject::PLAYBACK_NONE;
-
-        // component->m_AnimationInstance.reset();
-        // component->m_StateMachine.reset();
-        // component->m_StateMachineInputs.SetSize(0);
     }
-
-    // static void CompRiveAnimationDoneCallback(RiveComponent* component)
-    // {
-    //     assert(component->m_AnimationInstance);
-
-    //     dmMessage::URL sender;
-    //     dmMessage::URL receiver  = component->m_Listener;
-    //     if (!GetSender(component, &sender))
-    //     {
-    //         dmLogError("Could not send animation_done to listener because of incomplete component.");
-    //         return;
-    //     }
-
-    //     dmRive::RiveSceneData* data = (dmRive::RiveSceneData*) component->m_Resource->m_Scene->m_Scene;
-
-    //     RiveArtboardIdList* id_list = FindArtboardIdList(component->m_Artboard.get(), data);
-
-    //     dmRiveDDF::RiveAnimationDone message;
-    //     message.m_AnimationId = id_list->m_LinearAnimations[component->m_AnimationIndex];
-    //     message.m_Playback    = component->m_AnimationPlayback;
-
-    //     if (component->m_Callback)
-    //     {
-    //         uint32_t id = component->m_CallbackId;
-    //         CompRiveRunCallback(component, dmRiveDDF::RiveAnimationDone::m_DDFDescriptor, (const char*)&message, &sender);
-
-    //         // Make sure we're clearing the same callback as we ran above and not a new
-    //         // callback that was started from the original callback
-    //         if (id == component->m_CallbackId)
-    //         {
-    //             CompRiveClearCallback(component);
-    //         }
-    //     }
-    //     else
-    //     {
-    //         dmGameObject::Result result = dmGameObject::PostDDF(&message, &sender, &receiver, 0, true);
-    //         if (result != dmGameObject::RESULT_OK)
-    //         {
-    //             dmLogError("Could not send animation_done to listener: %d", result);
-    //         }
-    //     }
-    // }
-
-    // static bool CompRiveHandleEventTrigger(RiveComponent* component, dmRiveDDF::RiveEventTrigger message)
-    // {
-    //     dmMessage::URL sender;
-    //     dmMessage::URL receiver = component->m_Listener;
-    //     if (!GetSender(component, &sender))
-    //     {
-    //         dmLogError("Could not send event_trigger to listener because of incomplete component.");
-    //         return false;
-    //     }
-
-    //     if (component->m_Callback)
-    //     {
-    //         dmScript::LuaCallbackInfo* callback = component->m_Callback;
-    //         CompRiveRunCallback(component, dmRiveDDF::RiveEventTrigger::m_DDFDescriptor, (const char*)&message, &sender);
-
-    //         // note that we are not clearing the callback here since multiple events can fire at
-    //         // different times during the playback
-    //     }
-    //     else
-    //     {
-    //         dmGameObject::Result result = dmGameObject::PostDDF(&message, &sender, &receiver, 0, true);
-    //         if (result != dmGameObject::RESULT_OK)
-    //         {
-    //             dmLogError("Could not send event_trigger to listener: %d", result);
-    //             return false;
-    //         }
-    //     }
-    //     return true;
-    // }
-
-    // static void CompRiveEventTriggerCallback(RiveComponent* component, rive::Event* event)
-    // {
-    //     dmRiveDDF::RiveEventTrigger event_message;
-    //     event_message.m_Name = event->name().c_str();
-    //     event_message.m_Trigger = 0;
-    //     event_message.m_Text = "";
-    //     event_message.m_Number = 0.0f;
-    //     if (!CompRiveHandleEventTrigger(component, event_message))
-    //     {
-    //         return;
-    //     }
-
-    //     // trigger event once per event property
-    //     for (auto child : event->children())
-    //     {
-    //         if (child->is<rive::CustomProperty>())
-    //         {
-    //             if (!child->name().empty())
-    //             {
-    //                 dmRiveDDF::RiveEventTrigger property_message;
-    //                 property_message.m_Name = child->name().c_str();
-    //                 property_message.m_Trigger = 0;
-    //                 property_message.m_Text = "";
-    //                 property_message.m_Number = 0.0f;
-    //                 switch (child->coreType())
-    //                 {
-    //                     case rive::CustomPropertyBoolean::typeKey:
-    //                     {
-    //                         bool b = child->as<rive::CustomPropertyBoolean>()->propertyValue();
-    //                         property_message.m_Trigger = b;
-    //                         break;
-    //                     }
-    //                     case rive::CustomPropertyString::typeKey:
-    //                     {
-    //                         const char* s = child->as<rive::CustomPropertyString>()->propertyValue().c_str();
-    //                         property_message.m_Text = s;
-    //                         break;
-    //                     }
-    //                     case rive::CustomPropertyNumber::typeKey:
-    //                     {
-    //                         float f = child->as<rive::CustomPropertyNumber>()->propertyValue();
-    //                         property_message.m_Number = f;
-    //                         break;
-    //                     }
-    //                 }
-    //                 if (!CompRiveHandleEventTrigger(component, property_message))
-    //                 {
-    //                     return;
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-
 
     dmGameObject::UpdateResult CompRiveUpdate(const dmGameObject::ComponentsUpdateParams& params, dmGameObject::ComponentsUpdateResult& update_result)
     {
@@ -972,18 +841,6 @@ namespace dmRive
             }
         }
         return -1;
-    }
-
-    bool CompRivePlayAnimation(RiveComponent* component, dmRiveDDF::RivePlayAnimation* ddf, dmScript::LuaCallbackInfo* callback_info)
-    {
-        dmLogOnceError("MAWE Unimplemented %s", __FUNCTION__);
-        return false;
-    }
-
-    bool CompRivePlayStateMachine(RiveComponent* component, dmRiveDDF::RivePlayAnimation* ddf, dmScript::LuaCallbackInfo* callback_info)
-    {
-        dmLogError("%s not implemented", __FUNCTION__);
-        return false;
     }
 
     dmGameObject::UpdateResult CompRiveOnMessage(const dmGameObject::ComponentOnMessageParams& params)

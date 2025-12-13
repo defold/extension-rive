@@ -63,9 +63,6 @@ namespace dmRive
     // Get the game object identifier
     bool CompRiveGetBoneID(RiveComponent* component, dmhash_t bone_name, dmhash_t* id);
 
-    bool CompRivePlayStateMachine(RiveComponent* component, dmRiveDDF::RivePlayAnimation* ddf, dmScript::LuaCallbackInfo* callback_info);
-    bool CompRivePlayAnimation(RiveComponent* component, dmRiveDDF::RivePlayAnimation* ddf, dmScript::LuaCallbackInfo* callback_info);
-
     const char* CompRiveGetTextRun(RiveComponent* component, const char* name, const char* nested_artboard_path);
     bool        CompRiveSetTextRun(RiveComponent* component, const char* name, const char* text_run, const char* nested_artboard_path);
 

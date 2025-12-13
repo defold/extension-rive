@@ -57,7 +57,7 @@ message RiveModelDesc
     }
 
     required string scene                   = 1 [(resource)=true];
-    required string default_animation       = 2;
+    optional string default_animation       = 2; // Deprecated
     optional string material                = 3 [(resource)=true, default="/defold-rive/assets/rivemodel.material"];
     optional BlendMode blend_mode           = 4 [default = BLEND_MODE_ALPHA];
     optional string default_state_machine   = 5;
@@ -73,42 +73,3 @@ message RiveModelDesc
     optional string blit_material           = 13 [(resource)=true, default="/defold-rive/assets/shader-library/rivemodel_blit.material"];
 }
 
-message RivePlayAnimation
-{
-    required uint64 animation_id = 1;
-    required uint32 playback     = 2; // matches dmGameObject::Playback in gameobject.h
-    optional float offset        = 3 [default = 0.0];
-    optional float playback_rate = 4 [default = 1.0];
-    optional bool is_state_machine = 5 [default = false];
-}
-
-message RiveCancelAnimation
-{
-}
-
-message RiveAnimationDone
-{
-    required uint64 animation_id = 1;
-    required uint32 playback     = 2; // matches dmGameObject::Playback in gameobject.h
-}
-
-message RiveEventTrigger
-{
-    required string name  = 1;
-    optional float number = 2;
-    optional bool trigger = 3;
-    optional string text  = 4;
-}
-
-// Function wrapper documented in gamesys_script.cpp
-message SetConstantRiveModel
-{
-    required uint64         name_hash   = 1;
-    required dmMath.Vector4 value       = 2;
-}
-
-// Function wrapper documented in gamesys_script.cpp
-message ResetConstantRiveModel
-{
-    required uint64         name_hash   = 1;
-}
