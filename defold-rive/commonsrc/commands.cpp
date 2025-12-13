@@ -67,7 +67,7 @@ Result Initialize(InitParams* params)
     }
 
     g_Context->m_RenderContext = params->m_RenderContext;
-    g_Context->m_Factory = dmRive::GetRiveFactory(g_Context->m_RenderContext);
+    g_Context->m_Factory = params->m_Factory;
 
     g_Context->m_CommandQueue = rive::make_rcp<rive::CommandQueue>();
     g_Context->m_CommandServer = new rive::CommandServer(g_Context->m_CommandQueue, g_Context->m_Factory);

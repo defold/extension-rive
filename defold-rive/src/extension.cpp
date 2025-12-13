@@ -39,6 +39,7 @@ static dmExtension::Result InitializeRive(dmExtension::Params* params)
     dmRiveCommands::InitParams cmd_params;
     cmd_params.m_UseThreads = true; // TODO: Use define and/or config flag
     cmd_params.m_RenderContext = g_RenderContext;
+    cmd_params.m_Factory = dmRive::GetRiveFactory(g_RenderContext);
     dmRiveCommands::Initialize(&cmd_params);
 
     // relies on the command queue for registering listeners

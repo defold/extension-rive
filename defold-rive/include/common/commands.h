@@ -31,11 +31,13 @@ namespace dmRiveCommands
     struct InitParams
     {
         dmRive::HRenderContext  m_RenderContext;
+        rive::Factory*          m_Factory;
         bool                    m_UseThreads;
 
         InitParams()
         : m_RenderContext(0)
-        , m_UseThreads(true)
+        , m_Factory(0)
+        , m_UseThreads(false)
         {}
     };
 
