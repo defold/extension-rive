@@ -237,8 +237,8 @@ namespace dmRive {
     }
 
     AtlasNameResolver::AtlasNameResolver(dmResource::HFactory factory, HRenderContext context)
-    : m_Factory(factory)
-    , m_RiveRenderContext(context)
+    : m_RiveRenderContext(context)
+    , m_Factory(factory)
     {
     }
 

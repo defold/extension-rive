@@ -270,7 +270,7 @@ namespace dmRive
         dmGameSystem::TextureSetResource* texture_set = resource->m_Scene->m_TextureSet;
         dmHashInit32(&state, reverse);
         dmHashUpdateBuffer32(&state, &material, sizeof(material));
-        dmHashUpdateBuffer32(&state, &ddf->m_BlendMode, sizeof(ddf->m_BlendMode));
+        //dmHashUpdateBuffer32(&state, &ddf->m_BlendMode, sizeof(ddf->m_BlendMode));
         if (texture_set)
             dmHashUpdateBuffer32(&state, &texture_set, sizeof(texture_set));
         component->m_MixedHash = dmHashFinal32(&state);
@@ -498,9 +498,6 @@ namespace dmRive
         queue->deleteArtboard(component->m_Artboard);
         component->m_Artboard = 0;
 
-        // component->m_AnimationInstance.reset();
-        // component->m_StateMachine.reset();
-
         delete component;
         world->m_Components.Free(index, true);
     }
@@ -591,8 +588,6 @@ namespace dmRive
         rive::Mat2D viewTransform = GetViewTransform(world->m_RiveRenderContext, render_context);
         rive::Renderer* renderer = GetRiveRenderer(world->m_RiveRenderContext);
 
-        uint32_t window_height = dmGraphics::GetWindowHeight(world->m_Ctx->m_GraphicsContext);
-
         rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
 
         for (uint32_t *i=begin;i!=end;i++)
@@ -605,59 +600,16 @@ namespace dmRive
             RiveModelResource* resource = c->m_Resource;
             dmRiveDDF::RiveModelDesc* ddf = resource->m_DDF;
 
-            //renderer->save();
-
-            // rive::AABB bounds = c->m_Artboard->bounds();
-
-            // if (ddf->m_CoordinateSystem == dmRiveDDF::RiveModelDesc::COORDINATE_SYSTEM_FULLSCREEN)
-            // {
-            //     // Apply the world matrix from the component to the artboard transform
-            //     rive::Mat2D transform;
-            //     Mat4ToMat2D(c->m_World, transform);
-
-            //     rive::Mat2D centerAdjustment  = rive::Mat2D::fromTranslate(-bounds.width() / 2.0f, -bounds.height() / 2.0f);
-            //     rive::Mat2D scaleDpi          = rive::Mat2D::fromScale(1,-1);
-            //     rive::Mat2D invertAdjustment  = rive::Mat2D::fromScaleAndTranslation(g_DisplayFactor, -g_DisplayFactor, 0, window_height);
-            //     rive::Mat2D rendererTransform = invertAdjustment * viewTransform * transform * scaleDpi * centerAdjustment;
-
-            //     renderer->transform(rendererTransform);
-            //     c->m_InverseRendererTransform = rendererTransform.invertOrIdentity();
-            // }
-            // else if (ddf->m_CoordinateSystem == dmRiveDDF::RiveModelDesc::COORDINATE_SYSTEM_RIVE)
-            // {
-            //     rive::Fit rive_fit         = DDFToRiveFit(ddf->m_ArtboardFit);
-            //     rive::Alignment rive_align = DDFToRiveAlignment(ddf->m_ArtboardAlignment);
-
-            //     if (rive_fit == rive::Fit::layout)
-            //     {
-            //         c->m_Artboard->width(width / g_DisplayFactor);
-            //         c->m_Artboard->height(height / g_DisplayFactor);
-            //     }
-
-            //     rive::Mat2D rendererTransform = rive::computeAlignment(rive_fit, rive_align, rive::AABB(0, 0, width, height), bounds, g_DisplayFactor);
-            //     renderer->transform(rendererTransform);
-            //     c->m_InverseRendererTransform = rendererTransform.invertOrIdentity();
-            // }
-
-            // if (c->m_StateMachine) {
-            //     c->m_StateMachine->draw(renderer);
-            // } else if (c->m_AnimationInstance) {
-            //     c->m_AnimationInstance->draw(renderer);
-            // } else {
-            //     c->m_Artboard->draw(renderer);
-            // }
-
-
             // From command_buffer_example.cpp
 
-            const rive::ArtboardHandle      artboardHandle     = c->m_Artboard;
-            // const rive::StateMachineHandle  stateMachineHandle = c->m_StateMachine;
-            // const float dt = c->m_Dt * c->m_AnimationPlaybackRate;
+            const rive::ArtboardHandle  artboardHandle  = c->m_Artboard;
+            rive::Fit                   fit             = c->m_Fit;
+            rive::Alignment             alignment       = c->m_Alignment;
 
             auto drawLoop = [artboardHandle,
-                             //stateMachineHandle,
-                             //dt,
                              renderer,
+                             fit,
+                             alignment,
                              width,
                              height](rive::DrawKey drawKey, rive::CommandServer* server)
             {
@@ -667,22 +619,21 @@ namespace dmRive
                     return;
                 }
 
-                // rive::StateMachineInstance* stateMachine = server->getStateMachineInstance(stateMachineHandle);
-                // if (stateMachine == 0)
-                // {
-                //     return;
-                // }
-
-                // stateMachine->advanceAndApply(dt);
-
                 rive::Factory* factory = server->factory();
+
+                if (fit == rive::Fit::layout)
+                {
+                    artboard->width(width);
+                    artboard->height(height);
+                }
 
                 // Draw the .riv.
                 renderer->save();
-                renderer->align(rive::Fit::contain,
-                                rive::Alignment::center,
+                renderer->align(fit,
+                                alignment,
                                 rive::AABB(0, 0, width, height),
                                 artboard->bounds());
+
                 artboard->draw(renderer);
                 renderer->restore();
             };
@@ -914,16 +865,6 @@ namespace dmRive
 
         // If the child bones have been updated, we need to return true
         update_result.m_TransformsUpdated = false;
-
-        return dmGameObject::UPDATE_RESULT_OK;
-    }
-
-    dmGameObject::UpdateResult CompRiveLateUpdate(const dmGameObject::ComponentsUpdateParams& params, dmGameObject::ComponentsUpdateResult& update_result)
-    {
-        DM_PROFILE("RiveModel");
-        RiveWorld* world = (RiveWorld*)params.m_World;
-
-        // TODO: Update bone position -> game object positions
 
         return dmGameObject::UPDATE_RESULT_OK;
     }
@@ -1200,7 +1141,7 @@ namespace dmRive
         ComponentTypeSetDestroyFn(type, CompRiveDestroy);
         ComponentTypeSetAddToUpdateFn(type, CompRiveAddToUpdate);
         ComponentTypeSetUpdateFn(type, CompRiveUpdate);
-        ComponentTypeSetLateUpdateFn(type, CompRiveLateUpdate);
+            // ComponentTypeSetLateUpdateFn(type, CompRiveLateUpdate);
         ComponentTypeSetRenderFn(type, CompRiveRender);
         ComponentTypeSetOnMessageFn(type, CompRiveOnMessage);
             // ComponentTypeSetOnInputFn(type, CompRiveOnInput);

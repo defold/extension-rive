@@ -39,15 +39,15 @@ struct Context
 
 Context* g_Context = 0;
 
-static void RiveCommandThread(void* _ctx)
-{
-    Context* ctx = (Context*)_ctx;
+// static void RiveCommandThread(void* _ctx)
+// {
+//     Context* ctx = (Context*)_ctx;
 
-    while (dmAtomicGet32(&g_Context->m_Run))
-    {
+//     while (dmAtomicGet32(&g_Context->m_Run))
+//     {
 
-    }
-}
+//     }
+// }
 
 Result Initialize(InitParams* params)
 {
@@ -58,12 +58,12 @@ Result Initialize(InitParams* params)
 
     if (params->m_UseThreads)
     {
-        dmAtomicAdd32(&g_Context->m_Run, 1);
-        g_Context->m_Thread = dmThread::New(RiveCommandThread, 1 * 1024*1024, g_Context, "RiveCommandThread");
-        if (!g_Context->m_Thread)
-        {
-            return RESULT_FAILED_CREATE_THREAD;
-        }
+        // dmAtomicAdd32(&g_Context->m_Run, 1);
+        // g_Context->m_Thread = dmThread::New(RiveCommandThread, 1 * 1024*1024, g_Context, "RiveCommandThread");
+        // if (!g_Context->m_Thread)
+        // {
+        //     return RESULT_FAILED_CREATE_THREAD;
+        // }
     }
 
     g_Context->m_RenderContext = params->m_RenderContext;
