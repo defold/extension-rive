@@ -33,8 +33,6 @@ static bool SetupCallback(dmScript::LuaCallbackInfo* callback, dmhash_t id, uint
         return false;
     }
 
-    dmLogInfo("SetupCallback: %s", dmHashReverseSafe64(id));
-
     dmScript::PushHash(L, id); // the name of the callback function
     lua_newtable(L);
 
@@ -125,7 +123,6 @@ static void PushEnumsArray(lua_State* L, const char* name, std::vector<rive::Vie
 
 void FileListener::onArtboardsListed(const rive::FileHandle fileHandle, uint64_t requestId, std::vector<std::string> artboardNames)
 {
-    dmLogInfo("FileListener: %s", __FUNCTION__);
     static dmhash_t id = dmHashString64("onArtboardsListed");
 
     if (m_Callback && SetupCallback(m_Callback, id, requestId))
@@ -138,7 +135,6 @@ void FileListener::onArtboardsListed(const rive::FileHandle fileHandle, uint64_t
 
 void FileListener::onFileError(const rive::FileHandle, uint64_t requestId, std::string error)
 {
-    dmLogInfo("FileListener: %s: req: %llx", __FUNCTION__, requestId);
     RiveSceneData* scene = (RiveSceneData*)requestId;
     if (scene)
     {
@@ -163,7 +159,6 @@ void FileListener::onFileError(const rive::FileHandle, uint64_t requestId, std::
 
 void FileListener::onFileDeleted(const rive::FileHandle file, uint64_t requestId)
 {
-    dmLogInfo("FileListener: %s", __FUNCTION__);
     static dmhash_t id = dmHashString64("onFileDeleted");
     if (m_Callback && SetupCallback(m_Callback, id, requestId))
     {
@@ -178,7 +173,6 @@ void FileListener::onFileDeleted(const rive::FileHandle file, uint64_t requestId
 
 void FileListener::onFileLoaded(const rive::FileHandle file, uint64_t requestId)
 {
-    dmLogInfo("FileListener: %s", __FUNCTION__);
     static dmhash_t id = dmHashString64("onFileLoaded");
     if (m_Callback && SetupCallback(m_Callback, id, requestId))
     {
@@ -193,15 +187,6 @@ void FileListener::onFileLoaded(const rive::FileHandle file, uint64_t requestId)
 
 void FileListener::onViewModelsListed(const rive::FileHandle file, uint64_t requestId, std::vector<std::string> viewModelNames)
 {
-    uint32_t size = (uint32_t)viewModelNames.size();
-    dmLogInfo("FileListener: %s: %u", __FUNCTION__, size);
-
-
-    for (uint32_t i = 0; i < size; ++i)
-    {
-        printf("  %s\n", viewModelNames[i].c_str());
-    }
-
     static dmhash_t id = dmHashString64("onViewModelsListed");
     if (m_Callback && SetupCallback(m_Callback, id, requestId))
     {
@@ -217,8 +202,6 @@ void FileListener::onViewModelsListed(const rive::FileHandle file, uint64_t requ
 
 void FileListener::onViewModelInstanceNamesListed(const rive::FileHandle file, uint64_t requestId, std::string viewModelName, std::vector<std::string> instanceNames)
 {
-    dmLogInfo("FileListener: %s", __FUNCTION__);
-
     static dmhash_t id = dmHashString64("onViewModelInstanceNamesListed");
     if (m_Callback && SetupCallback(m_Callback, id, requestId))
     {
@@ -238,7 +221,6 @@ void FileListener::onViewModelInstanceNamesListed(const rive::FileHandle file, u
 
 void FileListener::onViewModelPropertiesListed(const rive::FileHandle file, uint64_t requestId, std::string viewModelName, std::vector<ViewModelPropertyData> properties)
 {
-    dmLogInfo("FileListener: %s", __FUNCTION__);
     static dmhash_t id = dmHashString64("onViewModelPropertiesListed");
     if (m_Callback && SetupCallback(m_Callback, id, requestId))
     {
@@ -258,7 +240,6 @@ void FileListener::onViewModelPropertiesListed(const rive::FileHandle file, uint
 
 void FileListener::onViewModelEnumsListed(const rive::FileHandle file, uint64_t requestId, std::vector<rive::ViewModelEnum> enums)
 {
-    dmLogInfo("FileListener: %s", __FUNCTION__);
     static dmhash_t id = dmHashString64("onViewModelEnumsListed");
     if (m_Callback && SetupCallback(m_Callback, id, requestId))
     {

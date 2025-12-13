@@ -13,11 +13,7 @@
 #include <stdint.h>
 
 #include <defold/renderer.h>
-
-#include <rive/animation/state_machine_instance.hpp>
-#include <rive/refcnt.hpp>
-
-#include <rive/command_queue.hpp>
+#include <defold/rive.h>
 
 namespace rive
 {

@@ -23,7 +23,7 @@
 
 #include "rive_ddf.h"
 
-#include <rive/command_queue.hpp> // handles
+#include <defold/rive.h> // handles
 
 namespace dmRive
 {
