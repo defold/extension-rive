@@ -481,7 +481,7 @@ static int Script_GetViewModelInstance(lua_State* L)
     DM_LUA_STACK_CHECK(L, 1);
     RiveComponent* component = 0;
     dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
-    lua_pushinteger(L, (lua_Integer) CompRiveGetStateMachine(component));
+    lua_pushinteger(L, (lua_Integer) CompRiveGetViewModelInstance(component));
     return 1;
 }
 

@@ -315,6 +315,11 @@ namespace dmRive
         return component->m_StateMachine;
     }
 
+    rive::ViewModelInstanceHandle CompRiveGetViewModelInstance(RiveComponent* component)
+    {
+        return component->m_ViewModelInstance;
+    }
+
     static void BindViewModelInstance(RiveComponent* component)
     {
         rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
