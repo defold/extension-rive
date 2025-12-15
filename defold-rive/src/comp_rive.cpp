@@ -14,24 +14,6 @@
 
 #include <string.h> // memset
 
-
-#include <rive/animation/linear_animation_instance.hpp>
-#include <rive/animation/loop.hpp>
-#include <rive/animation/state_machine.hpp>
-#include <rive/animation/state_machine_instance.hpp>
-#include <rive/bones/bone.hpp>
-#include <rive/custom_property.hpp>
-#include <rive/custom_property_boolean.hpp>
-#include <rive/custom_property_number.hpp>
-#include <rive/custom_property_string.hpp>
-#include <rive/file.hpp>
-#include <rive/math/mat2d.hpp>
-#include <rive/nested_artboard.hpp> // Artboard
-#include <rive/renderer.hpp>
-#include <rive/text/text.hpp>
-
-#include <rive/command_server.hpp>
-
 // Rive extension
 #include "comp_rive.h"
 #include "comp_rive_private.h"
@@ -45,6 +27,7 @@
 #include <common/factory.h>
 
 // Defold Rive Renderer
+#include <defold/rive.h>
 #include <defold/renderer.h>
 
 // DMSDK

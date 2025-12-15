@@ -21,7 +21,7 @@
 #include <rive/refcnt.hpp>
 
 #include <rive/command_queue.hpp>
-
+#include <rive/command_server.hpp>
 
 
 #endif // DM_RIVE_H
