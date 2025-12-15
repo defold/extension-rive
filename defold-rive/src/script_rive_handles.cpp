@@ -13,6 +13,12 @@
 #include "script_defold.h"
 #include "script_rive_handles.h"
 
+extern "C"
+{
+#include <dmsdk/lua/lua.h>
+#include <dmsdk/lua/lauxlib.h>
+}
+
 #include <stdint.h>
 
 namespace dmRive
@@ -21,6 +27,38 @@ namespace dmRive
     {
         uint64_t m_Handle;
     };
+
+    static const char* HandleTypeNames[] = {
+        "rive.FileHandle",
+        "rive.ArtboardHandle",
+        "rive.StateMachineHandle",
+        "rive.ViewModelInstanceHandle",
+        "rive.RenderImageHandle",
+        "rive.AudioSourceHandle",
+        "rive.FontHandle",
+        nullptr
+    };
+
+    static const char* IdentifyHandleType(lua_State* L, int index)
+    {
+        if (!lua_getmetatable(L, index))
+        {
+            return nullptr;
+        }
+        int meta = lua_gettop(L);
+        for (const char** name = HandleTypeNames; *name; ++name)
+        {
+            luaL_getmetatable(L, *name);
+            if (lua_rawequal(L, -1, meta))
+            {
+                lua_pop(L, 2);
+                return *name;
+            }
+            lua_pop(L, 1);
+        }
+        lua_pop(L, 1);
+        return nullptr;
+    }
 
     template <typename HandleT>
     struct LuaHandle
@@ -55,14 +93,23 @@ namespace dmRive
         static void Push(lua_State* L, HandleT handle)
         {
             HandleUserData* data = (HandleUserData*)lua_newuserdata(L, sizeof(HandleUserData));
-            data->m_Handle = (uintptr_t)handle;
+            data->m_Handle = (uint64_t)(uintptr_t)handle;
             luaL_getmetatable(L, s_TypeName);
             lua_setmetatable(L, -2);
         }
 
         static HandleT Check(lua_State* L, int index)
         {
-            HandleUserData* data = (HandleUserData*)CheckUserType(L, index, s_TypeName);
+            HandleUserData* data = (HandleUserData*)ToUserType(L, index, s_TypeName);
+            if (!data)
+            {
+                const char* actual = IdentifyHandleType(L, index);
+                if (actual)
+                {
+                    luaL_error(L, "Argument %d expected %s, got %s", index, s_TypeName, actual);
+                }
+                luaL_typerror(L, index, s_TypeName);
+            }
             return (HandleT)data->m_Handle;
         }
     };
