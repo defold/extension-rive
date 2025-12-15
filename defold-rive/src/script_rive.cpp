@@ -39,6 +39,7 @@
 #include "script_rive.h"
 #include "script_rive_cmd.h"
 #include "script_rive_listeners.h"
+#include "script_rive_handles.h"
 
 #include <common/commands.h>
 
@@ -374,7 +375,7 @@ static int Script_GetFile(lua_State* L)
     DM_LUA_STACK_CHECK(L, 1);
     RiveComponent* component = 0;
     dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
-    lua_pushinteger(L, (lua_Integer) CompRiveGetFile(component));
+    dmRive::PushFileHandle(L, CompRiveGetFile(component));
     return 1;
 }
 
@@ -396,7 +397,7 @@ static int Script_SetArtboard(lua_State* L)
     else
         name = luaL_checkstring(L, 2);
     rive::ArtboardHandle old_handle = CompRiveSetArtboard(component, name);
-    lua_pushinteger(L, (lua_Integer) old_handle);
+    dmRive::PushArtboardHandle(L, old_handle);
     return 1;
 }
 
@@ -411,7 +412,7 @@ static int Script_GetArtboard(lua_State* L)
     DM_LUA_STACK_CHECK(L, 1);
     RiveComponent* component = 0;
     dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
-    lua_pushinteger(L, (lua_Integer) CompRiveGetArtboard(component));
+    dmRive::PushArtboardHandle(L, CompRiveGetArtboard(component));
     return 1;
 }
 
@@ -433,7 +434,7 @@ static int Script_SetStateMachine(lua_State* L)
     else
         name = luaL_checkstring(L, 2);
     rive::StateMachineHandle old_handle = CompRiveSetStateMachine(component, name);
-    lua_pushinteger(L, (lua_Integer) old_handle);
+    dmRive::PushStateMachineHandle(L, old_handle);
     return 1;
 }
 
@@ -448,7 +449,7 @@ static int Script_GetStateMachine(lua_State* L)
     DM_LUA_STACK_CHECK(L, 1);
     RiveComponent* component = 0;
     dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
-    lua_pushinteger(L, (lua_Integer) CompRiveGetStateMachine(component));
+    dmRive::PushStateMachineHandle(L, CompRiveGetStateMachine(component));
     return 1;
 }
 
@@ -481,7 +482,7 @@ static int Script_GetViewModelInstance(lua_State* L)
     DM_LUA_STACK_CHECK(L, 1);
     RiveComponent* component = 0;
     dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
-    lua_pushinteger(L, (lua_Integer) CompRiveGetViewModelInstance(component));
+    dmRive::PushViewModelInstanceHandle(L, CompRiveGetViewModelInstance(component));
     return 1;
 }
 
@@ -527,6 +528,8 @@ void ScriptRegister(lua_State* L, dmResource::HFactory factory)
     queue->setGlobalRenderImageListener(&g_RenderImageListener);
     queue->setGlobalAudioSourceListener(&g_AudioSourceListener);
     queue->setGlobalFontListener(&g_FontListener);
+
+    dmRive::RegisterScriptRiveHandles(L);
 
     luaL_register(L, "rive", RIVE_FUNCTIONS);
         ScriptCmdRegister(L, factory);

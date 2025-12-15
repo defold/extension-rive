@@ -14,6 +14,7 @@
 #define DM_GAMESYS_SCRIPT_RIVE_CMD_H
 
 #include <dmsdk/resource/resource.h>
+#include <dmsdk/script/script.h>
 
 namespace dmRive
 {

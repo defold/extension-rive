@@ -298,13 +298,13 @@ namespace dmRive
             {
                 dmLogWarning("Could not find artboard with name '%s'", artboard_name);
             }
-            printf("Created artboard by name '%s'\n", artboard_name);
+            printf("Created artboard by name '%s': %p\n", artboard_name, component->m_Artboard);
         }
 
         if (!component->m_Artboard)
         {
             component->m_Artboard = queue->instantiateDefaultArtboard(file);
-            printf("Created default artboard\n");
+            printf("Created default artboard: %p\n", component->m_Artboard);
         }
 
         return old_handle;
@@ -340,7 +340,7 @@ namespace dmRive
             {
                 dmLogWarning("Could not find state_machine with name '%s'", state_machine_name);
             }
-            printf("Created state machine by name '%s'\n", state_machine_name);
+            printf("Created state machine by name '%s': %p\n", state_machine_name, component->m_StateMachine);
         }
 
         if (!component->m_StateMachine)
@@ -421,7 +421,7 @@ namespace dmRive
 
         dmRiveDDF::RiveModelDesc* ddf = component->m_Resource->m_DDF;
 
-        component->m_Fullscreen == ddf->m_CoordinateSystem == dmRiveDDF::RiveModelDesc::COORDINATE_SYSTEM_FULLSCREEN;
+        component->m_Fullscreen = ddf->m_CoordinateSystem == dmRiveDDF::RiveModelDesc::COORDINATE_SYSTEM_FULLSCREEN;
         component->m_Fit = rive::Fit::layout;
         component->m_Alignment = rive::Alignment::center;
         if (!component->m_Fullscreen)
@@ -484,7 +484,16 @@ namespace dmRive
         if (component->m_RenderConstants)
             dmGameSystem::DestroyRenderConstants(component->m_RenderConstants);
 
-        queue->deleteArtboard(component->m_Artboard);
+        if (component->m_ViewModelInstance)
+            queue->deleteViewModelInstance(component->m_ViewModelInstance);
+        component->m_ViewModelInstance = 0;
+
+        if (component->m_StateMachine)
+            queue->deleteStateMachine(component->m_StateMachine);
+        component->m_StateMachine = 0;
+
+        if (component->m_Artboard)
+            queue->deleteArtboard(component->m_Artboard);
         component->m_Artboard = 0;
 
         delete component;

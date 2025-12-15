@@ -20,6 +20,8 @@
 
 #include <common/commands.h>
 
+#include "script_rive_handles.h"
+
 #include <rive/shapes/paint/color.hpp>
 
 namespace dmRive
@@ -36,13 +38,12 @@ static bool CheckBoolean(lua_State* L, int index)
     return luaL_error(L, "Argument %d must be a boolean", index);
 }
 
-template<typename INTEGER>
-static void CheckStringOrInteger(lua_State* L, int index, const char** string, INTEGER* integer)
+static void CheckStringOrArtboard(lua_State* L, int index, const char** string, rive::ArtboardHandle* handle)
 {
     if (lua_type(L, index) == LUA_TSTRING)
         *string = luaL_checkstring(L, index);
     else
-        *integer = (INTEGER)luaL_checkinteger(L, index);
+        *handle = CheckArtboardHandle(L, index);
 }
 
 // *************************************************************************************************
@@ -55,7 +56,7 @@ static void CheckStringOrInteger(lua_State* L, int index, const char** string, I
 static int Script_deleteArtboard(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::ArtboardHandle handle = (rive::ArtboardHandle)luaL_checkinteger(L, 1);
+    rive::ArtboardHandle handle = CheckArtboardHandle(L, 1);
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->deleteArtboard(handle);
     return 0;
@@ -71,13 +72,13 @@ static int Script_deleteArtboard(lua_State* L)
 static int Script_instantiateArtboardNamed(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 1);
-    rive::FileHandle file = (rive::FileHandle)luaL_checkinteger(L, 1);
+    rive::FileHandle file = CheckFileHandle(L, 1);
     const char* viewmodel_name = luaL_checkstring(L, 2);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     rive::ArtboardHandle handle = queue->instantiateArtboardNamed(file, viewmodel_name);
 
-    lua_pushinteger(L, (lua_Integer)handle);
+    dmRive::PushArtboardHandle(L, handle);
     return 1;
 }
 
@@ -90,12 +91,12 @@ static int Script_instantiateArtboardNamed(lua_State* L)
 static int Script_instantiateDefaultArtboard(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 1);
-    rive::FileHandle file = (rive::FileHandle)luaL_checkinteger(L, 1);
+    rive::FileHandle file = CheckFileHandle(L, 1);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     rive::ArtboardHandle handle = queue->instantiateDefaultArtboard(file);
 
-    lua_pushinteger(L, (lua_Integer)handle);
+    PushArtboardHandle(L, handle);
     return 1;
 }
 
@@ -110,11 +111,11 @@ static int Script_instantiateDefaultArtboard(lua_State* L)
 static int Script_instantiateDefaultStateMachine(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 1);
-    rive::ArtboardHandle artboard = (rive::ArtboardHandle)luaL_checkinteger(L, 1);
+    rive::ArtboardHandle artboard = CheckArtboardHandle(L, 1);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     rive::StateMachineHandle handle = queue->instantiateDefaultStateMachine(artboard);
-    lua_pushinteger(L, (lua_Integer)handle);
+    PushStateMachineHandle(L, handle);
     return 1;
 }
 
@@ -128,12 +129,12 @@ static int Script_instantiateDefaultStateMachine(lua_State* L)
 static int Script_instantiateStateMachineNamed(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 1);
-    rive::ArtboardHandle artboard = (rive::ArtboardHandle)luaL_checkinteger(L, 1);
+    rive::ArtboardHandle artboard = CheckArtboardHandle(L, 1);
     const char* name = luaL_checkstring(L, 2);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     rive::StateMachineHandle handle = queue->instantiateStateMachineNamed(artboard, name);
-    lua_pushinteger(L, (lua_Integer)handle);
+    PushStateMachineHandle(L, handle);
     return 1;
 }
 
@@ -146,7 +147,7 @@ static int Script_instantiateStateMachineNamed(lua_State* L)
 static int Script_advanceStateMachine(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::StateMachineHandle state_machine = (rive::StateMachineHandle)luaL_checkinteger(L, 1);
+    rive::StateMachineHandle state_machine = CheckStateMachineHandle(L, 1);
     float dt = (float)luaL_checknumber(L, 2);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
@@ -162,7 +163,7 @@ static int Script_advanceStateMachine(lua_State* L)
 static int Script_deleteStateMachine(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::StateMachineHandle handle = (rive::StateMachineHandle)luaL_checkinteger(L, 1);
+    rive::StateMachineHandle handle = CheckStateMachineHandle(L, 1);
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->deleteStateMachine(handle);
     return 0;
@@ -180,7 +181,7 @@ static int Script_deleteStateMachine(lua_State* L)
 static int Script_instantiateBlankViewModelInstance(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 1);
-    rive::FileHandle file = (rive::FileHandle)luaL_checkinteger(L, 1);
+    rive::FileHandle file = CheckFileHandle(L, 1);
 
     if (lua_isnil(L, 2) || lua_isnone(L, 2))
     {
@@ -189,7 +190,7 @@ static int Script_instantiateBlankViewModelInstance(lua_State* L)
 
     rive::ArtboardHandle artboard = 0;
     const char* viewmodel_name = 0;
-    CheckStringOrInteger(L, 2, &viewmodel_name, &artboard);
+    CheckStringOrArtboard(L, 2, &viewmodel_name, &artboard);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     rive::ViewModelInstanceHandle handle = 0;
@@ -198,7 +199,7 @@ static int Script_instantiateBlankViewModelInstance(lua_State* L)
     else
         handle = queue->instantiateBlankViewModelInstance(file, artboard);
 
-    lua_pushinteger(L, (lua_Integer)handle);
+    PushViewModelInstanceHandle(L, handle);
     return 1;
 }
 
@@ -212,7 +213,7 @@ static int Script_instantiateBlankViewModelInstance(lua_State* L)
 static int Script_instantiateDefaultViewModelInstance(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 1);
-    rive::FileHandle file = (rive::FileHandle)luaL_checkinteger(L, 1);
+    rive::FileHandle file = CheckFileHandle(L, 1);
 
     if (lua_isnil(L, 2) || lua_isnone(L, 2))
     {
@@ -221,7 +222,7 @@ static int Script_instantiateDefaultViewModelInstance(lua_State* L)
 
     rive::ArtboardHandle artboard = 0;
     const char* viewmodel_name = 0;
-    CheckStringOrInteger(L, 2, &viewmodel_name, &artboard);
+    CheckStringOrArtboard(L, 2, &viewmodel_name, &artboard);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     rive::ViewModelInstanceHandle handle = 0;
@@ -230,7 +231,7 @@ static int Script_instantiateDefaultViewModelInstance(lua_State* L)
     else
         handle = queue->instantiateDefaultViewModelInstance(file, artboard);
 
-    lua_pushinteger(L, (lua_Integer)handle);
+    PushViewModelInstanceHandle(L, handle);
     return 1;
 }
 
@@ -245,7 +246,7 @@ static int Script_instantiateDefaultViewModelInstance(lua_State* L)
 static int Script_instantiateViewModelInstanceNamed(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 1);
-    rive::FileHandle file = (rive::FileHandle)luaL_checkinteger(L, 1);
+    rive::FileHandle file = CheckFileHandle(L, 1);
 
     if (lua_isnil(L, 2) || lua_isnone(L, 2))
     {
@@ -254,7 +255,7 @@ static int Script_instantiateViewModelInstanceNamed(lua_State* L)
 
     rive::ArtboardHandle artboard = 0;
     const char* viewmodel_name = 0;
-    CheckStringOrInteger(L, 2, &viewmodel_name, &artboard);
+    CheckStringOrArtboard(L, 2, &viewmodel_name, &artboard);
 
     const char* view_model_instance_name = luaL_checkstring(L, 3);
 
@@ -265,7 +266,7 @@ static int Script_instantiateViewModelInstanceNamed(lua_State* L)
     else
         handle = queue->instantiateViewModelInstanceNamed(file, artboard, view_model_instance_name);
 
-    lua_pushinteger(L, (lua_Integer)handle);
+    PushViewModelInstanceHandle(L, handle);
     return 1;
 }
 
@@ -279,12 +280,12 @@ static int Script_instantiateViewModelInstanceNamed(lua_State* L)
 static int Script_referenceNestedViewModelInstance(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 1);
-    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
     const char* path = luaL_checkstring(L, 2);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     handle = queue->referenceNestedViewModelInstance(handle, path);
-    lua_pushinteger(L, (lua_Integer)handle);
+    PushViewModelInstanceHandle(L, handle);
     return 1;
 }
 
@@ -299,13 +300,13 @@ static int Script_referenceNestedViewModelInstance(lua_State* L)
 static int Script_referenceListViewModelInstance(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 1);
-    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
     const char* path = luaL_checkstring(L, 2);
     int index = luaL_checkinteger(L, 3);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     handle = queue->referenceListViewModelInstance(handle, path, index);
-    lua_pushinteger(L, (lua_Integer)handle);
+    PushViewModelInstanceHandle(L, handle);
     return 1;
 }
 
@@ -319,8 +320,8 @@ static int Script_referenceListViewModelInstance(lua_State* L)
 static int Script_setViewModelInstanceNestedViewModel(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
-    rive::ViewModelInstanceHandle value  = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 3);
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
+    rive::ViewModelInstanceHandle value  = CheckViewModelInstanceHandle(L, 3);
     const char* path = luaL_checkstring(L, 2);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
@@ -339,8 +340,8 @@ static int Script_setViewModelInstanceNestedViewModel(lua_State* L)
 static int Script_insertViewModelInstanceListViewModel(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
-    rive::ViewModelInstanceHandle value  = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 3);
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
+    rive::ViewModelInstanceHandle value  = CheckViewModelInstanceHandle(L, 3);
     const char* path = luaL_checkstring(L, 2);
     int index = luaL_checkinteger(L, 4);
 
@@ -359,8 +360,8 @@ static int Script_insertViewModelInstanceListViewModel(lua_State* L)
 static int Script_appendViewModelInstanceListViewModel(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
-    rive::ViewModelInstanceHandle value  = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 3);
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
+    rive::ViewModelInstanceHandle value  = CheckViewModelInstanceHandle(L, 3);
     const char* path = luaL_checkstring(L, 2);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
@@ -378,7 +379,7 @@ static int Script_appendViewModelInstanceListViewModel(lua_State* L)
 static int Script_removeViewModelInstanceListViewModelIndex(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
     const char* path = luaL_checkstring(L, 2);
     int index = luaL_checkinteger(L, 3);
 
@@ -397,8 +398,8 @@ static int Script_removeViewModelInstanceListViewModelIndex(lua_State* L)
 static int Script_removeViewModelInstanceListViewModel(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
-    rive::ViewModelInstanceHandle value = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 3);
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
+    rive::ViewModelInstanceHandle value = CheckViewModelInstanceHandle(L, 3);
     const char* path = luaL_checkstring(L, 2);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
@@ -414,7 +415,7 @@ static int Script_removeViewModelInstanceListViewModel(lua_State* L)
 static int Script_deleteViewModelInstance(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->deleteViewModelInstance(handle);
@@ -432,7 +433,7 @@ static int Script_deleteViewModelInstance(lua_State* L)
 static int Script_swapViewModelInstanceListValues(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
     const char* path = luaL_checkstring(L, 2);
     int indexa = luaL_checkinteger(L, 3);
     int indexb = luaL_checkinteger(L, 4);
@@ -454,8 +455,8 @@ static int Script_swapViewModelInstanceListValues(lua_State* L)
 static int Script_bindViewModelInstance(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::StateMachineHandle state_machine = (rive::StateMachineHandle)luaL_checkinteger(L, 1);
-    rive::ViewModelInstanceHandle view_model = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 2);
+    rive::StateMachineHandle state_machine = CheckStateMachineHandle(L, 1);
+    rive::ViewModelInstanceHandle view_model = CheckViewModelInstanceHandle(L, 2);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->bindViewModelInstance(state_machine, view_model);
@@ -475,7 +476,7 @@ static int Script_bindViewModelInstance(lua_State* L)
 static int Script_fireViewModelTrigger(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
     const char* path = luaL_checkstring(L, 2);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
@@ -493,7 +494,7 @@ static int Script_fireViewModelTrigger(lua_State* L)
 static int Script_setViewModelInstanceBool(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
     bool value  = CheckBoolean(L, 3);
     const char* path = luaL_checkstring(L, 2);
 
@@ -512,7 +513,7 @@ static int Script_setViewModelInstanceBool(lua_State* L)
 static int Script_setViewModelInstanceNumber(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
     lua_Number value  = luaL_checknumber(L, 3);
     const char* path = luaL_checkstring(L, 2);
 
@@ -531,7 +532,7 @@ static int Script_setViewModelInstanceNumber(lua_State* L)
 static int Script_setViewModelInstanceColor(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
     const char* path = luaL_checkstring(L, 2);
     dmVMath::Vector4* color = dmScript::CheckVector4(L, 3);
     rive::ColorInt value = rive::colorARGB(255 * color->getW(), 255 * color->getX(), 255 * color->getY(), 255 * color->getZ());
@@ -551,7 +552,7 @@ static int Script_setViewModelInstanceColor(lua_State* L)
 static int Script_setViewModelInstanceEnum(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
     const char* path = luaL_checkstring(L, 2);
     const char* value = luaL_checkstring(L, 3);
 
@@ -570,7 +571,7 @@ static int Script_setViewModelInstanceEnum(lua_State* L)
 static int Script_setViewModelInstanceString(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
     const char* path = luaL_checkstring(L, 2);
     const char* value = luaL_checkstring(L, 3);
 
@@ -589,8 +590,8 @@ static int Script_setViewModelInstanceString(lua_State* L)
 static int Script_setViewModelInstanceImage(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
-    rive::RenderImageHandle value  = (rive::RenderImageHandle)luaL_checkinteger(L, 3);
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
+    rive::RenderImageHandle value  = CheckRenderImageHandle(L, 3);
     const char* path = luaL_checkstring(L, 2);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
@@ -608,8 +609,8 @@ static int Script_setViewModelInstanceImage(lua_State* L)
 static int Script_setViewModelInstanceArtboard(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
-    rive::ArtboardHandle value  = (rive::ArtboardHandle)luaL_checkinteger(L, 3);
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
+    rive::ArtboardHandle value  = CheckArtboardHandle(L, 3);
     const char* path = luaL_checkstring(L, 2);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
@@ -627,7 +628,7 @@ static int Script_setViewModelInstanceArtboard(lua_State* L)
 static int Script_subscribeToViewModelProperty(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
     const char* path = luaL_checkstring(L, 2);
     rive::DataType type = (rive::DataType)luaL_checkinteger(L, 3);
 
@@ -646,7 +647,7 @@ static int Script_subscribeToViewModelProperty(lua_State* L)
 static int Script_unsubscribeToViewModelProperty(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
     const char* path = luaL_checkstring(L, 2);
     rive::DataType type = (rive::DataType)luaL_checkinteger(L, 3);
 
@@ -671,9 +672,9 @@ static int Script_loadFile(lua_State* L)
     std::vector<uint8_t> rivBytes(data, data + data_length);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
-    rive::FileHandle image = queue->loadFile(rivBytes);
+    rive::FileHandle file = queue->loadFile(rivBytes);
 
-    lua_pushinteger(L, (lua_Integer)image);
+    PushFileHandle(L, file);
     return 1;
 }
 
@@ -685,7 +686,7 @@ static int Script_loadFile(lua_State* L)
 static int Script_deleteFile(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::FileHandle handle = (rive::FileHandle)luaL_checkinteger(L, 1);
+    rive::FileHandle handle = CheckFileHandle(L, 1);
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->deleteFile(handle);
     return 0;
@@ -707,7 +708,7 @@ static int Script_decodeImage(lua_State* L)
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     rive::RenderImageHandle image = queue->decodeImage(encodedBytes);
 
-    lua_pushinteger(L, (lua_Integer)image);
+    PushRenderImageHandle(L, image);
     return 1;
 }
 
@@ -719,7 +720,7 @@ static int Script_decodeImage(lua_State* L)
 static int Script_deleteImage(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::RenderImageHandle handle = (rive::RenderImageHandle)luaL_checkinteger(L, 1);
+    rive::RenderImageHandle handle = CheckRenderImageHandle(L, 1);
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->deleteImage(handle);
     return 0;
@@ -741,7 +742,7 @@ static int Script_decodeAudio(lua_State* L)
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     rive::AudioSourceHandle handle = queue->decodeAudio(encodedBytes);
 
-    lua_pushinteger(L, (lua_Integer)handle);
+    PushAudioSourceHandle(L, handle);
     return 1;
 }
 
@@ -753,7 +754,7 @@ static int Script_decodeAudio(lua_State* L)
 static int Script_deleteAudio(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::AudioSourceHandle handle = (rive::AudioSourceHandle)luaL_checkinteger(L, 1);
+    rive::AudioSourceHandle handle = CheckAudioSourceHandle(L, 1);
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->deleteAudio(handle);
     return 0;
@@ -775,7 +776,7 @@ static int Script_decodeFont(lua_State* L)
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     rive::FontHandle handle = queue->decodeFont(encodedBytes);
 
-    lua_pushinteger(L, (lua_Integer)handle);
+    PushFontHandle(L, handle);
     return 1;
 }
 
@@ -787,7 +788,7 @@ static int Script_decodeFont(lua_State* L)
 static int Script_deleteFont(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::FontHandle handle = (rive::FontHandle)luaL_checkinteger(L, 1);
+    rive::FontHandle handle = CheckFontHandle(L, 1);
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->deleteFont(handle);
     return 0;
@@ -803,7 +804,7 @@ static int Script_addGlobalImageAsset(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
     const char* name = luaL_checkstring(L, 1);
-    rive::RenderImageHandle handle = (rive::RenderImageHandle)luaL_checkinteger(L, 2);
+    rive::RenderImageHandle handle = CheckRenderImageHandle(L, 2);
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->addGlobalImageAsset(name, handle);
     return 0;
@@ -833,7 +834,7 @@ static int Script_addGlobalFontAsset(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
     const char* name = luaL_checkstring(L, 1);
-    rive::FontHandle handle = (rive::FontHandle)luaL_checkinteger(L, 2);
+    rive::FontHandle handle = CheckFontHandle(L, 2);
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->addGlobalFontAsset(name, handle);
     return 0;
@@ -863,7 +864,7 @@ static int Script_addGlobalAudioAsset(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
     const char* name = luaL_checkstring(L, 1);
-    rive::AudioSourceHandle handle = (rive::AudioSourceHandle)luaL_checkinteger(L, 2);
+    rive::AudioSourceHandle handle = CheckAudioSourceHandle(L, 2);
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->addGlobalAudioAsset(name, handle);
     return 0;
@@ -893,7 +894,7 @@ static int Script_removeGlobalAudioAsset(lua_State* L)
 static int Script_requestViewModelNames(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::FileHandle file = (rive::FileHandle)luaL_checkinteger(L, 1);
+    rive::FileHandle file = CheckFileHandle(L, 1);
     dmRiveCommands::GetCommandQueue()->requestViewModelNames(file);
     return 0;
 }
@@ -906,7 +907,7 @@ static int Script_requestViewModelNames(lua_State* L)
 static int Script_requestArtboardNames(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::FileHandle file = (rive::FileHandle)luaL_checkinteger(L, 1);
+    rive::FileHandle file = CheckFileHandle(L, 1);
     dmRiveCommands::GetCommandQueue()->requestArtboardNames(file);
     return 0;
 }
@@ -919,7 +920,7 @@ static int Script_requestArtboardNames(lua_State* L)
 static int Script_requestViewModelEnums(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::FileHandle file = (rive::FileHandle)luaL_checkinteger(L, 1);
+    rive::FileHandle file = CheckFileHandle(L, 1);
     dmRiveCommands::GetCommandQueue()->requestViewModelEnums(file);
     return 0;
 }
@@ -933,7 +934,7 @@ static int Script_requestViewModelEnums(lua_State* L)
 static int Script_requestViewModelPropertyDefinitions(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::FileHandle file = (rive::FileHandle)luaL_checkinteger(L, 1);
+    rive::FileHandle file = CheckFileHandle(L, 1);
     const char* viewmodel_name = luaL_checkstring(L, 2);
     dmRiveCommands::GetCommandQueue()->requestViewModelPropertyDefinitions(file, viewmodel_name);
     return 0;
@@ -948,7 +949,7 @@ static int Script_requestViewModelPropertyDefinitions(lua_State* L)
 static int Script_requestViewModelInstanceNames(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::FileHandle file = (rive::FileHandle)luaL_checkinteger(L, 1);
+    rive::FileHandle file = CheckFileHandle(L, 1);
     const char* viewmodel_name = luaL_checkstring(L, 2);
     dmRiveCommands::GetCommandQueue()->requestViewModelInstanceNames(file, viewmodel_name);
     return 0;
@@ -963,7 +964,7 @@ static int Script_requestViewModelInstanceNames(lua_State* L)
 static int Script_requestViewModelInstanceBool(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
     const char* viewmodel_name = luaL_checkstring(L, 2);
     dmRiveCommands::GetCommandQueue()->requestViewModelInstanceBool(handle, viewmodel_name);
     return 0;
@@ -978,7 +979,7 @@ static int Script_requestViewModelInstanceBool(lua_State* L)
 static int Script_requestViewModelInstanceNumber(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
     const char* viewmodel_name = luaL_checkstring(L, 2);
     dmRiveCommands::GetCommandQueue()->requestViewModelInstanceNumber(handle, viewmodel_name);
     return 0;
@@ -993,7 +994,7 @@ static int Script_requestViewModelInstanceNumber(lua_State* L)
 static int Script_requestViewModelInstanceColor(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
     const char* viewmodel_name = luaL_checkstring(L, 2);
     dmRiveCommands::GetCommandQueue()->requestViewModelInstanceColor(handle, viewmodel_name);
     return 0;
@@ -1008,7 +1009,7 @@ static int Script_requestViewModelInstanceColor(lua_State* L)
 static int Script_requestViewModelInstanceEnum(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
     const char* viewmodel_name = luaL_checkstring(L, 2);
     dmRiveCommands::GetCommandQueue()->requestViewModelInstanceEnum(handle, viewmodel_name);
     return 0;
@@ -1023,7 +1024,7 @@ static int Script_requestViewModelInstanceEnum(lua_State* L)
 static int Script_requestViewModelInstanceString(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
     const char* viewmodel_name = luaL_checkstring(L, 2);
     dmRiveCommands::GetCommandQueue()->requestViewModelInstanceString(handle, viewmodel_name);
     return 0;
@@ -1038,7 +1039,7 @@ static int Script_requestViewModelInstanceString(lua_State* L)
 static int Script_requestViewModelInstanceListSize(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::ViewModelInstanceHandle handle = (rive::ViewModelInstanceHandle)luaL_checkinteger(L, 1);
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
     const char* viewmodel_name = luaL_checkstring(L, 2);
     dmRiveCommands::GetCommandQueue()->requestViewModelInstanceListSize(handle, viewmodel_name);
     return 0;
@@ -1052,7 +1053,7 @@ static int Script_requestViewModelInstanceListSize(lua_State* L)
 static int Script_requestStateMachineNames(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::ArtboardHandle artboard = (rive::ArtboardHandle)luaL_checkinteger(L, 1);
+    rive::ArtboardHandle artboard = CheckArtboardHandle(L, 1);
     dmRiveCommands::GetCommandQueue()->requestStateMachineNames(artboard);
     return 0;
 }
@@ -1066,8 +1067,8 @@ static int Script_requestStateMachineNames(lua_State* L)
 static int Script_requestDefaultViewModelInfo(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    rive::ArtboardHandle artboard = (rive::ArtboardHandle)luaL_checkinteger(L, 1);
-    rive::FileHandle file = (rive::FileHandle)luaL_checkinteger(L, 2);
+    rive::ArtboardHandle artboard = CheckArtboardHandle(L, 1);
+    rive::FileHandle file = CheckFileHandle(L, 2);
     dmRiveCommands::GetCommandQueue()->requestDefaultViewModelInfo(artboard, file);
     return 0;
 }
