@@ -16,15 +16,14 @@ embedded_instances {
   "  data: \"scene: \\\"/main/databind/achievement.rivescene\\\"\\n"
   "default_animation: \\\"\\\"\\n"
   "material: \\\"/defold-rive/assets/rivemodel.material\\\"\\n"
+  "coordinate_system: COORDINATE_SYSTEM_RIVE\\n"
+  "artboard_fit: FIT_CONTAIN\\n"
   "blit_material: \\\"/defold-rive/assets/shader-library/rivemodel_blit.material\\\"\\n"
   "\"\n"
   "}\n"
   ""
   position {
-    x: 477.7781
+    x: 476.77814
     y: 268.6295
-  }
-  scale3 {
-    z: 0.82
   }
 }

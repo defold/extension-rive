@@ -58,8 +58,6 @@ namespace dmRive
         dmMessage::URL                          m_Listener;
         dmGameSystem::HComponentRenderConstants m_RenderConstants;
         dmGameSystem::MaterialResource*         m_Material;
-        dmScript::LuaCallbackInfo*              m_Callback;
-        uint32_t                                m_CallbackId;
         rive::Mat2D                             m_InverseRendererTransform;
 
         rive::ArtboardHandle                    m_Artboard;

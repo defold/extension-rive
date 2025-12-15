@@ -298,13 +298,11 @@ namespace dmRive
             {
                 dmLogWarning("Could not find artboard with name '%s'", artboard_name);
             }
-            printf("Created artboard by name '%s': %p\n", artboard_name, component->m_Artboard);
         }
 
         if (!component->m_Artboard)
         {
             component->m_Artboard = queue->instantiateDefaultArtboard(file);
-            printf("Created default artboard: %p\n", component->m_Artboard);
         }
 
         return old_handle;
@@ -340,13 +338,11 @@ namespace dmRive
             {
                 dmLogWarning("Could not find state_machine with name '%s'", state_machine_name);
             }
-            printf("Created state machine by name '%s': %p\n", state_machine_name, component->m_StateMachine);
         }
 
         if (!component->m_StateMachine)
         {
             component->m_StateMachine = queue->instantiateDefaultStateMachine(artboard);
-            printf("Created default state machine: %p\n", component->m_StateMachine);
         }
 
         component->m_Enabled = component->m_StateMachine != 0;
@@ -374,13 +370,11 @@ namespace dmRive
             {
                 dmLogWarning("Could not find view model instance with name '%s'", viewmodel_name);
             }
-            printf("Created view model instance by name '%s'\n", viewmodel_name);
         }
 
         if (!component->m_ViewModelInstance)
         {
             component->m_ViewModelInstance = queue->instantiateDefaultViewModelInstance(file, component->m_Artboard);
-            printf("Created default view model instance: %p\n", component->m_ViewModelInstance);
         }
 
         component->m_Enabled = component->m_ViewModelInstance != 0;
@@ -439,41 +433,6 @@ namespace dmRive
         return dmGameObject::CREATE_RESULT_OK;
     }
 
-    static void CompRiveRunCallback(RiveComponent* component, const dmDDF::Descriptor* desc, const char* data, const dmMessage::URL* sender)
-    {
-        dmScript::LuaCallbackInfo* cbk = component->m_Callback;
-        if (!dmScript::IsCallbackValid(cbk))
-        {
-            dmLogError("Rive callback is invalid.");
-            return;
-        }
-
-        lua_State* L = dmScript::GetCallbackLuaContext(cbk);
-        DM_LUA_STACK_CHECK(L, 0);
-
-        if (!dmScript::SetupCallback(cbk))
-        {
-            dmLogError("Failed to setup Rive callback");
-            return;
-        }
-
-        dmScript::PushHash(L, desc->m_NameHash);
-        dmScript::PushDDF(L, desc, data, false);
-        dmScript::PushURL(L, *sender);
-        int ret = dmScript::PCall(L, 4, 0);
-        (void)ret;
-        dmScript::TeardownCallback(cbk);
-    }
-
-    static void CompRiveClearCallback(RiveComponent* component)
-    {
-        if (component->m_Callback)
-        {
-            dmScript::DestroyCallback(component->m_Callback);
-            component->m_Callback = 0x0;
-        }
-    }
-
     static void DestroyComponent(RiveWorld* world, uint32_t index)
     {
         rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
@@ -508,9 +467,6 @@ namespace dmRive
         RiveComponent* component = GetComponentFromIndex(world, index);
         if (component->m_Material) {
             dmResource::Release(ctx->m_Factory, (void*)component->m_Material);
-        }
-        if (component->m_Callback) {
-            CompRiveClearCallback(component);
         }
         DestroyComponent(world, index);
         return dmGameObject::CREATE_RESULT_OK;
@@ -583,8 +539,12 @@ namespace dmRive
         uint32_t width, height;
         GetDimensions(world->m_RiveRenderContext, &width, &height);
 
+        uint32_t window_height = dmGraphics::GetWindowHeight(world->m_Ctx->m_GraphicsContext);
+
         rive::Mat2D viewTransform = GetViewTransform(world->m_RiveRenderContext, render_context);
         rive::Renderer* renderer = GetRiveRenderer(world->m_RiveRenderContext);
+
+        float display_factor  = g_DisplayFactor;
 
         rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
 
@@ -603,15 +563,26 @@ namespace dmRive
             const rive::ArtboardHandle  artboardHandle  = c->m_Artboard;
             rive::Fit                   fit             = c->m_Fit;
             rive::Alignment             alignment       = c->m_Alignment;
-            bool fullscreen                             = c->m_Fullscreen;
+            bool                        fullscreen      = c->m_Fullscreen;
+
+            rive::Mat2D transform;
+            if (fullscreen)
+            {
+                Mat4ToMat2D(c->m_World, transform);
+            }
 
             auto drawLoop = [artboardHandle,
                              renderer,
                              fullscreen,
                              fit,
                              alignment,
+                             transform,
+                             viewTransform,
                              width,
-                             height](rive::DrawKey drawKey, rive::CommandServer* server)
+                             height,
+                             window_height,
+                             display_factor,
+                             c](rive::DrawKey drawKey, rive::CommandServer* server)
             {
                 rive::ArtboardInstance* artboard = server->getArtboardInstance(artboardHandle);
                 if (artboard == nullptr)
@@ -620,24 +591,33 @@ namespace dmRive
                 }
 
                 rive::Factory* factory = server->factory();
+                renderer->save();
+
+                rive::AABB bounds = artboard->bounds();
 
                 if (fullscreen)
                 {
-                    artboard->width(width);
-                    artboard->height(height);
-                }
-                else if (fit == rive::Fit::layout)
-                {
-                    artboard->width(width);
-                    artboard->height(height);
-                }
+                    // Apply the world matrix from the component to the artboard transform
+                    rive::Mat2D centerAdjustment  = rive::Mat2D::fromTranslate(-bounds.width() / 2.0f, -bounds.height() / 2.0f);
+                    rive::Mat2D scaleDpi          = rive::Mat2D::fromScale(1,-1);
+                    rive::Mat2D invertAdjustment  = rive::Mat2D::fromScaleAndTranslation(display_factor, -display_factor, 0, window_height);
+                    rive::Mat2D rendererTransform = invertAdjustment * viewTransform * transform * scaleDpi * centerAdjustment;
 
-                // Draw the .riv.
-                renderer->save();
-                renderer->align(fit,
-                                alignment,
-                                rive::AABB(0, 0, width, height),
-                                artboard->bounds());
+                    renderer->transform(rendererTransform);
+                    c->m_InverseRendererTransform = rendererTransform.invertOrIdentity();
+                }
+                else
+                {
+                    if (fit == rive::Fit::layout)
+                    {
+                        artboard->width(width / display_factor);
+                        artboard->height(height / display_factor);
+                    }
+
+                    rive::Mat2D rendererTransform = rive::computeAlignment(fit, alignment, rive::AABB(0, 0, width, height), bounds, display_factor);
+                    renderer->transform(rendererTransform);
+                    c->m_InverseRendererTransform = rendererTransform.invertOrIdentity();
+                }
 
                 artboard->draw(renderer);
                 renderer->restore();
@@ -1181,9 +1161,8 @@ namespace dmRive
         float normalized_x = x / g_OriginalWindowWidth;
         float normalized_y = 1 - (y / g_OriginalWindowHeight);
 
-        //rive::Vec2D p_local = component->m_InverseRendererTransform * rive::Vec2D(normalized_x * window_width, normalized_y * window_height);
-        rive::Vec2D p_local = rive::Vec2D(normalized_x * window_width, normalized_y * window_height);
-        //printf("    WorldToLocal: %f, %f -> %f %f\n", x, y, p_local.x, p_local.y);
+        rive::Vec2D p_local = component->m_InverseRendererTransform * rive::Vec2D(normalized_x * window_width, normalized_y * window_height);
+        //rive::Vec2D p_local = rive::Vec2D(normalized_x * window_width, normalized_y * window_height);
         return p_local;
     }
 
