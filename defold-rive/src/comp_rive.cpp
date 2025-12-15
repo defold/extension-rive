@@ -416,9 +416,10 @@ namespace dmRive
 
         dmRiveDDF::RiveModelDesc* ddf = component->m_Resource->m_DDF;
 
+        component->m_Fullscreen == ddf->m_CoordinateSystem == dmRiveDDF::RiveModelDesc::COORDINATE_SYSTEM_FULLSCREEN;
         component->m_Fit = rive::Fit::layout;
         component->m_Alignment = rive::Alignment::center;
-        if (ddf->m_CoordinateSystem == dmRiveDDF::RiveModelDesc::COORDINATE_SYSTEM_RIVE)
+        if (!component->m_Fullscreen)
         {
             component->m_Fit = DDFToRiveFit(ddf->m_ArtboardFit);
             component->m_Alignment = DDFToRiveAlignment(ddf->m_ArtboardAlignment);
@@ -588,9 +589,11 @@ namespace dmRive
             const rive::ArtboardHandle  artboardHandle  = c->m_Artboard;
             rive::Fit                   fit             = c->m_Fit;
             rive::Alignment             alignment       = c->m_Alignment;
+            bool fullscreen                             = c->m_Fullscreen;
 
             auto drawLoop = [artboardHandle,
                              renderer,
+                             fullscreen,
                              fit,
                              alignment,
                              width,
@@ -604,7 +607,12 @@ namespace dmRive
 
                 rive::Factory* factory = server->factory();
 
-                if (fit == rive::Fit::layout)
+                if (fullscreen)
+                {
+                    artboard->width(width);
+                    artboard->height(height);
+                }
+                else if (fit == rive::Fit::layout)
                 {
                     artboard->width(width);
                     artboard->height(height);

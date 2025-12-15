@@ -87,6 +87,7 @@ namespace dmRive
         uint8_t                                 m_DoRender : 1;
         uint8_t                                 m_AddedToUpdate : 1;
         uint8_t                                 m_ReHash : 1;
+        uint8_t                                 m_Fullscreen : 1;
     };
 
     static const uint32_t INVALID_HANDLE = 0xFFFFFFFF;
