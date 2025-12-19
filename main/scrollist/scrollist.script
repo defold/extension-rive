@@ -8,7 +8,7 @@ local function set_border(self, index, border)
 	end
 
 	local thumb = self.thumbs[index+1]
-	rive.databind.set_properties(self.rive_url, thumb, {Border = border})
+	rive.cmd.setViewModelInstanceNumber(thumb, "Border", border)
 end
 
 local function set_selected_thumb(self, index)
@@ -18,7 +18,7 @@ local function set_selected_thumb(self, index)
 	set_border(self, prev_index, 0)
 	set_border(self, self.thumb_index, 10)
 
-	rive.databind.set_properties(self.rive_url, self.modelViewInstanceRuntime, {["List Index"] = self.thumb_index})
+	rive.cmd.setViewModelInstanceNumber(self.view_model, "List Index", self.thumb_index)
 end
 
 local function move_left(self)
@@ -38,18 +38,26 @@ local function move_right(self)
 end
 
 local function create_thumb(self, image_data)
-	local thumb, errThumb = rive.databind.create_view_model_instance_runtime(self.rive_url, "ThumbVM")
-	if thumb == nil then
-		print("Failed to create view model instance:", errThumb)
-		return
+	local viewmodel_name = "ThumbVM"
+	local thumb = rive.cmd.instantiateDefaultViewModelInstance(self.file, viewmodel_name)
+	if thumb == 0 then
+		print("Failed to create view model instance:", viewmodel_name)
+	 	return
 	end
+
+	print("thumb:", thumb)
 	table.insert(self.thumbs, thumb)
 
-	rive.databind.set_properties(self.rive_url, thumb, {Border = 10, Image = image_data})
-	-- add the thumb last in the list
-	rive.databind.list_add_instance(self.rive_url, self.modelViewInstanceRuntime, self.list_path, thumb)
+	local image = rive.cmd.decodeImage(image_data)
+	print("image:", image)
 
-	-- update borders
+	rive.cmd.setViewModelInstanceNumber(thumb, "Border", 10)
+	rive.cmd.setViewModelInstanceImage(thumb, "Image", image)
+
+	-- -- add the thumb last in the list
+	rive.cmd.appendViewModelInstanceListViewModel(self.view_model, self.list_path, thumb)
+
+	-- -- update borders
 	set_selected_thumb(self, #self.thumbs - 1)
 end
 
@@ -67,49 +75,54 @@ end
 
 local function request_thumb(self, url)
 	print("Requesting new thumb")
-	download_image(self.modelViewInstanceRuntime, url)
+	download_image(self.view_model, url)
 end
 
 local function remove_thumb(self, index)
 	print("Removing thumb at index", index)
 	local thumb = table.remove(self.thumbs, index)
-	rive.databind.list_remove_instance(self.rive_url, self.modelViewInstanceRuntime, self.list_path, thumb)
+	--rive.databind.list_remove_instance(self.rive_url, self.view_model, self.list_path, thumb)
+	rive.cmd.removeViewModelInstanceListViewModel(self.view_model, self.list_path, thumb)
+	--rive.cmd.removeViewModelInstanceListViewModelIndex(self.view_model, self.list_path, index)
 	set_selected_thumb(self, index-1)
 end
 
--- Rive events trigger when the splash intro starts and ends and is used to not allow input while the intro is playing.
--- The logic is done within the rive statemachine.
-local function rive_event_handler(self, message_id, message)
-	print("received event", message.name)
+
+local function rive_listener(self, message_name, data)
+	pprint("file:", message_name, data)
 end
 
 -- Get input focus then start the splash statemachine.
 function init(self)
 	msg.post(".", "acquire_input_focus") 
 
-	self.rive_url = msg.url("#scrollist")
-
-	self.modelViewInstanceRuntime = rive.databind.get_view_model_instance_runtime(self.rive_url)
-
-	if self.modelViewInstanceRuntime == 0xFFFFFFFF then
-		-- auto_bind == false
-		local main, errMain = rive.databind.create_view_model_instance_runtime(self.rive_url, "MainVM")
-		if main == nil then
-			print("Failed to create view model instance:", errMain)
-			return
-		end
-
-		self.modelViewInstanceRuntime = main
-		rive.databind.set_view_model_instance_runtime(self.rive_url, self.modelViewInstanceRuntime)
-	end
+	rive.set_file_listener(rive_listener)
 
 	self.list_path = 'Thumbs'
-	self.thumb_index = rive.databind.get_property(self.rive_url, self.modelViewInstanceRuntime, "List Index")
 	self.thumbs = {}
+	self.rive_url = msg.url("#scrollist")
+
+	self.file = rive.get_file(self.rive_url)
+	self.artboard = rive.get_artboard(self.rive_url)
+	self.state_machine = rive.get_state_machine(self.rive_url)
+	print("file:", self.file)
+	print("artboard:", self.artboard)
+	print("state_machine:", self.state_machine)
+
+	--self.view_model = rive.cmd.instantiateDefaultViewModelInstance(self.file, self.artboard)
+	self.view_model = rive.cmd.instantiateBlankViewModelInstance(self.file, self.artboard)
+	print("viewmodelinstance", self.view_model)
+
+	rive.cmd.bindViewModelInstance(self.state_machine, self.view_model)
+
+	self.thumb_index = 0
+	-- self.thumb_index = rive.databind.get_property(self.rive_url, self.view_model, "List Index")
 
 	for i=1,MAX_NUM_THUMBS do
 		request_thumb(self, URL)
 	end
+
+	--request_thumb(self, URL)
 end
 
 

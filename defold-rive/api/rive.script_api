@@ -1,474 +1,1199 @@
 - name: rive
   type: table
-  desc: Functions and constants for interacting with Rive models
+  desc: Rive animation helpers exposed to Lua scripts
 
   members:
 
-  - name: play_anim
-    type: function
-    desc: Plays the specified animation on a Rive model
-
-    parameters:
-      - name: url
-        type: url
-        desc: The Rive model component for which to play an animation
-
-      - name: anim_id
-        type: hash
-        desc: Id of the animation to play
-
-      - name: playback
-        type: number
-        desc: Playback mode of the animation (from go.PLAYBACK_*)
-
-      - name: options
-        type: table
-        desc: Playback options
-        parameters:
-          - name: offset
-            type: number
-            desc: The normalized initial value of the animation cursor when the animation starts playing
-
-          - name: playback_rate
-            type: constant
-            desc: The rate with which the animation will be played. Must be positive.
-
-      - name: complete_function
-        type: function
-        desc: function to call when the animation has completed
-        parameters:
-          - name: self
-            type: object
-            desc: The context of the calling script
-
-          - name: message_id
-            type: hash
-            desc: The name of the completion message ("rive_animation_done")
-
-          - name: message
-            type: table
-            desc: A table that contains the response
-            parameters:
-              - name: animation_id
-                type: hash
-                desc: the animation that was completed
-
-              - name: playback
-                type: constant
-                desc: the playback mode for the animation
-
-          - name: sender
-            type: url
-            desc: The invoker of the callback - the Rive model component
-
-#*****************************************************************************************************
-
-  - name: play_state_machine
-    type: function
-    desc: Plays the specified animation on a Rive model
-
-    parameters:
-      - name: url
-        type: url
-        desc: The Rive model component for which to play an animation
-
-      - name: state_machine_id
-        type: hash
-        desc: Id of the state machine to play
-
-      - name: options
-        type: table
-        desc: Playback options
-        parameters:
-          - name: playback_rate
-            type: constant
-            desc: The rate with which the animation will be played. Must be positive.
-
-      - name: callback_function
-        type: function
-        desc: function to call when a playback event occurs
-        parameters:
-          - name: self
-            type: object
-            desc: The context of the calling script
-
-          - name: message_id
-            type: hash
-            desc: The name of the event
-
-          - name: message
-            type: table
-            desc: A table that contains the event properties
-
-#*****************************************************************************************************
-
-  - name: cancel
-    type: function
-    desc: Cancels all running animations on a specified spine model component
-
-    parameters:
-      - name: url
-        type: url
-        desc: The Rive model component for which to cancel the animation
-
-#*****************************************************************************************************
-
-  - name: get_go
-    type: function
-    desc: Returns the id of the game object that corresponds to a specified skeleton bone.
-
-    parameters:
-      - name: url
-        type: url
-        desc: The Rive model component to query
-
-      - name: bone_id
-        type: hash
-        desc: Id of the corresponding bone
-
-    return:
-      - name: id
-        type: hash
-        desc: Id of the game object
-
-#*****************************************************************************************************
-
   - name: pointer_move
     type: function
-    desc: Forward mouse/touch movement to a component
-
+    desc: Lua wrapper for pointer movement.
     parameters:
       - name: url
         type: url
-        desc: The Rive model component
-
+        desc: Component receiving the pointer move.
       - name: x
         type: number
-        desc: Horizontal position
-
+        desc: Pointer x coordinate in component space.
       - name: y
         type: number
-        desc: Vertical position
+        desc: Pointer y coordinate in component space.
 
 #*****************************************************************************************************
 
   - name: pointer_up
     type: function
-    desc: Forward mouse/touch release event to a component
-
+    desc: Lua wrapper for pointer up events.
     parameters:
       - name: url
         type: url
-        desc: The Rive model component
-
+        desc: Component receiving the pointer release.
       - name: x
         type: number
-        desc: Horizontal position
-
+        desc: Pointer x coordinate.
       - name: y
         type: number
-        desc: Vertical position
+        desc: Pointer y coordinate.
 
 #*****************************************************************************************************
 
   - name: pointer_down
     type: function
-    desc: Forward mouse/touch press event to a component
-
+    desc: Lua wrapper for pointer down events.
     parameters:
       - name: url
         type: url
-        desc: The Rive model component
-
+        desc: Component receiving the pointer press.
       - name: x
         type: number
-        desc: Horizontal position
-
+        desc: Pointer x coordinate.
       - name: y
         type: number
-        desc: Vertical position
+        desc: Pointer y coordinate.
 
 #*****************************************************************************************************
 
-  - name: get_text_run
+  - name: pointer_exit
     type: function
-    desc: Gets the text run of a specified text component from within the Rive artboard assigned to the component.
-
+    desc: Lua wrapper for pointer exit events.
     parameters:
       - name: url
         type: url
-        desc: The Rive model component for which to get the text run from
-
-      - name: name
-        type: string
-        desc: The name of the text run from the Rive artboard.
-
-      - name: nested_artboard
-        type: string
-        desc: (OPTIONAL) If specified, the text run will be retrieved from the specified nested artboard
-
-    return:
-      - name: text_run
-        type: string
-        desc: The text run text
-
-#*****************************************************************************************************
-
-  - name: set_text_run
-    type: function
-    desc: Set the text run of a specified text component from within the Rive artboard assigned to the component.
-
-    parameters:
-      - name: url
-        type: url
-        desc: The Rive model component for which to set the text run for
-
-      - name: name
-        type: string
-        desc: The name of the text run from the Rive artboard.
-
-      - name: text_run
-        type: string
-        desc: The text run contents to update with.
-
-      - name: nested_artboard
-        type: string
-        desc: (OPTIONAL) If specified, the text run will be set in the specified nested artboard
+        desc: Component receiving the pointer leave.
+      - name: x
+        type: number
+        desc: Pointer x coordinate.
+      - name: y
+        type: number
+        desc: Pointer y coordinate.
 
 #*****************************************************************************************************
 
   - name: get_projection_matrix
     type: function
-    desc: Get an orthographic projection matrix that can be used to project regular Defold components into the same coordinate space as the rive model when using the 'fullscreen' coordinate space.
-
+    desc: Returns the projection matrix in render coordinates.
     return:
-    - name: matrix
-      type: vmath.matrix4
-      desc: The projection matrix
+      - name: matrix
+        type: vmath.matrix4
+        desc: Current projection matrix for the window.
 
 #*****************************************************************************************************
 
-  - name: get_state_machine_input
+  - name: set_file_listener
     type: function
-    desc: Get the input values from a state machine input, either from the current top-level artboard, or from a nested artboard inside the Rive model artboard. Note that trigger inputs will not generate a value!
-
+    desc: Sets or clears the global file listener callback.
     parameters:
-      - name: url
-        type: url
-        desc: The Rive model component
-
-      - name: name
-        type: string
-        desc: The name of the input
-
-      - name: nested_artboard
-        type: string
-        desc: (OPTIONAL) If specified, the input will be queried for the specified nested artboard
-
-    return:
-    - name: value
-      type: number|bool
-      desc: The value of the input
+      - name: callback
+        type: function(self, event, data)|nil
+        desc: Callback invoked for file system events; pass nil to disable.
+        parameters:
+          - name: self
+            type: object
+            desc: The calling script instance.
+          - name: event
+            type: string
+            desc: One of: onFileLoaded, onFileDeleted, onFileError, onArtboardsListed, onViewModelsListed, onViewModelInstanceNamesListed, onViewModelPropertiesListed, onViewModelEnumsListed
+          - name: data
+            type: table
+            desc: Additional fields vary by event. Common keys include:
+            parameters:
+              - name: file
+                type: FileHandle
+                desc: File handle involved in the event.
+              - name: viewModelName
+                type: string
+                desc: View model name for the request, when applicable.
+              - name: instanceNames
+                type: table
+                desc: Array of instance name strings.
+              - name: artboardNames
+                type: table
+                desc: Array of artboard name strings.
+              - name: properties
+                type: table
+                desc: Array of property metadata tables.
+              - name: enums
+                type: table
+                desc: Array of enum definitions.
+              - name: error
+                type: string
+                desc: Error message when a failure occurs.
 
 #*****************************************************************************************************
 
-  - name: set_state_machine_input
+  - name: set_artboard_listener
     type: function
-    desc: Set the input values from a state machine input, either from the current top-level artboard, or from a nested artboard inside the Rive model artboard. Note - To set input for a trigger, use a bool value.
+    desc: Sets or clears the artboard listener callback.
+    parameters:
+      - name: callback
+        type: function(self, event, data)|nil
+        desc: Callback invoked for artboard-related events; pass nil to disable.
+        parameters:
+          - name: self
+            type: object
+            desc: The calling script instance.
+          - name: event
+            type: string
+            desc: One of: onArtboardError, onDefaultViewModelInfoReceived, onArtboardDeleted, onStateMachinesListed
+          - name: data
+            type: table
+            desc: Additional data per event, typically:
+            parameters:
+              - name: artboard
+                type: ArtboardHandle
+                desc: Artboard handle involved.
+              - name: viewModelName
+                type: string
+                desc: View model name for defaults (received event).
+              - name: instanceName
+                type: string
+                desc: Instance name for defaults.
+              - name: stateMachineNames
+                type: table
+                desc: Array of state machine name strings.
+              - name: error
+                type: string
+                desc: Error message when an error event fires.
 
+#*****************************************************************************************************
+
+  - name: set_state_machine_listener
+    type: function
+    desc: Sets or clears the state machine listener callback.
+    parameters:
+      - name: callback
+        type: function(self, event, data)|nil
+        desc: Callback invoked for state machine events; pass nil to disable.
+        parameters:
+          - name: self
+            type: object
+            desc: The calling script instance.
+          - name: event
+            type: string
+            desc: One of: onStateMachineError, onStateMachineDeleted, onStateMachineSettled
+          - name: data
+            type: table
+            desc: Event-specific details:
+            parameters:
+              - name: stateMachine
+                type: StateMachineHandle
+                desc: Active state machine handle.
+              - name: error
+                type: string
+                desc: Error message when an error occurs.
+
+#*****************************************************************************************************
+
+  - name: set_view_model_instance_listener
+    type: function
+    desc: Sets or clears the view model instance listener callback.
+    parameters:
+      - name: callback
+        type: function(self, event, data)|nil
+        desc: Callback invoked for view model instance events; pass nil to disable.
+        parameters:
+          - name: self
+            type: object
+            desc: The calling script instance.
+          - name: event
+            type: string
+            desc: One of: onViewModelInstanceError, onViewModelDeleted, onViewModelDataReceived, onViewModelListSizeReceived
+          - name: data
+            type: table
+            desc: Additional payload per event:
+            parameters:
+              - name: viewModel
+                type: ViewModelInstanceHandle
+                desc: Handle of the affected view model instance.
+              - name: error
+                type: string
+                desc: Error description when an error fires.
+              - name: path
+                type: string
+                desc: Path being inspected when list size arrives.
+              - name: size
+                type: number
+                desc: List size value for list-size events.
+
+#*****************************************************************************************************
+
+  - name: set_render_image_listener
+    type: function
+    desc: Sets or clears the render image listener callback.
+    parameters:
+      - name: callback
+        type: function(self, event, data)|nil
+        desc: Callback invoked for render image events; pass nil to disable.
+        parameters:
+          - name: self
+            type: object
+            desc: The calling script instance.
+          - name: event
+            type: string
+            desc: One of: onRenderImageDecoded, onRenderImageError, onRenderImageDeleted
+          - name: data
+            type: table
+            desc: Additional fields:
+            parameters:
+              - name: renderImage
+                type: RenderImageHandle
+                desc: Handle of the render image.
+              - name: error
+                type: string
+                desc: Error message for the failure event.
+
+#*****************************************************************************************************
+
+  - name: set_audio_source_listener
+    type: function
+    desc: Sets or clears the audio source listener callback.
+    parameters:
+      - name: callback
+        type: function(self, event, data)|nil
+        desc: Callback invoked for audio source events; pass nil to disable.
+        parameters:
+          - name: self
+            type: object
+            desc: The calling script instance.
+          - name: event
+            type: string
+            desc: One of: onAudioSourceDecoded, onAudioSourceError, onAudioSourceDeleted
+          - name: data
+            type: table
+            desc: Additional fields:
+            parameters:
+              - name: audioSource
+                type: AudioSourceHandle
+                desc: Audio source handle for the event.
+              - name: error
+                type: string
+                desc: Error message when provided.
+
+#*****************************************************************************************************
+
+  - name: set_font_listener
+    type: function
+    desc: Sets or clears the font listener callback.
+    parameters:
+      - name: callback
+        type: function(self, event, data)|nil
+        desc: Callback invoked for font events; pass nil to disable.
+        parameters:
+          - name: self
+            type: object
+            desc: The calling script instance.
+          - name: event
+            type: string
+            desc: One of: onFontDecoded, onFontError, onFontDeleted
+          - name: data
+            type: table
+            desc: Additional fields:
+            parameters:
+              - name: font
+                type: FontHandle
+                desc: Font handle for the associated event.
+              - name: error
+                type: string
+                desc: Error message for failure events.
+
+#*****************************************************************************************************
+
+  - name: get_file
+    type: function
+    desc: Returns the Rive file handle tied to the component.
     parameters:
       - name: url
         type: url
-        desc: The Rive model component
+        desc: Component whose file handle to query.
+    return:
+      - name: file_handle
+        type: FileHandle
+        desc: Handle identifying the loaded Rive file.
 
+#*****************************************************************************************************
+
+  - name: set_artboard
+    type: function
+    desc: Switches the active artboard for the component.
+    parameters:
+      - name: url
+        type: url
+        desc: Component using the artboard.
+      - name: name
+        type: string|nil
+        desc: Name of the artboard to create and set. Pass nil to create a default artboard.
+    return:
+      - name: artboard
+        type: ArtboardHandle
+        desc: Old artboard handle
+
+#*****************************************************************************************************
+
+  - name: get_artboard
+    type: function
+    desc: Queries the current artboard handle for the component.
+    parameters:
+      - name: url
+        type: url
+        desc: Component whose artboard handle to return.
+    return:
+      - name: artboard
+        type: ArtboardHandle
+        desc: Active artboard handle.
+
+#*****************************************************************************************************
+
+  - name: set_state_machine
+    type: function
+    desc: Selects a state machine by name on the component.
+    parameters:
+      - name: url
+        type: url
+        desc: Component owning the state machine.
+      - name: name
+        type: string|nil
+        desc: Name of the state machine to create and set. Pass nil to create a default state machine.
+    return:
+      - name: state_machine
+        type: StateMachineHandle
+        desc: Old state machine handle
+
+#*****************************************************************************************************
+
+  - name: get_state_machine
+    type: function
+    desc: Returns the active state machine handle for the component.
+    parameters:
+      - name: url
+        type: url
+        desc: Component whose active state machine to query.
+    return:
+      - name: state_machine
+        type: StateMachineHandle
+        desc: Current state machine handle.
+
+#*****************************************************************************************************
+
+  - name: set_view_model_instance
+    type: function
+    desc: Selects a view model instance by name.
+    parameters:
+      - name: url
+        type: url
+        desc: Component owning the view model instance.
       - name: name
         type: string
-        desc: The name of the input
+        desc: View model instance name to activate.
+    return:
+      - name: success
+        type: boolean
+        desc: True if the view model instance was activated.
 
+#*****************************************************************************************************
+
+  - name: get_view_model_instance
+    type: function
+    desc: Returns the handle of the currently bound view model instance.
+    parameters:
+      - name: url
+        type: url
+        desc: Component whose view model instance handle to query.
+    return:
+      - name: view_model_instance_handle
+        type: ViewModelInstanceHandle
+        desc: Handle for the active view model instance.
+
+#*****************************************************************************************************
+
+- name: rive.cmd
+  type: table
+  desc: Command queue helpers for interacting with the Rive runtime
+
+  members:
+
+  - name: instantiateArtboardNamed
+    type: function
+    desc: Returns the artboard handle created for the named view model.
+    parameters:
+      - name: file_handle
+        type: FileHandle
+        desc: Handle to a previously loaded Rive file.
+      - name: viewmodel_name
+        type: string
+        desc: Name of the view model to instantiate.
+    return:
+      - name: artboard_handle
+        type: ArtboardHandle
+        desc: Artboard handle created for the named view model.
+
+#*****************************************************************************************************
+
+  - name: instantiateDefaultArtboard
+    type: function
+    desc: Returns the default artboard handle for the file.
+    parameters:
+      - name: file_handle
+        type: FileHandle
+        desc: Handle to a previously loaded Rive file.
+    return:
+      - name: artboard_handle
+        type: ArtboardHandle
+        desc: Default artboard handle for the file.
+
+#*****************************************************************************************************
+
+  - name: instantiateBlankViewModelInstance
+    type: function
+    desc: Returns a blank view model instance handle for the given artboard or view model.
+    parameters:
+      - name: file_handle
+        type: FileHandle
+        desc: Handle to a previously loaded Rive file.
+      - name: artboard_or_viewmodel
+        type: ArtboardHandle|string
+        desc: Artboard handle or view model name that identifies where to instantiate.
+    return:
+      - name: view_model_instance_handle
+        type: ViewModelInstanceHandle
+        desc: Blank view model instance handle.
+
+#*****************************************************************************************************
+
+  - name: instantiateDefaultViewModelInstance
+    type: function
+    desc: Returns a default-populated view model instance handle for the given artboard or view model.
+    parameters:
+      - name: file_handle
+        type: FileHandle
+        desc: Handle to a previously loaded Rive file.
+      - name: artboard_or_viewmodel
+        type: ArtboardHandle|string
+        desc: Artboard handle or view model name the instance should derive from.
+    return:
+      - name: view_model_instance_handle
+        type: ViewModelInstanceHandle
+        desc: Default view model instance handle.
+
+#*****************************************************************************************************
+
+  - name: instantiateViewModelInstanceNamed
+    type: function
+    desc: Creates a named view model instance and returns its handle.
+    parameters:
+      - name: file_handle
+        type: FileHandle
+        desc: Handle to a previously loaded Rive file.
+      - name: artboard_or_viewmodel
+        type: ArtboardHandle|string
+        desc: Artboard handle or view model name that will host the instance.
+      - name: instance_name
+        type: string
+        desc: Name to assign to the new view model instance.
+    return:
+      - name: view_model_instance_handle
+        type: ViewModelInstanceHandle
+        desc: Named view model instance handle.
+
+#*****************************************************************************************************
+
+  - name: referenceNestedViewModelInstance
+    type: function
+    desc: Returns a handle to the nested view model at the given path.
+    parameters:
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: Parent view model instance handle.
+      - name: path
+        type: string
+        desc: Dot-delimited path to the nested view model.
+    return:
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: Handle to the nested view model.
+
+#*****************************************************************************************************
+
+  - name: referenceListViewModelInstance
+    type: function
+    desc: Returns the handle for the list entry at the specified path and index.
+    parameters:
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: Parent view model instance handle.
+      - name: path
+        type: string
+        desc: Dot-delimited path to the list view model.
+      - name: index
+        type: number
+        desc: Index within the list entry to reference.
+    return:
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: Handle to the referenced list entry.
+
+#*****************************************************************************************************
+
+  - name: deleteArtboard
+    type: function
+    desc: Deletes an instantiated artboard.
+    parameters:
+      - name: artboard_handle
+        type: ArtboardHandle
+        desc: Handle to the artboard that should be removed.
+
+#*****************************************************************************************************
+
+  - name: instantiateStateMachineNamed
+    type: function
+    desc: Creates a named state machine for the provided artboard.
+    parameters:
+      - name: artboard_handle
+        type: ArtboardHandle
+        desc: Artboard where the state machine resides.
+      - name: name
+        type: string
+        desc: Name to assign to the new state machine.
+    return:
+      - name: state_machine_handle
+        type: StateMachineHandle
+        desc: Handle referencing the created state machine.
+
+#*****************************************************************************************************
+
+  - name: instantiateDefaultStateMachine
+    type: function
+    desc: Creates the default state machine for an artboard.
+    parameters:
+      - name: artboard_handle
+        type: ArtboardHandle
+        desc: Artboard used as the source for the state machine.
+    return:
+      - name: state_machine_handle
+        type: StateMachineHandle
+        desc: Handle referencing the created state machine.
+
+#*****************************************************************************************************
+
+  - name: advanceStateMachine
+    type: function
+    desc: Advances the state machine by the requested delta time.
+    parameters:
+      - name: state_machine_handle
+        type: StateMachineHandle
+        desc: State machine to advance.
+      - name: delta
+        type: number
+        desc: Time in seconds to advance the state machine.
+
+#*****************************************************************************************************
+
+  - name: deleteStateMachine
+    type: function
+    desc: Deletes a created state machine.
+    parameters:
+      - name: state_machine_handle
+        type: StateMachineHandle
+        desc: Handle to the state machine to delete.
+
+#*****************************************************************************************************
+
+  - name: setViewModelInstanceNestedViewModel
+    type: function
+    desc: Replaces the nested view model at the given path with the supplied handle.
+    parameters:
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance whose nested child is updated.
+      - name: path
+        type: string
+        desc: Path to the nested view model.
+      - name: nested_handle
+        type: ViewModelInstanceHandle
+        desc: Handle of the nested view model to attach.
+
+#*****************************************************************************************************
+
+  - name: insertViewModelInstanceListViewModel
+    type: function
+    desc: Inserts a nested view model into the list at the given index.
+    parameters:
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance owning the list.
+      - name: path
+        type: string
+        desc: Path to the target list.
+      - name: nested_handle
+        type: ViewModelInstanceHandle
+        desc: Handle of the view model to insert.
+      - name: index
+        type: number
+        desc: Destination index for the insertion.
+
+#*****************************************************************************************************
+
+  - name: appendViewModelInstanceListViewModel
+    type: function
+    desc: Appends a nested view model to the list at the specified path.
+    parameters:
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance owning the list.
+      - name: path
+        type: string
+        desc: Path to the target list.
+      - name: nested_handle
+        type: ViewModelInstanceHandle
+        desc: Handle of the view model to append.
+
+#*****************************************************************************************************
+
+  - name: swapViewModelInstanceListValues
+    type: function
+    desc: Swaps two entries in the nested list.
+    parameters:
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance that owns the list.
+      - name: path
+        type: string
+        desc: Path to the nested list.
+      - name: indexa
+        type: number
+        desc: First index to swap.
+      - name: indexb
+        type: number
+        desc: Second index to swap.
+
+#*****************************************************************************************************
+
+  - name: removeViewModelInstanceListViewModelIndex
+    type: function
+    desc: Removes the entry at the supplied index from the nested list.
+    parameters:
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance owning the list.
+      - name: path
+        type: string
+        desc: Path to the target list.
+      - name: index
+        type: number
+        desc: Index of the entry to remove.
+
+#*****************************************************************************************************
+
+  - name: removeViewModelInstanceListViewModel
+    type: function
+    desc: Removes the specified nested view model from the list at the path.
+    parameters:
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance owning the list.
+      - name: path
+        type: string
+        desc: Path to the target list.
+      - name: nested_handle
+        type: ViewModelInstanceHandle
+        desc: Handle of the view model to remove.
+
+#*****************************************************************************************************
+
+  - name: bindViewModelInstance
+    type: function
+    desc: Binds the state machine to the provided view model instance.
+    parameters:
+      - name: state_machine_handle
+        type: StateMachineHandle
+        desc: State machine handle.
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance handle.
+
+#*****************************************************************************************************
+
+  - name: deleteViewModelInstance
+    type: function
+    desc: Deletes the view model instance handle.
+    parameters:
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance to delete.
+
+#*****************************************************************************************************
+
+  - name: fireViewModelTrigger
+    type: function
+    desc: Fires a trigger on the view model instance.
+    parameters:
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance handle.
+      - name: trigger_path
+        type: string
+        desc: Trigger path to activate.
+
+#*****************************************************************************************************
+
+  - name: setViewModelInstanceBool
+    type: function
+    desc: Updates the boolean property at the path.
+    parameters:
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance handle.
+      - name: path
+        type: string
+        desc: Path to the boolean property.
       - name: value
-        type: number|bool
-        desc: The value of the input to set
-
-      - name: nested_artboard
-        type: string
-        desc: (OPTIONAL) If specified, the input will be queried for the specified nested artboard
+        type: boolean
+        desc: New boolean value.
 
 #*****************************************************************************************************
 
-  - name: riv_swap_asset
+  - name: setViewModelInstanceNumber
     type: function
-    desc: Replace an asset in runtime.
-    Rive doc: https://rive.app/docs/game-runtimes/unreal/runtime-asset-swapping
-
+    desc: Updates the numeric property at the path.
     parameters:
-      - name: riv_path
-        type: string,hash
-        desc: The Rive (.rivc) path. E.g. "/path/to/file.rivc"
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance handle.
+      - name: path
+        type: string
+        desc: Path to the numeric property.
+      - name: value
+        type: number
+        desc: New numeric value.
 
+#*****************************************************************************************************
+
+  - name: setViewModelInstanceColor
+    type: function
+    desc: Updates the color property using the supplied vector.
+    parameters:
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance handle.
+      - name: path
+        type: string
+        desc: Path to the color property.
+      - name: vector4_color
+        type: vector4
+        desc: Color encoded as a Defold Vector4 (WXYZ).
+
+#*****************************************************************************************************
+
+  - name: setViewModelInstanceEnum
+    type: function
+    desc: Updates the enum property at the path.
+    parameters:
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance handle.
+      - name: path
+        type: string
+        desc: Path to the enum property.
+      - name: enum_string
+        type: string
+        desc: Enum name to select.
+
+#*****************************************************************************************************
+
+  - name: setViewModelInstanceString
+    type: function
+    desc: Updates the string property at the path.
+    parameters:
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance handle.
+      - name: path
+        type: string
+        desc: Path to the string property.
+      - name: string_value
+        type: string
+        desc: New string value.
+
+#*****************************************************************************************************
+
+  - name: setViewModelInstanceImage
+    type: function
+    desc: Updates the image property at the path.
+    parameters:
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance handle.
+      - name: path
+        type: string
+        desc: Path to the image property.
+      - name: render_image_handle
+        type: RenderImageHandle
+        desc: Render image handle to assign.
+
+#*****************************************************************************************************
+
+  - name: setViewModelInstanceArtboard
+    type: function
+    desc: Updates the artboard reference at the path.
+    parameters:
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance handle.
+      - name: path
+        type: string
+        desc: Path to the artboard reference.
+      - name: artboard_handle
+        type: ArtboardHandle
+        desc: Artboard handle to assign.
+
+#*****************************************************************************************************
+
+  - name: subscribeToViewModelProperty
+    type: function
+    desc: Subscribes for updates to the named property.
+    parameters:
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance handle.
+      - name: path
+        type: string
+        desc: Path to the property to subscribe.
+      - name: data_type
+        type: enum
+        desc: Data type identifier from rive::DataType.
+
+#*****************************************************************************************************
+
+  - name: unsubscribeToViewModelProperty
+    type: function
+    desc: Cancels a previous subscription.
+    parameters:
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance handle.
+      - name: path
+        type: string
+        desc: Path to the property.
+      - name: data_type
+        type: enum
+        desc: Data type identifier previously subscribed.
+
+#*****************************************************************************************************
+
+  - name: loadFile
+    type: function
+    desc: Loads Rive bytes and returns a file handle.
+    parameters:
+      - name: riv_bytes
+        type: string
+        desc: Raw Rive file data.
+    return:
+      - name: file_handle
+        type: FileHandle
+        desc: Loaded Rive file handle.
+
+#*****************************************************************************************************
+
+  - name: deleteFile
+    type: function
+    desc: Deletes the runtime file handle.
+    parameters:
+      - name: file_handle
+        type: FileHandle
+        desc: File handle to delete.
+
+#*****************************************************************************************************
+
+  - name: decodeImage
+    type: function
+    desc: Decodes image bytes and returns a render image handle.
+    parameters:
+      - name: image_bytes
+        type: string
+        desc: Encoded image data.
+    return:
+      - name: render_image_handle
+        type: RenderImageHandle
+        desc: Decoded render image handle.
+
+#*****************************************************************************************************
+
+  - name: deleteImage
+    type: function
+    desc: Deletes the render image handle.
+    parameters:
+      - name: image_handle
+        type: RenderImageHandle
+        desc: Render image handle to delete.
+
+#*****************************************************************************************************
+
+  - name: decodeAudio
+    type: function
+    desc: Decodes audio bytes and returns an audio source handle.
+    parameters:
+      - name: audio_bytes
+        type: string
+        desc: Encoded audio data.
+    return:
+      - name: audio_handle
+        type: AudioSourceHandle
+        desc: Decoded audio source handle.
+
+#*****************************************************************************************************
+
+  - name: deleteAudio
+    type: function
+    desc: Deletes the audio source handle.
+    parameters:
+      - name: audio_handle
+        type: AudioSourceHandle
+        desc: Audio source handle to delete.
+
+#*****************************************************************************************************
+
+  - name: decodeFont
+    type: function
+    desc: Decodes font bytes and returns a font handle.
+    parameters:
+      - name: font_bytes
+        type: string
+        desc: Encoded font data.
+    return:
+      - name: font_handle
+        type: FontHandle
+        desc: Decoded font handle.
+
+#*****************************************************************************************************
+
+  - name: deleteFont
+    type: function
+    desc: Deletes the font handle.
+    parameters:
+      - name: font_handle
+        type: FontHandle
+        desc: Font handle to delete.
+
+#*****************************************************************************************************
+
+  - name: addGlobalImageAsset
+    type: function
+    desc: Registers a global image asset.
+    parameters:
       - name: asset_name
         type: string
-        desc: The name of the FileAsset inside the .riv file
+        desc: Name used to reference the global asset.
+      - name: render_image_handle
+        type: RenderImageHandle
+        desc: Render image handle to register.
 
-      - name: options
-        type: table
-        desc: A table of options containing
+#*****************************************************************************************************
 
-        members:
+  - name: removeGlobalImageAsset
+    type: function
+    desc: Unregisters the named global image asset.
+    parameters:
+      - name: asset_name
+        type: string
+        desc: Name of the asset to remove.
 
-          - name: path
-            type: string
-            desc: The path of the asset file to replace with. E.g. "/path/to/file.png"
+#*****************************************************************************************************
 
-          - name: payload
-            type: string
-            desc: The payload of the asset file to replace with. E.g. a .png binary file.
-                  Takes precedence over the `path` option.
+  - name: addGlobalAudioAsset
+    type: function
+    desc: Registers a global audio asset.
+    parameters:
+      - name: asset_name
+        type: string
+        desc: Name used to reference the global audio.
+      - name: audio_handle
+        type: AudioSourceHandle
+        desc: Audio source handle to register.
 
-  - name: databind
-    type: table
-    desc: Functions and constants for interacting with Rive data bindings
+#*****************************************************************************************************
 
-    members:
-      - name: create_view_model_instance_runtime
-        type: function
-        desc: Creates a ViewModelInstanceRuntime
+  - name: removeGlobalAudioAsset
+    type: function
+    desc: Unregisters the named global audio asset.
+    parameters:
+      - name: asset_name
+        type: string
+        desc: Name of the audio asset to remove.
 
-        parameters:
-          - name: url
-            type: url
-            desc: The Rive model component
+#*****************************************************************************************************
 
-          - name: name
-            type: string, hash
-            desc: The name of the view model to instantiate
+  - name: addGlobalFontAsset
+    type: function
+    desc: Registers a global font asset.
+    parameters:
+      - name: asset_name
+        type: string
+        desc: Name used to reference the global font.
+      - name: font_handle
+        type: FontHandle
+        desc: Font handle to register.
 
-        return:
-          - name: handle
-            type: integer
-            desc: The handle to the ViewModelInstanceRuntime instance
+#*****************************************************************************************************
 
-          - name: error
-            type: string|nil
-            desc: The error message if something went wrong
+  - name: removeGlobalFontAsset
+    type: function
+    desc: Unregisters the named global font asset.
+    parameters:
+      - name: asset_name
+        type: string
+        desc: Name of the font asset to remove.
 
-      - name: destroy_view_model_instance_runtime
-        type: function
-        desc: Releases the previously created ViewModelInstanceRuntime
+#*****************************************************************************************************
 
-        parameters:
-          - name: url
-            type: url
-            desc: The Rive model component
+  - name: requestViewModelNames
+    type: function
+    desc: Requests view model names for the file.
+    parameters:
+      - name: file_handle
+        type: FileHandle
+        desc: File handle whose view models to query.
 
-          - name: handle
-            type: integer
-            desc: The handle to the ViewModelInstanceRuntime instance
+#*****************************************************************************************************
 
-      - name: set_view_model_instance_runtime
-        type: function
-        desc: Sets the current ViewModelInstanceRuntime
+  - name: requestArtboardNames
+    type: function
+    desc: Requests artboard names for the file.
+    parameters:
+      - name: file_handle
+        type: FileHandle
+        desc: File handle whose artboards to query.
 
-        parameters:
-          - name: url
-            type: url
-            desc: The Rive model component
+#*****************************************************************************************************
 
-          - name: handle
-            type: integer
-            desc: The handle to the ViewModelInstanceRuntime instance
+  - name: requestViewModelEnums
+    type: function
+    desc: Requests enum definitions for the file.
+    parameters:
+      - name: file_handle
+        type: FileHandle
+        desc: File handle whose enums to query.
 
-      - name: get_view_model_instance_runtime
-        type: function
-        desc: Gets the current ViewModelInstanceRuntime
+#*****************************************************************************************************
 
-        parameters:
-          - name: url
-            type: url
-            desc: The Rive model component
+  - name: requestViewModelPropertyDefinitions
+    type: function
+    desc: Requests property definitions for the view model.
+    parameters:
+      - name: file_handle
+        type: FileHandle
+        desc: File handle whose view models to query.
+      - name: viewmodel_name
+        type: string
+        desc: View model name whose property metadata to request.
 
-        return:
-          - name: handle
-            type: integer
-            desc: The handle to the currently set ViewModelInstanceRuntime instance
+#*****************************************************************************************************
 
+  - name: requestViewModelInstanceNames
+    type: function
+    desc: Requests instance names for the view model.
+    parameters:
+      - name: file_handle
+        type: FileHandle
+        desc: File handle whose view models to query.
+      - name: viewmodel_name
+        type: string
+        desc: View model name to inspect.
 
-      - name: set_properties
-        type: function
-        desc: Sets properties to the ViewModelInstanceRuntime instance
+#*****************************************************************************************************
 
-        parameters:
-          - name: url
-            type: url
-            desc: The Rive model component
+  - name: requestViewModelInstanceBool
+    type: function
+    desc: Requests the boolean value for the property.
+    parameters:
+      - name: instance_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance handle.
+      - name: property_name
+        type: string
+        desc: Name of the bool property.
 
-          - name: handle
-            type: integer
-            desc: The handle to the ViewModelInstanceRuntime instance
+#*****************************************************************************************************
 
-          - name: properties
-            type: table
-            desc: A table of properties, where each key is a Rive "path", and the values are mapped to the corresponding property value type.
+  - name: requestViewModelInstanceNumber
+    type: function
+    desc: Requests the numeric value for the property.
+    parameters:
+      - name: instance_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance handle.
+      - name: property_name
+        type: string
+        desc: Name of the numeric property.
 
-      - name: get_property
-        type: function
-        desc: Gets a property from the ViewModelInstanceRuntime instance
+#*****************************************************************************************************
 
-        parameters:
-          - name: url
-            type: url
-            desc: The Rive model component
+  - name: requestViewModelInstanceColor
+    type: function
+    desc: Requests the color value for the property.
+    parameters:
+      - name: instance_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance handle.
+      - name: property_name
+        type: string
+        desc: Name of the color property.
 
-          - name: handle
-            type: integer
-            desc: The handle to the ViewModelInstanceRuntime instance
+#*****************************************************************************************************
 
-          - name: path
-            type: string
-            desc: The path to the property
+  - name: requestViewModelInstanceEnum
+    type: function
+    desc: Requests the enum value for the property.
+    parameters:
+      - name: instance_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance handle.
+      - name: property_name
+        type: string
+        desc: Name of the enum property.
 
-        return:
-          - name: result
-            type: string,number,vmath.vector4
-            desc: The value of the selected property. Raises error if property doesn't exist.
+#*****************************************************************************************************
 
-      - name: list_add_instance
-        type: function
-        desc: Add a ViewModelInstanceRuntime instance to a list property
+  - name: requestViewModelInstanceString
+    type: function
+    desc: Requests the string value for the property.
+    parameters:
+      - name: instance_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance handle.
+      - name: property_name
+        type: string
+        desc: Name of the string property.
 
-        parameters:
-          - name: url
-            type: url
-            desc: The Rive model component
+#*****************************************************************************************************
 
-          - name: handle
-            type: integer
-            desc: The handle to the ViewModelInstanceRuntime instance
+  - name: requestViewModelInstanceListSize
+    type: function
+    desc: Requests the list size for the property.
+    parameters:
+      - name: instance_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance handle.
+      - name: property_name
+        type: string
+        desc: Name of the list property.
 
-          - name: path
-            type: string
-            desc: The path to the list property
+#*****************************************************************************************************
 
-          - name: instance_handle
-            type: integer
-            desc: The handle to the ViewModelInstanceRuntime instance to add to the list
+  - name: requestStateMachineNames
+    type: function
+    desc: Requests state machine names for the artboard.
+    parameters:
+      - name: artboard_handle
+        type: ArtboardHandle
+        desc: Artboard handle to query.
 
-      - name: list_remove_instance
-        type: function
-        desc: Remove a ViewModelInstanceRuntime instance from a list property
+#*****************************************************************************************************
 
-        parameters:
-          - name: url
-            type: url
-            desc: The Rive model component
-
-          - name: handle
-            type: integer
-            desc: The handle to the ViewModelInstanceRuntime instance
-
-          - name: path
-            type: string
-            desc: The path to the list property
-
-          - name: instance_handle
-            type: integer
-            desc: The handle to the ViewModelInstanceRuntime instance to add to the list
+  - name: requestDefaultViewModelInfo
+    type: function
+    desc: Requests metadata about the default view model or artboard.
+    parameters:
+      - name: artboard_handle
+        type: ArtboardHandle
+        desc: Artboard handle to query.
+      - name: file_handle
+        type: FileHandle
+        desc: File handle providing metadata.

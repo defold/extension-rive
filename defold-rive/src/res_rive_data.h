@@ -14,40 +14,19 @@
 #define DM_RES_RIVE_DATA_H
 
 #include <stdint.h>
-#include <dmsdk/dlib/array.h>
-#include <dmsdk/dlib/hash.h>
 #include "defold/renderer.h"
 
-namespace rive
-{
-    class File;
-    class FileAsset;
-    class ArtboardInstance;
-}
+#include <rive/refcnt.hpp>
+#include <rive/command_queue.hpp>
 
 namespace dmRive
 {
-    struct RiveBone;
-
-    struct RiveArtboardIdList
-    {
-        dmhash_t                                m_ArtboardNameHash;
-        dmArray<dmhash_t>                       m_LinearAnimations;
-        dmArray<dmhash_t>                       m_StateMachines;
-    };
-
     struct RiveSceneData
     {
-        rive::File*                             m_File;
-        HRenderContext                          m_RiveRenderContext;
-        std::unique_ptr<rive::ArtboardInstance> m_ArtboardDefault;
-        dmArray<RiveArtboardIdList*>            m_ArtboardIdLists;
-        dmArray<rive::FileAsset*>               m_FileAssets;       // For runtime swapping
+        dmhash_t         m_PathHash;
+        rive::FileHandle m_File;
+        HRenderContext   m_RiveRenderContext;
     };
-
-    dmResource::Result  ResRiveDataSetAssetFromMemory(RiveSceneData* resource, const char* asset_name, void* payload, uint32_t payload_size);
-    dmResource::Result  ResRiveDataSetAsset(dmResource::HFactory factory, RiveSceneData* resource, const char* asset_name, const char* path);
-    rive::RenderImage*  ResRiveDataCreateRenderImage(dmResource::HFactory factory, RiveSceneData* resource, uint8_t* data, uint32_t data_length);
 }
 
 #endif // DM_RES_RIVE_DATA_H

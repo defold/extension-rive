@@ -10,15 +10,16 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef DM_GAMESYS_SCRIPT_RIVE_H
-#define DM_GAMESYS_SCRIPT_RIVE_H
+#ifndef DM_GAMESYS_SCRIPT_RIVE_CMD_H
+#define DM_GAMESYS_SCRIPT_RIVE_CMD_H
 
 #include <dmsdk/resource/resource.h>
+#include <dmsdk/script/script.h>
 
 namespace dmRive
 {
-    void ScriptRegister(lua_State* L, dmResource::HFactory factory);
-    void ScriptUnregister(lua_State* L, dmResource::HFactory factory);
+    void ScriptCmdRegister(lua_State* L, dmResource::HFactory factory);
+    void ScriptCmdUnregister(lua_State* L, dmResource::HFactory factory);
 }
 
-#endif // DM_GAMESYS_SCRIPT_RIVE_H
+#endif // DM_GAMESYS_SCRIPT_RIVE_CMD_H

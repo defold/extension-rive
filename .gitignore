@@ -8,12 +8,7 @@ Thumbs.db
 .project
 .cproject
 builtins
-/utils/build
-/utils/rive-cpp/build
-/utils/rive-cpp/rive-cpp*
-/utils/rive-cpp/earcut*
-/utils/rive-cpp/libtess2*
-/utils/rive-cpp/*.zip
+/utils/**/build
 /bundle*
 bob.jar
 /defold-rive/lib/**/ext.settings

@@ -13,20 +13,20 @@ embedded_instances {
   data: "embedded_components {\n"
   "  id: \"rivemodel\"\n"
   "  type: \"rivemodel\"\n"
-  "  data: \"scene: \\\"/main/outofband/walle.rivescene\\\"\\n"
-  "default_animation: \\\"Animation 1\\\"\\n"
+  "  data: \"scene: \\\"/main/outofband/out-of-band.rivescene\\\"\\n"
+  "default_animation: \\\"\\\"\\n"
   "material: \\\"/defold-rive/assets/rivemodel.material\\\"\\n"
-  "artboard: \\\"New Artboard\\\"\\n"
+  "blit_material: \\\"/defold-rive/assets/shader-library/rivemodel_blit.material\\\"\\n"
   "\"\n"
   "}\n"
   ""
   position {
-    x: 471.745
-    y: 251.97
+    x: 456.745
+    y: 259.97
   }
   scale3 {
-    x: 0.66
-    y: 0.66
+    x: 0.372221
+    y: 0.368649
     z: 0.66
   }
 }
@@ -37,25 +37,4 @@ embedded_instances {
   "  component: \"/main/outofband/outofband.script\"\n"
   "}\n"
   ""
-}
-embedded_instances {
-  id: "go_rive2"
-  data: "components {\n"
-  "  id: \"referencedfontassets\"\n"
-  "  component: \"/main/outofband/font/referencedfontassets.rivemodel\"\n"
-  "  position {\n"
-  "    x: 466.66666\n"
-  "  }\n"
-  "}\n"
-  ""
-  position {
-    x: 471.745
-    y: 251.97
-    z: -0.1
-  }
-  scale3 {
-    x: 0.66
-    y: 0.66
-    z: 0.66
-  }
 }

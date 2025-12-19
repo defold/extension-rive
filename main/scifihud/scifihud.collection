@@ -20,6 +20,7 @@ embedded_instances {
   "artboard: \\\"Main Artboard SciFi_Game_HUD_Scope\\\"\\n"
   "coordinate_system: COORDINATE_SYSTEM_RIVE\\n"
   "artboard_fit: FIT_CONTAIN\\n"
+  "blit_material: \\\"/defold-rive/assets/shader-library/rivemodel_blit.material\\\"\\n"
   "\"\n"
   "}\n"
   ""

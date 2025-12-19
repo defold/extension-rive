@@ -1,5 +1,4 @@
 scene: "/main/egg/egg.rivescene"
-default_animation: "Motion"
+default_animation: ""
 material: "/defold-rive/assets/rivemodel.material"
-default_state_machine: "State Machine 1"
-artboard: "Artboard 3"
+blit_material: "/defold-rive/assets/shader-library/rivemodel_blit.material"

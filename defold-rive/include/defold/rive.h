@@ -1,4 +1,4 @@
-// Copyright 2020 The Defold Foundation
+// Copyright 2020-2025 The Defold Foundation
 // Licensed under the Defold License version 1.0 (the "License"); you may not use
 // this file except in compliance with the License.
 //
@@ -10,15 +10,18 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef DM_GAMESYS_SCRIPT_RIVE_H
-#define DM_GAMESYS_SCRIPT_RIVE_H
+#ifndef DM_RIVE_H
+#define DM_RIVE_H
 
-#include <dmsdk/resource/resource.h>
+#if defined(__linux__) && defined(None)
+    #undef None
+#endif
 
-namespace dmRive
-{
-    void ScriptRegister(lua_State* L, dmResource::HFactory factory);
-    void ScriptUnregister(lua_State* L, dmResource::HFactory factory);
-}
+#include <rive/animation/state_machine_instance.hpp>
+#include <rive/refcnt.hpp>
 
-#endif // DM_GAMESYS_SCRIPT_RIVE_H
+#include <rive/command_queue.hpp>
+#include <rive/command_server.hpp>
+
+
+#endif // DM_RIVE_H
