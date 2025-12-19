@@ -1,18 +1,23 @@
+diff --git a/.gitignore b/.gitignore
+index 45d41876..2b08d4e6 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -56,6 +56,7 @@ dev/analysis_report
+ build/bin
+ dev/test/build/bin
+ rivinfo/build/macosx
++renderer/out
+ 
+ # Skia dependencies
+ skia/dependencies/skia_recorder
 diff --git a/build/rive_build_config.lua b/build/rive_build_config.lua
-index d4336ed9..78936d87 100644
+index f8172084..a0e4c304 100644
 --- a/build/rive_build_config.lua
 +++ b/build/rive_build_config.lua
-@@ -145,6 +145,19 @@ if _OPTIONS['with_optick'] then
+@@ -145,6 +145,12 @@ if _OPTIONS['with_optick'] then
      RIVE_OPTICK_VERSION = '1.4.0.0'
  end 
  
-+-- Optional sysroot for cross builds (primarily Linux)
-+newoption({
-+    trigger = 'sysroot',
-+    value = 'PATH',
-+    description = 'Path to a sysroot for cross-compiling (adds --sysroot=PATH to compile and link options)',
-+})
-+
 +-- Optional pthread enabling (used e.g. for Emscripten wagyu builds)
 +newoption({
 +    trigger = 'with_pthread',
@@ -22,7 +27,7 @@ index d4336ed9..78936d87 100644
  location(RIVE_BUILD_OUT)
  targetdir(RIVE_BUILD_OUT)
  objdir(RIVE_BUILD_OUT .. '/obj')
-@@ -411,7 +424,7 @@ if _OPTIONS['for_android'] then
+@@ -422,7 +428,7 @@ if _OPTIONS['for_android'] then
  
      -- Detect the NDK.
      local EXPECTED_NDK_VERSION = 'r27c'
@@ -31,10 +36,19 @@ index d4336ed9..78936d87 100644
      if _OPTIONS['for_unreal'] then
          EXPECTED_NDK_VERSION = '25.1.8937393'
          NDK_LONG_VERSION_STRING = '25.1.8937393'
-@@ -548,6 +561,37 @@ end
+@@ -559,6 +565,43 @@ end
  
  filter({})
  
++-- Always build position independent code on Linux
++-- Ensures static libs can link into shared objects without relocation errors.
++filter({ 'system:linux' })
++do
++    pic('on')
++    buildoptions({ '-fPIC' })
++    linkoptions({ '-fPIC' })
++end
++
 +-- Cross-compilation helpers for Linux. When targeting a Linux architecture that does not match
 +-- the host, add an explicit target triple so clang uses the correct backend. Optionally honor a
 +-- provided --sysroot for both compilation and linking.
@@ -45,18 +59,15 @@ index d4336ed9..78936d87 100644
 +    if _OPTIONS['arch'] == 'x64' and host_arch ~= 'x86_64' then
 +        buildoptions({ '--target=x86_64-linux-gnu' })
 +        linkoptions({ '--target=x86_64-linux-gnu' })
++    elseif _OPTIONS['arch'] == 'x86' and host_arch ~= 'i686' and host_arch ~= 'i386' then
++        buildoptions({ '--target=i686-linux-gnu' })
++        linkoptions({ '--target=i686-linux-gnu' })
 +    elseif _OPTIONS['arch'] == 'arm64' and host_arch ~= 'aarch64' then
 +        buildoptions({ '--target=aarch64-linux-gnu' })
 +        linkoptions({ '--target=aarch64-linux-gnu' })
 +    elseif _OPTIONS['arch'] == 'arm' and not host_arch:match('arm') then
 +        buildoptions({ '--target=arm-linux-gnueabihf' })
 +        linkoptions({ '--target=arm-linux-gnueabihf' })
-+    end
-+
-+    -- Optional sysroot
-+    if _OPTIONS['sysroot'] ~= nil then
-+        buildoptions({ '--sysroot=' .. _OPTIONS['sysroot'] })
-+        linkoptions({ '--sysroot=' .. _OPTIONS['sysroot'] })
 +    end
 +end
 +
@@ -70,11 +81,11 @@ index d4336ed9..78936d87 100644
  do
      defines({ 'RIVE_MACOSX' })
 diff --git a/renderer/premake5.lua b/renderer/premake5.lua
-index 255c6d97..458e841a 100644
+index 57d5a28d..bd629f1a 100644
 --- a/renderer/premake5.lua
 +++ b/renderer/premake5.lua
-@@ -5,11 +5,11 @@ dofile(RIVE_RUNTIME_DIR .. '/premake5_v2.lua')
- dofile(RIVE_RUNTIME_DIR .. '/decoders/premake5_v2.lua')
+@@ -6,11 +6,11 @@ dofile(RIVE_RUNTIME_DIR .. '/decoders/premake5_v2.lua')
+ dofile(RIVE_RUNTIME_DIR .. '/dependencies/premake5_glfw_v2.lua')
  
  newoption({ trigger = 'with-skia', description = 'use skia' })
 -if _OPTIONS['with-skia'] then
@@ -87,7 +98,7 @@ index 255c6d97..458e841a 100644
      project('path_fiddle')
      do
          dependson('rive')
-@@ -183,7 +183,7 @@ if not _OPTIONS['with-webgpu'] then
+@@ -179,7 +179,7 @@ if not _OPTIONS['with-webgpu'] then
      end
  end
  
@@ -97,7 +108,7 @@ index 255c6d97..458e841a 100644
      do
          kind('ConsoleApp')
 diff --git a/renderer/premake5_pls_renderer.lua b/renderer/premake5_pls_renderer.lua
-index 77786666..573906eb 100644
+index 266b3ed4..8933c2e2 100644
 --- a/renderer/premake5_pls_renderer.lua
 +++ b/renderer/premake5_pls_renderer.lua
 @@ -68,6 +68,11 @@ do
@@ -112,3 +123,11 @@ index 77786666..573906eb 100644
  filter({})
  
  newoption({
+@@ -315,6 +320,7 @@ do
+     filter({})
+ 
+     if RIVE_WAGYU_PORT then
++        buildoptions({ '-H' })
+         buildoptions({ RIVE_WAGYU_PORT })
+         linkoptions({ RIVE_WAGYU_PORT })
+     end

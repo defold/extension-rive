@@ -274,7 +274,6 @@ static int GetProperty(lua_State* L)
 static int ListAddInstanceInternal(lua_State* L, bool add, int index)
 {
     DM_LUA_STACK_CHECK(L, 0);
-    int top = lua_gettop(L);
 
     dmMessage::URL url;
     RiveComponent* component = 0;
@@ -328,12 +327,6 @@ static int ListRemoveInstance(lua_State* L)
 
 #undef CHECK_RESULT
 #undef CHECK_BOOLEAN
-
-
-static int SetListener(lua_State* L)
-{
-    return 0;
-}
 
 static const luaL_reg RIVE_DATABIND_FUNCTIONS[] =
 {

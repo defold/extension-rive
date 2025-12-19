@@ -2,12 +2,13 @@
 #define _RIVE_DASH_PATH_HPP_
 #include "rive/generated/shapes/paint/dash_path_base.hpp"
 
+#include "rive/shapes/paint/shape_paint.hpp"
 #include "rive/shapes/paint/stroke_effect.hpp"
 #include "rive/shapes/paint/stroke_effect.hpp"
 #include "rive/shapes/shape_paint_path.hpp"
 #include "rive/renderer.hpp"
 #include "rive/math/raw_path.hpp"
-#include "rive/math/contour_measure.hpp"
+#include "rive/math/path_measure.hpp"
 #include <vector>
 
 namespace rive
@@ -29,7 +30,7 @@ protected:
 
 protected:
     ShapePaintPath m_path;
-    std::vector<rcp<ContourMeasure>> m_contours;
+    PathMeasure m_pathMeasure;
 
 public:
     float pathLength() const;
@@ -43,9 +44,14 @@ public:
     void invalidateEffect() override;
     void offsetChanged() override;
     void offsetIsPercentageChanged() override;
-    void updateEffect(const ShapePaintPath* source) override;
+    void updateEffect(const ShapePaintPath* source,
+                      ShapePaintType shapePaintType) override;
     ShapePaintPath* effectPath() override;
     void invalidateDash() override;
+    ShapePaint* parentPaint() override
+    {
+        return parent() != nullptr ? parent()->as<ShapePaint>() : nullptr;
+    }
 
 private:
     std::vector<Dash*> m_dashes;

@@ -12,6 +12,7 @@
 #include "rive/viewmodel/viewmodel_instance_artboard.hpp"
 #include "rive/refcnt.hpp"
 #include "rive/file.hpp"
+#include <stdio.h>
 
 namespace rive
 {
@@ -43,12 +44,14 @@ private:
     Artboard* findArtboard(
         ViewModelInstanceArtboard* viewModelInstanceArtboard);
     void clearNestedAnimations();
+    float m_cumulatedSeconds = 0;
 
 public:
     NestedArtboard();
     ~NestedArtboard() override;
     StatusCode onAddedClean(CoreContext* context) override;
     void draw(Renderer* renderer) override;
+    bool willDraw() override;
     Core* hitTest(HitInfo*, const Mat2D&) override;
     void addNestedAnimation(NestedAnimation* nestedAnimation);
 
@@ -100,6 +103,7 @@ public:
     void unbind() override;
     void updateDataBinds() override;
 
+    float calculateLocalElapsedSeconds(float elapsedSeconds);
     bool advanceComponent(float elapsedSeconds,
                           AdvanceFlags flags = AdvanceFlags::Animate |
                                                AdvanceFlags::NewFrame) override;

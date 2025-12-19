@@ -35,12 +35,14 @@ public:
     bool canDeferPathUpdate();
     void addPath(Path* path);
     void addToRenderPath(RenderPath* commandPath, const Mat2D& transform);
+    void addToRawPath(RawPath& rawPath, const Mat2D* transform);
     std::vector<Path*>& paths() { return m_Paths; }
 
     bool wantDifferencePath() const { return m_WantDifferencePath; }
 
     void update(ComponentDirt value) override;
     void draw(Renderer* renderer) override;
+    bool willDraw() override;
     Core* hitTest(HitInfo*, const Mat2D&) override;
 
     const PathComposer* pathComposer() const { return &m_PathComposer; }

@@ -5,6 +5,7 @@
 #include "rive/backboard.hpp"
 #include "rive/factory.hpp"
 #include "rive/file_asset_loader.hpp"
+#include "rive/lua/lua_state.hpp"
 #include "rive/viewmodel/data_enum.hpp"
 #include "rive/viewmodel/viewmodel_component.hpp"
 #include "rive/viewmodel/viewmodel_instance.hpp"
@@ -12,6 +13,7 @@
 #include "rive/viewmodel/viewmodel_instance_viewmodel.hpp"
 #include "rive/viewmodel/viewmodel_instance_list_item.hpp"
 #include "rive/animation/keyframe_interpolator.hpp"
+#include "rive/data_bind/converters/data_converter.hpp"
 #include "rive/refcnt.hpp"
 #include <vector>
 #include <set>
@@ -23,10 +25,12 @@
 namespace rive
 {
 class BinaryReader;
+class DataBind;
 class RuntimeHeader;
 class Factory;
 class ScrollPhysics;
 class ViewModelRuntime;
+class BindableArtboard;
 
 ///
 /// Tracks the success/failure result when importing a Rive file.
@@ -92,6 +96,9 @@ public:
     std::unique_ptr<ArtboardInstance> artboardDefault() const;
     std::unique_ptr<ArtboardInstance> artboardAt(size_t index) const;
     std::unique_ptr<ArtboardInstance> artboardNamed(std::string name) const;
+    rcp<BindableArtboard> bindableArtboardNamed(std::string name) const;
+    rcp<BindableArtboard> bindableArtboardDefault() const;
+    rcp<BindableArtboard> internalBindableArtboardFromArtboard(Artboard*) const;
 
     Artboard* artboard() const;
 
@@ -155,6 +162,9 @@ public:
 
     std::vector<Artboard*> artboards() { return m_artboards; };
 
+    void scriptingVM(LuaState* vm) { m_luaState = vm; }
+    LuaState* scriptingVM() { return m_luaState; }
+
 #ifdef WITH_RIVE_TOOLS
     /// Strips FileAssetContents for FileAssets of given typeKeys.
     /// @param data the raw data of the file.
@@ -210,6 +220,8 @@ private:
     /// The helper used to load assets when they're not provided in-band
     /// with the file.
     rcp<FileAssetLoader> m_assetLoader;
+
+    LuaState* m_luaState = nullptr;
 
     rcp<ViewModelInstance> copyViewModelInstance(
         ViewModelInstance* viewModelInstance,

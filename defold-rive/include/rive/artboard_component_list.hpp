@@ -8,6 +8,7 @@
 #include "rive/artboard.hpp"
 #include "rive/constraints/constrainable_list.hpp"
 #include "rive/property_recorder.hpp"
+#include "rive/file.hpp"
 #include "rive/artboard_host.hpp"
 #include "rive/data_bind/data_bind_list_item_consumer.hpp"
 #include "rive/layout/layout_node_provider.hpp"
@@ -17,7 +18,6 @@
 #include <unordered_map>
 namespace rive
 {
-class File;
 class LayoutComponent;
 class ScrollConstraint;
 
@@ -59,6 +59,7 @@ public:
     void updateWorldTransform() override;
     void updateList(std::vector<rcp<ViewModelInstanceListItem>>* list) override;
     void draw(Renderer* renderer) override;
+    bool willDraw() override;
     Core* hitTest(HitInfo*, const Mat2D&) override;
     void update(ComponentDirt value) override;
     void updateConstraints() override;
@@ -129,10 +130,10 @@ private:
     void linkStateMachineToArtboard(StateMachineInstance* stateMachineInstance,
                                     ArtboardInstance* artboard);
     void computeLayoutBounds();
-    void createArtboardRecorders(Artboard*);
-    void applyRecorders(Artboard* artboard, Artboard* sourceArtboard);
+    void createArtboardRecorders(const Artboard*);
+    void applyRecorders(Artboard* artboard, const Artboard* sourceArtboard);
     void applyRecorders(StateMachineInstance* stateMachineInstance,
-                        Artboard* sourceArtboard);
+                        const Artboard* sourceArtboard);
     mutable std::unordered_map<uint32_t, Artboard*> m_artboardsMap;
     std::unordered_map<rcp<ViewModelInstanceListItem>,
                        std::unique_ptr<ArtboardInstance>>
@@ -146,7 +147,7 @@ private:
     std::unordered_map<Artboard*,
                        std::vector<std::unique_ptr<StateMachineInstance>>>
         m_stateMachinesPool;
-    std::unordered_map<Artboard*, std::unique_ptr<PropertyRecorder>>
+    std::unordered_map<const Artboard*, std::unique_ptr<PropertyRecorder>>
         m_propertyRecordersMap;
     std::unordered_map<ArtboardInstance*, Mat2D> m_artboardTransforms;
     Vec2D artboardPosition(ArtboardInstance* artboard);

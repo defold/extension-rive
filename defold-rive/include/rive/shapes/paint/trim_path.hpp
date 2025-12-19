@@ -1,6 +1,7 @@
 #ifndef _RIVE_TRIM_PATH_HPP_
 #define _RIVE_TRIM_PATH_HPP_
 #include "rive/generated/shapes/paint/trim_path_base.hpp"
+#include "rive/shapes/paint/shape_paint.hpp"
 #include "rive/shapes/shape_paint_path.hpp"
 #include "rive/shapes/paint/stroke_effect.hpp"
 #include "rive/renderer.hpp"
@@ -22,8 +23,13 @@ public:
     StatusCode onAddedClean(CoreContext* context) override;
     void invalidateEffect() override;
 
-    void updateEffect(const ShapePaintPath* source) override;
+    void updateEffect(const ShapePaintPath* source,
+                      ShapePaintType shapePaintType) override;
     ShapePaintPath* effectPath() override;
+    ShapePaint* parentPaint() override
+    {
+        return parent() != nullptr ? parent()->as<ShapePaint>() : nullptr;
+    }
 
     void startChanged() override;
     void endChanged() override;
@@ -37,8 +43,7 @@ public:
     const ShapePaintPath& path() const { return m_path; }
 
 protected:
-    void invalidateTrim();
-    void trimPath(const RawPath* source);
+    void trimPath(const RawPath* source, ShapePaintType shapePaintType);
     ShapePaintPath m_path;
     std::vector<rcp<ContourMeasure>> m_contours;
 };

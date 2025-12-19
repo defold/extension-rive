@@ -31,13 +31,10 @@ void ApplyDrawMode(dmRender::RenderObject& ro, dmRive::DrawMode draw_mode, uint8
             stencil.m_ColorBufferMask    = 0;
             stencil.m_SeparateFaceStates = 0;
 
-            stencil.m_Front = {
-                .m_Func = dmGraphics::COMPARE_FUNC_ALWAYS,
-                .m_OpSFail  = dmGraphics::STENCIL_OP_KEEP,
-                .m_OpDPFail = dmGraphics::STENCIL_OP_KEEP,
-                .m_OpDPPass = dmGraphics::STENCIL_OP_DECR_WRAP,
-            };
-
+            stencil.m_Front.m_Func     = dmGraphics::COMPARE_FUNC_ALWAYS;
+            stencil.m_Front.m_OpSFail  = dmGraphics::STENCIL_OP_KEEP;
+            stencil.m_Front.m_OpDPFail = dmGraphics::STENCIL_OP_KEEP;
+            stencil.m_Front.m_OpDPPass = dmGraphics::STENCIL_OP_DECR_WRAP;
             break;
         case dmRive::DRAW_MODE_CLIP_INCR:
             stencil.m_Ref                = 0x0;
@@ -46,12 +43,10 @@ void ApplyDrawMode(dmRender::RenderObject& ro, dmRive::DrawMode draw_mode, uint8
             stencil.m_ColorBufferMask    = 0;
             stencil.m_SeparateFaceStates = 0;
 
-            stencil.m_Front = {
-                .m_Func = dmGraphics::COMPARE_FUNC_ALWAYS,
-                .m_OpSFail  = dmGraphics::STENCIL_OP_KEEP,
-                .m_OpDPFail = dmGraphics::STENCIL_OP_KEEP,
-                .m_OpDPPass = dmGraphics::STENCIL_OP_INCR_WRAP,
-            };
+            stencil.m_Front.m_Func     = dmGraphics::COMPARE_FUNC_ALWAYS;
+            stencil.m_Front.m_OpSFail  = dmGraphics::STENCIL_OP_KEEP;
+            stencil.m_Front.m_OpDPFail = dmGraphics::STENCIL_OP_KEEP;
+            stencil.m_Front.m_OpDPPass = dmGraphics::STENCIL_OP_INCR_WRAP;
             break;
         case dmRive::DRAW_MODE_DEFAULT:
             stencil.m_Ref          = clipIndex;
@@ -68,7 +63,6 @@ void ApplyDrawMode(dmRender::RenderObject& ro, dmRive::DrawMode draw_mode, uint8
 void CopyVertices(const dmRive::DrawDescriptor& draw_desc, uint32_t vertex_offset, RiveVertex* out_vertices, uint16_t* out_indices)
 {
     uint32_t vertex_count = draw_desc.m_VerticesCount;
-    uint32_t tc_count = draw_desc.m_TexCoordsCount;
     bool has_texcoords = draw_desc.m_TexCoords != 0;
 
     for (int i = 0; i < vertex_count; ++i)

@@ -3,23 +3,21 @@
 
 #include "renderer_context.h"
 
-#if RIVE_WEBGPU == 1
-    #include <rive/renderer/webgpu/wagyu-port/old/include/webgpu/webgpu.h>
-    #include <rive/renderer/webgpu/wagyu-port/old/include/webgpu/webgpu_cpp.h>
-#elif RIVE_WEBGPU == 2
-    #include <rive/renderer/webgpu/wagyu-port/new/include/webgpu/webgpu.h>
-    #include <rive/renderer/webgpu/wagyu-port/new/include/webgpu/webgpu_cpp.h>
-#else
-    #error "Unsupported value for RIVE_WEBGPU!"
-#endif
+#include <webgpu/webgpu.h>
+#include <webgpu/webgpu_cpp.h>
 
 #include <rive/renderer/rive_renderer.hpp>
 #include <rive/renderer/texture.hpp>
 #include <rive/renderer/webgpu/render_context_webgpu_impl.hpp>
 
+#if defined(RIVE_WAGYU) && !defined(DM_GRAPHICS_WEBGPU_WAGYU)
+    #define DM_GRAPHICS_WEBGPU_WAGYU
+#endif
+
 #include <dmsdk/graphics/graphics_webgpu.h>
 #include <dmsdk/graphics/graphics.h>
 #include <dmsdk/dlib/log.h>
+#include <dmsdk/dlib/static_assert.h>
 
 #include <webgpu/webgpu_cpp.h>
 
@@ -30,6 +28,10 @@ namespace dmRive
     public:
         DefoldRiveRendererWebGPU()
         {
+#if defined(DM_GRAPHICS_WEBGPU_WAGYU)
+            // Making sure we're keeping track of the webgpu.h verssions
+            DM_STATIC_ASSERT(WGPUTextureFormat_RG16Snorm == 0x12, Invalid_webgpu_header);
+#endif
             dmGraphics::HContext graphics_context = dmGraphics::GetInstalledContext();
             assert(graphics_context);
 
@@ -44,7 +46,7 @@ namespace dmRive
             m_Device = wgpu::Device(webgpu_device);
             m_Queue = wgpu::Queue(webgpu_queue);
 
-            dmLogInfo("Before creating WebGPU context. (RIVE_WEBGPU=%d)", RIVE_WEBGPU);
+            dmLogInfo("Before creating WebGPU context");
 
             rive::gpu::RenderContextWebGPUImpl::ContextOptions contextOptions;
             m_RenderContext = rive::gpu::RenderContextWebGPUImpl::MakeContext(m_Adapter, m_Device, m_Queue, contextOptions);
