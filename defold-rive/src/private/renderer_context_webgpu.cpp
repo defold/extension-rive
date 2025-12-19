@@ -10,9 +10,14 @@
 #include <rive/renderer/texture.hpp>
 #include <rive/renderer/webgpu/render_context_webgpu_impl.hpp>
 
+#if defined(RIVE_WAGYU) && !defined(DM_GRAPHICS_WEBGPU_WAGYU)
+    #define DM_GRAPHICS_WEBGPU_WAGYU
+#endif
+
 #include <dmsdk/graphics/graphics_webgpu.h>
 #include <dmsdk/graphics/graphics.h>
 #include <dmsdk/dlib/log.h>
+#include <dmsdk/dlib/static_assert.h>
 
 #include <webgpu/webgpu_cpp.h>
 
@@ -23,6 +28,10 @@ namespace dmRive
     public:
         DefoldRiveRendererWebGPU()
         {
+#if defined(DM_GRAPHICS_WEBGPU_WAGYU)
+            // Making sure we're keeping track of the webgpu.h verssions
+            DM_STATIC_ASSERT(WGPUTextureFormat_RG16Snorm == 0x12, Invalid_webgpu_header);
+#endif
             dmGraphics::HContext graphics_context = dmGraphics::GetInstalledContext();
             assert(graphics_context);
 
