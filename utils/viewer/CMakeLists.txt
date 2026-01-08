@@ -24,6 +24,8 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
 
+file(REAL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../.." EXTENSION_ROOT)
+
 set(ASAN_SUPPORTED FALSE)
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     set(ASAN_SUPPORTED TRUE)
@@ -32,11 +34,46 @@ if(WITH_ASAN AND NOT ASAN_SUPPORTED)
     message(WARNING "Address Sanitizer is not supported for ${CMAKE_CXX_COMPILER_ID}; disabling")
     set(WITH_ASAN OFF)
 endif()
+set(VIEWER_SHADER_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/shaders.cpp")
+
+if(${TARGET_PLATFORM} MATCHES "macos")
+    set(RIVE_BLIT_SHADER_VP "${EXTENSION_ROOT}/defold-rive/assets/shader-library/rivemodel_blit.vp")
+    set(RIVE_BLIT_SHADER_FP "${EXTENSION_ROOT}/defold-rive/assets/shader-library/rivemodel_blit.fp")
+    set(RIVE_BLIT_SHADER_OUT "${CMAKE_CURRENT_BINARY_DIR}/shaders.cpp")
+    set(RIVE_SHADER_GEN_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/gen_shaders.py")
+
+    set(BOB_PATH $ENV{BOB})
+    if(NOT BOB_PATH)
+        if(DEFINED ENV{DYNAMO_HOME})
+            set(BOB_PATH "$ENV{DYNAMO_HOME}/share/java/bob.jar")
+        else()
+            set(BOB_PATH "${EXTENSION_ROOT}/bob.jar")
+        endif()
+    endif()
+
+    add_custom_command(
+        OUTPUT "${RIVE_BLIT_SHADER_OUT}"
+        COMMAND python3 "${RIVE_SHADER_GEN_SCRIPT}"
+            --bob "${BOB_PATH}"
+            --platform "${TARGET_PLATFORM}"
+            --content-root "${EXTENSION_ROOT}"
+            --vertex "${RIVE_BLIT_SHADER_VP}"
+            --fragment "${RIVE_BLIT_SHADER_FP}"
+            --output "${RIVE_BLIT_SHADER_OUT}"
+        DEPENDS
+            "${RIVE_SHADER_GEN_SCRIPT}"
+            "${RIVE_BLIT_SHADER_VP}"
+            "${RIVE_BLIT_SHADER_FP}"
+        VERBATIM
+    )
+
+    set(VIEWER_SHADER_SOURCE "${RIVE_BLIT_SHADER_OUT}")
+endif()
+
 add_executable(viewer
     "${CMAKE_CURRENT_SOURCE_DIR}/viewer.cpp"
+    "${VIEWER_SHADER_SOURCE}"
 )
-
-file(REAL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../.." EXTENSION_ROOT)
 
 file(GLOB RIVE_COMMON_SRC
     "${EXTENSION_ROOT}/defold-rive/commonsrc/*.cpp"
@@ -67,9 +104,8 @@ endif()
 
 set(TARGET_LIBS
     dlib
-    profile
-    profile_basic
-    profilerext
+    ddf
+    profile_null
     platform
     graphics
 
@@ -106,7 +142,7 @@ if(${TARGET_PLATFORM} MATCHES "macos")
         "-framework Metal"
         "-framework QuartzCore")
 
-    target_compile_definitions(viewer PRIVATE DM_PLATFORM_MACOS)
+    target_compile_definitions(viewer PRIVATE DM_PLATFORM_MACOS VIEWER_USE_SPIRV=1)
 endif()
 
 target_link_libraries(viewer PRIVATE ${TARGET_LIBS})
@@ -122,7 +158,7 @@ if(WITH_ASAN)
     target_link_options(viewer PRIVATE -fsanitize=address)
 endif()
 
-target_compile_definitions(viewer PRIVATE DLIB_LOG_DOMAIN=VIEWER)
+target_compile_definitions(viewer PRIVATE DLIB_LOG_DOMAIN=\"VIEWER\")
 
 set_target_properties(viewer PROPERTIES
     CXX_STANDARD 17

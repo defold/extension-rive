@@ -29,10 +29,14 @@
 #include <dlib/log.h> // LogParams
 #include <dlib/job_thread.h> // JobThread
 #include <graphics/graphics.h> // ContextParams
-//#include <render/render.h>
 
 #include <defold/rive.h>
 #include <common/commands.h>
+
+namespace dmGraphics
+{
+    ShaderDesc* CreateRiveModelBlitShaderDesc();
+}
 
 enum UpdateResult
 {
@@ -108,14 +112,18 @@ struct EngineCtx
 
     dmGraphics::HVertexBuffer           m_BlitToBackbufferVertexBuffer;
     dmGraphics::HVertexDeclaration      m_VertexDeclaration;
+    dmGraphics::HProgram                m_BlitProgram;
+    dmGraphics::HTexture                m_Texture;
+    dmGraphics::HUniformLocation        m_SamplerLocation;
 
     // Rive related
     dmRive::HRenderContext m_RenderContext;
 
-    rive::FileHandle            m_File;
-    rive::ArtboardHandle        m_Artboard;
-    rive::StateMachineHandle    m_StateMachine;
-    rive::DrawKey               m_DrawKey;
+    rive::FileHandle                m_File;
+    rive::ArtboardHandle            m_Artboard;
+    rive::StateMachineHandle        m_StateMachine;
+    rive::ViewModelInstanceHandle   m_ViewModelInstance;
+    rive::DrawKey                   m_DrawKey;
 };
 
 struct RunLoopParams
@@ -192,6 +200,51 @@ static void AppDestroy(void* _ctx)
 {
     AppCtx* ctx = (AppCtx*)_ctx;
     ctx->m_Destroyed++;
+}
+
+static dmGraphics::HUniformLocation FindUniformLocation(dmGraphics::HProgram program, const char* name)
+{
+    uint32_t uniform_count = dmGraphics::GetUniformCount(program);
+    for (uint32_t i = 0; i < uniform_count; ++i)
+    {
+        dmGraphics::Uniform uniform;
+        dmGraphics::GetUniform(program, i, &uniform);
+        if (uniform.m_Name && strcmp(uniform.m_Name, name) == 0)
+        {
+            return uniform.m_Location;
+        }
+    }
+
+    return dmGraphics::INVALID_UNIFORM_LOCATION;
+}
+
+static void DrawFullscreenQuad(EngineCtx* engine, dmGraphics::HTexture texture)
+{
+    if (engine->m_BlitProgram == 0 || engine->m_BlitProgram == dmGraphics::INVALID_PROGRAM_HANDLE || texture == 0)
+    {
+        return;
+    }
+
+    dmGraphics::HContext context = engine->m_GraphicsContext;
+    uint32_t window_width = dmGraphics::GetWindowWidth(context);
+    uint32_t window_height = dmGraphics::GetWindowHeight(context);
+    dmGraphics::SetViewport(context, 0, 0, window_width, window_height);
+    dmGraphics::EnableProgram(context, engine->m_BlitProgram);
+    dmGraphics::EnableVertexDeclaration(context, engine->m_VertexDeclaration, 0, 0, engine->m_BlitProgram);
+    dmGraphics::EnableVertexBuffer(context, engine->m_BlitToBackbufferVertexBuffer, 0);
+
+    dmGraphics::EnableTexture(context, 0, 0, texture);
+    if (engine->m_SamplerLocation != dmGraphics::INVALID_UNIFORM_LOCATION)
+    {
+        dmGraphics::SetSampler(context, engine->m_SamplerLocation, 0);
+    }
+
+    dmGraphics::Draw(context, dmGraphics::PRIMITIVE_TRIANGLES, 0, 6, 1);
+
+    dmGraphics::DisableTexture(context, 0, texture);
+    dmGraphics::DisableVertexBuffer(context, engine->m_BlitToBackbufferVertexBuffer);
+    dmGraphics::DisableVertexDeclaration(context, engine->m_VertexDeclaration);
+    dmGraphics::DisableProgram(context);
 }
 
 static bool OnWindowClose(void* user_data)
@@ -292,6 +345,22 @@ static void* EngineCreate(int argc, char** argv)
     dmGraphics::AddVertexStream(stream_declaration_vertex, "texcoord0", 2, dmGraphics::TYPE_FLOAT, false);
     engine->m_VertexDeclaration = dmGraphics::NewVertexDeclaration(engine->m_GraphicsContext, stream_declaration_vertex);
 
+    dmGraphics::ShaderDesc* shader_desc = dmGraphics::CreateRiveModelBlitShaderDesc();
+    char program_error[512] = {};
+    engine->m_BlitProgram = dmGraphics::NewProgram(engine->m_GraphicsContext,
+                                                   shader_desc,
+                                                   program_error,
+                                                   sizeof(program_error));
+    engine->m_SamplerLocation = dmGraphics::INVALID_UNIFORM_LOCATION;
+    if (engine->m_BlitProgram == dmGraphics::INVALID_PROGRAM_HANDLE || engine->m_BlitProgram == 0)
+    {
+        dmLogError("Failed to create blit program: %s", program_error);
+        engine->m_BlitProgram = dmGraphics::INVALID_PROGRAM_HANDLE;
+    }
+    else
+    {
+        engine->m_SamplerLocation = FindUniformLocation(engine->m_BlitProgram, "texture_sampler");
+    }
 
     // Rive
     engine->m_RenderContext = dmRive::NewRenderContext();
@@ -324,6 +393,14 @@ static void* EngineCreate(int argc, char** argv)
                     if (engine->m_StateMachine)
                     {
                         printf("Created default state machine\n");
+
+                        engine->m_ViewModelInstance = queue->instantiateDefaultViewModelInstance(engine->m_File, engine->m_Artboard);
+                        if (engine->m_ViewModelInstance)
+                        {
+                            printf("Created default view model instance\n");
+
+                            queue->bindViewModelInstance(engine->m_StateMachine, engine->m_ViewModelInstance);
+                        }
                     }
                 }
             }
@@ -346,6 +423,10 @@ static void EngineDestroy(void* _engine)
 
     dmGraphics::DeleteVertexBuffer(engine->m_BlitToBackbufferVertexBuffer);
     dmGraphics::DeleteVertexDeclaration(engine->m_VertexDeclaration);
+    if (engine->m_BlitProgram != 0 && engine->m_BlitProgram != dmGraphics::INVALID_PROGRAM_HANDLE)
+    {
+        dmGraphics::DeleteProgram(engine->m_GraphicsContext, engine->m_BlitProgram);
+    }
 
     dmGraphics::CloseWindow(engine->m_GraphicsContext);
     dmGraphics::DeleteContext(engine->m_GraphicsContext);
@@ -356,34 +437,41 @@ static void EngineDestroy(void* _engine)
     delete engine;
 }
 
+static void UpdateRiveScene(EngineCtx* engine)
+{
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+
+    static uint64_t last_update = dmTime::GetMonotonicTime();
+    uint64_t time = dmTime::GetMonotonicTime();
+    float dt = (time - last_update) / 1000000.0f;
+    last_update = time;
+    queue->advanceStateMachine(engine->m_StateMachine, dt);
+}
+
 static void DrawRiveScene(EngineCtx* engine)
 {
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
 
-    // engine->m_Factory
-    dmRive::RenderBeginParams render_params;
-    render_params.m_DoFinalBlit = true;
-    render_params.m_BackbufferSamples = 0;
-    RenderBegin(engine->m_RenderContext, 0, render_params);
-
     rive::Renderer* renderer = dmRive::GetRiveRenderer(engine->m_RenderContext);
 
     const rive::ArtboardHandle  artboardHandle  = engine->m_Artboard;
-    rive::Fit                   fit             = rive::Fit::none;
-    rive::Alignment             alignment       = rive::Alignment::center;
+    static rive::Fit       s_fit      = rive::Fit::contain;
+    static rive::Alignment s_alignment= rive::Alignment::center;
 
+    rive::Fit       fit = s_fit;
+    rive::Alignment alignment = s_alignment;
 
-    uint32_t width  = dmGraphics::GetWidth(engine->m_GraphicsContext);
-    uint32_t height = dmGraphics::GetHeight(engine->m_GraphicsContext);
-    //g_DisplayFactor        = dmGraphics::GetDisplayScaleFactor(rivectx->m_GraphicsContext);
-
+    uint32_t width  = dmGraphics::GetWindowWidth(engine->m_GraphicsContext);
+    uint32_t height = dmGraphics::GetWindowHeight(engine->m_GraphicsContext);
+    float display_factor = dmGraphics::GetDisplayScaleFactor(engine->m_GraphicsContext);
 
     auto drawLoop = [artboardHandle,
                      renderer,
                      fit,
                      alignment,
                      width,
-                     height](rive::DrawKey drawKey, rive::CommandServer* server)
+                     height,
+                     display_factor](rive::DrawKey drawKey, rive::CommandServer* server)
     {
         rive::ArtboardInstance* artboard = server->getArtboardInstance(artboardHandle);
         if (artboard == nullptr)
@@ -392,19 +480,38 @@ static void DrawRiveScene(EngineCtx* engine)
         }
 
         rive::Factory* factory = server->factory();
-
-        if (fit == rive::Fit::layout)
-        {
-            artboard->width(width);
-            artboard->height(height);
-        }
-
         // Draw the .riv.
         renderer->save();
-        renderer->align(fit,
-                        alignment,
-                        rive::AABB(0, 0, width, height),
-                        artboard->bounds());
+
+        rive::AABB bounds = artboard->bounds();
+
+        bool fullscreen = false;
+        if (fullscreen)
+        {
+            // // Apply the world matrix from the component to the artboard transform
+            // rive::Mat2D transform         = rive::Mat2D::fromTranslate(width / 2.0f, height / 2.0f);
+            // rive::Mat2D centerAdjustment  = rive::Mat2D::fromTranslate(-bounds.width() / 2.0f, -bounds.height() / 2.0f);
+            // rive::Mat2D scaleDpi          = rive::Mat2D::fromScale(1,-1);
+            // rive::Mat2D invertAdjustment  = rive::Mat2D::fromScaleAndTranslation(display_factor, -display_factor, 0, window_height);
+            // rive::Mat2D rendererTransform = invertAdjustment * viewTransform * transform * scaleDpi * centerAdjustment;
+
+            // renderer->transform(rendererTransform);
+            // For making input work nicely
+            //c->m_InverseRendererTransform = rendererTransform.invertOrIdentity();
+        }
+        else
+        {
+            if (fit == rive::Fit::layout)
+            {
+                artboard->width(width / display_factor);
+                artboard->height(height / display_factor);
+            }
+
+            rive::Mat2D rendererTransform = rive::computeAlignment(fit, alignment, rive::AABB(0, 0, width, height), bounds, display_factor);
+            renderer->transform(rendererTransform);
+            // For making input work nicely
+            //c->m_InverseRendererTransform = rendererTransform.invertOrIdentity();
+        }
 
         artboard->draw(renderer);
         renderer->restore();
@@ -433,31 +540,29 @@ static UpdateResult EngineUpdate(void* _engine)
         return RESULT_EXIT;
     }
 
-    // bool do_render = !dmRender::IsRenderPaused(engine->m_RenderListContext);
+    UpdateRiveScene(engine);
 
-    // if (do_render)
-    // {
-    //     dmRender::RenderListBegin(engine->m_RenderListContext);
-    // }
+    {
+        rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
 
-    DrawRiveScene(engine);
-    dmRiveCommands::ProcessMessages(); // Making sure any draw call is processed
+        // engine->m_Factory
+        dmRive::RenderBeginParams render_params;
+        render_params.m_DoFinalBlit = true;
+        render_params.m_BackbufferSamples = 0;
+        dmRive::RenderBegin(engine->m_RenderContext, 0, render_params);
 
-    // if (do_render)
-    // {
-    //     dmRender::RenderListEnd(engine->m_RenderListContext);
-    // }
+        DrawRiveScene(engine);
+
+        dmRiveCommands::ProcessMessages(); // Making sure any draw call is processed
+        dmRive::RenderEnd(engine->m_RenderContext);
+    }
 
     dmGraphics::BeginFrame(engine->m_GraphicsContext);
     dmGraphics::Clear(engine->m_GraphicsContext, dmGraphics::BUFFER_TYPE_COLOR0_BIT,
                                             0.0f, 0.0f, 0.0f, 0.0f,
                                             1.0f, 0);
 
-    // if (do_render)
-    // {
-    //     dmRender::DrawRenderList(engine->m_RenderListContext, 0x0, 0x0, 0x0, dmRender::SORT_BACK_TO_FRONT);
-    //     dmRender::ClearRenderObjects(engine->m_RenderListContext);
-    // }
+    DrawFullscreenQuad(engine, dmRive::GetBackingTexture(engine->m_RenderContext));
 
     dmGraphics::Flip(engine->m_GraphicsContext);
 
