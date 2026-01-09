@@ -40,6 +40,7 @@ public:
     {
         return children();
     }
+    void addProperty(CustomProperty* prop) override;
     bool addScriptedDirt(ComponentDirt value, bool recurse = false) override;
     DataContext* dataContext() override
     {
@@ -59,6 +60,9 @@ public:
     void markNeedsUpdate() override;
     bool willDraw() override;
     Component* component() override { return this; }
+
+private:
+    bool m_isAdvanceActive = true;
 };
 
 class HitScriptedDrawable : public HitComponent

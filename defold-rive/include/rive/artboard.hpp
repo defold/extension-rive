@@ -99,8 +99,10 @@ private:
     float m_originalHeight = 0;
     bool m_updatesOwnLayout = true;
     bool m_hostTransformMarkedDirty = false;
+    bool m_didChange = true;
     Artboard* parentArtboard() const;
     ArtboardHost* m_host = nullptr;
+    static uint64_t sm_frameId;
     bool sharesLayoutWithHost() const;
     void cloneObjectDataBinds(const Core* object,
                               Core* clone,
@@ -127,6 +129,12 @@ private:
     void update(ComponentDirt value) override;
 
 public:
+    static uint64_t frameId() { return sm_frameId; }
+#ifdef TESTING
+    static void incFrameId() { sm_frameId++; }
+#elif WITH_RIVE_TOOLS
+    static void incFrameId() { sm_frameId++; }
+#endif
     void updateDataBinds(bool applyTargetToSource = true) override;
     void host(ArtboardHost* artboardHost);
     ArtboardHost* host() const;
@@ -155,6 +163,7 @@ public:
     ~Artboard() override;
     bool validateObjects();
     StatusCode initialize();
+    bool didChange() { return m_didChange; }
 
     Core* resolve(uint32_t id) const override;
 #ifdef WITH_RIVE_TOOLS
@@ -227,17 +236,12 @@ public:
     Drawable* firstDrawable() { return m_FirstDrawable; };
     void addScriptedObject(ScriptedObject* object);
 
-    enum class DrawOption
-    {
-        kNormal,
-        kHideBG,
-        kHideFG,
-    };
-    void draw(Renderer* renderer, DrawOption option);
+    void drawInternal(Renderer* renderer);
     void draw(Renderer* renderer) override;
     void addToRenderPath(RenderPath* path, const Mat2D& transform);
     void addToRawPath(RawPath& path, const Mat2D* transform);
 
+    void changed();
 #ifdef TESTING
     ShapePaintPath* clipPath() { return &m_worldPath; }
     ShapePaintPath* backgroundPath() { return &m_localPath; }

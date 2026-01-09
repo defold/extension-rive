@@ -8,6 +8,16 @@
 #include <stdio.h>
 namespace rive
 {
+
+class ScriptedEffectPath : public EffectPath
+{
+public:
+    void invalidateEffect() override;
+    ShapePaintPath* path() override { return &m_path; }
+
+private:
+    ShapePaintPath m_path;
+};
 class ScriptedPathEffect : public ScriptedPathEffectBase,
                            public ScriptedObject,
                            public AdvancingComponent,
@@ -17,6 +27,7 @@ public:
 #ifdef WITH_RIVE_SCRIPTING
     bool scriptInit(LuaState* state) override;
 #endif
+    void addProperty(CustomProperty* prop) override;
     StatusCode onAddedClean(CoreContext* context) override;
     StatusCode onAddedDirty(CoreContext* context) override;
     uint32_t assetId() override { return scriptAssetId(); }
@@ -24,6 +35,8 @@ public:
                           AdvanceFlags flags = AdvanceFlags::Animate |
                                                AdvanceFlags::NewFrame) override;
     bool addScriptedDirt(ComponentDirt value, bool recurse = false) override;
+    void buildDependencies() override;
+    void update(ComponentDirt value) override;
     DataContext* dataContext() override
     {
         if (artboard() != nullptr)
@@ -36,21 +49,17 @@ public:
     {
         return ScriptProtocol::pathEffect;
     }
-    void invalidateEffect() override;
-    void updateEffect(const ShapePaintPath* source,
+    void updateEffect(PathProvider* pathProvider,
+                      const ShapePaintPath* source,
                       ShapePaintType shapePaintType) override;
-    ShapePaintPath* effectPath() override;
     StatusCode import(ImportStack& importStack) override;
     Core* clone() const override;
     void markNeedsUpdate() override;
     Component* component() override { return this; }
-    ShapePaint* parentPaint() override
-    {
-        return parent() != nullptr ? parent()->as<ShapePaint>() : nullptr;
-    }
+    EffectsContainer* parentPaint() override;
 
-private:
-    ShapePaintPath m_path;
+protected:
+    virtual EffectPath* createEffectPath() override;
 };
 } // namespace rive
 
