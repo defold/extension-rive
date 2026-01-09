@@ -91,10 +91,10 @@
             desc: The calling script instance.
           - name: event
             type: string
-            desc: One of: onFileLoaded, onFileDeleted, onFileError, onArtboardsListed, onViewModelsListed, onViewModelInstanceNamesListed, onViewModelPropertiesListed, onViewModelEnumsListed
+            desc: "One of: onFileLoaded, onFileDeleted, onFileError, onArtboardsListed, onViewModelsListed, onViewModelInstanceNamesListed, onViewModelPropertiesListed, onViewModelEnumsListed"
           - name: data
             type: table
-            desc: Additional fields vary by event. Common keys include:
+            desc: Additional fields vary by event. Common keys include
             parameters:
               - name: file
                 type: FileHandle
@@ -133,10 +133,10 @@
             desc: The calling script instance.
           - name: event
             type: string
-            desc: One of: onArtboardError, onDefaultViewModelInfoReceived, onArtboardDeleted, onStateMachinesListed
+            desc: "One of: onArtboardError, onDefaultViewModelInfoReceived, onArtboardDeleted, onStateMachinesListed"
           - name: data
             type: table
-            desc: Additional data per event, typically:
+            desc: Additional data per event, typically
             parameters:
               - name: artboard
                 type: ArtboardHandle
@@ -169,10 +169,10 @@
             desc: The calling script instance.
           - name: event
             type: string
-            desc: One of: onStateMachineError, onStateMachineDeleted, onStateMachineSettled
+            desc: "One of: onStateMachineError, onStateMachineDeleted, onStateMachineSettled"
           - name: data
             type: table
-            desc: Event-specific details:
+            desc: Event-specific details
             parameters:
               - name: stateMachine
                 type: StateMachineHandle
@@ -196,10 +196,10 @@
             desc: The calling script instance.
           - name: event
             type: string
-            desc: One of: onViewModelInstanceError, onViewModelDeleted, onViewModelDataReceived, onViewModelListSizeReceived
+            desc: "One of: onViewModelInstanceError, onViewModelDeleted, onViewModelDataReceived, onViewModelListSizeReceived"
           - name: data
             type: table
-            desc: Additional payload per event:
+            desc: Additional payload per event
             parameters:
               - name: viewModel
                 type: ViewModelInstanceHandle
@@ -229,10 +229,10 @@
             desc: The calling script instance.
           - name: event
             type: string
-            desc: One of: onRenderImageDecoded, onRenderImageError, onRenderImageDeleted
+            desc: "One of: onRenderImageDecoded, onRenderImageError, onRenderImageDeleted"
           - name: data
             type: table
-            desc: Additional fields:
+            desc: Additional fields
             parameters:
               - name: renderImage
                 type: RenderImageHandle
@@ -256,10 +256,10 @@
             desc: The calling script instance.
           - name: event
             type: string
-            desc: One of: onAudioSourceDecoded, onAudioSourceError, onAudioSourceDeleted
+            desc: "One of: onAudioSourceDecoded, onAudioSourceError, onAudioSourceDeleted"
           - name: data
             type: table
-            desc: Additional fields:
+            desc: Additional fields
             parameters:
               - name: audioSource
                 type: AudioSourceHandle
@@ -283,10 +283,10 @@
             desc: The calling script instance.
           - name: event
             type: string
-            desc: One of: onFontDecoded, onFontError, onFontDeleted
+            desc: "One of: onFontDecoded, onFontError, onFontDeleted"
           - name: data
             type: table
-            desc: Additional fields:
+            desc: Additional fields
             parameters:
               - name: font
                 type: FontHandle

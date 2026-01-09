@@ -1,5 +1,5 @@
 
-#ifdef DM_RIVE_USE_OPENGL
+#if defined(DM_RIVE_USE_OPENGL) && !defined(DM_HEADLESS)
 
 
 #if defined(RIVE_ANDROID) || defined(RIVE_WEBGL)

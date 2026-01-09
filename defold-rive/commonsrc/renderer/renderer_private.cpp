@@ -17,6 +17,17 @@
 
 #include <assert.h>
 
+
+#if defined(DM_HEADLESS)
+namespace dmRive
+{
+    rive::rcp<rive::RenderImage> CreateRiveRenderImage(HRenderContext context, void* bytes, uint32_t byte_count)
+    {
+        return rive::rcp<rive::RenderImage>();
+    }
+}
+#else
+
 namespace dmResource
 {
     void IncRef(HFactory factory, void* resource);
@@ -275,3 +286,5 @@ namespace dmRive
         return viewTransform;
     }
 }
+
+#endif // DM_HEADLESS
