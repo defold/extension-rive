@@ -11,23 +11,10 @@ index 45d41876..2b08d4e6 100644
  # Skia dependencies
  skia/dependencies/skia_recorder
 diff --git a/build/rive_build_config.lua b/build/rive_build_config.lua
-index f8172084..a0e4c304 100644
+index f8172084..79a06f1f 100644
 --- a/build/rive_build_config.lua
 +++ b/build/rive_build_config.lua
-@@ -145,6 +145,12 @@ if _OPTIONS['with_optick'] then
-     RIVE_OPTICK_VERSION = '1.4.0.0'
- end 
- 
-+-- Optional pthread enabling (used e.g. for Emscripten wagyu builds)
-+newoption({
-+    trigger = 'with_pthread',
-+    description = 'Enable pthread compile/link flags (-pthread)',
-+})
-+
- location(RIVE_BUILD_OUT)
- targetdir(RIVE_BUILD_OUT)
- objdir(RIVE_BUILD_OUT .. '/obj')
-@@ -422,7 +428,7 @@ if _OPTIONS['for_android'] then
+@@ -422,7 +422,7 @@ if _OPTIONS['for_android'] then
  
      -- Detect the NDK.
      local EXPECTED_NDK_VERSION = 'r27c'
@@ -36,7 +23,7 @@ index f8172084..a0e4c304 100644
      if _OPTIONS['for_unreal'] then
          EXPECTED_NDK_VERSION = '25.1.8937393'
          NDK_LONG_VERSION_STRING = '25.1.8937393'
-@@ -559,6 +565,43 @@ end
+@@ -559,6 +559,37 @@ end
  
  filter({})
  
@@ -71,15 +58,36 @@ index f8172084..a0e4c304 100644
 +    end
 +end
 +
-+-- Apply pthread flags when requested
-+if _OPTIONS['with_pthread'] then
+ filter('system:macosx')
+ do
+     defines({ 'RIVE_MACOSX' })
+diff --git a/premake5_v2.lua b/premake5_v2.lua
+index a37f3b49..911688a4 100644
+--- a/premake5_v2.lua
++++ b/premake5_v2.lua
+@@ -32,6 +32,12 @@ do
+ end
+ filter({})
+ 
++filter({ 'options:with_pthread' })
++do
 +    buildoptions({ '-pthread' })
 +    linkoptions({ '-pthread' })
 +end
 +
- filter('system:macosx')
- do
-     defines({ 'RIVE_MACOSX' })
+ dependencies = path.getabsolute('dependencies/')
+ dofile(path.join(dependencies, 'premake5_harfbuzz_v2.lua'))
+ dofile(path.join(dependencies, 'premake5_sheenbidi_v2.lua'))
+@@ -174,3 +180,9 @@ newoption({
+     trigger = 'with_rive_layout',
+     description = 'Compiles in layout features.',
+ })
++
++-- Optional pthread enabling (used e.g. for Emscripten wagyu builds)
++newoption({
++    trigger = 'with_pthread',
++    description = 'Enable pthread compile/link flags (-pthread)',
++})
 diff --git a/renderer/premake5.lua b/renderer/premake5.lua
 index 57d5a28d..bd629f1a 100644
 --- a/renderer/premake5.lua
@@ -108,7 +116,7 @@ index 57d5a28d..bd629f1a 100644
      do
          kind('ConsoleApp')
 diff --git a/renderer/premake5_pls_renderer.lua b/renderer/premake5_pls_renderer.lua
-index 266b3ed4..8933c2e2 100644
+index 266b3ed4..f6be56ff 100644
 --- a/renderer/premake5_pls_renderer.lua
 +++ b/renderer/premake5_pls_renderer.lua
 @@ -68,6 +68,11 @@ do
@@ -127,7 +135,7 @@ index 266b3ed4..8933c2e2 100644
      filter({})
  
      if RIVE_WAGYU_PORT then
-+        buildoptions({ '-H' })
++        buildoptions({ '-v' })
          buildoptions({ RIVE_WAGYU_PORT })
          linkoptions({ RIVE_WAGYU_PORT })
      end
