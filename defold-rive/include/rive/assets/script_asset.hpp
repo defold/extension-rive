@@ -12,7 +12,6 @@ namespace rive
 class Artboard;
 class Component;
 class DataBind;
-class File;
 class ScriptedObject;
 
 enum ScriptProtocol
@@ -35,6 +34,7 @@ protected:
     DataBind* m_dataBind = nullptr;
 
 public:
+    virtual ~ScriptInput() {};
     virtual void initScriptedValue();
     virtual bool validateForScriptInit() = 0;
     static ScriptInput* from(Core* component);
@@ -61,8 +61,7 @@ private:
     int m_implementedMethods = 0;
 
 protected:
-    bool verifyImplementation(ScriptProtocol scriptProtocol,
-                              LuaState* luaState);
+    bool verifyImplementation(ScriptedObject* object, LuaState* luaState);
 
 public:
     int implementedMethods() { return m_implementedMethods; }
@@ -104,21 +103,53 @@ public:
     bool inits() { return (m_implementedMethods & m_initsBit) != 0; }
 };
 
-class ScriptAsset : public ScriptAssetBase, public OptionalScriptedMethods
+class ModuleDetails
+{
+public:
+    virtual ~ModuleDetails() = default;
+    virtual std::string moduleName() = 0;
+    virtual void registrationComplete(int ref) {}
+    virtual Span<uint8_t> moduleBytecode() { return Span<uint8_t>(); }
+    virtual bool isProtocolScript() = 0;
+    virtual bool verified() const { return false; }
+    void addMissingDependency(std::string name) { m_dependencies.insert(name); }
+    void clearMissingDependency(std::string name)
+    {
+        auto it = m_dependencies.find(name);
+        if (it != m_dependencies.end())
+        {
+            m_dependencies.erase(it);
+        }
+    }
+    std::unordered_set<std::string> missingDependencies()
+    {
+        return m_dependencies;
+    }
+
+private:
+    std::unordered_set<std::string> m_dependencies;
+};
+
+class ScriptAsset : public ScriptAssetBase,
+                    public OptionalScriptedMethods,
+                    public ModuleDetails
 {
 
 public:
 #ifdef WITH_RIVE_SCRIPTING
     friend class ScriptAssetImporter;
 
-    bool verified() const { return m_verified; }
-    Span<uint8_t> bytecode() { return m_bytecode; }
+    bool verified() const override { return m_verified; }
+    Span<uint8_t> moduleBytecode() override { return m_bytecode; }
 #endif
 
     bool initScriptedObject(ScriptedObject* object);
 
-    /// Sets the bytecode if the signature verifies.
-    bool bytecode(Span<uint8_t> bytecode, Span<uint8_t> signature);
+    /// Sets the bytecode from data with header format:
+    ///   [flags:1] [signature:64 if signed] [luau_bytecode:N]
+    /// Flags byte: bits 0-6 = version, bit 7 = isSigned
+    /// Returns true if bytecode was set (verification is separate from return).
+    bool bytecode(Span<uint8_t> data);
 
     /// Bytecode provided via decode should only happen with in-band bytecode.
     /// The signature will later be verified once file loading completes, so it
@@ -129,23 +160,19 @@ public:
     void file(File* value) { m_file = value; }
     File* file() const { return m_file; }
 #ifdef WITH_RIVE_SCRIPTING
-    LuaState* vm()
-    {
-        if (m_file == nullptr)
-        {
-            return nullptr;
-        }
-        return m_file->scriptingVM();
-    }
+    LuaState* vm();
+    void registrationComplete(int ref) override;
 #endif
+    std::string moduleName() override { return name(); }
+    bool isProtocolScript() override { return !isModule(); }
 
 private:
     File* m_file = nullptr;
 #ifdef WITH_RIVE_SCRIPTING
+    bool m_scriptRegistered = false;
     bool m_verified = false;
     SimpleArray<uint8_t> m_bytecode;
     bool m_initted = false;
-    ScriptProtocol m_scriptProtocol = ScriptProtocol::utility;
 #endif
 
     bool initScriptedObjectWith(ScriptedObject* object);

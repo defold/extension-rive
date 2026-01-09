@@ -3,6 +3,7 @@
 #define _RIVE_LUA_LIBS_HPP_
 #include "lua.h"
 #include "lualib.h"
+#include "rive/assets/script_asset.hpp"
 #include "rive/lua/lua_state.hpp"
 #include "rive/math/raw_path.hpp"
 #include "rive/renderer.hpp"
@@ -23,16 +24,19 @@
 #include "rive/data_bind/data_values/data_value.hpp"
 #include "rive/data_bind/data_values/data_value_boolean.hpp"
 #include "rive/data_bind/data_values/data_value_color.hpp"
+#include "rive/data_bind/data_values/data_value_list.hpp"
 #include "rive/data_bind/data_values/data_value_number.hpp"
 #include "rive/data_bind/data_values/data_value_string.hpp"
 #include "rive/viewmodel/viewmodel.hpp"
-#include "rive/artboard.hpp"
-#include "rive/file.hpp"
-#include "rive/animation/state_machine_instance.hpp"
 #include "rive/hit_result.hpp"
+#include "rive/refcnt.hpp"
 
 #include <chrono>
 #include <unordered_map>
+#include <unordered_set>
+#include <functional>
+#include <string>
+#include <vector>
 
 static const int maxCStack = 8000;
 static const int luaGlobalsIndex = -maxCStack - 2002;
@@ -40,7 +44,14 @@ static const int luaRegistryIndex = -maxCStack - 2000;
 
 namespace rive
 {
+class Artboard;
+class ArtboardInstance;
 class Factory;
+class File;
+class ModuleDetails;
+class ScriptedObject;
+class StateMachineInstance;
+class TransformComponent;
 enum class LuaAtoms : int16_t
 {
     // Vector
@@ -140,6 +151,11 @@ enum class LuaAtoms : int16_t
     addListener,
     removeListener,
     fire,
+    push,
+    insert,
+    shift,
+    pop,
+    swap,
 
     // Artboards
     draw,
@@ -147,12 +163,14 @@ enum class LuaAtoms : int16_t
     frameOrigin,
     data,
     instance,
+    newAtom,
     bounds,
     pointerDown,
     pointerMove,
     pointerUp,
     pointerExit,
     addToPath,
+    name,
 
     // Scripted DataValues
     isNumber,
@@ -185,6 +203,7 @@ enum class LuaAtoms : int16_t
 
     // Scripted Context
     markNeedsUpdate,
+    viewModel,
 };
 
 struct ScriptedMat2D
@@ -233,11 +252,15 @@ public:
     static constexpr uint8_t luaTag = LUA_T_COUNT + 30;
     static constexpr const char* luaName = "PathData";
     static constexpr bool hasMetatable = true;
+    RenderPath* renderPath(lua_State* L);
 
 protected:
     rcp<RenderPath> m_renderPath;
 
     bool m_isRenderPathDirty = true;
+
+private:
+    uint64_t m_renderFrameId = 0;
 };
 
 class ScriptedPath : public ScriptedPathData
@@ -245,12 +268,9 @@ class ScriptedPath : public ScriptedPathData
 public:
     ScriptedPath() {}
     ScriptedPath(const RawPath* path) : ScriptedPathData(path) {}
-    RenderPath* renderPath(lua_State* L);
     static constexpr uint8_t luaTag = LUA_T_COUNT + 2;
     static constexpr const char* luaName = "Path";
     static constexpr bool hasMetatable = true;
-
-private:
 };
 
 class ScriptedGradient
@@ -403,7 +423,7 @@ public:
     void save(lua_State* L);
     void restore(lua_State* L);
     void transform(lua_State* L, const Mat2D& mat2d);
-    void clipPath(lua_State* L, ScriptedPath* path);
+    void clipPath(lua_State* L, ScriptedPathData* path);
     Renderer* validate(lua_State* L);
 
     static constexpr uint8_t luaTag = LUA_T_COUNT + 9;
@@ -423,9 +443,9 @@ public:
                          std::unique_ptr<ArtboardInstance>&& artboardInstance);
 
     ~ScriptReffedArtboard();
-    rive::rcp<rive::File> file() { return m_file; }
-    Artboard* artboard() { return m_artboard.get(); }
-    StateMachineInstance* stateMachine() { return m_stateMachine.get(); }
+    rive::rcp<rive::File> file();
+    Artboard* artboard();
+    StateMachineInstance* stateMachine();
     rcp<ViewModelInstance> viewModelInstance() { return m_viewModelInstance; }
 
 private:
@@ -438,8 +458,10 @@ private:
 class ScriptedArtboard
 {
 public:
-    ScriptedArtboard(rcp<File> file,
+    ScriptedArtboard(lua_State* L,
+                     rcp<File> file,
                      std::unique_ptr<ArtboardInstance>&& artboardInstance);
+    ~ScriptedArtboard();
 
     static constexpr uint8_t luaTag = LUA_T_COUNT + 10;
     static constexpr const char* luaName = "Artboard";
@@ -465,7 +487,10 @@ public:
 
     bool advance(float seconds);
 
+    void cleanupDataRef(lua_State* L);
+
 private:
+    lua_State* m_state;
     rcp<ScriptReffedArtboard> m_scriptReffedArtboard;
     int m_dataRef = 0;
 };
@@ -510,8 +535,13 @@ public:
     static constexpr const char* luaName = "ViewModel";
     static constexpr bool hasMetatable = true;
     int pushValue(const char* name, int coreType = 0);
+    int instance(lua_State* L);
 
     const lua_State* state() const { return m_state; }
+    rcp<ViewModelInstance> viewModelInstance() const
+    {
+        return m_viewModelInstance;
+    }
 
 private:
     lua_State* m_state;
@@ -570,6 +600,7 @@ public:
     int pushLength();
     int pushValue(int index);
     void valueChanged() override;
+    void append(ViewModelInstance*);
 
 private:
     bool m_changed = false;
@@ -716,8 +747,30 @@ public:
     virtual void printEndLine() = 0;
     virtual int pCall(lua_State* state, int nargs, int nresults) = 0;
 
+    // Add a module to be registered later via performRegistration()
+    void addModule(ModuleDetails* moduleDetails);
+    // Perform registration of all added modules, handling dependencies and
+    // retries
+    void performRegistration(lua_State* state);
+    // Called when a module is required but not found during registration
+    void recordMissingDependency(const std::string& requiringModule,
+                                 const std::string& missingModule);
+
+private:
+    bool tryRegisterModule(lua_State* state, ModuleDetails* moduleDetails);
+    void sortNextModule(ModuleDetails* module,
+                        std::vector<ModuleDetails*>* pendingModules,
+                        std::vector<ModuleDetails*>* sortedModules,
+                        std::unordered_set<ModuleDetails*>* visitedModules);
+    // Called when a module successfully registers
+    void onModuleRegistered(ModuleDetails* moduleDetails);
+
 private:
     Factory* m_factory;
+    std::vector<ModuleDetails*> m_modulesToRegister;
+    std::unordered_map<std::string, ModuleDetails*> m_moduleLookup;
+
+    std::unordered_set<ModuleDetails*> m_pendingModules;
 };
 
 class ScriptingVM
@@ -730,6 +783,17 @@ public:
     lua_State* state() { return m_state; }
 
     static void init(lua_State* state, ScriptingContext* context);
+
+    // Add a module to be registered later via performRegistration()
+    void addModule(ModuleDetails* moduleDetails)
+    {
+        m_context->addModule(moduleDetails);
+    }
+
+    // Perform registration of all added modules, handling dependencies and
+    // retries
+    void performRegistration() { m_context->performRegistration(m_state); }
+
     static bool registerModule(lua_State* state,
                                const char* name,
                                Span<uint8_t> bytecode);
@@ -742,6 +806,7 @@ public:
                                Span<uint8_t> bytecode);
 
     bool registerScript(const char* name, Span<uint8_t> bytecode);
+
     static void dumpStack(lua_State* state);
 
 private:
@@ -909,6 +974,7 @@ class CPPRuntimeScriptingContext : public ScriptingContext
 {
 public:
     CPPRuntimeScriptingContext(Factory* factory) : ScriptingContext(factory) {}
+    virtual ~CPPRuntimeScriptingContext() = default;
 
     std::chrono::time_point<std::chrono::steady_clock> executionTime;
 
