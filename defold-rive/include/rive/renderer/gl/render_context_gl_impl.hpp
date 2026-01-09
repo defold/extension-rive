@@ -114,14 +114,18 @@ private:
     public:
         virtual void init(rcp<GLState>) {}
 
-        virtual bool supportsRasterOrdering(const GLCapabilities&) const = 0;
-        virtual bool supportsFragmentShaderAtomics(
-            const GLCapabilities&) const = 0;
+        // Sets any supported interlock modes in PlatformFeatures to true.
+        // Leaves the rest unchanged.
+        virtual void getSupportedInterlockModes(const GLCapabilities&,
+                                                PlatformFeatures*) const = 0;
 
-        virtual void activatePixelLocalStorage(RenderContextGLImpl*,
-                                               const FlushDescriptor&) = 0;
-        virtual void deactivatePixelLocalStorage(RenderContextGLImpl*,
-                                                 const FlushDescriptor&) = 0;
+        virtual void resizeTransientPLSBacking(uint32_t width,
+                                               uint32_t height,
+                                               uint32_t planeCount)
+        {}
+        virtual void resizeAtomicCoverageBacking(uint32_t width,
+                                                 uint32_t height)
+        {}
 
         // Depending on how we handle PLS atomic resolves, the
         // PixelLocalStorageImpl may require certain flags.
@@ -135,6 +139,19 @@ private:
         virtual void pushShaderDefines(
             gpu::InterlockMode,
             std::vector<const char*>* defines) const = 0;
+
+        // Certain PLS draws require implementation-specific pipeline state that
+        // differs from the general pipeline state.
+        virtual void applyPipelineStateOverrides(const DrawBatch&,
+                                                 const FlushDescriptor&,
+                                                 const PlatformFeatures&,
+                                                 PipelineState*) const
+        {}
+
+        virtual void activatePixelLocalStorage(RenderContextGLImpl*,
+                                               const FlushDescriptor&) = 0;
+        virtual void deactivatePixelLocalStorage(RenderContextGLImpl*,
+                                                 const FlushDescriptor&) = 0;
 
         void ensureRasterOrderingEnabled(RenderContextGLImpl*,
                                          const gpu::FlushDescriptor&,
@@ -163,7 +180,6 @@ private:
     };
 
     class PLSImplEXTNative;
-    class PLSImplFramebufferFetch;
     class PLSImplWebGL;
     class PLSImplRWTexture;
 
@@ -196,6 +212,10 @@ private:
     void resizeGradientTexture(uint32_t width, uint32_t height) override;
     void resizeTessellationTexture(uint32_t width, uint32_t height) override;
     void resizeAtlasTexture(uint32_t width, uint32_t height) override;
+    void resizeTransientPLSBacking(uint32_t width,
+                                   uint32_t height,
+                                   uint32_t planeCount) override;
+    void resizeAtomicCoverageBacking(uint32_t width, uint32_t height) override;
 
     void preBeginFrame(RenderContext*) override;
 
@@ -277,9 +297,9 @@ private:
     glutils::Texture m_atlasTexture = glutils::Texture::Zero();
     glutils::Framebuffer m_atlasFBO;
 
-    // Wraps a compiled GL shader of draw_path.glsl or draw_image_mesh.glsl,
-    // either vertex or fragment, with a specific set of features enabled via
-    // #define. The set of features to enable is dictated by ShaderFeatures.
+    // Wraps a compiled GL "draw" shader, either vertex or fragment, with a
+    // specific set of features enabled via #define. The set of features to
+    // enable is dictated by ShaderFeatures.
     class DrawShader
     {
     public:
@@ -304,9 +324,9 @@ private:
         GLuint m_id = 0;
     };
 
-    // Wraps a compiled and linked GL program of draw_path.glsl or
-    // draw_image_mesh.glsl, with a specific set of features enabled via
-    // #define. The set of features to enable is dictated by ShaderFeatures.
+    // Wraps a compiled and linked GL "draw" program, with a specific set of
+    // features enabled via #define. The set of features to enable is dictated
+    // by ShaderFeatures.
     class DrawProgram
     {
     public:

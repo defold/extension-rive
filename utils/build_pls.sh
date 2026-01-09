@@ -255,7 +255,9 @@ if [ -z "$RIVE_DIR" ]; then
 
     # https://github.com/rive-app/rive-runtime/commit/<sha>
 
-    RIVECPP_VERSION=e54883d9099f87ed6d87c678793fd619b5594e2c
+    if [ "" == "${RIVECPP_VERSION}" ]; then
+        RIVECPP_VERSION=a228887fa6032efd0e0e23af70455913dee4ac1f
+    fi
     RIVECPP_ZIP=${DOWNLOAD_DIR}/rivecpp-${RIVECPP_VERSION}.zip
     RIVECPP_URL="https://github.com/rive-app/rive-runtime/archive/${RIVECPP_VERSION}.zip"
 
@@ -481,7 +483,7 @@ for platform in $PLATFORMS; do
             cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/gl/pls_impl_rw_texture.cpp        ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl/
 
             cp -v ${RIVECPP_ORIGINAL_DIR}/renderer/glad/*.*                              ${RIVECPP_RENDERER_SOURCE_DIR}/src/glad
-            cp -v -r ${RIVECPP_ORIGINAL_DIR}/renderer/glad/include/                      ${RIVECPP_RENDERER_SOURCE_DIR}/include
+            cp -v -r ${RIVECPP_ORIGINAL_DIR}/renderer/glad/include/                      ${RIVECPP_RENDERER_SOURCE_DIR}
             ;;
 
         arm64-linux|x86_64-linux)

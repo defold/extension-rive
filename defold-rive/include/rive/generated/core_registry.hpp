@@ -74,6 +74,7 @@
 #include "rive/animation/transition_property_viewmodel_comparator.hpp"
 #include "rive/animation/transition_self_comparator.hpp"
 #include "rive/animation/transition_trigger_condition.hpp"
+#include "rive/animation/transition_value_artboard_comparator.hpp"
 #include "rive/animation/transition_value_asset_comparator.hpp"
 #include "rive/animation/transition_value_boolean_comparator.hpp"
 #include "rive/animation/transition_value_color_comparator.hpp"
@@ -96,6 +97,8 @@
 #include "rive/assets/folder.hpp"
 #include "rive/assets/font_asset.hpp"
 #include "rive/assets/image_asset.hpp"
+#include "rive/assets/manifest_asset.hpp"
+#include "rive/assets/script_asset.hpp"
 #include "rive/audio_event.hpp"
 #include "rive/backboard.hpp"
 #include "rive/bones/bone.hpp"
@@ -178,6 +181,7 @@
 #include "rive/data_bind/converters/formula/formula_token_value.hpp"
 #include "rive/data_bind/data_bind.hpp"
 #include "rive/data_bind/data_bind_context.hpp"
+#include "rive/data_bind/data_bind_path.hpp"
 #include "rive/draw_rules.hpp"
 #include "rive/draw_target.hpp"
 #include "rive/drawable.hpp"
@@ -199,6 +203,17 @@
 #include "rive/nested_artboard_leaf.hpp"
 #include "rive/node.hpp"
 #include "rive/open_url_event.hpp"
+#include "rive/script_input_artboard.hpp"
+#include "rive/script_input_boolean.hpp"
+#include "rive/script_input_color.hpp"
+#include "rive/script_input_number.hpp"
+#include "rive/script_input_string.hpp"
+#include "rive/script_input_trigger.hpp"
+#include "rive/script_input_viewmodel_property.hpp"
+#include "rive/scripted/scripted_data_converter.hpp"
+#include "rive/scripted/scripted_drawable.hpp"
+#include "rive/scripted/scripted_layout.hpp"
+#include "rive/scripted/scripted_path_effect.hpp"
 #include "rive/shapes/clipping_shape.hpp"
 #include "rive/shapes/contour_mesh_vertex.hpp"
 #include "rive/shapes/cubic_asymmetric_vertex.hpp"
@@ -215,11 +230,13 @@
 #include "rive/shapes/paint/feather.hpp"
 #include "rive/shapes/paint/fill.hpp"
 #include "rive/shapes/paint/gradient_stop.hpp"
+#include "rive/shapes/paint/group_effect.hpp"
 #include "rive/shapes/paint/linear_gradient.hpp"
 #include "rive/shapes/paint/radial_gradient.hpp"
 #include "rive/shapes/paint/shape_paint.hpp"
 #include "rive/shapes/paint/solid_color.hpp"
 #include "rive/shapes/paint/stroke.hpp"
+#include "rive/shapes/paint/target_effect.hpp"
 #include "rive/shapes/paint/trim_path.hpp"
 #include "rive/shapes/parametric_path.hpp"
 #include "rive/shapes/path.hpp"
@@ -372,10 +389,16 @@ public:
                 return new ViewModelInstanceAssetImage();
             case DataEnumValueBase::typeKey:
                 return new DataEnumValue();
+            case CustomPropertyTriggerBase::typeKey:
+                return new CustomPropertyTrigger();
+            case ScriptInputTriggerBase::typeKey:
+                return new ScriptInputTrigger();
             case DrawTargetBase::typeKey:
                 return new DrawTarget();
             case CustomPropertyNumberBase::typeKey:
                 return new CustomPropertyNumber();
+            case ScriptInputViewModelPropertyBase::typeKey:
+                return new ScriptInputViewModelProperty();
             case DistanceConstraintBase::typeKey:
                 return new DistanceConstraint();
             case FollowPathConstraintBase::typeKey:
@@ -412,6 +435,16 @@ public:
                 return new CustomPropertyColor();
             case SoloBase::typeKey:
                 return new Solo();
+            case ScriptedDrawableBase::typeKey:
+                return new ScriptedDrawable();
+            case ScriptedDataConverterBase::typeKey:
+                return new ScriptedDataConverter();
+            case ScriptedLayoutBase::typeKey:
+                return new ScriptedLayout();
+            case ScriptedPathEffectBase::typeKey:
+                return new ScriptedPathEffect();
+            case ScriptInputNumberBase::typeKey:
+                return new ScriptInputNumber();
             case NestedArtboardLayoutBase::typeKey:
                 return new NestedArtboardLayout();
             case NSlicerTileModeBase::typeKey:
@@ -536,6 +569,8 @@ public:
                 return new TransitionValueEnumComparator();
             case KeyFrameCallbackBase::typeKey:
                 return new KeyFrameCallback();
+            case TransitionValueArtboardComparatorBase::typeKey:
+                return new TransitionValueArtboardComparator();
             case TransitionValueStringComparatorBase::typeKey:
                 return new TransitionValueStringComparator();
             case NestedRemapAnimationBase::typeKey:
@@ -552,6 +587,10 @@ public:
                 return new StateMachineBool();
             case BlendAnimation1DBase::typeKey:
                 return new BlendAnimation1D();
+            case GroupEffectBase::typeKey:
+                return new GroupEffect();
+            case TargetEffectBase::typeKey:
+                return new TargetEffect();
             case DashPathBase::typeKey:
                 return new DashPath();
             case LinearGradientBase::typeKey:
@@ -610,10 +649,14 @@ public:
                 return new CustomPropertyGroup();
             case EventBase::typeKey:
                 return new Event();
-            case DrawRulesBase::typeKey:
-                return new DrawRules();
             case CustomPropertyBooleanBase::typeKey:
                 return new CustomPropertyBoolean();
+            case ScriptInputBooleanBase::typeKey:
+                return new ScriptInputBoolean();
+            case ScriptInputColorBase::typeKey:
+                return new ScriptInputColor();
+            case DrawRulesBase::typeKey:
+                return new DrawRules();
             case LayoutComponentBase::typeKey:
                 return new LayoutComponent();
             case ArtboardBase::typeKey:
@@ -624,8 +667,14 @@ public:
                 return new Backboard();
             case OpenUrlEventBase::typeKey:
                 return new OpenUrlEvent();
+            case CustomPropertyStringBase::typeKey:
+                return new CustomPropertyString();
+            case ScriptInputStringBase::typeKey:
+                return new ScriptInputString();
             case BindablePropertyArtboardBase::typeKey:
                 return new BindablePropertyArtboard();
+            case DataBindPathBase::typeKey:
+                return new DataBindPath();
             case BindablePropertyIntegerBase::typeKey:
                 return new BindablePropertyInteger();
             case BindablePropertyTriggerBase::typeKey:
@@ -752,10 +801,12 @@ public:
                 return new TextValueRun();
             case CustomPropertyEnumBase::typeKey:
                 return new CustomPropertyEnum();
-            case CustomPropertyStringBase::typeKey:
-                return new CustomPropertyString();
             case FolderBase::typeKey:
                 return new Folder();
+            case ScriptAssetBase::typeKey:
+                return new ScriptAsset();
+            case ManifestAssetBase::typeKey:
+                return new ManifestAsset();
             case ImageAssetBase::typeKey:
                 return new ImageAsset();
             case FontAssetBase::typeKey:
@@ -766,8 +817,8 @@ public:
                 return new FileAssetContents();
             case AudioEventBase::typeKey:
                 return new AudioEvent();
-            case CustomPropertyTriggerBase::typeKey:
-                return new CustomPropertyTrigger();
+            case ScriptInputArtboardBase::typeKey:
+                return new ScriptInputArtboard();
         }
         return nullptr;
     }
@@ -831,6 +882,9 @@ public:
             case ViewModelInstanceAssetBase::propertyValuePropertyKey:
                 object->as<ViewModelInstanceAssetBase>()->propertyValue(value);
                 break;
+            case CustomPropertyTriggerBase::propertyValuePropertyKey:
+                object->as<CustomPropertyTriggerBase>()->propertyValue(value);
+                break;
             case DrawTargetBase::drawableIdPropertyKey:
                 object->as<DrawTargetBase>()->drawableId(value);
                 break;
@@ -891,6 +945,15 @@ public:
                 break;
             case SoloBase::activeComponentIdPropertyKey:
                 object->as<SoloBase>()->activeComponentId(value);
+                break;
+            case ScriptedDrawableBase::scriptAssetIdPropertyKey:
+                object->as<ScriptedDrawableBase>()->scriptAssetId(value);
+                break;
+            case ScriptedDataConverterBase::scriptAssetIdPropertyKey:
+                object->as<ScriptedDataConverterBase>()->scriptAssetId(value);
+                break;
+            case ScriptedPathEffectBase::scriptAssetIdPropertyKey:
+                object->as<ScriptedPathEffectBase>()->scriptAssetId(value);
                 break;
             case NestedArtboardLayoutBase::instanceWidthUnitsValuePropertyKey:
                 object->as<NestedArtboardLayoutBase>()->instanceWidthUnitsValue(
@@ -1234,6 +1297,9 @@ public:
             case ShapePaintBase::blendModeValuePropertyKey:
                 object->as<ShapePaintBase>()->blendModeValue(value);
                 break;
+            case TargetEffectBase::targetIdPropertyKey:
+                object->as<TargetEffectBase>()->targetId(value);
+                break;
             case StrokeBase::capPropertyKey:
                 object->as<StrokeBase>()->cap(value);
                 break;
@@ -1457,11 +1523,14 @@ public:
             case FileAssetBase::assetIdPropertyKey:
                 object->as<FileAssetBase>()->assetId(value);
                 break;
+            case ScriptAssetBase::generatorFunctionRefPropertyKey:
+                object->as<ScriptAssetBase>()->generatorFunctionRef(value);
+                break;
             case AudioEventBase::assetIdPropertyKey:
                 object->as<AudioEventBase>()->assetId(value);
                 break;
-            case CustomPropertyTriggerBase::propertyValuePropertyKey:
-                object->as<CustomPropertyTriggerBase>()->propertyValue(value);
+            case ScriptInputArtboardBase::artboardIdPropertyKey:
+                object->as<ScriptInputArtboardBase>()->artboardId(value);
                 break;
         }
     }
@@ -1487,6 +1556,9 @@ public:
             case DataEnumValueBase::valuePropertyKey:
                 object->as<DataEnumValueBase>()->value(value);
                 break;
+            case DataConverterBase::namePropertyKey:
+                object->as<DataConverterBase>()->name(value);
+                break;
             case AnimationBase::namePropertyKey:
                 object->as<AnimationBase>()->name(value);
                 break;
@@ -1502,8 +1574,8 @@ public:
             case OpenUrlEventBase::urlPropertyKey:
                 object->as<OpenUrlEventBase>()->url(value);
                 break;
-            case DataConverterBase::namePropertyKey:
-                object->as<DataConverterBase>()->name(value);
+            case CustomPropertyStringBase::propertyValuePropertyKey:
+                object->as<CustomPropertyStringBase>()->propertyValue(value);
                 break;
             case DataConverterStringPadBase::textPropertyKey:
                 object->as<DataConverterStringPadBase>()->text(value);
@@ -1519,9 +1591,6 @@ public:
                 break;
             case TextValueRunBase::textPropertyKey:
                 object->as<TextValueRunBase>()->text(value);
-                break;
-            case CustomPropertyStringBase::propertyValuePropertyKey:
-                object->as<CustomPropertyStringBase>()->propertyValue(value);
                 break;
             case AssetBase::namePropertyKey:
                 object->as<AssetBase>()->name(value);
@@ -1606,8 +1675,14 @@ public:
             case ScrollConstraintBase::infinitePropertyKey:
                 object->as<ScrollConstraintBase>()->infinite(value);
                 break;
+            case ScrollConstraintBase::interactivePropertyKey:
+                object->as<ScrollConstraintBase>()->interactive(value);
+                break;
             case ScrollBarConstraintBase::autoSizePropertyKey:
                 object->as<ScrollBarConstraintBase>()->autoSize(value);
+                break;
+            case NestedArtboardBase::isPausedPropertyKey:
+                object->as<NestedArtboardBase>()->isPaused(value);
                 break;
             case AxisBase::normalizedPropertyKey:
                 object->as<AxisBase>()->normalized(value);
@@ -1677,6 +1752,9 @@ public:
             case LayoutComponentBase::clipPropertyKey:
                 object->as<LayoutComponentBase>()->clip(value);
                 break;
+            case DataBindPathBase::isRelativePropertyKey:
+                object->as<DataBindPathBase>()->isRelative(value);
+                break;
             case BindablePropertyBooleanBase::propertyValuePropertyKey:
                 object->as<BindablePropertyBooleanBase>()->propertyValue(value);
                 break;
@@ -1691,6 +1769,9 @@ public:
                 break;
             case TextBase::fitFromBaselinePropertyKey:
                 object->as<TextBase>()->fitFromBaseline(value);
+                break;
+            case ScriptAssetBase::isModulePropertyKey:
+                object->as<ScriptAssetBase>()->isModule(value);
                 break;
         }
     }
@@ -1757,6 +1838,9 @@ public:
             case ScrollConstraintBase::scrollIndexPropertyKey:
                 object->as<ScrollConstraintBase>()->scrollIndex(value);
                 break;
+            case ScrollConstraintBase::thresholdPropertyKey:
+                object->as<ScrollConstraintBase>()->threshold(value);
+                break;
             case ElasticScrollPhysicsBase::frictionPropertyKey:
                 object->as<ElasticScrollPhysicsBase>()->friction(value);
                 break;
@@ -1815,6 +1899,12 @@ public:
                 break;
             case NodeBase::computedHeightPropertyKey:
                 object->as<NodeBase>()->computedHeight(value);
+                break;
+            case NestedArtboardBase::speedPropertyKey:
+                object->as<NestedArtboardBase>()->speed(value);
+                break;
+            case NestedArtboardBase::quantizePropertyKey:
+                object->as<NestedArtboardBase>()->quantize(value);
                 break;
             case NestedArtboardLayoutBase::instanceWidthPropertyKey:
                 object->as<NestedArtboardLayoutBase>()->instanceWidth(value);
@@ -2357,14 +2447,14 @@ public:
     {
         switch (propertyKey)
         {
+            case CustomPropertyTriggerBase::firePropertyKey:
+                object->as<CustomPropertyTriggerBase>()->fire(value);
+                break;
             case NestedTriggerBase::firePropertyKey:
                 object->as<NestedTriggerBase>()->fire(value);
                 break;
             case EventBase::triggerPropertyKey:
                 object->as<EventBase>()->trigger(value);
-                break;
-            case CustomPropertyTriggerBase::firePropertyKey:
-                object->as<CustomPropertyTriggerBase>()->fire(value);
                 break;
         }
     }
@@ -2415,6 +2505,8 @@ public:
             case ViewModelInstanceAssetBase::propertyValuePropertyKey:
                 return object->as<ViewModelInstanceAssetBase>()
                     ->propertyValue();
+            case CustomPropertyTriggerBase::propertyValuePropertyKey:
+                return object->as<CustomPropertyTriggerBase>()->propertyValue();
             case DrawTargetBase::drawableIdPropertyKey:
                 return object->as<DrawTargetBase>()->drawableId();
             case DrawTargetBase::placementValuePropertyKey:
@@ -2457,6 +2549,12 @@ public:
                 return object->as<NestedAnimationBase>()->animationId();
             case SoloBase::activeComponentIdPropertyKey:
                 return object->as<SoloBase>()->activeComponentId();
+            case ScriptedDrawableBase::scriptAssetIdPropertyKey:
+                return object->as<ScriptedDrawableBase>()->scriptAssetId();
+            case ScriptedDataConverterBase::scriptAssetIdPropertyKey:
+                return object->as<ScriptedDataConverterBase>()->scriptAssetId();
+            case ScriptedPathEffectBase::scriptAssetIdPropertyKey:
+                return object->as<ScriptedPathEffectBase>()->scriptAssetId();
             case NestedArtboardLayoutBase::instanceWidthUnitsValuePropertyKey:
                 return object->as<NestedArtboardLayoutBase>()
                     ->instanceWidthUnitsValue();
@@ -2707,6 +2805,8 @@ public:
                     ->exitBlendAnimationId();
             case ShapePaintBase::blendModeValuePropertyKey:
                 return object->as<ShapePaintBase>()->blendModeValue();
+            case TargetEffectBase::targetIdPropertyKey:
+                return object->as<TargetEffectBase>()->targetId();
             case StrokeBase::capPropertyKey:
                 return object->as<StrokeBase>()->cap();
             case StrokeBase::joinPropertyKey:
@@ -2861,10 +2961,12 @@ public:
                 return object->as<CustomPropertyEnumBase>()->enumId();
             case FileAssetBase::assetIdPropertyKey:
                 return object->as<FileAssetBase>()->assetId();
+            case ScriptAssetBase::generatorFunctionRefPropertyKey:
+                return object->as<ScriptAssetBase>()->generatorFunctionRef();
             case AudioEventBase::assetIdPropertyKey:
                 return object->as<AudioEventBase>()->assetId();
-            case CustomPropertyTriggerBase::propertyValuePropertyKey:
-                return object->as<CustomPropertyTriggerBase>()->propertyValue();
+            case ScriptInputArtboardBase::artboardIdPropertyKey:
+                return object->as<ScriptInputArtboardBase>()->artboardId();
         }
         return 0;
     }
@@ -2885,6 +2987,8 @@ public:
                 return object->as<DataEnumValueBase>()->key();
             case DataEnumValueBase::valuePropertyKey:
                 return object->as<DataEnumValueBase>()->value();
+            case DataConverterBase::namePropertyKey:
+                return object->as<DataConverterBase>()->name();
             case AnimationBase::namePropertyKey:
                 return object->as<AnimationBase>()->name();
             case StateMachineComponentBase::namePropertyKey:
@@ -2896,8 +3000,8 @@ public:
                     ->value();
             case OpenUrlEventBase::urlPropertyKey:
                 return object->as<OpenUrlEventBase>()->url();
-            case DataConverterBase::namePropertyKey:
-                return object->as<DataConverterBase>()->name();
+            case CustomPropertyStringBase::propertyValuePropertyKey:
+                return object->as<CustomPropertyStringBase>()->propertyValue();
             case DataConverterStringPadBase::textPropertyKey:
                 return object->as<DataConverterStringPadBase>()->text();
             case DataConverterToStringBase::colorFormatPropertyKey:
@@ -2909,8 +3013,6 @@ public:
                 return object->as<TextInputBase>()->text();
             case TextValueRunBase::textPropertyKey:
                 return object->as<TextValueRunBase>()->text();
-            case CustomPropertyStringBase::propertyValuePropertyKey:
-                return object->as<CustomPropertyStringBase>()->propertyValue();
             case AssetBase::namePropertyKey:
                 return object->as<AssetBase>()->name();
             case FileAssetBase::cdnBaseUrlPropertyKey:
@@ -2976,8 +3078,12 @@ public:
                 return object->as<ScrollConstraintBase>()->virtualize();
             case ScrollConstraintBase::infinitePropertyKey:
                 return object->as<ScrollConstraintBase>()->infinite();
+            case ScrollConstraintBase::interactivePropertyKey:
+                return object->as<ScrollConstraintBase>()->interactive();
             case ScrollBarConstraintBase::autoSizePropertyKey:
                 return object->as<ScrollBarConstraintBase>()->autoSize();
+            case NestedArtboardBase::isPausedPropertyKey:
+                return object->as<NestedArtboardBase>()->isPaused();
             case AxisBase::normalizedPropertyKey:
                 return object->as<AxisBase>()->normalized();
             case LayoutComponentStyleBase::intrinsicallySizedValuePropertyKey:
@@ -3025,6 +3131,8 @@ public:
                 return object->as<CustomPropertyBooleanBase>()->propertyValue();
             case LayoutComponentBase::clipPropertyKey:
                 return object->as<LayoutComponentBase>()->clip();
+            case DataBindPathBase::isRelativePropertyKey:
+                return object->as<DataBindPathBase>()->isRelative();
             case BindablePropertyBooleanBase::propertyValuePropertyKey:
                 return object->as<BindablePropertyBooleanBase>()
                     ->propertyValue();
@@ -3036,6 +3144,8 @@ public:
                 return object->as<TextFollowPathModifierBase>()->orient();
             case TextBase::fitFromBaselinePropertyKey:
                 return object->as<TextBase>()->fitFromBaseline();
+            case ScriptAssetBase::isModulePropertyKey:
+                return object->as<ScriptAssetBase>()->isModule();
         }
         return false;
     }
@@ -3088,6 +3198,8 @@ public:
                 return object->as<ScrollConstraintBase>()->scrollPercentY();
             case ScrollConstraintBase::scrollIndexPropertyKey:
                 return object->as<ScrollConstraintBase>()->scrollIndex();
+            case ScrollConstraintBase::thresholdPropertyKey:
+                return object->as<ScrollConstraintBase>()->threshold();
             case ElasticScrollPhysicsBase::frictionPropertyKey:
                 return object->as<ElasticScrollPhysicsBase>()->friction();
             case ElasticScrollPhysicsBase::speedMultiplierPropertyKey:
@@ -3129,6 +3241,10 @@ public:
                 return object->as<NodeBase>()->computedWidth();
             case NodeBase::computedHeightPropertyKey:
                 return object->as<NodeBase>()->computedHeight();
+            case NestedArtboardBase::speedPropertyKey:
+                return object->as<NestedArtboardBase>()->speed();
+            case NestedArtboardBase::quantizePropertyKey:
+                return object->as<NestedArtboardBase>()->quantize();
             case NestedArtboardLayoutBase::instanceWidthPropertyKey:
                 return object->as<NestedArtboardLayoutBase>()->instanceWidth();
             case NestedArtboardLayoutBase::instanceHeightPropertyKey:
@@ -3513,6 +3629,7 @@ public:
             case ViewModelInstanceSymbolListIndexBase::propertyValuePropertyKey:
             case ViewModelInstanceViewModelBase::propertyValuePropertyKey:
             case ViewModelInstanceAssetBase::propertyValuePropertyKey:
+            case CustomPropertyTriggerBase::propertyValuePropertyKey:
             case DrawTargetBase::drawableIdPropertyKey:
             case DrawTargetBase::placementValuePropertyKey:
             case TargetedConstraintBase::targetIdPropertyKey:
@@ -3532,6 +3649,9 @@ public:
             case ArtboardComponentListBase::listSourcePropertyKey:
             case NestedAnimationBase::animationIdPropertyKey:
             case SoloBase::activeComponentIdPropertyKey:
+            case ScriptedDrawableBase::scriptAssetIdPropertyKey:
+            case ScriptedDataConverterBase::scriptAssetIdPropertyKey:
+            case ScriptedPathEffectBase::scriptAssetIdPropertyKey:
             case NestedArtboardLayoutBase::instanceWidthUnitsValuePropertyKey:
             case NestedArtboardLayoutBase::instanceHeightUnitsValuePropertyKey:
             case NestedArtboardLayoutBase::instanceWidthScaleTypePropertyKey:
@@ -3634,6 +3754,7 @@ public:
             case ElasticInterpolatorBase::easingValuePropertyKey:
             case BlendStateTransitionBase::exitBlendAnimationIdPropertyKey:
             case ShapePaintBase::blendModeValuePropertyKey:
+            case TargetEffectBase::targetIdPropertyKey:
             case StrokeBase::capPropertyKey:
             case StrokeBase::joinPropertyKey:
             case FeatherBase::spaceValuePropertyKey:
@@ -3707,8 +3828,9 @@ public:
             case CustomPropertyEnumBase::propertyValuePropertyKey:
             case CustomPropertyEnumBase::enumIdPropertyKey:
             case FileAssetBase::assetIdPropertyKey:
+            case ScriptAssetBase::generatorFunctionRefPropertyKey:
             case AudioEventBase::assetIdPropertyKey:
-            case CustomPropertyTriggerBase::propertyValuePropertyKey:
+            case ScriptInputArtboardBase::artboardIdPropertyKey:
                 return CoreUintType::id;
             case ViewModelComponentBase::namePropertyKey:
             case DataEnumCustomBase::namePropertyKey:
@@ -3716,18 +3838,18 @@ public:
             case ComponentBase::namePropertyKey:
             case DataEnumValueBase::keyPropertyKey:
             case DataEnumValueBase::valuePropertyKey:
+            case DataConverterBase::namePropertyKey:
             case AnimationBase::namePropertyKey:
             case StateMachineComponentBase::namePropertyKey:
             case KeyFrameStringBase::valuePropertyKey:
             case TransitionValueStringComparatorBase::valuePropertyKey:
             case OpenUrlEventBase::urlPropertyKey:
-            case DataConverterBase::namePropertyKey:
+            case CustomPropertyStringBase::propertyValuePropertyKey:
             case DataConverterStringPadBase::textPropertyKey:
             case DataConverterToStringBase::colorFormatPropertyKey:
             case BindablePropertyStringBase::propertyValuePropertyKey:
             case TextInputBase::textPropertyKey:
             case TextValueRunBase::textPropertyKey:
-            case CustomPropertyStringBase::propertyValuePropertyKey:
             case AssetBase::namePropertyKey:
             case FileAssetBase::cdnBaseUrlPropertyKey:
                 return CoreStringType::id;
@@ -3753,7 +3875,9 @@ public:
             case ScrollConstraintBase::snapPropertyKey:
             case ScrollConstraintBase::virtualizePropertyKey:
             case ScrollConstraintBase::infinitePropertyKey:
+            case ScrollConstraintBase::interactivePropertyKey:
             case ScrollBarConstraintBase::autoSizePropertyKey:
+            case NestedArtboardBase::isPausedPropertyKey:
             case AxisBase::normalizedPropertyKey:
             case LayoutComponentStyleBase::intrinsicallySizedValuePropertyKey:
             case LayoutComponentStyleBase::linkCornerRadiusPropertyKey:
@@ -3776,11 +3900,13 @@ public:
             case ClippingShapeBase::isVisiblePropertyKey:
             case CustomPropertyBooleanBase::propertyValuePropertyKey:
             case LayoutComponentBase::clipPropertyKey:
+            case DataBindPathBase::isRelativePropertyKey:
             case BindablePropertyBooleanBase::propertyValuePropertyKey:
             case TextModifierRangeBase::clampPropertyKey:
             case TextFollowPathModifierBase::radialPropertyKey:
             case TextFollowPathModifierBase::orientPropertyKey:
             case TextBase::fitFromBaselinePropertyKey:
+            case ScriptAssetBase::isModulePropertyKey:
                 return CoreBoolType::id;
             case ViewModelInstanceNumberBase::propertyValuePropertyKey:
             case CustomPropertyNumberBase::propertyValuePropertyKey:
@@ -3800,6 +3926,7 @@ public:
             case ScrollConstraintBase::scrollPercentXPropertyKey:
             case ScrollConstraintBase::scrollPercentYPropertyKey:
             case ScrollConstraintBase::scrollIndexPropertyKey:
+            case ScrollConstraintBase::thresholdPropertyKey:
             case ElasticScrollPhysicsBase::frictionPropertyKey:
             case ElasticScrollPhysicsBase::speedMultiplierPropertyKey:
             case ElasticScrollPhysicsBase::elasticFactorPropertyKey:
@@ -3821,6 +3948,8 @@ public:
             case NodeBase::computedRootYPropertyKey:
             case NodeBase::computedWidthPropertyKey:
             case NodeBase::computedHeightPropertyKey:
+            case NestedArtboardBase::speedPropertyKey:
+            case NestedArtboardBase::quantizePropertyKey:
             case NestedArtboardLayoutBase::instanceWidthPropertyKey:
             case NestedArtboardLayoutBase::instanceHeightPropertyKey:
             case AxisBase::offsetPropertyKey:
@@ -3999,14 +4128,17 @@ public:
             case DrawableAssetBase::widthPropertyKey:
             case ExportAudioBase::volumePropertyKey:
                 return CoreDoubleType::id;
+            case ScriptInputViewModelPropertyBase::dataBindPathIdsPropertyKey:
             case NestedArtboardBase::dataBindPathIdsPropertyKey:
             case StateMachineFireTriggerBase::viewModelPathIdsPropertyKey:
             case StateMachineListenerBase::viewModelPathIdsPropertyKey:
             case MeshBase::triangleIndexBytesPropertyKey:
+            case DataBindPathBase::pathPropertyKey:
             case DataConverterOperationViewModelBase::sourcePathIdsPropertyKey:
             case DataBindContextBase::sourcePathIdsPropertyKey:
             case FileAssetBase::cdnUuidPropertyKey:
             case FileAssetContentsBase::bytesPropertyKey:
+            case FileAssetContentsBase::signaturePropertyKey:
                 return CoreBytesType::id;
             default:
                 return -1;
@@ -4016,9 +4148,9 @@ public:
     {
         switch (propertyKey)
         {
+            case CustomPropertyTriggerBase::firePropertyKey:
             case NestedTriggerBase::firePropertyKey:
             case EventBase::triggerPropertyKey:
-            case CustomPropertyTriggerBase::firePropertyKey:
                 return true;
             default:
                 return false;
@@ -4061,6 +4193,8 @@ public:
                 return object->is<ViewModelInstanceViewModelBase>();
             case ViewModelInstanceAssetBase::propertyValuePropertyKey:
                 return object->is<ViewModelInstanceAssetBase>();
+            case CustomPropertyTriggerBase::propertyValuePropertyKey:
+                return object->is<CustomPropertyTriggerBase>();
             case DrawTargetBase::drawableIdPropertyKey:
                 return object->is<DrawTargetBase>();
             case DrawTargetBase::placementValuePropertyKey:
@@ -4099,6 +4233,12 @@ public:
                 return object->is<NestedAnimationBase>();
             case SoloBase::activeComponentIdPropertyKey:
                 return object->is<SoloBase>();
+            case ScriptedDrawableBase::scriptAssetIdPropertyKey:
+                return object->is<ScriptedDrawableBase>();
+            case ScriptedDataConverterBase::scriptAssetIdPropertyKey:
+                return object->is<ScriptedDataConverterBase>();
+            case ScriptedPathEffectBase::scriptAssetIdPropertyKey:
+                return object->is<ScriptedPathEffectBase>();
             case NestedArtboardLayoutBase::instanceWidthUnitsValuePropertyKey:
                 return object->is<NestedArtboardLayoutBase>();
             case NestedArtboardLayoutBase::instanceHeightUnitsValuePropertyKey:
@@ -4298,6 +4438,8 @@ public:
                 return object->is<BlendStateTransitionBase>();
             case ShapePaintBase::blendModeValuePropertyKey:
                 return object->is<ShapePaintBase>();
+            case TargetEffectBase::targetIdPropertyKey:
+                return object->is<TargetEffectBase>();
             case StrokeBase::capPropertyKey:
                 return object->is<StrokeBase>();
             case StrokeBase::joinPropertyKey:
@@ -4444,10 +4586,12 @@ public:
                 return object->is<CustomPropertyEnumBase>();
             case FileAssetBase::assetIdPropertyKey:
                 return object->is<FileAssetBase>();
+            case ScriptAssetBase::generatorFunctionRefPropertyKey:
+                return object->is<ScriptAssetBase>();
             case AudioEventBase::assetIdPropertyKey:
                 return object->is<AudioEventBase>();
-            case CustomPropertyTriggerBase::propertyValuePropertyKey:
-                return object->is<CustomPropertyTriggerBase>();
+            case ScriptInputArtboardBase::artboardIdPropertyKey:
+                return object->is<ScriptInputArtboardBase>();
             case ViewModelComponentBase::namePropertyKey:
                 return object->is<ViewModelComponentBase>();
             case DataEnumCustomBase::namePropertyKey:
@@ -4460,6 +4604,8 @@ public:
                 return object->is<DataEnumValueBase>();
             case DataEnumValueBase::valuePropertyKey:
                 return object->is<DataEnumValueBase>();
+            case DataConverterBase::namePropertyKey:
+                return object->is<DataConverterBase>();
             case AnimationBase::namePropertyKey:
                 return object->is<AnimationBase>();
             case StateMachineComponentBase::namePropertyKey:
@@ -4470,8 +4616,8 @@ public:
                 return object->is<TransitionValueStringComparatorBase>();
             case OpenUrlEventBase::urlPropertyKey:
                 return object->is<OpenUrlEventBase>();
-            case DataConverterBase::namePropertyKey:
-                return object->is<DataConverterBase>();
+            case CustomPropertyStringBase::propertyValuePropertyKey:
+                return object->is<CustomPropertyStringBase>();
             case DataConverterStringPadBase::textPropertyKey:
                 return object->is<DataConverterStringPadBase>();
             case DataConverterToStringBase::colorFormatPropertyKey:
@@ -4482,8 +4628,6 @@ public:
                 return object->is<TextInputBase>();
             case TextValueRunBase::textPropertyKey:
                 return object->is<TextValueRunBase>();
-            case CustomPropertyStringBase::propertyValuePropertyKey:
-                return object->is<CustomPropertyStringBase>();
             case AssetBase::namePropertyKey:
                 return object->is<AssetBase>();
             case FileAssetBase::cdnBaseUrlPropertyKey:
@@ -4530,8 +4674,12 @@ public:
                 return object->is<ScrollConstraintBase>();
             case ScrollConstraintBase::infinitePropertyKey:
                 return object->is<ScrollConstraintBase>();
+            case ScrollConstraintBase::interactivePropertyKey:
+                return object->is<ScrollConstraintBase>();
             case ScrollBarConstraintBase::autoSizePropertyKey:
                 return object->is<ScrollBarConstraintBase>();
+            case NestedArtboardBase::isPausedPropertyKey:
+                return object->is<NestedArtboardBase>();
             case AxisBase::normalizedPropertyKey:
                 return object->is<AxisBase>();
             case LayoutComponentStyleBase::intrinsicallySizedValuePropertyKey:
@@ -4576,6 +4724,8 @@ public:
                 return object->is<CustomPropertyBooleanBase>();
             case LayoutComponentBase::clipPropertyKey:
                 return object->is<LayoutComponentBase>();
+            case DataBindPathBase::isRelativePropertyKey:
+                return object->is<DataBindPathBase>();
             case BindablePropertyBooleanBase::propertyValuePropertyKey:
                 return object->is<BindablePropertyBooleanBase>();
             case TextModifierRangeBase::clampPropertyKey:
@@ -4586,6 +4736,8 @@ public:
                 return object->is<TextFollowPathModifierBase>();
             case TextBase::fitFromBaselinePropertyKey:
                 return object->is<TextBase>();
+            case ScriptAssetBase::isModulePropertyKey:
+                return object->is<ScriptAssetBase>();
             case ViewModelInstanceNumberBase::propertyValuePropertyKey:
                 return object->is<ViewModelInstanceNumberBase>();
             case CustomPropertyNumberBase::propertyValuePropertyKey:
@@ -4621,6 +4773,8 @@ public:
             case ScrollConstraintBase::scrollPercentYPropertyKey:
                 return object->is<ScrollConstraintBase>();
             case ScrollConstraintBase::scrollIndexPropertyKey:
+                return object->is<ScrollConstraintBase>();
+            case ScrollConstraintBase::thresholdPropertyKey:
                 return object->is<ScrollConstraintBase>();
             case ElasticScrollPhysicsBase::frictionPropertyKey:
                 return object->is<ElasticScrollPhysicsBase>();
@@ -4662,6 +4816,10 @@ public:
                 return object->is<NodeBase>();
             case NodeBase::computedHeightPropertyKey:
                 return object->is<NodeBase>();
+            case NestedArtboardBase::speedPropertyKey:
+                return object->is<NestedArtboardBase>();
+            case NestedArtboardBase::quantizePropertyKey:
+                return object->is<NestedArtboardBase>();
             case NestedArtboardLayoutBase::instanceWidthPropertyKey:
                 return object->is<NestedArtboardLayoutBase>();
             case NestedArtboardLayoutBase::instanceHeightPropertyKey:
@@ -5016,12 +5174,12 @@ public:
                 return object->is<DrawableAssetBase>();
             case ExportAudioBase::volumePropertyKey:
                 return object->is<ExportAudioBase>();
+            case CustomPropertyTriggerBase::firePropertyKey:
+                return object->is<CustomPropertyTriggerBase>();
             case NestedTriggerBase::firePropertyKey:
                 return object->is<NestedTriggerBase>();
             case EventBase::triggerPropertyKey:
                 return object->is<EventBase>();
-            case CustomPropertyTriggerBase::firePropertyKey:
-                return object->is<CustomPropertyTriggerBase>();
         }
         return false;
     }

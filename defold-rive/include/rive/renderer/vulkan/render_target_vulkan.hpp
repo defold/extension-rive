@@ -19,16 +19,16 @@ public:
         return m_targetUsageFlags;
     }
 
-    // Returns the target image in the requested layout, performing a pipeline
-    // barrier if necessary.
+    // Performs a pipeline barrier and returns the target image in the requested
+    // layout.
     virtual VkImage accessTargetImage(
         VkCommandBuffer,
         const vkutil::ImageAccess& dstAccess,
         vkutil::ImageAccessAction =
             vkutil::ImageAccessAction::preserveContents) = 0;
 
-    // Returns the target image view, with its image in the requested layout,
-    // performing a pipeline barrier if necessary.
+    // Performs a pipeline barrier, transitions the target image to the
+    // requested layout, and returns the target image view.
     virtual VkImageView accessTargetImageView(
         VkCommandBuffer,
         const vkutil::ImageAccess& dstAccess,
@@ -44,22 +44,29 @@ protected:
                        VkFormat framebufferFormat,
                        VkImageUsageFlags targetUsageFlags);
 
-    // Returns the offscreen texture in the requested layout, performing a
-    // pipeline barrier if necessary.
+    // Performs pipeline barriers, clears the target image, transitions the
+    // target image to the requested layout, and returns target image view.
+    VkImageView clearTargetImageView(
+        VkCommandBuffer,
+        ColorInt clearColor,
+        const vkutil::ImageAccess& dstAccessAfterClear);
+
+    // Performs a pipeline barrier and returns the offscreen texture in the
+    // requested layout.
     vkutil::Texture2D* accessOffscreenColorTexture(
         VkCommandBuffer,
         const vkutil::ImageAccess& dstAccess,
         vkutil::ImageAccessAction =
             vkutil::ImageAccessAction::preserveContents);
 
-    // InterlockMode::rasterOrdering.
-    vkutil::Texture2D* clipTextureR32UI();
-    vkutil::Texture2D* scratchColorTexture();
-    vkutil::Texture2D* coverageTexture();
-
-    // InterlockMode::atomics.
-    vkutil::Texture2D* clipTextureRGBA8();
-    vkutil::Texture2D* coverageAtomicTexture();
+    // Performs pipeline barriers, copies the target image into the
+    // offscreen color texture (for the intended purpose of supporting
+    // gpu::LoadAction::preserveRenderTarget), and returns the offscreen texture
+    // in the requested layout.
+    vkutil::Texture2D* copyTargetImageToOffscreenColorTexture(
+        VkCommandBuffer,
+        const vkutil::ImageAccess& dstAccessAfterCopy,
+        const IAABB& copyBounds);
 
     // InterlockMode::msaa.
     vkutil::Texture2D* msaaColorTexture();
@@ -72,15 +79,6 @@ protected:
     // Used when m_targetTextureView does not have
     // VK_ACCESS_INPUT_ATTACHMENT_READ_BIT
     rcp<vkutil::Texture2D> m_offscreenColorTexture;
-
-    // InterlockMode::rasterOrdering.
-    rcp<vkutil::Texture2D> m_clipTextureR32UI;
-    rcp<vkutil::Texture2D> m_scratchColorTexture;
-    rcp<vkutil::Texture2D> m_coverageTexture;
-
-    // InterlockMode::atomics.
-    rcp<vkutil::Texture2D> m_clipTextureRGBA8;
-    rcp<vkutil::Texture2D> m_coverageAtomicTexture;
 
     // InterlockMode::msaa.
     rcp<vkutil::Texture2D> m_msaaColorTexture;

@@ -37,6 +37,11 @@ namespace dmRive
         if (resource->m_DDF->m_Atlas[0] != 0)
         {
             dmResource::Result result = dmResource::Get(factory, resource->m_DDF->m_Atlas, (void**) &resource->m_TextureSet); // .atlas -> .texturesetc
+            if (result != dmResource::RESULT_OK)
+            {
+                return result;
+            }
+
             resource->m_Atlas = dmRive::CreateAtlas(resource->m_TextureSet->m_TextureSet);
         }
 

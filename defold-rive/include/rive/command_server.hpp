@@ -29,9 +29,12 @@ public:
     AudioSource* getAudioSource(AudioSourceHandle) const;
     Font* getFont(FontHandle) const;
     ArtboardInstance* getArtboardInstance(ArtboardHandle) const;
+    rcp<BindableArtboard> getBindableArtboard(ArtboardHandle) const;
     StateMachineInstance* getStateMachineInstance(StateMachineHandle) const;
     ViewModelInstanceRuntime* getViewModelInstance(
         ViewModelInstanceHandle) const;
+    ViewModelInstanceHandle getHandleForInstance(
+        ViewModelInstanceRuntime*) const;
     // Wait for queue to not be empty, then returns pollMessages.
     bool waitCommands();
     // Returns imidiatly after checking messages. If there are none just returns
@@ -187,8 +190,7 @@ private:
     std::unordered_map<FontHandle, rcp<Font>> m_fonts;
     std::unordered_map<RenderImageHandle, rcp<RenderImage>> m_images;
     std::unordered_map<AudioSourceHandle, rcp<AudioSource>> m_audioSources;
-    std::unordered_map<ArtboardHandle, std::unique_ptr<ArtboardInstance>>
-        m_artboards;
+    std::unordered_map<ArtboardHandle, rcp<BindableArtboard>> m_artboards;
     std::unordered_map<ViewModelInstanceHandle, rcp<ViewModelInstanceRuntime>>
         m_viewModels;
     std::unordered_map<StateMachineHandle,
