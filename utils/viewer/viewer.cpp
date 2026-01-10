@@ -31,6 +31,7 @@
 #include <graphics/graphics.h> // ContextParams
 
 #include <defold/rive.h>
+#include "file.h"
 #include <common/commands.h>
 
 namespace dmGraphics
@@ -118,6 +119,7 @@ struct EngineCtx
 
     // Rive related
     dmRive::HRenderContext m_RenderContext;
+    dmRive::FileMeta::RiveFile* m_FileMeta;
 
     rive::FileHandle                m_File;
     rive::ArtboardHandle            m_Artboard;
@@ -378,30 +380,21 @@ static void* EngineCreate(int argc, char** argv)
         std::vector<uint8_t> bytes;
         if (ReadFile(s_RiveFilePath, bytes))
         {
-            engine->m_File = queue->loadFile(bytes);
-
-            if (engine->m_File)
+            engine->m_FileMeta = dmRive::FileMeta::LoadFileFromBuffer(bytes.data(), bytes.size(), s_RiveFilePath);
+            if (engine->m_FileMeta)
             {
                 printf("Loaded file\n");
 
-                engine->m_Artboard = queue->instantiateDefaultArtboard(engine->m_File);
-                if (engine->m_Artboard)
+                dmRive::FileMeta::DebugPrintFileState(engine->m_FileMeta);
+
+                engine->m_File = engine->m_FileMeta->m_File;
+                engine->m_Artboard = engine->m_FileMeta->m_Artboard;
+                engine->m_StateMachine = engine->m_FileMeta->m_StateMachine;
+                engine->m_ViewModelInstance = engine->m_FileMeta->m_ViewModelInstance;
+
+                if (engine->m_StateMachine && engine->m_ViewModelInstance)
                 {
-                    printf("Created default artboard\n");
-
-                    engine->m_StateMachine = queue->instantiateDefaultStateMachine(engine->m_Artboard);
-                    if (engine->m_StateMachine)
-                    {
-                        printf("Created default state machine\n");
-
-                        engine->m_ViewModelInstance = queue->instantiateDefaultViewModelInstance(engine->m_File, engine->m_Artboard);
-                        if (engine->m_ViewModelInstance)
-                        {
-                            printf("Created default view model instance\n");
-
-                            queue->bindViewModelInstance(engine->m_StateMachine, engine->m_ViewModelInstance);
-                        }
-                    }
+                    queue->bindViewModelInstance(engine->m_StateMachine, engine->m_ViewModelInstance);
                 }
             }
         }
@@ -415,6 +408,11 @@ static void* EngineCreate(int argc, char** argv)
 static void EngineDestroy(void* _engine)
 {
     EngineCtx* engine = (EngineCtx*)_engine;
+
+    if (engine->m_FileMeta)
+    {
+        dmRive::FileMeta::DestroyFile(engine->m_FileMeta);
+    }
 
     dmRiveCommands::Finalize();
     dmRive::DeleteRenderContext(engine->m_RenderContext);
@@ -440,6 +438,10 @@ static void EngineDestroy(void* _engine)
 static void UpdateRiveScene(EngineCtx* engine)
 {
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    if (engine->m_StateMachine == RIVE_NULL_HANDLE)
+    {
+        return;
+    }
 
     static uint64_t last_update = dmTime::GetMonotonicTime();
     uint64_t time = dmTime::GetMonotonicTime();
@@ -451,6 +453,10 @@ static void UpdateRiveScene(EngineCtx* engine)
 static void DrawRiveScene(EngineCtx* engine)
 {
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    if (engine->m_Artboard == RIVE_NULL_HANDLE)
+    {
+        return;
+    }
 
     rive::Renderer* renderer = dmRive::GetRiveRenderer(engine->m_RenderContext);
 

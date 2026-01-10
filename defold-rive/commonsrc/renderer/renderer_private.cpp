@@ -7,13 +7,13 @@
 #include "renderer_context.h"
 #include "defold/renderer.h"
 
+#include "rive_math.h"
+
 #include <rive/shapes/image.hpp>
 #include <rive/renderer.hpp>
 #include <rive/renderer/texture.hpp>
 
 #include <rive/renderer/rive_render_image.hpp>
-
-#include <common/vertices.h>
 
 #include <assert.h>
 

@@ -83,6 +83,7 @@ target_sources(viewer PRIVATE ${RIVE_COMMON_SRC})
 
 target_include_directories(viewer PRIVATE
     "${EXTENSION_ROOT}/defold-rive/include"
+    "${EXTENSION_ROOT}/defold-rive/commonsrc"
     "${DYNAMO_HOME}/sdk/include/${TARGET_PLATFORM}"
     "${DYNAMO_HOME}/sdk/include"
     "${DYNAMO_HOME}/include/${TARGET_PLATFORM}"
@@ -153,6 +154,9 @@ target_compile_options(viewer PRIVATE
     $<$<NOT:$<CONFIG:Release>>:-O0>
     $<$<NOT:$<CONFIG:Release>>:-g>
 )
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(viewer PRIVATE -fno-rtti)
+endif()
 if(WITH_ASAN)
     target_compile_options(viewer PRIVATE -fsanitize=address)
     target_link_options(viewer PRIVATE -fsanitize=address)

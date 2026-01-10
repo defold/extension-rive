@@ -37,7 +37,7 @@ BUILD_DIR="${SCRIPT_DIR}/build/${TARGET_PLATFORM}"
 mkdir -p "${BUILD_DIR}"
 
 cmake -S "${SCRIPT_DIR}" -B "${BUILD_DIR}" -G Ninja \
-    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_BUILD_TYPE=Debug \
     -DTARGET_PLATFORM="${TARGET_PLATFORM}" \
     -DWITH_ASAN=${WITH_ASAN}
 cmake --build "${BUILD_DIR}" --target viewer

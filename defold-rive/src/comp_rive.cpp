@@ -21,10 +21,7 @@
 #include "res_rive_scene.h"
 #include "res_rive_model.h"
 
-#include <common/bones.h>
 #include <common/commands.h>
-#include <common/vertices.h>
-#include <common/factory.h>
 
 // Defold Rive Renderer
 #include <defold/rive.h>
