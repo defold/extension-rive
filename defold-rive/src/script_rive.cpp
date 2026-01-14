@@ -541,17 +541,15 @@ namespace dmRive
     {
         DM_LUA_STACK_CHECK(L, 0);
 
-        dmhash_t path_hash = dmScript::CheckHashOrString(L, 1);
-
         size_t payload_size = 0;
-        const char* payload = luaL_checklstring(L, 2, &payload_size);
+        const char* payload = luaL_checklstring(L, 1, &payload_size);
 
         rive::Factory* factory = GetRiveFactory(g_RenderContext);
         rive::rcp<rive::Font> font = dmRive::LoadFontFromMemory(factory, (void*)payload, payload_size);
 
         if (!font)
         {
-            return DM_LUA_ERROR("Failed to load font '%s' of size %u bytes!", dmHashReverseSafe64(path_hash), (uint32_t)payload_size);
+            return DM_LUA_ERROR("Failed to load font of size %u bytes!", (uint32_t)payload_size);
         }
 
         g_FallbackFont = font;
