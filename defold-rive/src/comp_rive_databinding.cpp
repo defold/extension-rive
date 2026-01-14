@@ -152,7 +152,6 @@ void DebugVMIR(rive::ViewModelInstanceRuntime* vmir)
 
 bool CompRiveSetViewModelInstanceRuntime(RiveComponent* component, uint32_t handle)
 {
-    dmLogInfo("Setting ViewModelInstanceRuntime");
     rive::ViewModelInstanceRuntime* vmir = FromHandle(component, handle);
     CHECK_VMIR(vmir, handle);
 

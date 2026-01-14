@@ -20,6 +20,7 @@ local BUTTONS = {
 	{ id = "outofband", text = "Out-of-band" },
 	{ id = "databind", text = "Data Bindings" },
 	{ id = "scrollist", text = "Scroll List" },
+	{ id = "fontfallback", text = "Font Fallback" },
  }
 local COLUMNS = 3
 local WIDTH = 220
