@@ -32,6 +32,7 @@
 
 #include <defold/rive.h>
 #include "file.h"
+#include "texture.h"
 #include <common/commands.h>
 
 namespace dmGraphics
@@ -53,6 +54,56 @@ typedef void (*EngineGetResultFn)(void* engine, int* run_action, int* exit_code,
 
 
 static const char* s_RiveFilePath = 0;
+static bool s_ScreenshotCaptured = false;
+
+static bool WriteTgaFile(const char* path, dmRive::TexturePixels* pixels)
+{
+    if (!path || !pixels || !pixels->m_Data || pixels->m_Width == 0 || pixels->m_Height == 0)
+    {
+        return false;
+    }
+
+    if (pixels->m_Format == dmGraphics::TEXTURE_FORMAT_RGBA)
+    {
+        uint32_t pixel_count = (uint32_t)pixels->m_Width * (uint32_t)pixels->m_Height;
+        uint8_t* data = pixels->m_Data;
+        for (uint32_t i = 0; i < pixel_count; ++i)
+        {
+            uint8_t tmp = data[0];
+            data[0] = data[2];
+            data[2] = tmp;
+            data += 4;
+        }
+        pixels->m_Format = dmGraphics::TEXTURE_FORMAT_BGRA8U;
+    }
+
+    if (pixels->m_Format != dmGraphics::TEXTURE_FORMAT_BGRA8U)
+    {
+        return false;
+    }
+
+    FILE* f = fopen(path, "wb");
+    if (!f)
+    {
+        return false;
+    }
+
+    // TGA header: image type, width/height, 32 bpp, 8-bit alpha, top-left origin.
+    uint8_t header[18];
+    memset(header, 0, sizeof(header));
+    header[2] = 2; // Uncompressed true-color image.
+    header[12] = (uint8_t)(pixels->m_Width & 0xFF); // Width (low byte).
+    header[13] = (uint8_t)((pixels->m_Width >> 8) & 0xFF); // Width (high byte).
+    header[14] = (uint8_t)(pixels->m_Height & 0xFF); // Height (low byte).
+    header[15] = (uint8_t)((pixels->m_Height >> 8) & 0xFF); // Height (high byte).
+    header[16] = 32; // Bits per pixel.
+    header[17] = 8 | 0x20; // 8-bit alpha, top-left origin.
+
+    fwrite(header, 1, sizeof(header), f);
+    fwrite(pixels->m_Data, 1, pixels->m_DataSize, f);
+    fclose(f);
+    return true;
+}
 
 static bool ReadFile(const char* path, std::vector<uint8_t>& out)
 {
@@ -571,6 +622,31 @@ static UpdateResult EngineUpdate(void* _engine)
     DrawFullscreenQuad(engine, dmRive::GetBackingTexture(engine->m_RenderContext));
 
     dmGraphics::Flip(engine->m_GraphicsContext);
+
+    if (!s_ScreenshotCaptured)
+    {
+        printf("Capturing screenshot...\n");
+        dmGraphics::HTexture backing_texture = dmRive::GetBackingTexture(engine->m_RenderContext);
+        dmRive::TexturePixels pixels = {};
+        if (dmRive::ReadPixels(backing_texture, &pixels))
+        {
+            const char* screenshot_path = "./screenshot.tga";
+            if (WriteTgaFile(screenshot_path, &pixels))
+            {
+                printf("Wrote screenshot %s\n", screenshot_path);
+            }
+            else
+            {
+                printf("Failed to write screenshot to %s\n", screenshot_path);
+            }
+            dmRive::FreePixels(&pixels);
+        }
+        else
+        {
+            printf("Failed to capture screenshot!\n");
+        }
+        s_ScreenshotCaptured = true;
+    }
 
     return RESULT_OK;
 }
