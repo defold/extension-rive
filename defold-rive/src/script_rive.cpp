@@ -509,7 +509,7 @@ namespace dmRive
         return 0;
     }
 
-    static int RiveComp_AddFontFallbackPath(lua_State* L)
+    static int RiveComp_SetFontFallbackPath(lua_State* L)
     {
         DM_LUA_STACK_CHECK(L, 0);
 
@@ -537,7 +537,7 @@ namespace dmRive
         return 0;
     }
 
-    static int RiveComp_AddFontFallbackMemory(lua_State* L)
+    static int RiveComp_SetFontFallbackMemory(lua_State* L)
     {
         DM_LUA_STACK_CHECK(L, 0);
 
@@ -556,7 +556,7 @@ namespace dmRive
         return 0;
     }
 
-    static int RiveComp_RemoveFontFallback(lua_State* L)
+    static int RiveComp_ClearFontFallback(lua_State* L)
     {
         DM_LUA_STACK_CHECK(L, 0);
         g_FallbackFont.reset();
@@ -595,9 +595,9 @@ namespace dmRive
         {"debug_set_blit_mode",     RiveComp_DebugSetBlitMode},
 
         {"riv_swap_asset",          RiveComp_RivSwapAsset},
-        {"add_font_fallback_path",  RiveComp_AddFontFallbackPath},
-        {"add_font_fallback_memory",RiveComp_AddFontFallbackMemory},
-        {"remove_font_fallback",    RiveComp_RemoveFontFallback},
+        {"set_font_fallback_path",  RiveComp_SetFontFallbackPath},
+        {"set_font_fallback_memory",RiveComp_SetFontFallbackMemory},
+        {"clear_font_fallback",     RiveComp_ClearFontFallback},
         {0, 0}
     };
 

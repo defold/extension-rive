@@ -6,10 +6,10 @@ function init(self)
 	msg.post(".", "acquire_input_focus")
 
 	self.fallback_path = "/main/fontfallback/LemonBrushArabicPersonalUseOnly-Regular-5277260.ttf"
-	--rive.add_font_fallback_path(self.fallback_path)
+	--rive.set_font_fallback_path(self.fallback_path)
 
 	local payload = sys.load_resource(self.fallback_path)
-	rive.add_font_fallback_memory(payload)
+	rive.set_font_fallback_memory(payload)
 
 	self.url = msg.url("#rive")
 	self.handle, err = rive.databind.create_view_model_instance_runtime(self.url, "") --select the first view model
@@ -25,7 +25,7 @@ function init(self)
 end
 
 function final(self)
-	rive.remove_font_fallback()
+	rive.clear_font_fallback()
 end
 
 function update(self, dt)

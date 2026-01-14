@@ -326,7 +326,7 @@
 
 #*****************************************************************************************************
 
-  - name: add_font_fallback_path
+  - name: set_font_fallback_path
     type: function
     desc: Register a fallback font from a file path. This font will be used if glyphs are missing in the current font. Note that only one font fallback can be active at any time.
 
@@ -337,7 +337,7 @@
 
 #*****************************************************************************************************
 
-  - name: add_font_fallback_memory
+  - name: set_font_fallback_memory
     type: function
     desc: Register a fallback font from a memory payload. This font will be used if glyphs are missing in the current font. Note that only one font fallback can be active at any time.
 
@@ -348,7 +348,7 @@
 
 #*****************************************************************************************************
 
-  - name: remove_font_fallback
+  - name: clear_font_fallback
     type: function
     desc: Clear any registered fallback font.
 
