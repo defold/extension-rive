@@ -29,8 +29,6 @@
 #include <dmsdk/resource/resource.h>
 #include <dmsdk/graphics/graphics.h>
 
-#include <dmsdk/gamesys/resources/res_font.h>
-
 #include <common/font.h>
 #include <defold/renderer.h>
 
