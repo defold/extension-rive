@@ -18,7 +18,7 @@ package = com.defold.extensionrive
 [project]
 title = extension-rive
 bundle_exclude_resources = utils
-custom_resources = /main/outofband/walle,/main/outofband/font
+custom_resources = /main/outofband/walle,/main/outofband/font,/main/fontfallback/LemonBrushArabicPersonalUseOnly-Regular-5277260.ttf
 dependencies#0 = https://github.com/andsve/dirtylarry/archive/master.zip
 
 [library]

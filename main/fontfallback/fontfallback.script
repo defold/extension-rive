@@ -1,13 +1,16 @@
 
--- CREDITS:
---  calc.riv is from user https://rive.app/@thefloridianfreak/:
--- https://rive.app/marketplace/19344-36364-supplied-mutliplication/
--- dynamic_modal.riv by https://rive.app/@drawsgood/:
---   https://rive.app/marketplace/19673-37017-dynamic-modal/
+-- Ticket:
+--  https://github.com/defold/extension-rive/issues/235
 
 function init(self)
 	msg.post(".", "acquire_input_focus")
 
+	self.fallback_path = "/main/fontfallback/LemonBrushArabicPersonalUseOnly-Regular-5277260.ttf"
+	--rive.add_font_fallback_path(self.fallback_path)
+
+	local payload = sys.load_resource(self.fallback_path)
+	rive.add_font_fallback_memory(self.fallback_path, payload)
+	
 	self.url = msg.url("#rive")
 	self.handle, err = rive.databind.create_view_model_instance_runtime(self.url, "") --select the first view model
 	if self.handle == nil then
@@ -17,16 +20,12 @@ function init(self)
 	rive.databind.set_view_model_instance_runtime(self.url, self.handle)
 
 	self.data = {}
-	self.data['Default text'] = "Localized text example"
-	self.data['Arabic text'] = "نص مترجم محليًا example"
+	self.data['Default text'] = "Localized text example" .. "\n" .. "نص مترجم محليًا example"
 	rive.databind.set_properties(self.url, self.handle, self.data)
-
 end
 
 function final(self)
-	-- Add finalization code here
-	-- Learn more: https://defold.com/manuals/script/
-	-- Remove this function if not needed
+	rive.remove_font_fallback(self.fallback_path)
 end
 
 function update(self, dt)

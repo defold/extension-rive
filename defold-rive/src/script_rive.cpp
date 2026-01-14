@@ -17,6 +17,9 @@
 #include <rive/animation/state_machine.hpp>
 #include <rive/animation/state_machine_instance.hpp>
 
+#include <rive/text_engine.hpp>
+#include <rive/assets/font_asset.hpp>
+
 #include <dmsdk/sdk.h>
 #include <dmsdk/dlib/hash.h>
 #include <dmsdk/dlib/message.h>
@@ -25,6 +28,11 @@
 #include <dmsdk/gamesys/script.h>
 #include <dmsdk/resource/resource.h>
 #include <dmsdk/graphics/graphics.h>
+
+#include <dmsdk/gamesys/resources/res_font.h>
+
+#include <common/font.h>
+#include <defold/renderer.h>
 
 #include "comp_rive.h"
 #include "comp_rive_private.h"
@@ -37,7 +45,9 @@ namespace dmRive
     static const char*    RIVE_EXT      = "rivc";
     static const dmhash_t RIVE_EXT_HASH = dmHashString64(RIVE_EXT);
 
-    static dmResource::HFactory g_Factory = 0;
+    static dmResource::HFactory     g_Factory = 0;
+    static dmRive::HRenderContext   g_RenderContext = 0;
+    static rive::rcp<rive::Font>    g_FallbackFont;
 
     /*# Rive model API documentation
      *
@@ -417,14 +427,14 @@ namespace dmRive
         return 1;
     }
 
-    const char* GetString(lua_State* L, int index, const char* key, uint32_t* out_length)
+    static const char* GetString(lua_State* L, const char* key, uint32_t* out_length)
     {
         const char* result = 0;
         lua_getfield(L, -1, key);
         if (lua_isstring(L, -1))
         {
             size_t len = 0;
-            result = lua_tolstring(L, index, &len);
+            result = lua_tolstring(L, -1, &len);
             if (out_length)
                 *out_length = (uint32_t)len;
         }
@@ -446,8 +456,8 @@ namespace dmRive
         luaL_checktype(L, 3, LUA_TTABLE);
         lua_pushvalue(L, 3);
 
-            path = GetString(L, -1, "path", 0);
-            payload = GetString(L, -1, "payload", &payload_size);
+            path = GetString(L, "path", 0);
+            payload = GetString(L, "payload", &payload_size);
 
         lua_pop(L, 1);
 
@@ -490,6 +500,72 @@ namespace dmRive
         return 0;
     }
 
+    static rive::rcp<rive::Font> RiveFontFallback(const rive::Unichar missing,
+                                                   const uint32_t fallbackIndex,
+                                                   const rive::Font* font)
+    {
+        if (g_FallbackFont)
+            return g_FallbackFont;
+        return 0;
+    }
+
+    static int RiveComp_AddFontFallbackPath(lua_State* L)
+    {
+        DM_LUA_STACK_CHECK(L, 0);
+
+        const char* path = luaL_checkstring(L, 1);
+        const char* resource = 0;
+        uint32_t resource_size = 0;
+
+        dmResource::Result r = dmResource::GetRaw(g_Factory, path, (void**)&resource, &resource_size);
+        if (dmResource::RESULT_OK != r)
+        {
+            return DM_LUA_ERROR("Resource was not found: '%s'", path);
+        }
+
+        rive::Factory* factory = GetRiveFactory(g_RenderContext);
+        rive::rcp<rive::Font> font = dmRive::LoadFontFromMemory(factory, (void*)resource, resource_size);
+
+        free((void*)resource);
+
+        if (!font)
+        {
+            return DM_LUA_ERROR("Failed to load font '%s' of size %u bytes!", path, resource_size);
+        }
+
+        g_FallbackFont = font;
+        return 0;
+    }
+
+    static int RiveComp_AddFontFallbackMemory(lua_State* L)
+    {
+        DM_LUA_STACK_CHECK(L, 0);
+
+        dmhash_t path_hash = dmScript::CheckHashOrString(L, 1);
+
+        size_t payload_size = 0;
+        const char* payload = luaL_checklstring(L, 2, &payload_size);
+
+        rive::Factory* factory = GetRiveFactory(g_RenderContext);
+        rive::rcp<rive::Font> font = dmRive::LoadFontFromMemory(factory, (void*)payload, payload_size);
+
+        if (!font)
+        {
+            return DM_LUA_ERROR("Failed to load font '%s' of size %u bytes!", dmHashReverseSafe64(path_hash), (uint32_t)payload_size);
+        }
+
+        g_FallbackFont = font;
+        return 0;
+    }
+
+    static int RiveComp_RemoveFontFallback(lua_State* L)
+    {
+        DM_LUA_STACK_CHECK(L, 0);
+        g_FallbackFont.reset();
+        return 0;
+    }
+
+
     // This is an "all bets are off" mode.
     static int RiveComp_DebugSetBlitMode(lua_State* L)
     {
@@ -521,6 +597,9 @@ namespace dmRive
         {"debug_set_blit_mode",     RiveComp_DebugSetBlitMode},
 
         {"riv_swap_asset",          RiveComp_RivSwapAsset},
+        {"add_font_fallback_path",  RiveComp_AddFontFallbackPath},
+        {"add_font_fallback_memory",RiveComp_AddFontFallbackMemory},
+        {"remove_font_fallback",    RiveComp_RemoveFontFallback},
         {0, 0}
     };
 
@@ -533,6 +612,19 @@ namespace dmRive
         lua_pop(L, 1);
 
         g_Factory = factory;
+
+        rive::Font::gFallbackProc = RiveFontFallback;
+    }
+
+    void ScriptUnregister(lua_State* L, dmResource::HFactory factory)
+    {
+        rive::Font::gFallbackProc = 0;
+        g_FallbackFont.reset();
+    }
+
+    void ScriptSetRenderContext(dmRive::HRenderContext rive_render_context)
+    {
+        g_RenderContext = rive_render_context;
     }
 }
 
