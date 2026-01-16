@@ -30,6 +30,10 @@ static dmExtension::Result AppFinalizeRive(dmExtension::AppParams* params)
 
 static dmExtension::Result FinalizeRive(dmExtension::Params* params)
 {
+#if !defined(DM_RIVE_UNSUPPORTED)
+    dmResource::HFactory factory = dmExtension::GetContextAsType<dmResource::HFactory>(params, "factory");
+    dmRive::ScriptUnregister(params->m_L, factory);
+#endif
     return dmExtension::RESULT_OK;
 }
 
