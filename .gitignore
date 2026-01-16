@@ -1,5 +1,7 @@
 /.internal
 /build
+/utils/plugin/build
+/utils/viewer/build
 .externalToolBuilders
 .DS_Store
 Thumbs.db
@@ -17,3 +19,4 @@ bob.jar
 manifest.*
 /main/ignore
 .src
+/hs_err_pi*
