@@ -14,10 +14,17 @@
 #define DM_GAMESYS_SCRIPT_RIVE_H
 
 #include <dmsdk/resource/resource.h>
+#include <dmsdk/script/script.h>
+
+// Extension includes
+#include <defold/renderer.h>
 
 namespace dmRive
 {
     void ScriptRegister(lua_State* L, dmResource::HFactory factory);
+    void ScriptUnregister(lua_State* L, dmResource::HFactory factory);
+
+    void ScriptSetRenderContext(dmRive::HRenderContext rive_render_context);
 }
 
 #endif // DM_GAMESYS_SCRIPT_RIVE_H

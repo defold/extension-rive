@@ -20,6 +20,7 @@
 namespace rive
 {
     class Font;
+    class Factory;
 }
 
 #include "defold/renderer.h"
@@ -29,6 +30,7 @@ namespace dmRive {
     // Gets the resource as a Raw payload, and loads a font from it
     rive::rcp<rive::Font> LoadFontFromFactory(dmResource::HFactory factory, HRenderContext context, const char* name);
     rive::rcp<rive::Font> LoadFontFromMemory(HRenderContext context, void* resource, uint32_t resource_size);
+    rive::rcp<rive::Font> LoadFontFromMemory(rive::Factory* factory, void* resource, uint32_t resource_size);
 
 } // namespace dmRive
 
