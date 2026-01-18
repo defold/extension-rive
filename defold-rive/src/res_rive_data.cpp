@@ -267,7 +267,7 @@ namespace dmRive
         if (_asset->is<rive::ImageAsset>())
         {
             rive::ImageAsset* asset = _asset->as<rive::ImageAsset>();
-            rive::rcp<rive::RenderImage> image = dmRive::LoadImageFromFactory(factory, resource->m_RiveRenderContext, path);
+            rive::rcp<rive::RenderImage> image = dmRive::LoadImageFromFactory(factory, resource->m_RiveRenderContext, path, false);
             if (!image)
             {
                 dmLogError("Failed to load asset '%s' with path '%s'", asset_name, path);
