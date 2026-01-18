@@ -59,7 +59,7 @@ namespace dmRive {
     };
 
     // Gets the resource as a Raw payload, and loads an image from it
-    rive::rcp<rive::RenderImage> LoadImageFromFactory(dmResource::HFactory factory, HRenderContext context, const char* name);
+    rive::rcp<rive::RenderImage> LoadImageFromFactory(dmResource::HFactory factory, HRenderContext context, const char* name, bool out_of_band);
     rive::rcp<rive::RenderImage> LoadImageFromMemory(HRenderContext context, void* resource, uint32_t resource_size);
 
     Atlas*      CreateAtlas(const dmGameSystemDDF::TextureSet* texture_set_ddf);
