@@ -191,6 +191,78 @@ namespace dmRive
             return texture;
         }
 
+        static wgpu::TextureFormat GetASTCFormat(uint8_t blockW, uint8_t blockH)
+        {
+            // ASTC block sizes mapped to WebGPU sRGB formats (correct for color textures).
+            // NOTE: Linear data (e.g. normal maps) would need Unorm variants instead,
+            // but ASTC files don't contain color space info. For now we assume sRGB.
+            if (blockW == 4 && blockH == 4)   return wgpu::TextureFormat::ASTC4x4UnormSrgb;
+            if (blockW == 5 && blockH == 4)   return wgpu::TextureFormat::ASTC5x4UnormSrgb;
+            if (blockW == 5 && blockH == 5)   return wgpu::TextureFormat::ASTC5x5UnormSrgb;
+            if (blockW == 6 && blockH == 5)   return wgpu::TextureFormat::ASTC6x5UnormSrgb;
+            if (blockW == 6 && blockH == 6)   return wgpu::TextureFormat::ASTC6x6UnormSrgb;
+            if (blockW == 8 && blockH == 5)   return wgpu::TextureFormat::ASTC8x5UnormSrgb;
+            if (blockW == 8 && blockH == 6)   return wgpu::TextureFormat::ASTC8x6UnormSrgb;
+            if (blockW == 8 && blockH == 8)   return wgpu::TextureFormat::ASTC8x8UnormSrgb;
+            if (blockW == 10 && blockH == 5)  return wgpu::TextureFormat::ASTC10x5UnormSrgb;
+            if (blockW == 10 && blockH == 6)  return wgpu::TextureFormat::ASTC10x6UnormSrgb;
+            if (blockW == 10 && blockH == 8)  return wgpu::TextureFormat::ASTC10x8UnormSrgb;
+            if (blockW == 10 && blockH == 10) return wgpu::TextureFormat::ASTC10x10UnormSrgb;
+            if (blockW == 12 && blockH == 10) return wgpu::TextureFormat::ASTC12x10UnormSrgb;
+            if (blockW == 12 && blockH == 12) return wgpu::TextureFormat::ASTC12x12UnormSrgb;
+            return wgpu::TextureFormat::Undefined;
+        }
+
+        rive::rcp<rive::gpu::Texture> MakeImageTextureASTC(uint32_t width,
+                                                          uint32_t height,
+                                                          uint8_t blockW,
+                                                          uint8_t blockH,
+                                                          const uint8_t astcData[],
+                                                          uint32_t astcDataSize) override
+        {
+            wgpu::TextureFormat format = GetASTCFormat(blockW, blockH);
+            if (format == wgpu::TextureFormat::Undefined)
+            {
+                dmLogError("Unsupported ASTC block size %dx%d", blockW, blockH);
+                return nullptr;
+            }
+
+            // All ASTC blocks are 16 bytes regardless of block dimensions
+            uint32_t blocksX = (width + blockW - 1) / blockW;
+            uint32_t blocksY = (height + blockH - 1) / blockH;
+            uint32_t bytesPerRow = blocksX * 16;
+            uint32_t expectedSize = blocksX * blocksY * 16;
+
+            if (astcDataSize < expectedSize)
+            {
+                dmLogError("ASTC data size %u is less than expected %u for %ux%u texture with %dx%d blocks",
+                           astcDataSize, expectedSize, width, height, blockW, blockH);
+                return nullptr;
+            }
+
+            wgpu::TextureDescriptor textureDesc = {
+                .usage = wgpu::TextureUsage::TextureBinding | wgpu::TextureUsage::CopyDst,
+                .dimension = wgpu::TextureDimension::e2D,
+                .size = {width, height},
+                .format = format,
+                .mipLevelCount = 1,
+            };
+
+            wgpu::Texture texture = m_Device.CreateTexture(&textureDesc);
+
+            wgpu::TexelCopyTextureInfo dest = {.texture = texture};
+            wgpu::TexelCopyBufferLayout layout = {.bytesPerRow = bytesPerRow};
+            wgpu::Extent3D extent = {width, height};
+
+            m_Queue.WriteTexture(&dest,
+                                 astcData,
+                                 astcDataSize,
+                                 &layout,
+                                 &extent);
+
+            return rive::make_rcp<rive::gpu::TextureWebGPUImpl>(width, height, std::move(texture));
+        }
+
     private:
         std::unique_ptr<rive::gpu::RenderContext> m_RenderContext;
         rive::rcp<rive::gpu::RenderTargetWebGPU>  m_RenderTarget;

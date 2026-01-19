@@ -173,6 +173,18 @@ namespace dmRive
             return texture;
         }
 
+        rive::rcp<rive::gpu::Texture> MakeImageTextureASTC(uint32_t width,
+                                                          uint32_t height,
+                                                          uint8_t blockW,
+                                                          uint8_t blockH,
+                                                          const uint8_t astcData[],
+                                                          uint32_t astcDataSize) override
+        {
+            // TODO: Implement ASTC texture loading for OpenGL
+            dmLogWarning("MakeImageTextureASTC not implemented for OpenGL");
+            return nullptr;
+        }
+
     private:
 
         void SetDefoldGraphicsState(dmGraphics::State state, bool flag)

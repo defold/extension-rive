@@ -13,6 +13,7 @@
 #include <common/atlas.h>
 #include <common/factory.h>
 #include <common/types.h>
+#include <common/astc.h>
 
 #include <dmsdk/dlib/dstrings.h>
 #include <dmsdk/dlib/hash.h>
@@ -207,6 +208,12 @@ namespace dmRive {
 
     rive::rcp<rive::RenderImage> LoadImageFromMemory(HRenderContext context, void* resource, uint32_t resource_size)
     {
+        // Auto-detect ASTC format
+        if (IsASTCData((const uint8_t*)resource, resource_size))
+        {
+            DEBUGLOG("Loading ASTC texture (%u bytes)", resource_size);
+            return CreateRiveRenderImageASTC(context, resource, resource_size);
+        }
         return CreateRiveRenderImage(context, resource, resource_size);
     }
 
@@ -267,7 +274,7 @@ namespace dmRive {
 
             if (!image)
             {
-                image = CreateRiveRenderImage(m_RiveRenderContext, (void*) inBandBytes.data(), inBandBytes.size());
+                image = LoadImageFromMemory(m_RiveRenderContext, (void*) inBandBytes.data(), inBandBytes.size());
                 DEBUGLOG("  In band asset: file: '%s' data: %u bytes", name.c_str(), (uint32_t)inBandBytes.size());
             }
 
