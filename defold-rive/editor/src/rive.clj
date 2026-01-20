@@ -212,12 +212,9 @@
                                    (g/connect bone :bone parent-id :child-bones))]
     bone-tx-data))
 
-(defn- tx-first-created [tx-data]
-  (get-in (first tx-data) [:node :_node-id]))
-
 (defn- create-bone-hierarchy [parent-id bone]
   (let [bone-tx-data (create-bone parent-id bone)
-        bone-id (tx-first-created bone-tx-data)
+        bone-id (first (g/tx-data-added-node-ids bone-tx-data))
         child-bones (.-children bone)
         children-tx-data (mapcat (fn [child] (create-bone-hierarchy bone-id child)) child-bones)]
     (concat bone-tx-data children-tx-data)))
