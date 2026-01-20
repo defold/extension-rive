@@ -1,6 +1,7 @@
 
 #include "renderer_context.h"
 
+#include <dmsdk/dlib/log.h>
 #include <rive/renderer/rive_renderer.hpp>
 #include <rive/renderer/texture.hpp>
 #include <rive/renderer/metal/render_context_metal_impl.h>
@@ -122,6 +123,18 @@ namespace dmRive
                 }
                 return renderContextImpl->makeImageTexture(width, height, mipLevelCount, imageDataRGBA);
             }
+        }
+
+        rive::rcp<rive::gpu::Texture> MakeImageTextureASTC(uint32_t width,
+                                                          uint32_t height,
+                                                          uint8_t blockW,
+                                                          uint8_t blockH,
+                                                          const uint8_t astcData[],
+                                                          uint32_t astcDataSize) override
+        {
+            // TODO: Implement ASTC texture loading for Metal
+            dmLogWarning("MakeImageTextureASTC not implemented for Metal");
+            return nullptr;
         }
 
     private:
