@@ -8,4 +8,4 @@ Defold [native extension](https://www.defold.com/manuals/extensions/) for intera
 
 # Platform support
 
-All platforms are supported except WebGL1, Android with armv7 and consoles. WebGL2 and arm64 for Android are supported however.
+All platforms are supported except WebGL1, Windows x86 and consoles.

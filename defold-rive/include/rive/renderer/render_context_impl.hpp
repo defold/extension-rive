@@ -69,6 +69,20 @@ public:
 
     virtual void preBeginFrame(RenderContext*) {}
 
+    // Returns true if the render context should end the drawList with a batch
+    // of type DrawType::renderPassResolve (and set "manuallyResolved" in the
+    // flush descriptor).
+    // This may be used, e.g., to manually resolve MSAA or to transfer pixels
+    // from an offscreen texture back to the main render target.
+    virtual bool wantsManualRenderPassResolve(
+        gpu::InterlockMode,
+        const RenderTarget*,
+        const IAABB& renderTargetUpdateBounds,
+        gpu::DrawContents combinedDrawContents) const
+    {
+        return false;
+    }
+
     // Perform any bookkeeping or other tasks that need to run before
     // RenderContext begins accessing GPU resources for the flush. (Update
     // counters, advance buffer pools, etc.)
@@ -113,6 +127,19 @@ public:
         // Override this method to support atlas feathering.
         assert(width == 0 && height == 0);
     }
+    // Not all APIs support pure memoryless pixel local storage. This optional
+    // resource is a space to store PLS data that does not persist outside a
+    // render pass. (Namely, coverage, clip, and scratch.)
+    // NOTE: It is specified as a TEXTURE_2D_ARRAY because that gets better
+    // cache performance on Intel Arc than separate textures.
+    constexpr static uint32_t PLS_TRANSIENT_BACKING_MAX_PLANE_COUNT = 3;
+    virtual void resizeTransientPLSBacking(uint32_t width,
+                                           uint32_t height,
+                                           uint32_t planeCount)
+    {}
+    // Used in atomic mode. Similar to transient PLS backing, except it's a
+    // single 2D resource that also supports atomic operations.
+    virtual void resizeAtomicCoverageBacking(uint32_t width, uint32_t height) {}
     virtual void resizeCoverageBuffer(size_t sizeInBytes)
     {
         // Override this method to support the experimental clockwiseAtomic

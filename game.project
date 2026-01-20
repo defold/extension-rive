@@ -18,12 +18,12 @@ package = com.defold.extensionrive
 [project]
 title = extension-rive
 bundle_exclude_resources = utils
-custom_resources = /main/outofband/walle,/main/outofband/font
+custom_resources = /main/outofband/walle,/main/outofband/font,/main/fontfallback/LemonBrushArabicPersonalUseOnly-Regular-5277260.ttf
 dependencies#0 = https://github.com/andsve/dirtylarry/archive/master.zip
 
 [library]
 include_dirs = defold-rive
-defold_min_version = 1.12.1
+defold_min_version = 1.12.0
 
 [graphics]
 max_draw_calls = 1024
@@ -41,7 +41,6 @@ clear_color_red = 0.25
 clear_color_green = 0.25
 clear_color_blue = 0.25
 clear_color_alpha = 1.0
-
 
 [rive]
 render_to_texture = 1

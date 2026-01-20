@@ -27,6 +27,7 @@
 
 // Extension includes
 #include "res_rive_data.h"
+#include "script_rive.h" // to set the render context
 #include "defold/renderer.h"
 #include <common/atlas.h>
 #include <common/font.h>
@@ -182,6 +183,8 @@ namespace dmRive
     {
         HRenderContext rive_render_context = NewRenderContext();
 
+        ScriptSetRenderContext(rive_render_context);
+
         return (ResourceResult)dmResource::SetupType(ctx,
                                                      type,
                                                      rive_render_context,
@@ -196,6 +199,7 @@ namespace dmRive
     static ResourceResult DeregisterResourceType_RiveData(HResourceTypeContext ctx, HResourceType type)
     {
         HRenderContext context = (HRenderContext)ResourceTypeGetContext(type);
+        ScriptSetRenderContext(0);
         DeleteRenderContext(context);
         return RESOURCE_RESULT_OK;
     }
@@ -267,7 +271,7 @@ namespace dmRive
         if (_asset->is<rive::ImageAsset>())
         {
             rive::ImageAsset* asset = _asset->as<rive::ImageAsset>();
-            rive::rcp<rive::RenderImage> image = dmRive::LoadImageFromFactory(factory, resource->m_RiveRenderContext, path);
+            rive::rcp<rive::RenderImage> image = dmRive::LoadImageFromFactory(factory, resource->m_RiveRenderContext, path, false);
             if (!image)
             {
                 dmLogError("Failed to load asset '%s' with path '%s'", asset_name, path);

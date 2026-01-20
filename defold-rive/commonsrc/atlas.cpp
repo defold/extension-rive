@@ -217,7 +217,7 @@ namespace dmRive {
         return CreateRiveRenderImage(context, resource, resource_size);
     }
 
-    rive::rcp<rive::RenderImage> LoadImageFromFactory(dmResource::HFactory factory, HRenderContext context, const char* path)
+    rive::rcp<rive::RenderImage> LoadImageFromFactory(dmResource::HFactory factory, HRenderContext context, const char* path, bool out_of_band)
     {
         if (!factory)
         {
@@ -236,7 +236,11 @@ namespace dmRive {
         dmResource::Result r = dmResource::GetRaw(factory, path_buffer, &resource, &resource_size);
         if (dmResource::RESULT_OK != r)
         {
-            dmLogError("Error getting file '%s': %d", path_buffer, r);
+            if (!out_of_band)
+            {
+                // If it's not during loading, we want to know the error
+                dmLogError("Error getting file '%s': %d", path_buffer, r);
+            }
             return rive::rcp<rive::RenderImage>();
         }
 
@@ -244,8 +248,8 @@ namespace dmRive {
     }
 
     AtlasNameResolver::AtlasNameResolver(dmResource::HFactory factory, HRenderContext context)
-    : m_Factory(factory)
-    , m_RiveRenderContext(context)
+    : m_RiveRenderContext(context)
+    , m_Factory(factory)
     {
     }
 
@@ -269,7 +273,13 @@ namespace dmRive {
 
             if (out_of_band)
             {
-                image = LoadImageFromFactory(m_Factory, m_RiveRenderContext, name.c_str());
+                image = LoadImageFromFactory(m_Factory, m_RiveRenderContext, name.c_str(), true);
+
+                if (!image)
+                {
+                    // Missing references is ok, as they may be added later
+                    return false;
+                }
             }
 
             if (!image)
