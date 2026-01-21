@@ -103,6 +103,8 @@ static void PrintCallstackUnsafe()
 }
 
 static int g_SignalDumpFd = -1;
+static SignalHandlerState g_SignalState;
+static int g_SignalStateDepth = 0;
 
 static bool ShouldDumpSignalFile()
 {
@@ -182,9 +184,6 @@ static void WriteLiteral(const char* msg, size_t len)
 
 static void SignalHandler(int signum, siginfo_t* info, void* context)
 {
-    (void)info;
-    (void)context;
-
     static const char msg_sigsegv[] = "Caught SIGSEGV\n";
     static const char msg_sigabrt[] = "Caught SIGABRT\n";
     static const char msg_sigbus[] = "Caught SIGBUS\n";
@@ -206,6 +205,38 @@ static void SignalHandler(int signum, siginfo_t* info, void* context)
     if (ShouldDumpSignalFile())
     {
         DumpCallstackToFile();
+    }
+
+    const struct sigaction* old_action = 0;
+    switch (signum)
+    {
+        case SIGSEGV: old_action = &g_SignalState.old_sigsegv; break;
+        case SIGABRT: old_action = &g_SignalState.old_sigabrt; break;
+        case SIGBUS:  old_action = &g_SignalState.old_sigbus; break;
+        case SIGILL:  old_action = &g_SignalState.old_sigill; break;
+        default: break;
+    }
+
+    if (old_action)
+    {
+        if (old_action->sa_flags & SA_SIGINFO)
+        {
+            void (*handler)(int, siginfo_t*, void*) = old_action->sa_sigaction;
+            if (handler &&
+                handler != (void (*)(int, siginfo_t*, void*))SIG_DFL &&
+                handler != (void (*)(int, siginfo_t*, void*))SIG_IGN)
+            {
+                handler(signum, info, context);
+            }
+        }
+        else
+        {
+            void (*handler)(int) = old_action->sa_handler;
+            if (handler && handler != SIG_DFL && handler != SIG_IGN)
+            {
+                handler(signum);
+            }
+        }
     }
 
     signal(signum, SIG_DFL);
@@ -302,18 +333,23 @@ ScopedSignalHandler::ScopedSignalHandler()
     if (!ShouldInstallSignalHandler())
         return;
 
-    MaybeOpenSignalDumpFile();
+    if (g_SignalStateDepth == 0)
+    {
+        MaybeOpenSignalDumpFile();
 
-    struct sigaction action;
-    memset(&action, 0, sizeof(action));
-    sigemptyset(&action.sa_mask);
-    action.sa_sigaction = SignalHandler;
-    action.sa_flags = SA_SIGINFO | SA_RESETHAND;
+        struct sigaction action;
+        memset(&action, 0, sizeof(action));
+        sigemptyset(&action.sa_mask);
+        action.sa_sigaction = SignalHandler;
+        action.sa_flags = SA_SIGINFO | SA_RESETHAND;
 
-    sigaction(SIGSEGV, &action, &m_State.old_sigsegv);
-    sigaction(SIGABRT, &action, &m_State.old_sigabrt);
-    sigaction(SIGBUS, &action, &m_State.old_sigbus);
-    sigaction(SIGILL, &action, &m_State.old_sigill);
+        sigaction(SIGSEGV, &action, &g_SignalState.old_sigsegv);
+        sigaction(SIGABRT, &action, &g_SignalState.old_sigabrt);
+        sigaction(SIGBUS, &action, &g_SignalState.old_sigbus);
+        sigaction(SIGILL, &action, &g_SignalState.old_sigill);
+        g_SignalState.installed = true;
+    }
+    g_SignalStateDepth++;
     m_State.installed = true;
 #endif
 }
@@ -324,10 +360,17 @@ ScopedSignalHandler::~ScopedSignalHandler()
     if (!m_State.installed)
         return;
 
-    sigaction(SIGSEGV, &m_State.old_sigsegv, 0);
-    sigaction(SIGABRT, &m_State.old_sigabrt, 0);
-    sigaction(SIGBUS, &m_State.old_sigbus, 0);
-    sigaction(SIGILL, &m_State.old_sigill, 0);
+    if (g_SignalStateDepth > 0)
+        g_SignalStateDepth--;
+
+    if (g_SignalStateDepth == 0 && g_SignalState.installed)
+    {
+        sigaction(SIGSEGV, &g_SignalState.old_sigsegv, 0);
+        sigaction(SIGABRT, &g_SignalState.old_sigabrt, 0);
+        sigaction(SIGBUS, &g_SignalState.old_sigbus, 0);
+        sigaction(SIGILL, &g_SignalState.old_sigill, 0);
+        g_SignalState.installed = false;
+    }
 #endif
 }
 

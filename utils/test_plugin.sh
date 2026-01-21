@@ -39,6 +39,39 @@ JNI_DEBUG_FLAGS="-Xcheck:jni"
 export DM_RIVE_LOG_LEVEL=DEBUG
 export DM_RIVE_ENABLE_SIGNAL_HANDLER=1
 
+DYN_PRELOAD_VAR=""
+JSIG_PATH=""
+if [ -n "${JAVA_HOME:-}" ]; then
+    if [ "Darwin" == "$(uname)" ]; then
+        if [ -f "${JAVA_HOME}/lib/libjsig.dylib" ]; then
+            JSIG_PATH="${JAVA_HOME}/lib/libjsig.dylib"
+        elif [ -f "${JAVA_HOME}/jre/lib/libjsig.dylib" ]; then
+            JSIG_PATH="${JAVA_HOME}/jre/lib/libjsig.dylib"
+        fi
+        DYN_PRELOAD_VAR="DYLD_INSERT_LIBRARIES"
+    else
+        if [ -f "${JAVA_HOME}/lib/libjsig.so" ]; then
+            JSIG_PATH="${JAVA_HOME}/lib/libjsig.so"
+        elif [ -f "${JAVA_HOME}/jre/lib/amd64/libjsig.so" ]; then
+            JSIG_PATH="${JAVA_HOME}/jre/lib/amd64/libjsig.so"
+        elif [ -f "${JAVA_HOME}/jre/lib/x86_64/libjsig.so" ]; then
+            JSIG_PATH="${JAVA_HOME}/jre/lib/x86_64/libjsig.so"
+        fi
+        DYN_PRELOAD_VAR="LD_PRELOAD"
+    fi
+fi
+
+if [ -n "${JSIG_PATH}" ]; then
+    if [ "${DYN_PRELOAD_VAR}" = "DYLD_INSERT_LIBRARIES" ]; then
+        export DYLD_FORCE_FLAT_NAMESPACE=1
+        export DYLD_INSERT_LIBRARIES="${JSIG_PATH}${DYLD_INSERT_LIBRARIES:+:${DYLD_INSERT_LIBRARIES}}"
+    else
+        export LD_PRELOAD="${JSIG_PATH}${LD_PRELOAD:+:${LD_PRELOAD}}"
+    fi
+else
+    echo "libjsig not found; skipping preload"
+fi
+
 DUMP_FILE="${SCRIPT_DIR}/../build/rive_signal_dump.log"
 mkdir -p "$(dirname "${DUMP_FILE}")"
 rm -f "${DUMP_FILE}"
