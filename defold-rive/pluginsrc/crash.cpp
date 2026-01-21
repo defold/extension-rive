@@ -215,10 +215,19 @@ static void SignalHandler(int signum, siginfo_t* info, void* context)
 
 static bool ShouldInstallSignalHandler()
 {
+    static int s_cached = -1;
+    if (s_cached != -1)
+        return s_cached != 0;
+
     const char* value = getenv("DM_RIVE_ENABLE_SIGNAL_HANDLER");
     if (value == 0 || value[0] == '\0')
+    {
+        s_cached = 0;
         return false;
-    return !(value[0] == '0' && value[1] == '\0');
+    }
+
+    s_cached = (value[0] == '0' && value[1] == '\0') ? 0 : 1;
+    return s_cached != 0;
 }
 
 static void MaybeOpenSignalDumpFile()
@@ -286,9 +295,10 @@ void HandleUnknownCppException(JNIEnv* env, const char* context)
     ThrowRuntimeException(env, message);
 }
 
-void MaybeInstallSignalHandler()
+ScopedSignalHandler::ScopedSignalHandler()
 {
 #if defined(__APPLE__) || defined(__linux__)
+    m_State.installed = false;
     if (!ShouldInstallSignalHandler())
         return;
 
@@ -300,10 +310,24 @@ void MaybeInstallSignalHandler()
     action.sa_sigaction = SignalHandler;
     action.sa_flags = SA_SIGINFO | SA_RESETHAND;
 
-    sigaction(SIGSEGV, &action, 0);
-    sigaction(SIGABRT, &action, 0);
-    sigaction(SIGBUS, &action, 0);
-    sigaction(SIGILL, &action, 0);
+    sigaction(SIGSEGV, &action, &m_State.old_sigsegv);
+    sigaction(SIGABRT, &action, &m_State.old_sigabrt);
+    sigaction(SIGBUS, &action, &m_State.old_sigbus);
+    sigaction(SIGILL, &action, &m_State.old_sigill);
+    m_State.installed = true;
+#endif
+}
+
+ScopedSignalHandler::~ScopedSignalHandler()
+{
+#if defined(__APPLE__) || defined(__linux__)
+    if (!m_State.installed)
+        return;
+
+    sigaction(SIGSEGV, &m_State.old_sigsegv, 0);
+    sigaction(SIGABRT, &m_State.old_sigabrt, 0);
+    sigaction(SIGBUS, &m_State.old_sigbus, 0);
+    sigaction(SIGILL, &m_State.old_sigill, 0);
 #endif
 }
 

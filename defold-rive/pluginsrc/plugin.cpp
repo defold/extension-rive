@@ -27,6 +27,9 @@ __declspec(dllexport) int dummyFunc()
 #include <stdio.h>
 #include <stdint.h>
 
+#include <defold/renderer.h>
+#include <common/commands.h>
+
 #include "jni/jni.h"
 
 #include "crash.h"
@@ -124,6 +127,7 @@ struct TypeRegister
 static jobject JNICALL Java_Rive_LoadFromBufferInternal(JNIEnv* env, jclass cls, jstring _path, jbyteArray array)
 {
     DM_CHECK_JNI_ERROR();
+    dmRiveCrash::ScopedSignalHandler signal_scope;
 
     dmDefoldJNI::ScopedString j_path(env, _path);
     const char* path = j_path.m_String;
@@ -157,6 +161,7 @@ static jobject JNICALL Java_Rive_LoadFromBufferInternal(JNIEnv* env, jclass cls,
 static void JNICALL Java_Rive_Destroy(JNIEnv* env, jclass cls, jobject rive_file)
 {
     DM_CHECK_JNI_ERROR();
+    dmRiveCrash::ScopedSignalHandler signal_scope;
     TypeRegister register_t(env);
     dmRiveJNI::DestroyFile(env, cls, rive_file);
     DM_CHECK_JNI_ERROR();
@@ -165,6 +170,7 @@ static void JNICALL Java_Rive_Destroy(JNIEnv* env, jclass cls, jobject rive_file
 static void JNICALL Java_Rive_Update(JNIEnv* env, jclass cls, jobject rive_file, jfloat dt, jbyteArray texture_set_bytes)
 {
     DM_CHECK_JNI_ERROR();
+    dmRiveCrash::ScopedSignalHandler signal_scope;
 
     jsize texture_set_size = 0;
     jbyte* texture_set_data = 0;
@@ -184,6 +190,7 @@ static void JNICALL Java_Rive_Update(JNIEnv* env, jclass cls, jobject rive_file,
 static void JNICALL Java_Rive_SetArtboard(JNIEnv* env, jclass cls, jobject rive_file, jstring _artboard)
 {
     DM_CHECK_JNI_ERROR();
+    dmRiveCrash::ScopedSignalHandler signal_scope;
 
     dmDefoldJNI::ScopedString j_artboard(env, _artboard);
     const char* name = j_artboard.m_String;
@@ -196,6 +203,7 @@ static void JNICALL Java_Rive_SetArtboard(JNIEnv* env, jclass cls, jobject rive_
 static void JNICALL Java_Rive_SetStateMachine(JNIEnv* env, jclass cls, jobject rive_file, jstring _artboard)
 {
     DM_CHECK_JNI_ERROR();
+    dmRiveCrash::ScopedSignalHandler signal_scope;
 
     dmDefoldJNI::ScopedString j_artboard(env, _artboard);
     const char* name = j_artboard.m_String;
@@ -208,6 +216,7 @@ static void JNICALL Java_Rive_SetStateMachine(JNIEnv* env, jclass cls, jobject r
 static void JNICALL Java_Rive_SetViewModel(JNIEnv* env, jclass cls, jobject rive_file, jstring _artboard)
 {
     DM_CHECK_JNI_ERROR();
+    dmRiveCrash::ScopedSignalHandler signal_scope;
 
     dmDefoldJNI::ScopedString j_artboard(env, _artboard);
     const char* name = j_artboard.m_String;
@@ -223,6 +232,30 @@ static void JNICALL Java_Rive_SetViewModel(JNIEnv* env, jclass cls, jobject rive
 //     return (jlong)(uintptr_t)object;
 // }
 
+dmRive::HRenderContext g_RenderContext = 0;
+
+static void PluginRiveInitialize()
+{
+    g_RenderContext = dmRive::NewRenderContext();
+    assert(g_RenderContext != 0);
+
+    dmRiveCommands::InitParams cmd_params;
+    cmd_params.m_UseThreads = true; // TODO: Use define and/or config flag
+    cmd_params.m_RenderContext = g_RenderContext;
+    cmd_params.m_Factory = dmRive::GetRiveFactory(g_RenderContext);
+    dmRiveCommands::Initialize(&cmd_params);
+}
+
+static void PluginRiveFinalize()
+{
+    if (g_RenderContext)
+    {
+        dmRiveCommands::Finalize();
+        dmRive::DeleteRenderContext(g_RenderContext);
+        g_RenderContext = 0;
+    }
+}
+
 JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
 {
     dmLogDebug("JNI_OnLoad Rive ->\n");
@@ -232,8 +265,6 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
         printf("JNI_OnLoad GetEnv error\n");
         return JNI_ERR;
     }
-
-    dmRiveCrash::MaybeInstallSignalHandler();
 
     // Find your class. JNI_OnLoad is called from the correct class loader context for this to work.
     jclass c = env->FindClass("com/dynamo/bob/pipeline/Rive");
@@ -260,6 +291,19 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
 
     if (rc != JNI_OK) return rc;
 
+    PluginRiveInitialize();
+
     dmLogDebug("JNI_OnLoad return.\n");
     return JNI_VERSION_1_8;
+}
+
+JNIEXPORT void JNI_OnUnload(JavaVM* vm, void* reserved)
+{
+    (void)vm;
+    (void)reserved;
+    dmLogDebug("JNI_OnUnload Rive ->\n");
+
+    PluginRiveFinalize();
+
+    dmLogDebug("JNI_OnUnload return.\n");
 }

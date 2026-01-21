@@ -15,11 +15,41 @@
 
 #include "jni/jni.h"
 
+#if defined(__APPLE__) || defined(__linux__)
+#include <signal.h>
+#endif
+
 namespace dmRiveCrash
 {
     void HandleCppException(JNIEnv* env, const char* context, const char* message);
     void HandleUnknownCppException(JNIEnv* env, const char* context);
-    void MaybeInstallSignalHandler();
+
+#if defined(__APPLE__) || defined(__linux__)
+    struct SignalHandlerState
+    {
+        bool installed;
+        struct sigaction old_sigsegv;
+        struct sigaction old_sigabrt;
+        struct sigaction old_sigbus;
+        struct sigaction old_sigill;
+    };
+
+    class ScopedSignalHandler
+    {
+    public:
+        ScopedSignalHandler();
+        ~ScopedSignalHandler();
+    private:
+        SignalHandlerState m_State;
+    };
+#else
+    class ScopedSignalHandler
+    {
+    public:
+        ScopedSignalHandler() {}
+        ~ScopedSignalHandler() {}
+    };
+#endif
 }
 
 #endif
