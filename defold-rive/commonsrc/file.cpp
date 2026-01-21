@@ -200,11 +200,7 @@ RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char*
     out->m_FileListener = new MetadataListener(out);
     out->m_ArtboardListener = new ArtboardMetadataListener(out);
 
-    printf("LoadFileFromBuffer: %s sz: %u\n", path, buffer_size);
-
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
-
-printf("LoadFileFromBuffer: %s sz: %u\n", path, buffer_size);
 
     MetadataListener* listener = out->m_FileListener;
     out->m_File = queue->loadFile(bytes, listener);
