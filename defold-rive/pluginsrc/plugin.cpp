@@ -27,14 +27,9 @@ __declspec(dllexport) int dummyFunc()
 #include <stdio.h>
 #include <stdint.h>
 
-#include <common/factory.h>
-#include <common/atlas.h>
-#include <common/bones.h>
-#include <common/vertices.h>
-#include <common/tess_renderer.h>
-
 #include "jni/jni.h"
 
+#include "crash.h"
 #include "defold_jni.h"
 #include "render_jni.h"
 #include "rive_jni.h"
@@ -182,7 +177,7 @@ static void JNICALL Java_Rive_Update(JNIEnv* env, jclass cls, jobject rive_file,
     }
 
     TypeRegister register_t(env);
-    dmRiveJNI::Update(env, cls, rive_file, dt, (const uint8_t*) texture_set_data, (uint32_t) texture_set_size);
+    dmRiveJNI::Update(env, cls, rive_file, dt);
     DM_CHECK_JNI_ERROR();
 }
 
@@ -191,10 +186,34 @@ static void JNICALL Java_Rive_SetArtboard(JNIEnv* env, jclass cls, jobject rive_
     DM_CHECK_JNI_ERROR();
 
     dmDefoldJNI::ScopedString j_artboard(env, _artboard);
-    const char* artboard = j_artboard.m_String;
+    const char* name = j_artboard.m_String;
 
     TypeRegister register_t(env);
-    dmRiveJNI::SetArtboard(env, cls, rive_file, artboard);
+    dmRiveJNI::SetArtboard(env, cls, rive_file, name);
+    DM_CHECK_JNI_ERROR();
+}
+
+static void JNICALL Java_Rive_SetStateMachine(JNIEnv* env, jclass cls, jobject rive_file, jstring _artboard)
+{
+    DM_CHECK_JNI_ERROR();
+
+    dmDefoldJNI::ScopedString j_artboard(env, _artboard);
+    const char* name = j_artboard.m_String;
+
+    TypeRegister register_t(env);
+    dmRiveJNI::SetStateMachine(env, cls, rive_file, name);
+    DM_CHECK_JNI_ERROR();
+}
+
+static void JNICALL Java_Rive_SetViewModel(JNIEnv* env, jclass cls, jobject rive_file, jstring _artboard)
+{
+    DM_CHECK_JNI_ERROR();
+
+    dmDefoldJNI::ScopedString j_artboard(env, _artboard);
+    const char* name = j_artboard.m_String;
+
+    TypeRegister register_t(env);
+    dmRiveJNI::SetViewModel(env, cls, rive_file, name);
     DM_CHECK_JNI_ERROR();
 }
 
@@ -214,6 +233,8 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
         return JNI_ERR;
     }
 
+    dmRiveCrash::MaybeInstallSignalHandler();
+
     // Find your class. JNI_OnLoad is called from the correct class loader context for this to work.
     jclass c = env->FindClass("com/dynamo/bob/pipeline/Rive");
     dmLogDebug("JNI_OnLoad: c = %p\n", c);
@@ -226,8 +247,10 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
     static const JNINativeMethod methods[] = {
         DM_JNI_FUNCTION(LoadFromBufferInternal, "(Ljava/lang/String;[B)Lcom/dynamo/bob/pipeline/Rive$RiveFile;"),
         DM_JNI_FUNCTION(Destroy, "(Lcom/dynamo/bob/pipeline/Rive$RiveFile;)V"),
-        DM_JNI_FUNCTION(Update, "(Lcom/dynamo/bob/pipeline/Rive$RiveFile;F[B)V"),
+        DM_JNI_FUNCTION(Update, "(Lcom/dynamo/bob/pipeline/Rive$RiveFile;F)V"),
         DM_JNI_FUNCTION(SetArtboard, "(Lcom/dynamo/bob/pipeline/Rive$RiveFile;Ljava/lang/String;)V"),
+        DM_JNI_FUNCTION(SetStateMachine, "(Lcom/dynamo/bob/pipeline/Rive$RiveFile;Ljava/lang/String;)V"),
+        DM_JNI_FUNCTION(SetViewModel, "(Lcom/dynamo/bob/pipeline/Rive$RiveFile;Ljava/lang/String;)V")
         //DM_JNI_FUNCTION(AddressOf, "(Ljava/lang/Object;)J"),
     };
     #undef DM_JNI_FUNCTION
@@ -240,4 +263,3 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
     dmLogDebug("JNI_OnLoad return.\n");
     return JNI_VERSION_1_8;
 }
-

@@ -21,24 +21,36 @@
 
 namespace dmRive
 {
-namespace FileMeta
-{
+    class MetadataListener;
+    class ArtboardMetadataListener;
+
     struct RiveFile
     {
         const char*                  m_Path;
         dmArray<const char*>         m_Artboards;
-        dmArray<const char*>         m_StateMachines;
         dmArray<const char*>         m_ViewModels;
+        dmArray<const char*>         m_StateMachines; // The available state machines for the current artboard
+
         rive::FileHandle             m_File;
         rive::ArtboardHandle         m_Artboard;
         rive::StateMachineHandle     m_StateMachine;
         rive::ViewModelInstanceHandle m_ViewModelInstance;
+
+        MetadataListener*            m_FileListener;
+        ArtboardMetadataListener*    m_ArtboardListener;
     };
 
     RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char* path);
     void      DestroyFile(RiveFile* file);
     void      DebugPrintFileState(const RiveFile* file);
-} // namespace FileMeta
+
+    void Update(RiveFile* file, float dt);
+
+    void SetArtboard(RiveFile* file, const char* artboard);
+    void SetStatemachine(RiveFile* file, const char* state_machine);
+    void SetViewModel(RiveFile* file, const char* view_model);
+
+    //jobject GetTexture(RiveFile* file);
 } // namespace dmRive
 
 #endif // DM_RIVE_COMMONSRC_FILE_H

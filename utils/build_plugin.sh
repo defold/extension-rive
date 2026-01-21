@@ -11,8 +11,9 @@ if [ $# -lt 1 ]; then
 fi
 
 PLATFORM="$1"
-CONFIG="RelWithDebInfo"
-BUILD_DIR="${SCRIPT_DIR}/cmake/build/out_${PLATFORM}"
+#CONFIG="RelWithDebInfo"
+CONFIG="Debug"
+BUILD_DIR="${REPO_ROOT}/build/plugin/${PLATFORM}"
 
 EXTENDER_PLATFORM="${PLATFORM}"
 case $PLATFORM in
@@ -78,7 +79,8 @@ if [ -n "${PROTOC:-}" ] && [ -x "${PROTOC}" ]; then
     PROTOC_DIR="$(dirname "${PROTOC}")"
     export PATH="${PROTOC_DIR}:${PATH}"
 else
-    PROTOBUF_BIN="${REPO_ROOT}/build/bin/${HOST_PLATFORM}"
+    #PROTOBUF_BIN="${REPO_ROOT}/build/bin/${HOST_PLATFORM}"
+    PROTOBUF_BIN="${DYNAMO_HOME}/ext/bin/${HOST_PLATFORM}"
     if [ -d "${PROTOBUF_BIN}" ]; then
         export PATH="${PROTOBUF_BIN}:${PATH}"
     else
@@ -93,6 +95,7 @@ mkdir -p "${BUILD_DIR}"
 
 cmake -S "${SCRIPT_DIR}/plugin" -B "${BUILD_DIR}" \
     -DTARGET_PLATFORM="${PLATFORM}" \
+    -DCMAKE_BUILD_TYPE="${CONFIG}" \
     -DCMAKE_VERBOSE_MAKEFILE=ON \
     -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" \
     -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \

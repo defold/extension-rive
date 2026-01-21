@@ -170,7 +170,7 @@ struct EngineCtx
 
     // Rive related
     dmRive::HRenderContext m_RenderContext;
-    dmRive::FileMeta::RiveFile* m_FileMeta;
+    dmRive::RiveFile* m_FileMeta;
 
     rive::FileHandle                m_File;
     rive::ArtboardHandle            m_Artboard;
@@ -431,12 +431,12 @@ static void* EngineCreate(int argc, char** argv)
         std::vector<uint8_t> bytes;
         if (ReadFile(s_RiveFilePath, bytes))
         {
-            engine->m_FileMeta = dmRive::FileMeta::LoadFileFromBuffer(bytes.data(), bytes.size(), s_RiveFilePath);
+            engine->m_FileMeta = dmRive::LoadFileFromBuffer(bytes.data(), bytes.size(), s_RiveFilePath);
             if (engine->m_FileMeta)
             {
                 printf("Loaded file\n");
 
-                dmRive::FileMeta::DebugPrintFileState(engine->m_FileMeta);
+                dmRive::DebugPrintFileState(engine->m_FileMeta);
 
                 engine->m_File = engine->m_FileMeta->m_File;
                 engine->m_Artboard = engine->m_FileMeta->m_Artboard;
@@ -462,7 +462,7 @@ static void EngineDestroy(void* _engine)
 
     if (engine->m_FileMeta)
     {
-        dmRive::FileMeta::DestroyFile(engine->m_FileMeta);
+        dmRive::DestroyFile(engine->m_FileMeta);
     }
 
     dmRiveCommands::Finalize();

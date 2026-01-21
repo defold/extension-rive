@@ -4,14 +4,6 @@
 
 package com.dynamo.bob.pipeline;
 
-import com.dynamo.bob.pipeline.DefoldJNI.Aabb;
-import com.dynamo.bob.pipeline.DefoldJNI.Vec4;
-import com.dynamo.bob.pipeline.DefoldJNI.Matrix4;
-import com.dynamo.bob.pipeline.RenderJNI.Constant;
-import com.dynamo.bob.pipeline.RenderJNI.StencilTestFunc;
-import com.dynamo.bob.pipeline.RenderJNI.StencilTestParams;
-import com.dynamo.bob.pipeline.RenderJNI.RenderObject;
-
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.FileInputStream;
@@ -64,68 +56,33 @@ public class Rive {
         loadLibrary("libRiveExt" + getLibrarySuffix());
     }
 
-
-    public static class StateMachineInput {
-        public String               name;
-        public String               type;
-    }
-
-    public static class StateMachine {
-        public String               name;
-        public StateMachineInput[]  inputs;
-    }
-
-    public static class ArtboardIdList {
-        public String         artboardId;
-        public StateMachine[] stateMachines;
-        public String[]       animations;
-    }
-
-    public static class Bone {
-        public String   name;
-        public int      index;
-        public Bone     parent;
-        public Bone[]   children;
-
-        public float    posX;
-        public float    posY;
-        public float    scaleX;
-        public float    scaleY;
-        public float    rotation;
-        public float    length;
-
-    }
-
     public static native RiveFile LoadFromBufferInternal(String path, byte[] buffer);
     public static native void Destroy(RiveFile rive_file);
-    public static native void Update(RiveFile rive_file, float dt, byte[] texture_set_buffer);
-    public static native void SetArtboard(RiveFile rive_file, String artboard);
+    public static native void Update(RiveFile rive_file, float dt);
+    public static native void SetArtboard(RiveFile rive_file, String name);
+    public static native void SetStateMachine(RiveFile rive_file, String name);
+    public static native void SetViewModel(RiveFile rive_file, String name);
     public static native void DebugPrint();
 
     public static class RiveFile {
         public String           path;
         public long             pointer;
-        public Aabb             aabb;
-        public float[]          vertices;
-        public int[]            indices;
-        public ArtboardIdList[] artboardId;
-        public Bone[]           bones;
-        public RenderObject[]   renderObjects;
-        public byte[]           texture_set_bytes;
         public String[]         artboards;
+        public String[]         stateMachines;
+        public String[]         viewModels;
 
         public void Destroy() {
             Rive.Destroy(this);
         }
 
         public void Update(float dt) {
-            Rive.Update(this, dt, texture_set_bytes);
+            Rive.Update(this, dt);
         }
     }
 
-    public static void UpdateInternal(RiveFile rive_file, float dt, byte[] texture_set_pb)
+    public static void UpdateInternal(RiveFile rive_file, float dt)
     {
-        Rive.Update(rive_file, dt, texture_set_pb);
+        Rive.Update(rive_file, dt);
     }
 
     public static void SetArtboardInternal(RiveFile rive_file, String artboard)
@@ -167,123 +124,6 @@ public class Rive {
         }
     }
 
-    private static void DebugStateMachine(StateMachine sm)
-    {
-        PrintIndent(1);
-        System.out.printf("StateMachine: %s\n", sm.name);
-        PrintIndent(2);
-        System.out.printf("inputs\n");
-        for (StateMachineInput input : sm.inputs)
-        {
-            PrintIndent(2);
-            System.out.printf("name: '%s'  type: %s\n", input.name, input.type);
-        }
-    }
-
-    private static void DebugBone(Bone bone, int indent)
-    {
-        if (bone == null)
-            System.out.printf("Bone is null\n");
-        PrintIndent(indent+1); System.out.printf("Bone %d: '%s'\n", bone.index, bone.name);
-        PrintIndent(indent+2); System.out.printf("parent: %s\n", bone.parent != null ? bone.parent.name : "-");
-        PrintIndent(indent+2); System.out.printf("pos:   %f, %f\n", bone.posX, bone.posY);
-        PrintIndent(indent+2); System.out.printf("scale: %f, %f\n", bone.scaleX, bone.scaleY);
-        PrintIndent(indent+2); System.out.printf("rotation/length: %f, %f\n", bone.rotation, bone.length);
-
-        for (Bone child : bone.children) {
-            DebugBone(child, indent+1);
-        }
-    }
-
-    private static void DebugConstantBuffer(Constant[] constants, int indent)
-    {
-        for (Constant constant : constants)
-        {
-            PrintIndent(indent); System.out.printf("constant: name: %d  values:\n", constant.nameHash);
-            for (Vec4 value : constant.values)
-            {
-                PrintIndent(indent+1); System.out.printf("(%f, %f, %f, %f)\n", value.x, value.y, value.z, value.w);
-            }
-        }
-    }
-
-    private static void DebugStencilTestFunc(String name, StencilTestFunc func, int indent)
-    {
-        PrintIndent(indent+0); System.out.printf("StencilTestFunc %s:\n", name);
-        PrintIndent(indent+1); System.out.printf("func:     %d\n", func.func);
-        PrintIndent(indent+1); System.out.printf("opSFail:  %d\n", func.opSFail);
-        PrintIndent(indent+1); System.out.printf("opDPFail: %d\n", func.opDPFail);
-        PrintIndent(indent+1); System.out.printf("opDPPass: %d\n", func.opDPPass);
-    }
-    private static void DebugStencilTestParams(StencilTestParams params, int indent)
-    {
-        PrintIndent(indent+0); System.out.printf("StencilTestParams:\n");
-        DebugStencilTestFunc("front", params.front, indent+1);
-        DebugStencilTestFunc("back", params.back, indent+1);
-        PrintIndent(indent+1); System.out.printf("ref:                  %d\n", params.ref);
-        PrintIndent(indent+1); System.out.printf("refMask:              %d\n", params.refMask);
-        PrintIndent(indent+1); System.out.printf("bufferMask:           %d\n", params.bufferMask);
-        PrintIndent(indent+1); System.out.printf("colorBufferMask:      %d\n", params.colorBufferMask);
-        PrintIndent(indent+1); System.out.printf("clearBuffer:          %d\n", params.clearBuffer);
-        PrintIndent(indent+1); System.out.printf("separateFaceStates:   %d\n", params.separateFaceStates);
-    }
-
-    private static void DebugRenderObject(RenderObject ro, int index)
-    {
-        PrintIndent(1); System.out.printf("RenderObject %d:\n", index);
-
-        PrintIndent(2); System.out.printf("constantBuffer:\n");
-        DebugConstantBuffer(ro.constantBuffer, 3);
-
-        // PrintIndent(2); System.out.printf("worldTransform:          %d\n", ro.worldTransform);         // dmVMath::Matrix4
-        // PrintIndent(2); System.out.printf("textureTransform:        %d\n", ro.textureTransform);       // dmVMath::Matrix4
-        PrintIndent(2); System.out.printf("vertexBuffer:            %d\n", ro.vertexBuffer);           // dmGraphics::HVertexBuffer
-        PrintIndent(2); System.out.printf("vertexDeclaration:       %d\n", ro.vertexDeclaration);      // dmGraphics::HVertexDeclaration
-        PrintIndent(2); System.out.printf("indexBuffer:             %d\n", ro.indexBuffer);            // dmGraphics::HIndexBuffer
-        PrintIndent(2); System.out.printf("material:                %d\n", ro.material);               // HMaterial
-        //PrintIndent(2); System.out.printf("textures:                %d\n", ro.textures);               //[MAX_TEXTURE_COUNT]; // dmGraphics::HTexture
-        PrintIndent(2); System.out.printf("primitiveType:           %d\n", ro.primitiveType);          // dmGraphics::PrimitiveType
-        PrintIndent(2); System.out.printf("indexType:               %d\n", ro.indexType);              // dmGraphics::Type
-        PrintIndent(2); System.out.printf("sourceBlendFactor:       %d\n", ro.sourceBlendFactor);      // dmGraphics::BlendFactor
-        PrintIndent(2); System.out.printf("destinationBlendFactor:  %d\n", ro.destinationBlendFactor); // dmGraphics::BlendFactor
-        PrintIndent(2); System.out.printf("faceWinding:             %d\n", ro.faceWinding);            // dmGraphics::FaceWinding
-        PrintIndent(2); System.out.printf("vertexStart:             %d\n", ro.vertexStart);            // uint32_t
-        PrintIndent(2); System.out.printf("vertexCount:             %d\n", ro.vertexCount);            // uint32_t
-        PrintIndent(2); System.out.printf("setBlendFactors:         %s\n", ro.setBlendFactors?"true":"false");        // uint8_t :1
-        PrintIndent(2); System.out.printf("setStencilTest:          %s\n", ro.setStencilTest?"true":"false");         // uint8_t :1
-        PrintIndent(2); System.out.printf("setFaceWinding:          %s\n", ro.setFaceWinding?"true":"false");         // uint8_t :1
-        DebugStencilTestParams(ro.stencilTestParams, 2);
-    }
-
-    private static void DebugVertex(float[] vertices, int index)
-    {
-        PrintIndent(1); System.out.printf("vtx %d:   %f, %f, %f, %f\n", index,
-                                            vertices[index*4+0],
-                                            vertices[index*4+1],
-                                            vertices[index*4+2],
-                                            vertices[index*4+3]);
-    }
-
-    private static void DebugTriangle(int[] indices, int index)
-    {
-        PrintIndent(1); System.out.printf("tri %d:   %d, %d, %d\n", index,
-                                            indices[index*3+0],
-                                            indices[index*3+1],
-                                            indices[index*3+2]);
-    }
-
-    private static void DebugVec4(String name, Vec4 v, int indent)
-    {
-        PrintIndent(indent); System.out.printf("%s: %f, %f, %f, %f\n", name, v.x, v.y, v.z, v.w);
-    }
-
-    private static void DebugAabb(String name, Aabb aabb, int indent)
-    {
-        PrintIndent(indent); System.out.printf("%s\n", name!=null?name:"aabb");
-        DebugVec4("min", aabb.min, indent+1);
-        DebugVec4("max", aabb.max, indent+1);
-    }
-
     // ./utils/test_plugin.sh <rive scene path>
     public static void main(String[] args) throws IOException {
         System.setProperty("java.awt.headless", "true");
@@ -308,75 +148,33 @@ public class Rive {
 
         System.out.printf("Java: hashCode: %d\n", rive_file.hashCode());
 
-        DebugAabb("AABB", rive_file.aabb, 0);
-
         rive_file.Update(0.0f);
 
         System.out.printf("--------------------------------\n");
 
         System.out.printf("Num artboards: %d\n", rive_file.artboards.length);
-        for (String artboard : rive_file.artboards)
+        for (String name : rive_file.artboards)
         {
             PrintIndent(1);
-            System.out.printf("'%s'\n", artboard);
+            System.out.printf("'%s'\n", name);
         }
 
         System.out.printf("--------------------------------\n");
 
-        System.out.printf("Num artboard id lists: %d\n", rive_file.artboardId.length);
-        for (ArtboardIdList artboardIdEntry : rive_file.artboardId) {
+        System.out.printf("Num state machines: %d\n", rive_file.stateMachines.length);
+        for (String name : rive_file.stateMachines)
+        {
             PrintIndent(1);
-            System.out.printf("Id: %s\n", artboardIdEntry.artboardId);
+            System.out.printf("'%s'\n", name);
+        }
 
+        System.out.printf("--------------------------------\n");
+
+        System.out.printf("Num view models: %d\n", rive_file.viewModels.length);
+        for (String name : rive_file.viewModels)
+        {
             PrintIndent(1);
-            System.out.printf("Num animations: %d\n", artboardIdEntry.animations.length);
-
-            for (String animation : artboardIdEntry.animations) {
-                PrintIndent(2);
-                System.out.printf("%s\n", animation);
-            }
-
-            PrintIndent(1);
-            System.out.printf("Num state machines: %d\n", artboardIdEntry.stateMachines.length);
-
-            for (StateMachine stateMachine : artboardIdEntry.stateMachines) {
-                DebugStateMachine(stateMachine);
-            }
-        }
-
-        System.out.printf("--------------------------------\n");
-
-        System.out.printf("Bones:\n");
-        for (Bone bone : rive_file.bones)
-        {
-            DebugBone(bone, 0);
-        }
-
-        System.out.printf("--------------------------------\n");
-
-        System.out.printf("Num render objects: %d\n", rive_file.renderObjects.length);
-        int j = 0;
-        for (RenderObject ro : rive_file.renderObjects)
-        {
-            DebugRenderObject(ro, j++);
-        }
-
-        System.out.printf("--------------------------------\n");
-
-        int num_vertices = rive_file.vertices.length/4;
-        System.out.printf("Num vertices: %d\n", num_vertices);
-        for (int i = 0; i < num_vertices; ++i)
-        {
-            DebugVertex(rive_file.vertices, i);
-        }
-
-        System.out.printf("--------------------------------\n");
-
-        int num_triangles = rive_file.indices.length/3;
-        System.out.printf("Num triangles: %d\n", num_triangles);
-        for (int i = 0; i < num_triangles; ++i)
-        {
-            DebugTriangle(rive_file.indices, i);
+            System.out.printf("'%s'\n", name);
         }
 
         rive_file.Destroy();

@@ -20,6 +20,19 @@ if(NOT TARGET_PLATFORM)
     message(FATAL_ERROR "TARGET_PLATFORM must be provided (via -DTARGET_PLATFORM=...)")
 endif()
 
+set(PLUGIN_BUILD_DIR "${REPO_ROOT}/build/plugin/${TARGET_PLATFORM}")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${PLUGIN_BUILD_DIR}")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PLUGIN_BUILD_DIR}")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PLUGIN_BUILD_DIR}")
+if(CMAKE_CONFIGURATION_TYPES)
+    foreach(config ${CMAKE_CONFIGURATION_TYPES})
+        string(TOUPPER "${config}" config_upper)
+        set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_${config_upper} "${PLUGIN_BUILD_DIR}")
+        set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_${config_upper} "${PLUGIN_BUILD_DIR}")
+        set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${config_upper} "${PLUGIN_BUILD_DIR}")
+    endforeach()
+endif()
+
 if(NOT DEFINED ENV{DYNAMO_HOME} OR "$ENV{DYNAMO_HOME}" STREQUAL "")
     message(FATAL_ERROR "DYNAMO_HOME environment variable is required")
 endif()
@@ -131,7 +144,7 @@ file(GLOB_RECURSE GLOB_JAVA_SOURCES
     CONFIGURE_DEPENDS
     "${REPO_ROOT}/defold-rive/pluginsrc/com/*.java"
 )
-set(GENERATED_PROTO_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated-java")
+set(GENERATED_PROTO_DIR "${PLUGIN_BUILD_DIR}/generated-java")
 set(GENERATED_PROTO_JAVA "${GENERATED_PROTO_DIR}/com/dynamo/rive/proto/Rive.java")
 set(PROTO_FILE "${REPO_ROOT}/defold-rive/commonsrc/rive_ddf.proto")
 
@@ -163,6 +176,9 @@ file(GLOB_RECURSE PLUGIN_SOURCES
 )
 
 set(ALL_SOURCES ${COMMON_SOURCES} ${PLUGIN_SOURCES})
+if(TARGET_PLATFORM STREQUAL "arm64-macos" OR TARGET_PLATFORM STREQUAL "x86_64-macos")
+    list(APPEND ALL_SOURCES "${REPO_ROOT}/defold-rive/commonsrc/renderer/renderer_context_metal.mm")
+endif()
 list(REMOVE_DUPLICATES ALL_SOURCES)
 
 if(NOT ALL_SOURCES)
@@ -172,8 +188,8 @@ endif()
 add_compile_definitions(DLIB_LOG_DOMAIN="RIVE")
 
 if(JAVA_SOURCES)
-    set(JAVA_CLASSES_DIR "${CMAKE_CURRENT_BINARY_DIR}/java/classes")
-    set(PLUGIN_JAR "${CMAKE_CURRENT_BINARY_DIR}/pluginRiveExt.jar")
+    set(JAVA_CLASSES_DIR "${PLUGIN_BUILD_DIR}/java/classes")
+    set(PLUGIN_JAR "${PLUGIN_BUILD_DIR}/pluginRiveExt.jar")
     add_custom_command(
         OUTPUT "${PLUGIN_JAR}"
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${JAVA_CLASSES_DIR}"
@@ -191,12 +207,27 @@ endif()
 
 add_library(rive_plugin SHARED ${ALL_SOURCES})
 
+if(TARGET_PLATFORM STREQUAL "arm64-macos" OR TARGET_PLATFORM STREQUAL "x86_64-macos")
+    target_compile_definitions(rive_plugin PRIVATE DM_PLATFORM_MACOS)
+elseif(TARGET_PLATFORM STREQUAL "x86_64-win32")
+    target_compile_definitions(rive_plugin PRIVATE DM_PLATFORM_WINDOWS)
+elseif(TARGET_PLATFORM STREQUAL "x86_64-linux")
+    target_compile_definitions(rive_plugin PRIVATE DM_PLATFORM_LINUX)
+endif()
+target_compile_definitions(rive_plugin PRIVATE DM_RIVE_PLUGIN)
+
+target_compile_options(rive_plugin PRIVATE
+    "$<$<CONFIG:Debug>:-O0>"
+    "$<$<CONFIG:RelWithDebInfo>:-O0>"
+)
+
 target_include_directories(rive_plugin PRIVATE
         "${REPO_ROOT}/defold-rive/include"
         "${REPO_ROOT}/defold-rive/commonsrc"
         "${REPO_ROOT}/defold-rive/pluginsrc"
         "${DYNAMO_HOME}/include"
         "${DYNAMO_HOME}/sdk/include"
+        "${DYNAMO_HOME}/ext/include"
 )
 
 target_include_directories(rive_plugin PRIVATE
@@ -213,11 +244,9 @@ if(TARGET_PLATFORM STREQUAL "x86_64-win32")
     target_link_libraries(rive_plugin PRIVATE Iphlpapi.lib)
 
     # old libraries built with build_pls.sh
-    target_link_libraries(rive_plugin PRIVATE rive sheenbidi harfbuzz yoga rivetess tess2)
+    target_link_libraries(rive_plugin PRIVATE rive sheenbidi harfbuzz yoga)
 
 else()
-    target_compile_options(rive_plugin PRIVATE "-std=c++17")
-
     if(TARGET_PLATFORM MATCHES "linux")
         target_link_options(rive_plugin PRIVATE "-fuse-ld=lld")
         target_link_libraries(rive_plugin PRIVATE pthread m dl)
@@ -226,9 +255,9 @@ else()
     target_link_libraries(rive_plugin PRIVATE
                 dlib mbedtls ddf
                 profile_null profilerext_null
-                platform_null render graphics_null
+                platform_null render graphics_vulkan MoltenVK
                 resource script gamesys lua)
-    target_link_libraries(rive_plugin PRIVATE rive rive_sheenbidi rive_harfbuzz rive_yoga zlib rivetess tess2)
+    target_link_libraries(rive_plugin PRIVATE rive rive_decoders rive_sheenbidi rive_harfbuzz rive_yoga rive_pls_renderer zlib libjpeg libpng libwebp)
 
 endif()
 
@@ -256,8 +285,6 @@ foreach(dir IN LISTS DYNAMO_LINK_DIRS)
 endforeach()
 
 set_target_properties(rive_plugin PROPERTIES
-        CXX_STANDARD 20
-        CXX_STANDARD_REQUIRED ON
         POSITION_INDEPENDENT_CODE ON
         OUTPUT_NAME "RiveExt"
 )
@@ -276,6 +303,10 @@ if(TARGET_PLATFORM MATCHES "macos")
     target_link_libraries(rive_plugin PRIVATE "-framework CoreFoundation")
     target_link_libraries(rive_plugin PRIVATE "-framework Foundation")
     target_link_libraries(rive_plugin PRIVATE "-framework AppKit")
+    target_link_libraries(rive_plugin PRIVATE "-framework Metal")
+    target_link_libraries(rive_plugin PRIVATE "-framework IOKit")
+    target_link_libraries(rive_plugin PRIVATE "-framework IOSurface")
+    target_link_libraries(rive_plugin PRIVATE "-framework QuartzCore")
     target_compile_options(rive_plugin PRIVATE "-fno-exceptions" "-fno-rtti")
     set(JAVA_PLATFORM "darwin")
 elseif(TARGET_PLATFORM MATCHES "win32")
