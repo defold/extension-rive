@@ -195,23 +195,21 @@ namespace dmRive
 
         static wgpu::TextureFormat GetASTCFormat(uint8_t blockW, uint8_t blockH)
         {
-            // ASTC block sizes mapped to WebGPU sRGB formats (correct for color textures).
-            // NOTE: Linear data (e.g. normal maps) would need Unorm variants instead,
-            // but ASTC files don't contain color space info. For now we assume sRGB.
-            if (blockW == 4 && blockH == 4)   return wgpu::TextureFormat::ASTC4x4UnormSrgb;
-            if (blockW == 5 && blockH == 4)   return wgpu::TextureFormat::ASTC5x4UnormSrgb;
-            if (blockW == 5 && blockH == 5)   return wgpu::TextureFormat::ASTC5x5UnormSrgb;
-            if (blockW == 6 && blockH == 5)   return wgpu::TextureFormat::ASTC6x5UnormSrgb;
-            if (blockW == 6 && blockH == 6)   return wgpu::TextureFormat::ASTC6x6UnormSrgb;
-            if (blockW == 8 && blockH == 5)   return wgpu::TextureFormat::ASTC8x5UnormSrgb;
-            if (blockW == 8 && blockH == 6)   return wgpu::TextureFormat::ASTC8x6UnormSrgb;
-            if (blockW == 8 && blockH == 8)   return wgpu::TextureFormat::ASTC8x8UnormSrgb;
-            if (blockW == 10 && blockH == 5)  return wgpu::TextureFormat::ASTC10x5UnormSrgb;
-            if (blockW == 10 && blockH == 6)  return wgpu::TextureFormat::ASTC10x6UnormSrgb;
-            if (blockW == 10 && blockH == 8)  return wgpu::TextureFormat::ASTC10x8UnormSrgb;
-            if (blockW == 10 && blockH == 10) return wgpu::TextureFormat::ASTC10x10UnormSrgb;
-            if (blockW == 12 && blockH == 10) return wgpu::TextureFormat::ASTC12x10UnormSrgb;
-            if (blockW == 12 && blockH == 12) return wgpu::TextureFormat::ASTC12x12UnormSrgb;
+            // ASTC block sizes mapped to WebGPU Unorm formats.
+            if (blockW == 4 && blockH == 4)   return wgpu::TextureFormat::ASTC4x4Unorm;
+            if (blockW == 5 && blockH == 4)   return wgpu::TextureFormat::ASTC5x4Unorm;
+            if (blockW == 5 && blockH == 5)   return wgpu::TextureFormat::ASTC5x5Unorm;
+            if (blockW == 6 && blockH == 5)   return wgpu::TextureFormat::ASTC6x5Unorm;
+            if (blockW == 6 && blockH == 6)   return wgpu::TextureFormat::ASTC6x6Unorm;
+            if (blockW == 8 && blockH == 5)   return wgpu::TextureFormat::ASTC8x5Unorm;
+            if (blockW == 8 && blockH == 6)   return wgpu::TextureFormat::ASTC8x6Unorm;
+            if (blockW == 8 && blockH == 8)   return wgpu::TextureFormat::ASTC8x8Unorm;
+            if (blockW == 10 && blockH == 5)  return wgpu::TextureFormat::ASTC10x5Unorm;
+            if (blockW == 10 && blockH == 6)  return wgpu::TextureFormat::ASTC10x6Unorm;
+            if (blockW == 10 && blockH == 8)  return wgpu::TextureFormat::ASTC10x8Unorm;
+            if (blockW == 10 && blockH == 10) return wgpu::TextureFormat::ASTC10x10Unorm;
+            if (blockW == 12 && blockH == 10) return wgpu::TextureFormat::ASTC12x10Unorm;
+            if (blockW == 12 && blockH == 12) return wgpu::TextureFormat::ASTC12x12Unorm;
             return wgpu::TextureFormat::Undefined;
         }
 
