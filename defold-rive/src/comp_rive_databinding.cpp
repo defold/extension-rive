@@ -304,6 +304,10 @@ bool CompRiveRuntimeSetPropertyImage(RiveComponent* component, uint32_t handle, 
     CHECK_PROP_RESULT(prop, "image", path);
 
     prop->value(image);
+    if (image != nullptr)
+    {
+        image->unref();  // Release ownership after rive took its ref
+    }
     return true;
 }
 
