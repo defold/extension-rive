@@ -324,6 +324,36 @@
             desc: The payload of the asset file to replace with. E.g. a .png binary file.
                   Takes precedence over the `path` option.
 
+#*****************************************************************************************************
+
+  - name: set_font_fallback_path
+    type: function
+    desc: Register a fallback font from a file path. This font will be used if glyphs are missing in the current font. Note that only one font fallback can be active at any time.
+
+    parameters:
+      - name: path
+        type: string
+        desc: The resource path to the font file.
+
+#*****************************************************************************************************
+
+  - name: set_font_fallback_memory
+    type: function
+    desc: Register a fallback font from a memory payload. This font will be used if glyphs are missing in the current font. Note that only one font fallback can be active at any time.
+
+    parameters:
+      - name: payload
+        type: string
+        desc: The font file contents.
+
+#*****************************************************************************************************
+
+  - name: clear_font_fallback
+    type: function
+    desc: Clear any registered fallback font.
+
+#*****************************************************************************************************
+
   - name: databind
     type: table
     desc: Functions and constants for interacting with Rive data bindings

@@ -1,9 +1,11 @@
 // Generated. Do not edit! See ./build_version_header.sh
 
-//fix(webgpu): Fix Y orientation on GL zero and nonzero FBOs (#10623) 454b0d2db1
+//Nnnnn fix memory lua issues (#11412) ba94f03ad0
+//* push scripted drawable to stack twice to ensure it is not destroyed before use
+//* code improvements
 //
-//Co-authored-by: Chris Dalton <99840794+csmartdalton@users.noreply.github.com>
+//Co-authored-by: hernan <hernan@rive.app>
 
-const char* RIVE_RUNTIME_AUTHOR="csmartdalton";
-const char* RIVE_RUNTIME_DATE="2025-09-19T02:18:27+00:00";
-const char* RIVE_RUNTIME_SHA1="e54883d9099f87ed6d87c678793fd619b5594e2c";
+const char* RIVE_RUNTIME_AUTHOR="bodymovin";
+const char* RIVE_RUNTIME_DATE="2026-01-09T07:54:52Z";
+const char* RIVE_RUNTIME_SHA1="3a5b5058aca009b823154ed7f92c11d599c00ae3";

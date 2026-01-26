@@ -1,11 +1,11 @@
 platforms:
   wasm-web:
     context:
-      defines: ["DM_RIVE_USE_OPENGL", "RIVE_WEBGL", "RIVE_WEBGPU=2", "RIVE_WAGYU"]
+      defines: ["DM_RIVE_USE_OPENGL", "RIVE_WEBGL", "RIVE_WEBGPU", "RIVE_WAGYU"]
       symbols: [GraphicsAdapterWebGPU]
       excludeLibs: [rive_renderer, graphics_webgpu]
       libs: [graphics_webgpu_wagyu]
       flags: ["-std=c++17", "-fno-rtti"]
       linkFlags: ['-lexports.js', '-lrive_renderer_wagyu']
-      externalJsPorts: ["ext/wagyu-port/new/webgpu-port.py:wagyu=true"]
+      externalJsPorts: ["ext/wagyu-port/webgpu-port.py:wagyu=true"]
       emscriptenLinkFlags: [WASM_BIGINT=1]

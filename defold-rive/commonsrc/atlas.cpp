@@ -13,6 +13,7 @@
 #include <common/atlas.h>
 #include <common/factory.h>
 #include <common/types.h>
+#include <common/astc.h>
 
 #include <dmsdk/dlib/dstrings.h>
 #include <dmsdk/dlib/hash.h>
@@ -207,10 +208,16 @@ namespace dmRive {
 
     rive::rcp<rive::RenderImage> LoadImageFromMemory(HRenderContext context, void* resource, uint32_t resource_size)
     {
+        // Auto-detect ASTC format
+        if (IsASTCData((const uint8_t*)resource, resource_size))
+        {
+            DEBUGLOG("Loading ASTC texture (%u bytes)", resource_size);
+            return CreateRiveRenderImageASTC(context, resource, resource_size);
+        }
         return CreateRiveRenderImage(context, resource, resource_size);
     }
 
-    rive::rcp<rive::RenderImage> LoadImageFromFactory(dmResource::HFactory factory, HRenderContext context, const char* path)
+    rive::rcp<rive::RenderImage> LoadImageFromFactory(dmResource::HFactory factory, HRenderContext context, const char* path, bool out_of_band)
     {
         if (!factory)
         {
@@ -229,7 +236,11 @@ namespace dmRive {
         dmResource::Result r = dmResource::GetRaw(factory, path_buffer, &resource, &resource_size);
         if (dmResource::RESULT_OK != r)
         {
-            dmLogError("Error getting file '%s': %d", path_buffer, r);
+            if (!out_of_band)
+            {
+                // If it's not during loading, we want to know the error
+                dmLogError("Error getting file '%s': %d", path_buffer, r);
+            }
             return rive::rcp<rive::RenderImage>();
         }
 
@@ -237,8 +248,8 @@ namespace dmRive {
     }
 
     AtlasNameResolver::AtlasNameResolver(dmResource::HFactory factory, HRenderContext context)
-    : m_Factory(factory)
-    , m_RiveRenderContext(context)
+    : m_RiveRenderContext(context)
+    , m_Factory(factory)
     {
     }
 
@@ -262,12 +273,18 @@ namespace dmRive {
 
             if (out_of_band)
             {
-                image = LoadImageFromFactory(m_Factory, m_RiveRenderContext, name.c_str());
+                image = LoadImageFromFactory(m_Factory, m_RiveRenderContext, name.c_str(), true);
+
+                if (!image)
+                {
+                    // Missing references is ok, as they may be added later
+                    return false;
+                }
             }
 
             if (!image)
             {
-                image = CreateRiveRenderImage(m_RiveRenderContext, (void*) inBandBytes.data(), inBandBytes.size());
+                image = LoadImageFromMemory(m_RiveRenderContext, (void*) inBandBytes.data(), inBandBytes.size());
                 DEBUGLOG("  In band asset: file: '%s' data: %u bytes", name.c_str(), (uint32_t)inBandBytes.size());
             }
 

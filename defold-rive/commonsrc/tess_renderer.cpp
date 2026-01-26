@@ -408,12 +408,12 @@ namespace dmRive
         m_Projection[15] = 1.0f;
     }
 
-    static void print_mat2d(const rive::Mat2D& m)
-    {
-        dmLogInfo(
-            "[%f,%f\n %f,%f\n %f,%f]",
-            m[0], m[1], m[2], m[3], m[4], m[5]);
-    }
+    // static void print_mat2d(const rive::Mat2D& m)
+    // {
+    //     dmLogInfo(
+    //         "[%f,%f\n %f,%f\n %f,%f]",
+    //         m[0], m[1], m[2], m[3], m[4], m[5]);
+    // }
 
     void DefoldTessRenderer::putImage(DrawDescriptor& draw_desc, dmRive::Region* region, const rive::Mat2D& uv_transform)
     {
@@ -491,7 +491,7 @@ namespace dmRive
         VsUniforms vs_params = {};
         vs_params.world = transform();
 
-        FsUniforms fs_uniforms   = {0};
+        FsUniforms fs_uniforms = {};
         fs_uniforms.fillType     = (int) FillType::FILL_TYPE_TEXTURED;
         fs_uniforms.colors[0][3] = opacity;
 
@@ -528,9 +528,9 @@ namespace dmRive
                                           rive::BlendMode blendMode,
                                           float opacity)
     {
+        /*
         DefoldRenderImage* image = (DefoldRenderImage*)_image;
 
-        /*
         dmRive::Region* region = dmRive::FindAtlasRegion(m_Atlas, image->m_NameHash);
         if (!region)
         {
@@ -606,8 +606,10 @@ namespace dmRive
             }
         }
 
-        VsUniforms vs_uniforms = { .fillType = 0 };
-        FsUniforms fs_uniforms = {0};
+
+
+        VsUniforms vs_uniforms;
+        FsUniforms fs_uniforms;
 
         // Decr any paths from the last clip that are gone.
         std::unordered_set<rive::RenderPath*> alreadyApplied;

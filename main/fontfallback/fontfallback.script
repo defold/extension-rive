@@ -1,0 +1,53 @@
+
+-- Ticket:
+--  https://github.com/defold/extension-rive/issues/235
+
+function init(self)
+	msg.post(".", "acquire_input_focus")
+
+	self.fallback_path = "/main/fontfallback/LemonBrushArabicPersonalUseOnly-Regular-5277260.ttf"
+	--rive.set_font_fallback_path(self.fallback_path)
+
+	local payload = sys.load_resource(self.fallback_path)
+	rive.set_font_fallback_memory(payload)
+
+	self.url = msg.url("#rive")
+	self.handle, err = rive.databind.create_view_model_instance_runtime(self.url, "") --select the first view model
+	if self.handle == nil then
+		print("ERROR:", err)
+		return
+	end
+	rive.databind.set_view_model_instance_runtime(self.url, self.handle)
+
+	self.data = {}
+	self.data['Default text'] = "Localized text example" .. "\n" .. "نص مترجم محليًا example"
+	rive.databind.set_properties(self.url, self.handle, self.data)
+end
+
+function final(self)
+	rive.clear_font_fallback()
+end
+
+function update(self, dt)
+	-- Add update code here
+	-- Learn more: https://defold.com/manuals/script/
+	-- Remove this function if not needed
+end
+
+function on_message(self, message_id, message, sender)
+	-- Add message-handling code here
+	-- Learn more: https://defold.com/manuals/message-passing/
+	-- Remove this function if not needed
+end
+
+function on_input(self, action_id, action)
+	if not action_id or action_id == hash("touch") then
+		if action.pressed then
+			rive.pointer_down(self.url, action.x, action.y)
+		elseif action.released then
+			rive.pointer_up(self.url, action.x, action.y)
+		else
+			rive.pointer_move(self.url, action.x, action.y)
+		end
+	end
+end

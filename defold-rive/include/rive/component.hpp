@@ -12,6 +12,7 @@ namespace rive
 {
 class ContainerComponent;
 class Artboard;
+class DataBind;
 
 class Component : public ComponentBase
 {
@@ -22,9 +23,11 @@ private:
 
     unsigned int m_GraphOrder;
     Artboard* m_Artboard = nullptr;
+    std::vector<DataBind*> m_collapsables;
 
 protected:
     ComponentDirt m_Dirt = ComponentDirt::Filthy;
+    void updateCollapsables();
 
 public:
     DependencyHelper<Artboard, Component> m_DependencyHelper;
@@ -33,6 +36,7 @@ public:
     bool validate(CoreContext* context) override;
     StatusCode onAddedDirty(CoreContext* context) override;
     inline ContainerComponent* parent() const { return m_Parent; }
+    void addCollapsable(DataBind* collapsable);
     const std::vector<Component*>& dependents() const
     {
         return m_DependencyHelper.dependents();
@@ -68,6 +72,9 @@ public:
     virtual bool hitTestPoint(const Vec2D& position,
                               bool skipOnUnclipped,
                               bool isPrimaryHit);
+#ifdef TESTING
+    ComponentDirt dirt() { return m_Dirt; }
+#endif
 };
 } // namespace rive
 

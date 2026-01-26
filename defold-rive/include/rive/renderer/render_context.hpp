@@ -101,7 +101,7 @@ public:
         ColorInt clearColor = 0;
         // If nonzero, the number of MSAA samples to use.
         // Setting this to a nonzero value forces msaa mode.
-        int msaaSampleCount = 0;
+        uint32_t msaaSampleCount = 0;
         // Use atomic mode (preferred) or msaa instead of rasterOrdering.
         bool disableRasterOrdering = false;
 
@@ -311,7 +311,7 @@ private:
     // LogicalFlush::LayoutCounters.
     struct ResourceAllocationCounts
     {
-        constexpr static int NUM_ELEMENTS = 14;
+        constexpr static int NUM_ELEMENTS = 19;
         using VecType = simd::gvec<size_t, NUM_ELEMENTS>;
 
         RIVE_ALWAYS_INLINE VecType toVec() const
@@ -323,14 +323,15 @@ private:
             return vec;
         }
 
-        RIVE_ALWAYS_INLINE ResourceAllocationCounts(const VecType& vec)
+        static RIVE_ALWAYS_INLINE ResourceAllocationCounts
+        FromVec(const VecType& vec)
         {
-            static_assert(sizeof(*this) == sizeof(size_t) * NUM_ELEMENTS);
-            static_assert(sizeof(VecType) >= sizeof(*this));
-            RIVE_INLINE_MEMCPY(this, &vec, sizeof(*this));
+            ResourceAllocationCounts allocs;
+            static_assert(sizeof(allocs) == sizeof(size_t) * NUM_ELEMENTS);
+            static_assert(sizeof(VecType) >= sizeof(allocs));
+            RIVE_INLINE_MEMCPY(&allocs, &vec, sizeof(allocs));
+            return allocs;
         }
-
-        ResourceAllocationCounts() = default;
 
         size_t flushUniformBufferCount = 0;
         size_t imageDrawUniformBufferCount = 0;
@@ -345,7 +346,12 @@ private:
         size_t tessTextureHeight = 0;
         size_t atlasTextureWidth = 0;
         size_t atlasTextureHeight = 0;
-        size_t coverageBufferLength = 0; // clockwiseAtomic mode only.
+        size_t plsTransientBackingWidth = 0;
+        size_t plsTransientBackingHeight = 0;
+        size_t plsTransientBackingPlaneCount = 0;
+        size_t plsAtomicCoverageBackingWidth = 0;  // atomic mode only.
+        size_t plsAtomicCoverageBackingHeight = 0; // atomic mode only.
+        size_t coverageBufferLength = 0;           // clockwiseAtomic mode only.
     };
 
     // Reallocates GPU resources and updates m_currentResourceAllocations.
@@ -561,6 +567,7 @@ private:
             uint32_t maxTessTextureHeight = 0;
             uint32_t maxAtlasWidth = 0;
             uint32_t maxAtlasHeight = 0;
+            uint32_t maxPLSTransientBackingPlaneCount = 0;
             size_t maxCoverageBufferLength = 0;
         };
 
@@ -769,8 +776,9 @@ private:
         // gpu::DrawBatch objects during writeResources().
         std::vector<DrawUniquePtr> m_draws;
         IAABB m_combinedDrawBounds;
+        gpu::DrawContents m_combinedDrawContents;
 
-        // Layout state.
+        // State computed during layout.
         uint32_t m_pathPaddingCount;
         uint32_t m_paintPaddingCount;
         uint32_t m_paintAuxPaddingCount;
@@ -780,12 +788,17 @@ private:
         uint32_t m_outerCubicTessEndLocation;
         uint32_t m_outerCubicTessVertexIdx;
         uint32_t m_midpointFanTessVertexIdx;
-
         gpu::GradTextureLayout m_gradTextureLayout;
+        gpu::ShaderMiscFlags m_baselineShaderMiscFlags;
 
         gpu::FlushDescriptor m_flushDesc;
 
         BlockAllocatedLinkedList<DrawBatch> m_drawList;
+        const DrawBatch* m_firstDstBlendBarrier;
+        // Final "next" pointer in the list of DrawBatches that have dstBlend
+        // barriers.
+        const DrawBatch** m_dstBlendBarrierListTail;
+
         gpu::ShaderFeatures m_combinedShaderFeatures;
 
         // Most recent path and contour state.

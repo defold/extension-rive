@@ -13,6 +13,8 @@
 #include "rive/listener_type.hpp"
 #include "rive/nested_animation.hpp"
 #include "rive/scene.hpp"
+#include "rive/data_bind/data_bind_container.hpp"
+#include "rive/input/focusable.hpp"
 
 namespace rive
 {
@@ -38,6 +40,7 @@ class DataBind;
 class BindableProperty;
 class HitDrawable;
 class ListenerViewModel;
+typedef void (*DataBindChanged)();
 
 #ifdef WITH_RIVE_TOOLS
 class StateMachineInstance;
@@ -46,7 +49,8 @@ typedef void (*InputChanged)(StateMachineInstance*, uint64_t);
 
 class StateMachineInstance : public Scene,
                              public NestedEventNotifier,
-                             public NestedEventListener
+                             public NestedEventListener,
+                             public DataBindContainer
 {
     friend class SMIInput;
     friend class KeyedProperty;
@@ -58,6 +62,7 @@ private:
     /// pointer position too.
     HitResult updateListeners(Vec2D position,
                               ListenerType hitListener,
+                              int pointerId = 0,
                               float timeStamp = 0);
 
     template <typename SMType, typename InstType>
@@ -110,7 +115,8 @@ public:
     void bindViewModelInstance(
         rcp<ViewModelInstance> viewModelInstance) override;
     void dataContext(DataContext* dataContext);
-    DataContext* dataContext() { return m_DataContext; };
+    DataContext* dataContext() const { return m_DataContext; }
+    void rebind() override;
 
     size_t currentAnimationCount() const;
     const LinearAnimationInstance* currentAnimationByIndex(size_t index) const;
@@ -128,14 +134,24 @@ public:
     void advancedDataContext();
     void reset();
     std::string name() const override;
-    HitResult pointerMove(Vec2D position, float timeStamp = 0) override;
-    HitResult pointerDown(Vec2D position) override;
-    HitResult pointerUp(Vec2D position) override;
-    HitResult pointerExit(Vec2D position) override;
+    HitResult pointerMove(Vec2D position,
+                          float timeStamp = 0,
+                          int pointerId = 0) override;
+    HitResult pointerDown(Vec2D position, int pointerId = 0) override;
+    HitResult pointerUp(Vec2D position, int pointerId = 0) override;
+    HitResult pointerExit(Vec2D position, int pointerId = 0) override;
     HitResult dragStart(Vec2D position,
                         float timeStamp = 0,
-                        bool disablePointer = true);
-    HitResult dragEnd(Vec2D position, float timeStamp = 0);
+                        bool disablePointer = true,
+                        int pointerId = 0);
+    HitResult dragEnd(Vec2D position, float timeStamp = 0, int pointerId = 0);
+
+    bool keyInput(Key value,
+                  KeyModifiers modifiers,
+                  bool isPressed,
+                  bool isRepeat);
+    bool textInput(const std::string& text);
+
     bool tryChangeState();
     bool hitTest(Vec2D position) const;
 
@@ -201,9 +217,8 @@ public:
     }
     const LayerState* layerState(size_t index);
 #endif
-    void updateDataBinds();
-    void enablePointerEvents();
-    void disablePointerEvents();
+    void enablePointerEvents(int pointerId = 0);
+    void disablePointerEvents(int pointerId = 0);
 
 private:
     std::vector<EventReport> m_reportedEvents;
@@ -254,11 +269,14 @@ public:
     virtual HitResult processEvent(Vec2D position,
                                    ListenerType hitType,
                                    bool canHit,
-                                   float timeStamp = 0) = 0;
-    virtual void prepareEvent(Vec2D position, ListenerType hitType) = 0;
+                                   float timeStamp = 0,
+                                   int pointerId = 0) = 0;
+    virtual void prepareEvent(Vec2D position,
+                              ListenerType hitType,
+                              int pointerId) = 0;
     virtual bool hitTest(Vec2D position) const = 0;
-    virtual void enablePointerEvents() {}
-    virtual void disablePointerEvents() {}
+    virtual void enablePointerEvents(int pointerId = 0) {}
+    virtual void disablePointerEvents(int pointerId = 0) {}
 #ifdef TESTING
     int earlyOutCount = 0;
 #endif
