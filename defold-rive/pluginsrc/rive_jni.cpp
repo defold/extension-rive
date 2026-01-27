@@ -43,6 +43,10 @@ struct RiveFileJNI
     jfieldID    artboards;     // array of strings
     jfieldID    stateMachines; // array of strings
     jfieldID    viewModels; // array of strings
+    jfieldID    viewModelProperties; // array of ViewModelProperty
+    jfieldID    viewModelEnums; // array of ViewModelEnum
+    jfieldID    viewModelInstanceNames; // array of ViewModelInstanceNames
+    jfieldID    defaultViewModelInfo; // DefaultViewModelInfo
 } g_RiveFileJNI;
 
 struct RiveTextureJNI
@@ -53,6 +57,37 @@ struct RiveTextureJNI
     jfieldID    format;
     jfieldID    data;
 } g_RiveTextureJNI;
+
+struct ViewModelPropertyJNI
+{
+    jclass      cls;
+    jfieldID    viewModel;
+    jfieldID    name;
+    jfieldID    type;
+    jfieldID    typeName;
+    jfieldID    metaData;
+} g_ViewModelPropertyJNI;
+
+struct ViewModelEnumJNI
+{
+    jclass      cls;
+    jfieldID    name;
+    jfieldID    enumerants;
+} g_ViewModelEnumJNI;
+
+struct ViewModelInstanceNamesJNI
+{
+    jclass      cls;
+    jfieldID    viewModel;
+    jfieldID    instances;
+} g_ViewModelInstanceNamesJNI;
+
+struct DefaultViewModelInfoJNI
+{
+    jclass      cls;
+    jfieldID    viewModel;
+    jfieldID    instance;
+} g_DefaultViewModelInfoJNI;
 
 
 void InitializeJNITypes(JNIEnv* env)
@@ -67,6 +102,10 @@ void InitializeJNITypes(JNIEnv* env)
         GET_FLD_ARRAY(artboards, "java/lang/String");
         GET_FLD_ARRAY(stateMachines, "java/lang/String");
         GET_FLD_ARRAY(viewModels, "java/lang/String");
+        GET_FLD_ARRAY(viewModelProperties, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "ViewModelProperty"));
+        GET_FLD_ARRAY(viewModelEnums, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "ViewModelEnum"));
+        GET_FLD_ARRAY(viewModelInstanceNames, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "ViewModelInstanceNames"));
+        GET_FLD(defaultViewModelInfo, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "DefaultViewModelInfo"));
     }
     {
         SETUP_CLASS(RiveTextureJNI, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "Texture"));
@@ -74,6 +113,29 @@ void InitializeJNITypes(JNIEnv* env)
         GET_FLD_TYPESTR(height, "I");
         GET_FLD_TYPESTR(format, "I");
         GET_FLD_TYPESTR(data, "[B");
+    }
+    {
+        SETUP_CLASS(ViewModelPropertyJNI, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "ViewModelProperty"));
+        GET_FLD_STRING(viewModel);
+        GET_FLD_STRING(name);
+        GET_FLD_TYPESTR(type, "I");
+        GET_FLD_STRING(typeName);
+        GET_FLD_STRING(metaData);
+    }
+    {
+        SETUP_CLASS(ViewModelEnumJNI, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "ViewModelEnum"));
+        GET_FLD_STRING(name);
+        GET_FLD_ARRAY(enumerants, "java/lang/String");
+    }
+    {
+        SETUP_CLASS(ViewModelInstanceNamesJNI, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "ViewModelInstanceNames"));
+        GET_FLD_STRING(viewModel);
+        GET_FLD_ARRAY(instances, "java/lang/String");
+    }
+    {
+        SETUP_CLASS(DefaultViewModelInfoJNI, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "DefaultViewModelInfo"));
+        GET_FLD_STRING(viewModel);
+        GET_FLD_STRING(instance);
     }
     #undef DM_RIVE_JNI_PACKAGE_NAME
 }
@@ -125,12 +187,101 @@ static jobjectArray CreateArtboards(JNIEnv* env, dmRive::RiveFile* rive_file)
     return CreateStringArray(env, rive_file->m_Artboards);
 }
 
+static const char* DataTypeToString(rive::DataType type);
+
+static jobjectArray CreateViewModelProperties(JNIEnv* env, const dmArray<dmRive::ViewModelProperty>& properties)
+{
+    uint32_t count = properties.Size();
+    jobjectArray arr = env->NewObjectArray(count, g_ViewModelPropertyJNI.cls, 0);
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        jobject obj = env->AllocObject(g_ViewModelPropertyJNI.cls);
+        dmDefoldJNI::SetFieldString(env, obj, g_ViewModelPropertyJNI.viewModel, properties[i].m_ViewModel ? properties[i].m_ViewModel : "");
+        dmDefoldJNI::SetFieldString(env, obj, g_ViewModelPropertyJNI.name, properties[i].m_Name ? properties[i].m_Name : "");
+        dmDefoldJNI::SetFieldString(env, obj, g_ViewModelPropertyJNI.metaData, properties[i].m_MetaData ? properties[i].m_MetaData : "");
+        env->SetIntField(obj, g_ViewModelPropertyJNI.type, (int)properties[i].m_Type);
+        dmDefoldJNI::SetFieldString(env, obj, g_ViewModelPropertyJNI.typeName, DataTypeToString(properties[i].m_Type));
+        env->SetObjectArrayElement(arr, i, obj);
+        env->DeleteLocalRef(obj);
+    }
+    return arr;
+}
+
+static jobjectArray CreateViewModelEnums(JNIEnv* env, const dmArray<dmRive::ViewModelEnum>& enums)
+{
+    uint32_t count = enums.Size();
+    jobjectArray arr = env->NewObjectArray(count, g_ViewModelEnumJNI.cls, 0);
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        jobject obj = env->AllocObject(g_ViewModelEnumJNI.cls);
+        dmDefoldJNI::SetFieldString(env, obj, g_ViewModelEnumJNI.name, enums[i].m_Name ? enums[i].m_Name : "");
+        jobjectArray enumerants = CreateStringArray(env, enums[i].m_Enumerants);
+        dmDefoldJNI::SetFieldObject(env, obj, g_ViewModelEnumJNI.enumerants, enumerants);
+        env->DeleteLocalRef(enumerants);
+        env->SetObjectArrayElement(arr, i, obj);
+        env->DeleteLocalRef(obj);
+    }
+    return arr;
+}
+
+static jobjectArray CreateViewModelInstanceNames(JNIEnv* env, const dmArray<dmRive::ViewModelInstanceNames>& instances)
+{
+    uint32_t count = instances.Size();
+    jobjectArray arr = env->NewObjectArray(count, g_ViewModelInstanceNamesJNI.cls, 0);
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        jobject obj = env->AllocObject(g_ViewModelInstanceNamesJNI.cls);
+        dmDefoldJNI::SetFieldString(env, obj, g_ViewModelInstanceNamesJNI.viewModel, instances[i].m_ViewModel ? instances[i].m_ViewModel : "");
+        jobjectArray names = CreateStringArray(env, instances[i].m_Instances);
+        dmDefoldJNI::SetFieldObject(env, obj, g_ViewModelInstanceNamesJNI.instances, names);
+        env->DeleteLocalRef(names);
+        env->SetObjectArrayElement(arr, i, obj);
+        env->DeleteLocalRef(obj);
+    }
+    return arr;
+}
+
+static jobject CreateDefaultViewModelInfo(JNIEnv* env, const dmRive::DefaultViewModelInfo& info, bool has_info)
+{
+    if (!has_info)
+    {
+        return 0;
+    }
+    jobject obj = env->AllocObject(g_DefaultViewModelInfoJNI.cls);
+    dmDefoldJNI::SetFieldString(env, obj, g_DefaultViewModelInfoJNI.viewModel, info.m_ViewModel ? info.m_ViewModel : "");
+    dmDefoldJNI::SetFieldString(env, obj, g_DefaultViewModelInfoJNI.instance, info.m_Instance ? info.m_Instance : "");
+    return obj;
+}
+
 static int HashCode(JNIEnv* env, jclass cls, jobject object)
 {
     jmethodID hashCode = env->GetMethodID(cls, "hashCode", "()I");
     jint i = env->CallIntMethod(object, hashCode);
     DM_CHECK_JNI_ERROR();
     return i;
+}
+
+static const char* DataTypeToString(rive::DataType type)
+{
+    switch (type)
+    {
+        case rive::DataType::none: return "none";
+        case rive::DataType::string: return "string";
+        case rive::DataType::number: return "number";
+        case rive::DataType::boolean: return "boolean";
+        case rive::DataType::color: return "color";
+        case rive::DataType::list: return "list";
+        case rive::DataType::enumType: return "enum";
+        case rive::DataType::trigger: return "trigger";
+        case rive::DataType::viewModel: return "viewModel";
+        case rive::DataType::integer: return "integer";
+        case rive::DataType::symbolListIndex: return "symbolListIndex";
+        case rive::DataType::assetImage: return "assetImage";
+        case rive::DataType::artboard: return "artboard";
+        case rive::DataType::input: return "input";
+        case rive::DataType::any: return "any";
+        default: return "unknown";
+    }
 }
 
 static jobject CreateRiveFile(JNIEnv* env, dmRive::RiveFile* rive_file)
@@ -154,6 +305,25 @@ static jobject CreateRiveFile(JNIEnv* env, dmRive::RiveFile* rive_file)
     jobjectArray view_models = CreateStringArray(env, rive_file->m_ViewModels);
     dmDefoldJNI::SetFieldObject(env, obj, g_RiveFileJNI.viewModels, view_models);
     env->DeleteLocalRef(view_models);
+
+    jobjectArray view_model_properties = CreateViewModelProperties(env, rive_file->m_ViewModelProperties);
+    dmDefoldJNI::SetFieldObject(env, obj, g_RiveFileJNI.viewModelProperties, view_model_properties);
+    env->DeleteLocalRef(view_model_properties);
+
+    jobjectArray view_model_enums = CreateViewModelEnums(env, rive_file->m_ViewModelEnums);
+    dmDefoldJNI::SetFieldObject(env, obj, g_RiveFileJNI.viewModelEnums, view_model_enums);
+    env->DeleteLocalRef(view_model_enums);
+
+    jobjectArray view_model_instance_names = CreateViewModelInstanceNames(env, rive_file->m_ViewModelInstanceNames);
+    dmDefoldJNI::SetFieldObject(env, obj, g_RiveFileJNI.viewModelInstanceNames, view_model_instance_names);
+    env->DeleteLocalRef(view_model_instance_names);
+
+    jobject default_view_model_info = CreateDefaultViewModelInfo(env, rive_file->m_DefaultViewModelInfo, rive_file->m_HasDefaultViewModelInfo);
+    dmDefoldJNI::SetFieldObject(env, obj, g_RiveFileJNI.defaultViewModelInfo, default_view_model_info);
+    if (default_view_model_info)
+    {
+        env->DeleteLocalRef(default_view_model_info);
+    }
     return obj;
 }
 

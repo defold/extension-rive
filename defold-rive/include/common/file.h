@@ -20,6 +20,7 @@
 
 #include <rive/command_queue.hpp>
 #include <rive/artboard.hpp>
+#include <rive/data_bind/data_values/data_type.hpp>
 #include <rive/renderer.hpp>
 
 namespace dmRive
@@ -27,12 +28,43 @@ namespace dmRive
     class MetadataListener;
     class ArtboardMetadataListener;
 
+    struct ViewModelProperty
+    {
+        const char*      m_ViewModel;
+        const char*      m_Name;
+        rive::DataType   m_Type;
+        const char*      m_MetaData;
+    };
+
+    struct ViewModelEnum
+    {
+        const char*          m_Name;
+        dmArray<const char*> m_Enumerants;
+    };
+
+    struct ViewModelInstanceNames
+    {
+        const char*          m_ViewModel;
+        dmArray<const char*> m_Instances;
+    };
+
+    struct DefaultViewModelInfo
+    {
+        const char* m_ViewModel;
+        const char* m_Instance;
+    };
+
     struct RiveFile
     {
         const char*                  m_Path;
         dmArray<const char*>         m_Artboards;
         dmArray<const char*>         m_ViewModels;
         dmArray<const char*>         m_StateMachines; // The available state machines for the current artboard
+        dmArray<struct ViewModelProperty> m_ViewModelProperties;
+        dmArray<struct ViewModelEnum>     m_ViewModelEnums;
+        dmArray<struct ViewModelInstanceNames> m_ViewModelInstanceNames;
+        struct DefaultViewModelInfo  m_DefaultViewModelInfo;
+        bool                         m_HasDefaultViewModelInfo;
 
         rive::FileHandle             m_File;
         rive::ArtboardHandle         m_Artboard;

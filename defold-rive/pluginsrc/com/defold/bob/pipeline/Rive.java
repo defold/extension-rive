@@ -71,6 +71,10 @@ public class Rive {
         public String[]         artboards;
         public String[]         stateMachines;
         public String[]         viewModels;
+        public ViewModelProperty[] viewModelProperties;
+        public ViewModelEnum[]     viewModelEnums;
+        public ViewModelInstanceNames[] viewModelInstanceNames;
+        public DefaultViewModelInfo defaultViewModelInfo;
 
         public void Destroy() {
             Rive.Destroy(this);
@@ -86,6 +90,29 @@ public class Rive {
         public int              height;
         public int              format;
         public byte[]           data;
+    }
+
+    public static class ViewModelProperty {
+        public String           viewModel;
+        public String           name;
+        public int              type;
+        public String           typeName;
+        public String           metaData;
+    }
+
+    public static class ViewModelEnum {
+        public String           name;
+        public String[]         enumerants;
+    }
+
+    public static class ViewModelInstanceNames {
+        public String           viewModel;
+        public String[]         instances;
+    }
+
+    public static class DefaultViewModelInfo {
+        public String           viewModel;
+        public String           instance;
     }
 
     public static void UpdateInternal(RiveFile rive_file, float dt)
@@ -218,6 +245,81 @@ public class Rive {
         {
             PrintIndent(1);
             System.out.printf("'%s'\n", name);
+        }
+
+        System.out.printf("--------------------------------\n");
+
+        if (rive_file.defaultViewModelInfo != null) {
+            System.out.printf("Default view model info:\n");
+            PrintIndent(1);
+            System.out.printf("viewModel='%s'\n", rive_file.defaultViewModelInfo.viewModel);
+            PrintIndent(1);
+            System.out.printf("instance='%s'\n", rive_file.defaultViewModelInfo.instance);
+        } else {
+            System.out.printf("Default view model info: <none>\n");
+        }
+
+        System.out.printf("--------------------------------\n");
+
+        int propertyCount = rive_file.viewModelProperties != null ? rive_file.viewModelProperties.length : 0;
+        System.out.printf("View model properties: %d\n", propertyCount);
+        if (rive_file.viewModels != null && rive_file.viewModelProperties != null) {
+            for (String viewModel : rive_file.viewModels) {
+                PrintIndent(1);
+                System.out.printf("ViewModel '%s'\n", viewModel);
+                for (ViewModelProperty property : rive_file.viewModelProperties) {
+                    if (property == null || property.viewModel == null || !property.viewModel.equals(viewModel)) {
+                        continue;
+                    }
+                    PrintIndent(2);
+                    String typeName = property.typeName != null && property.typeName.length() > 0 ? property.typeName : "unknown";
+                    System.out.printf("'%s' type=%s", property.name, typeName);
+                    if (property.metaData != null && property.metaData.length() > 0) {
+                        System.out.printf(" meta='%s'", property.metaData);
+                    }
+                    System.out.printf("\n");
+                }
+            }
+        }
+
+        System.out.printf("--------------------------------\n");
+
+        int enumCount = rive_file.viewModelEnums != null ? rive_file.viewModelEnums.length : 0;
+        System.out.printf("View model enums: %d\n", enumCount);
+        if (rive_file.viewModelEnums != null) {
+            for (ViewModelEnum viewEnum : rive_file.viewModelEnums) {
+                if (viewEnum == null) {
+                    continue;
+                }
+                PrintIndent(1);
+                System.out.printf("'%s'\n", viewEnum.name);
+                if (viewEnum.enumerants != null) {
+                    for (String enumerant : viewEnum.enumerants) {
+                        PrintIndent(2);
+                        System.out.printf("'%s'\n", enumerant);
+                    }
+                }
+            }
+        }
+
+        System.out.printf("--------------------------------\n");
+
+        int instanceCount = rive_file.viewModelInstanceNames != null ? rive_file.viewModelInstanceNames.length : 0;
+        System.out.printf("View model instance names: %d\n", instanceCount);
+        if (rive_file.viewModelInstanceNames != null) {
+            for (ViewModelInstanceNames instances : rive_file.viewModelInstanceNames) {
+                if (instances == null) {
+                    continue;
+                }
+                PrintIndent(1);
+                System.out.printf("ViewModel '%s'\n", instances.viewModel);
+                if (instances.instances != null) {
+                    for (String instance : instances.instances) {
+                        PrintIndent(2);
+                        System.out.printf("'%s'\n", instance);
+                    }
+                }
+            }
         }
 
         rive_file.Destroy();

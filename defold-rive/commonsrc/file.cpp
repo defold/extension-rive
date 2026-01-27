@@ -34,6 +34,56 @@ static void ClearStringArray(dmArray<const char*>& array)
     array.SetSize(0);
 }
 
+static void ClearDefaultViewModelInfo(DefaultViewModelInfo& info)
+{
+    if (info.m_ViewModel)
+    {
+        free((void*)info.m_ViewModel);
+    }
+    if (info.m_Instance)
+    {
+        free((void*)info.m_Instance);
+    }
+    info.m_ViewModel = 0;
+    info.m_Instance = 0;
+}
+
+static void ClearViewModelProperties(dmArray<ViewModelProperty>& array)
+{
+    for (uint32_t i = 0; i < array.Size(); ++i)
+    {
+        free((void*)array[i].m_ViewModel);
+        free((void*)array[i].m_Name);
+        free((void*)array[i].m_MetaData);
+        array[i].m_ViewModel = 0;
+        array[i].m_Name = 0;
+        array[i].m_MetaData = 0;
+    }
+    array.SetSize(0);
+}
+
+static void ClearViewModelEnums(dmArray<ViewModelEnum>& array)
+{
+    for (uint32_t i = 0; i < array.Size(); ++i)
+    {
+        free((void*)array[i].m_Name);
+        ClearStringArray(array[i].m_Enumerants);
+        array[i].m_Name = 0;
+    }
+    array.SetSize(0);
+}
+
+static void ClearViewModelInstanceNames(dmArray<ViewModelInstanceNames>& array)
+{
+    for (uint32_t i = 0; i < array.Size(); ++i)
+    {
+        free((void*)array[i].m_ViewModel);
+        ClearStringArray(array[i].m_Instances);
+        array[i].m_ViewModel = 0;
+    }
+    array.SetSize(0);
+}
+
 static void FillStringArray(dmArray<const char*>& array, const std::vector<std::string>& values)
 {
     ClearStringArray(array);
@@ -72,11 +122,28 @@ public:
     void onViewModelsListed(const rive::FileHandle file,
                             uint64_t request_id,
                             std::vector<std::string> viewModelNames) override;
+    void onViewModelInstanceNamesListed(const rive::FileHandle file,
+                                        uint64_t request_id,
+                                        std::string viewModelName,
+                                        std::vector<std::string> instanceNames) override;
+    void onViewModelPropertiesListed(
+        const rive::FileHandle file,
+        uint64_t request_id,
+        std::string viewModelName,
+        std::vector<ViewModelPropertyData> properties) override;
+    void onViewModelEnumsListed(const rive::FileHandle file,
+                                uint64_t request_id,
+                                std::vector<rive::ViewModelEnum> enums) override;
 
     bool m_FileLoaded;
     bool m_FileError;
     bool m_ArtboardsListed;
     bool m_ViewModelsListed;
+    bool m_ViewModelEnumsListed;
+    uint32_t m_ViewModelPropertiesListedCount;
+    uint32_t m_ViewModelPropertiesExpectedCount;
+    uint32_t m_ViewModelInstanceNamesListedCount;
+    uint32_t m_ViewModelInstanceNamesExpectedCount;
     RiveFile* m_File;
 };
 
@@ -92,9 +159,14 @@ public:
     void onStateMachinesListed(const rive::ArtboardHandle artboard,
                                uint64_t request_id,
                                std::vector<std::string> stateMachineNames) override;
+    void onDefaultViewModelInfoReceived(const rive::ArtboardHandle artboard,
+                                        uint64_t request_id,
+                                        std::string viewModelName,
+                                        std::string instanceName) override;
 
     bool m_StateMachinesListed;
     bool m_ArtboardError;
+    bool m_DefaultViewModelInfoReceived;
     RiveFile* m_File;
 };
 
@@ -103,6 +175,11 @@ MetadataListener::MetadataListener()
 , m_FileError(false)
 , m_ArtboardsListed(false)
 , m_ViewModelsListed(false)
+, m_ViewModelEnumsListed(false)
+, m_ViewModelPropertiesListedCount(0)
+, m_ViewModelPropertiesExpectedCount(0)
+, m_ViewModelInstanceNamesListedCount(0)
+, m_ViewModelInstanceNamesExpectedCount(0)
 , m_File(0)
 {
 }
@@ -112,6 +189,11 @@ MetadataListener::MetadataListener(RiveFile* file)
 , m_FileError(false)
 , m_ArtboardsListed(false)
 , m_ViewModelsListed(false)
+, m_ViewModelEnumsListed(false)
+, m_ViewModelPropertiesListedCount(0)
+, m_ViewModelPropertiesExpectedCount(0)
+, m_ViewModelInstanceNamesListedCount(0)
+, m_ViewModelInstanceNamesExpectedCount(0)
 , m_File(file)
 {
 }
@@ -143,9 +225,80 @@ void MetadataListener::onViewModelsListed(const rive::FileHandle,
     m_ViewModelsListed = true;
 }
 
+void MetadataListener::onViewModelInstanceNamesListed(const rive::FileHandle,
+                                                      uint64_t,
+                                                      std::string viewModelName,
+                                                      std::vector<std::string> instanceNames)
+{
+    uint32_t index = m_File->m_ViewModelInstanceNames.Size();
+    uint32_t new_size = index + 1;
+    if (m_File->m_ViewModelInstanceNames.Capacity() < new_size)
+    {
+        m_File->m_ViewModelInstanceNames.SetCapacity(new_size);
+    }
+    m_File->m_ViewModelInstanceNames.SetSize(new_size);
+
+    ViewModelInstanceNames* entry = &m_File->m_ViewModelInstanceNames[index];
+    memset(entry, 0, sizeof(*entry));
+    entry->m_ViewModel = strdup(viewModelName.c_str());
+    FillStringArray(entry->m_Instances, instanceNames);
+
+    ++m_ViewModelInstanceNamesListedCount;
+}
+
+void MetadataListener::onViewModelPropertiesListed(
+    const rive::FileHandle,
+    uint64_t,
+    std::string viewModelName,
+    std::vector<ViewModelPropertyData> properties)
+{
+    uint32_t count = properties.size();
+    if (count > 0)
+    {
+        uint32_t index = m_File->m_ViewModelProperties.Size();
+        uint32_t new_size = index + count;
+        if (m_File->m_ViewModelProperties.Capacity() < new_size)
+        {
+            m_File->m_ViewModelProperties.SetCapacity(new_size);
+        }
+        m_File->m_ViewModelProperties.SetSize(new_size);
+        for (uint32_t i = 0; i < count; ++i)
+        {
+            ViewModelProperty* entry = &m_File->m_ViewModelProperties[index + i];
+            memset(entry, 0, sizeof(*entry));
+            entry->m_ViewModel = strdup(viewModelName.c_str());
+            entry->m_Name = strdup(properties[i].name.c_str());
+            entry->m_MetaData = strdup(properties[i].metaData.c_str());
+            entry->m_Type = properties[i].type;
+        }
+    }
+    ++m_ViewModelPropertiesListedCount;
+}
+
+void MetadataListener::onViewModelEnumsListed(const rive::FileHandle,
+                                              uint64_t,
+                                              std::vector<rive::ViewModelEnum> enums)
+{
+    ClearViewModelEnums(m_File->m_ViewModelEnums);
+    if (!enums.empty())
+    {
+        m_File->m_ViewModelEnums.SetCapacity((uint32_t)enums.size());
+        m_File->m_ViewModelEnums.SetSize((uint32_t)enums.size());
+        for (uint32_t i = 0; i < enums.size(); ++i)
+        {
+            ViewModelEnum* entry = &m_File->m_ViewModelEnums[i];
+            memset(entry, 0, sizeof(*entry));
+            entry->m_Name = strdup(enums[i].name.c_str());
+            FillStringArray(entry->m_Enumerants, enums[i].enumerants);
+        }
+    }
+    m_ViewModelEnumsListed = true;
+}
+
 ArtboardMetadataListener::ArtboardMetadataListener()
 : m_StateMachinesListed(false)
 , m_ArtboardError(false)
+, m_DefaultViewModelInfoReceived(false)
 , m_File(0)
 {
 }
@@ -153,6 +306,7 @@ ArtboardMetadataListener::ArtboardMetadataListener()
 ArtboardMetadataListener::ArtboardMetadataListener(RiveFile* file)
 : m_StateMachinesListed(false)
 , m_ArtboardError(false)
+, m_DefaultViewModelInfoReceived(false)
 , m_File(file)
 {
 }
@@ -171,6 +325,18 @@ void ArtboardMetadataListener::onStateMachinesListed(const rive::ArtboardHandle,
 {
     FillStringArray(m_File->m_StateMachines, stateMachineNames);
     m_StateMachinesListed = true;
+}
+
+void ArtboardMetadataListener::onDefaultViewModelInfoReceived(const rive::ArtboardHandle,
+                                                              uint64_t,
+                                                              std::string viewModelName,
+                                                              std::string instanceName)
+{
+    ClearDefaultViewModelInfo(m_File->m_DefaultViewModelInfo);
+    m_File->m_DefaultViewModelInfo.m_ViewModel = strdup(viewModelName.c_str());
+    m_File->m_DefaultViewModelInfo.m_Instance = strdup(instanceName.c_str());
+    m_File->m_HasDefaultViewModelInfo = true;
+    m_DefaultViewModelInfoReceived = true;
 }
 
 RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char* path)
@@ -193,6 +359,12 @@ RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char*
     out->m_Artboards.SetSize(0);
     out->m_StateMachines.SetSize(0);
     out->m_ViewModels.SetSize(0);
+    out->m_ViewModelProperties.SetSize(0);
+    out->m_ViewModelEnums.SetSize(0);
+    out->m_ViewModelInstanceNames.SetSize(0);
+    out->m_DefaultViewModelInfo.m_ViewModel = 0;
+    out->m_DefaultViewModelInfo.m_Instance = 0;
+    out->m_HasDefaultViewModelInfo = false;
     out->m_File = RIVE_NULL_HANDLE;
     out->m_Artboard = RIVE_NULL_HANDLE;
     out->m_StateMachine = RIVE_NULL_HANDLE;
@@ -229,6 +401,33 @@ RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char*
         dmRiveCommands::ProcessMessages();
     }
 
+#if defined(DM_RIVE_PLUGIN) || defined(DM_RIVE_VIEWER)
+    ClearViewModelProperties(out->m_ViewModelProperties);
+    ClearViewModelEnums(out->m_ViewModelEnums);
+    ClearViewModelInstanceNames(out->m_ViewModelInstanceNames);
+    listener->m_ViewModelEnumsListed = false;
+    listener->m_ViewModelPropertiesListedCount = 0;
+    listener->m_ViewModelInstanceNamesListedCount = 0;
+    listener->m_ViewModelPropertiesExpectedCount = out->m_ViewModels.Size();
+    listener->m_ViewModelInstanceNamesExpectedCount = out->m_ViewModels.Size();
+
+    queue->requestViewModelEnums(out->m_File);
+    for (uint32_t i = 0; i < out->m_ViewModels.Size(); ++i)
+    {
+        queue->requestViewModelPropertyDefinitions(out->m_File, out->m_ViewModels[i]);
+        queue->requestViewModelInstanceNames(out->m_File, out->m_ViewModels[i]);
+    }
+
+    for (int i = 0; i < kMaxMessageLoops &&
+            (!listener->m_ViewModelEnumsListed ||
+             listener->m_ViewModelPropertiesListedCount < listener->m_ViewModelPropertiesExpectedCount ||
+             listener->m_ViewModelInstanceNamesListedCount < listener->m_ViewModelInstanceNamesExpectedCount) &&
+             !listener->m_FileError; ++i)
+    {
+        dmRiveCommands::ProcessMessages();
+    }
+#endif
+
     ArtboardMetadataListener* artboard_listener = out->m_ArtboardListener;
     out->m_Artboard = queue->instantiateDefaultArtboard(out->m_File, artboard_listener);
     if (out->m_Artboard != RIVE_NULL_HANDLE)
@@ -238,6 +437,16 @@ RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char*
         {
             dmRiveCommands::ProcessMessages();
         }
+#if defined(DM_RIVE_PLUGIN) || defined(DM_RIVE_VIEWER)
+        ClearDefaultViewModelInfo(out->m_DefaultViewModelInfo);
+        out->m_HasDefaultViewModelInfo = false;
+        artboard_listener->m_DefaultViewModelInfoReceived = false;
+        queue->requestDefaultViewModelInfo(out->m_Artboard, out->m_File);
+        for (int i = 0; i < kMaxMessageLoops && !artboard_listener->m_DefaultViewModelInfoReceived && !artboard_listener->m_ArtboardError; ++i)
+        {
+            dmRiveCommands::ProcessMessages();
+        }
+#endif
         out->m_StateMachine = queue->instantiateDefaultStateMachine(out->m_Artboard);
         out->m_ViewModelInstance = queue->instantiateDefaultViewModelInstance(out->m_File, out->m_Artboard);
     }
@@ -261,6 +470,10 @@ void DestroyFile(RiveFile* file)
     ClearStringArray(file->m_Artboards);
     ClearStringArray(file->m_StateMachines);
     ClearStringArray(file->m_ViewModels);
+    ClearViewModelProperties(file->m_ViewModelProperties);
+    ClearViewModelEnums(file->m_ViewModelEnums);
+    ClearViewModelInstanceNames(file->m_ViewModelInstanceNames);
+    ClearDefaultViewModelInfo(file->m_DefaultViewModelInfo);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     if (queue)
@@ -302,6 +515,12 @@ void DebugPrintFileState(const RiveFile* file)
     LogNameList("RiveFile: artboards", file->m_Artboards);
     LogNameList("RiveFile: state machines", file->m_StateMachines);
     LogNameList("RiveFile: view models", file->m_ViewModels);
+    if (file->m_HasDefaultViewModelInfo)
+    {
+        dmLogInfo("RiveFile: default view model = '%s' instance = '%s'",
+                  file->m_DefaultViewModelInfo.m_ViewModel ? file->m_DefaultViewModelInfo.m_ViewModel : "<null>",
+                  file->m_DefaultViewModelInfo.m_Instance ? file->m_DefaultViewModelInfo.m_Instance : "<null>");
+    }
 }
 
 

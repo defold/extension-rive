@@ -162,7 +162,7 @@ if(WITH_ASAN)
     target_link_options(viewer PRIVATE -fsanitize=address)
 endif()
 
-target_compile_definitions(viewer PRIVATE DLIB_LOG_DOMAIN=\"VIEWER\")
+target_compile_definitions(viewer PRIVATE DLIB_LOG_DOMAIN=\"VIEWER\" DM_RIVE_VIEWER)
 
 set_target_properties(viewer PROPERTIES
     CXX_STANDARD 17
