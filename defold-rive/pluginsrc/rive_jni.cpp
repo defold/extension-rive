@@ -15,8 +15,18 @@
 #include "rive_jni.h"
 #include "defold_jni.h"
 #include "../commonsrc/file.h"
+#include "../commonsrc/texture.h"
+
+#include <common/commands.h>
+
+#include <defold/renderer.h>
 
 #include <dmsdk/dlib/log.h>
+#include <dmsdk/graphics/graphics.h>
+#include <graphics/graphics.h>
+
+#include <rive/artboard.hpp>
+#include <rive/renderer.hpp>
 
 
 namespace dmRiveJNI
@@ -35,6 +45,15 @@ struct RiveFileJNI
     jfieldID    viewModels; // array of strings
 } g_RiveFileJNI;
 
+struct RiveTextureJNI
+{
+    jclass      cls;
+    jfieldID    width;
+    jfieldID    height;
+    jfieldID    format;
+    jfieldID    data;
+} g_RiveTextureJNI;
+
 
 void InitializeJNITypes(JNIEnv* env)
 {
@@ -48,6 +67,13 @@ void InitializeJNITypes(JNIEnv* env)
         GET_FLD_ARRAY(artboards, "java/lang/String");
         GET_FLD_ARRAY(stateMachines, "java/lang/String");
         GET_FLD_ARRAY(viewModels, "java/lang/String");
+    }
+    {
+        SETUP_CLASS(RiveTextureJNI, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "Texture"));
+        GET_FLD_TYPESTR(width, "I");
+        GET_FLD_TYPESTR(height, "I");
+        GET_FLD_TYPESTR(format, "I");
+        GET_FLD_TYPESTR(data, "[B");
     }
     #undef DM_RIVE_JNI_PACKAGE_NAME
 }
@@ -197,7 +223,160 @@ void SetViewModel(JNIEnv* env, jclass cls, jobject rive_file_obj, const char* vi
 
 jobject GetTexture(JNIEnv* env, jclass cls, jobject rive_file_obj)
 {
-    return 0;
+    dmRive::RiveFile* rive_file = FromObject(env, rive_file_obj);
+    if (!rive_file)
+    {
+        return 0;
+    }
+
+    if (rive_file->m_Artboard == RIVE_NULL_HANDLE)
+    {
+        return 0;
+    }
+
+    dmRive::HRenderContext render_context = dmRiveCommands::GetDefoldRenderContext();
+    if (!render_context)
+    {
+        dmLogError("Rive: missing render context");
+        return 0;
+    }
+
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    if (!queue)
+    {
+        dmLogError("Rive: missing command queue");
+        return 0;
+    }
+
+    dmGraphics::HContext graphics_context = dmGraphics::GetInstalledContext();
+    if (!graphics_context)
+    {
+        dmLogError("Rive: missing graphics context");
+        return 0;
+    }
+
+    dmGraphics::AdapterFamily adapter_family = dmGraphics::GetInstalledAdapterFamily();
+    bool render_to_backbuffer = adapter_family == dmGraphics::ADAPTER_FAMILY_VULKAN;
+
+    if (render_to_backbuffer)
+    {
+        dmGraphics::BeginFrame(graphics_context);
+    }
+
+    dmRive::RenderBeginParams render_params;
+    render_params.m_DoFinalBlit = !render_to_backbuffer;
+    render_params.m_BackbufferSamples = 0;
+
+    dmRive::RenderBegin(render_context, 0, render_params);
+
+    rive::Renderer* renderer = dmRive::GetRiveRenderer(render_context);
+    if (!renderer)
+    {
+        dmRive::RenderEnd(render_context);
+        return 0;
+    }
+
+    uint32_t width = dmGraphics::GetWindowWidth(graphics_context);
+    uint32_t height = dmGraphics::GetWindowHeight(graphics_context);
+    if (width == 0 || height == 0)
+    {
+        dmRive::RenderEnd(render_context);
+        dmLogError("Rive: invalid render size %u x %u (adapter=%d)", width, height, (int)adapter_family);
+        return 0;
+    }
+
+    float display_factor = dmGraphics::GetDisplayScaleFactor(graphics_context);
+
+    if (rive_file->m_StateMachine != RIVE_NULL_HANDLE)
+    {
+        queue->advanceStateMachine(rive_file->m_StateMachine, 0.0f);
+    }
+
+    const rive::ArtboardHandle artboard_handle = rive_file->m_Artboard;
+    const rive::Fit fit = rive::Fit::contain;
+    const rive::Alignment alignment = rive::Alignment::center;
+
+    auto drawLoop = [artboard_handle,
+                     renderer,
+                     fit,
+                     alignment,
+                     width,
+                     height,
+                     display_factor](rive::DrawKey drawKey, rive::CommandServer* server)
+    {
+        rive::ArtboardInstance* artboard = server->getArtboardInstance(artboard_handle);
+        if (artboard == nullptr)
+        {
+            return;
+        }
+
+        renderer->save();
+        rive::AABB bounds = artboard->bounds();
+
+        if (fit == rive::Fit::layout)
+        {
+            artboard->width(width / display_factor);
+            artboard->height(height / display_factor);
+        }
+
+        rive::Mat2D rendererTransform = rive::computeAlignment(fit, alignment, rive::AABB(0, 0, width, height), bounds, display_factor);
+        renderer->transform(rendererTransform);
+        artboard->draw(renderer);
+        renderer->restore();
+    };
+
+    rive::DrawKey draw_key = queue->createDrawKey();
+    queue->draw(draw_key, drawLoop);
+
+    dmRiveCommands::ProcessMessages();
+    dmRive::RenderEnd(render_context);
+
+    if (render_to_backbuffer)
+    {
+        dmGraphics::Flip(graphics_context);
+    }
+
+    dmGraphics::HTexture backing_texture = dmRive::GetBackingTexture(render_context);
+    dmRive::TexturePixels pixels = {};
+    if (!dmRive::ReadPixels(backing_texture, &pixels))
+    {
+        dmLogError("Rive: ReadPixels failed (adapter=%d, backbuffer=%d)", (int)adapter_family, (int)render_to_backbuffer);
+        return 0;
+    }
+
+    if (pixels.m_Format == dmGraphics::TEXTURE_FORMAT_RGBA)
+    {
+        uint32_t pixel_count = (uint32_t)pixels.m_Width * (uint32_t)pixels.m_Height;
+        uint8_t* data = pixels.m_Data;
+        for (uint32_t i = 0; i < pixel_count; ++i)
+        {
+            uint8_t tmp = data[0];
+            data[0] = data[2];
+            data[2] = tmp;
+            data += 4;
+        }
+        pixels.m_Format = dmGraphics::TEXTURE_FORMAT_BGRA8U;
+    }
+
+    if (pixels.m_Format != dmGraphics::TEXTURE_FORMAT_BGRA8U)
+    {
+        dmRive::FreePixels(&pixels);
+        return 0;
+    }
+
+    jbyteArray data_arr = env->NewByteArray((jsize)pixels.m_DataSize);
+    env->SetByteArrayRegion(data_arr, 0, (jsize)pixels.m_DataSize, (const jbyte*)pixels.m_Data);
+
+    jobject texture_obj = env->AllocObject(g_RiveTextureJNI.cls);
+    env->SetIntField(texture_obj, g_RiveTextureJNI.width, (int)pixels.m_Width);
+    env->SetIntField(texture_obj, g_RiveTextureJNI.height, (int)pixels.m_Height);
+    env->SetIntField(texture_obj, g_RiveTextureJNI.format, (int)pixels.m_Format);
+    env->SetObjectField(texture_obj, g_RiveTextureJNI.data, data_arr);
+    env->DeleteLocalRef(data_arr);
+
+    dmRive::FreePixels(&pixels);
+
+    return texture_obj;
 }
 
 } // namespace
