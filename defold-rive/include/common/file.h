@@ -14,10 +14,13 @@
 #define DM_RIVE_COMMONSRC_FILE_H
 
 #include <stddef.h>
+#include <stdint.h>
 
 #include <dmsdk/dlib/array.h>
 
 #include <rive/command_queue.hpp>
+#include <rive/artboard.hpp>
+#include <rive/renderer.hpp>
 
 namespace dmRive
 {
@@ -49,6 +52,20 @@ namespace dmRive
     void SetArtboard(RiveFile* file, const char* artboard);
     void SetStatemachine(RiveFile* file, const char* state_machine);
     void SetViewModel(RiveFile* file, const char* view_model);
+
+    struct DrawArtboardParams
+    {
+        rive::Fit       m_Fit;
+        rive::Alignment m_Alignment;
+        uint32_t        m_Width;
+        uint32_t        m_Height;
+        float           m_DisplayFactor;
+    };
+
+    bool DrawArtboard(rive::ArtboardInstance* artboard,
+                      rive::Renderer* renderer,
+                      const DrawArtboardParams& params,
+                      rive::Mat2D* out_transform);
 
     //jobject GetTexture(RiveFile* file);
 } // namespace dmRive

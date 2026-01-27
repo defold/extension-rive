@@ -7,7 +7,7 @@
 #include "renderer_context.h"
 #include "defold/renderer.h"
 
-#include "rive_math.h"
+#include "common/rive_math.h"
 
 #include <rive/shapes/image.hpp>
 #include <rive/renderer.hpp>

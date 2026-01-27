@@ -20,8 +20,9 @@
 #include "res_rive_data.h"
 #include "res_rive_scene.h"
 #include "res_rive_model.h"
-
+#include <common/file.h>
 #include <common/commands.h>
+#include <common/rive_math.h>
 
 // Defold Rive Renderer
 #include <defold/rive.h>
@@ -588,12 +589,11 @@ namespace dmRive
                 }
 
                 rive::Factory* factory = server->factory();
-                renderer->save();
-
-                rive::AABB bounds = artboard->bounds();
 
                 if (fullscreen)
                 {
+                    renderer->save();
+                    rive::AABB bounds = artboard->bounds();
                     // Apply the world matrix from the component to the artboard transform
                     rive::Mat2D centerAdjustment  = rive::Mat2D::fromTranslate(-bounds.width() / 2.0f, -bounds.height() / 2.0f);
                     rive::Mat2D scaleDpi          = rive::Mat2D::fromScale(1,-1);
@@ -602,22 +602,23 @@ namespace dmRive
 
                     renderer->transform(rendererTransform);
                     c->m_InverseRendererTransform = rendererTransform.invertOrIdentity();
+                    artboard->draw(renderer);
+                    renderer->restore();
                 }
                 else
                 {
-                    if (fit == rive::Fit::layout)
+                    dmRive::DrawArtboardParams draw_params;
+                    draw_params.m_Fit = fit;
+                    draw_params.m_Alignment = alignment;
+                    draw_params.m_Width = width;
+                    draw_params.m_Height = height;
+                    draw_params.m_DisplayFactor = display_factor;
+                    rive::Mat2D renderer_transform;
+                    if (dmRive::DrawArtboard(artboard, renderer, draw_params, &renderer_transform))
                     {
-                        artboard->width(width / display_factor);
-                        artboard->height(height / display_factor);
+                        c->m_InverseRendererTransform = renderer_transform.invertOrIdentity();
                     }
-
-                    rive::Mat2D rendererTransform = rive::computeAlignment(fit, alignment, rive::AABB(0, 0, width, height), bounds, display_factor);
-                    renderer->transform(rendererTransform);
-                    c->m_InverseRendererTransform = rendererTransform.invertOrIdentity();
                 }
-
-                artboard->draw(renderer);
-                renderer->restore();
             };
 
             queue->draw(c->m_DrawKey, drawLoop);

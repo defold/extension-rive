@@ -252,11 +252,20 @@ else()
         target_link_libraries(rive_plugin PRIVATE pthread m dl)
     endif()
 
-    target_link_libraries(rive_plugin PRIVATE
-                dlib mbedtls ddf
-                profile_null profilerext_null
-                platform_null render graphics_vulkan MoltenVK
-                resource script gamesys lua)
+    if(TARGET_PLATFORM MATCHES "macos")
+        target_link_libraries(rive_plugin PRIVATE
+                    dlib mbedtls ddf
+                    profile_null profilerext_null
+                    platform render graphics
+                    platform_vulkan graphics_vulkan glfw3 MoltenVK
+                    resource script gamesys lua)
+    else()
+        target_link_libraries(rive_plugin PRIVATE
+                    dlib mbedtls ddf
+                    profile_null profilerext_null
+                    platform_null render graphics_vulkan MoltenVK
+                    resource script gamesys lua)
+    endif()
     target_link_libraries(rive_plugin PRIVATE rive rive_decoders rive_sheenbidi rive_harfbuzz rive_yoga rive_pls_renderer zlib libjpeg libpng libwebp)
 
 endif()

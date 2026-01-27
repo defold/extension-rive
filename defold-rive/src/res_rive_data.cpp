@@ -21,9 +21,7 @@
 #include "res_rive_data.h"
 #include "script_rive.h"
 #include "defold/renderer.h"
-#include <common/atlas.h>
 #include <common/font.h>
-#include <common/factory.h>
 #include <common/commands.h>
 
 #include <stdint.h>

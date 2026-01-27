@@ -31,7 +31,7 @@
 #include <graphics/graphics.h> // ContextParams
 
 #include <defold/rive.h>
-#include "file.h"
+#include "common/file.h"
 #include "texture.h"
 #include <common/commands.h>
 
@@ -537,14 +537,11 @@ static void DrawRiveScene(EngineCtx* engine)
         }
 
         rive::Factory* factory = server->factory();
-        // Draw the .riv.
-        renderer->save();
-
-        rive::AABB bounds = artboard->bounds();
-
         bool fullscreen = false;
         if (fullscreen)
         {
+            renderer->save();
+            rive::AABB bounds = artboard->bounds();
             // // Apply the world matrix from the component to the artboard transform
             // rive::Mat2D transform         = rive::Mat2D::fromTranslate(width / 2.0f, height / 2.0f);
             // rive::Mat2D centerAdjustment  = rive::Mat2D::fromTranslate(-bounds.width() / 2.0f, -bounds.height() / 2.0f);
@@ -555,23 +552,19 @@ static void DrawRiveScene(EngineCtx* engine)
             // renderer->transform(rendererTransform);
             // For making input work nicely
             //c->m_InverseRendererTransform = rendererTransform.invertOrIdentity();
+            artboard->draw(renderer);
+            renderer->restore();
         }
         else
         {
-            if (fit == rive::Fit::layout)
-            {
-                artboard->width(width / display_factor);
-                artboard->height(height / display_factor);
-            }
-
-            rive::Mat2D rendererTransform = rive::computeAlignment(fit, alignment, rive::AABB(0, 0, width, height), bounds, display_factor);
-            renderer->transform(rendererTransform);
-            // For making input work nicely
-            //c->m_InverseRendererTransform = rendererTransform.invertOrIdentity();
+            dmRive::DrawArtboardParams draw_params;
+            draw_params.m_Fit = fit;
+            draw_params.m_Alignment = alignment;
+            draw_params.m_Width = width;
+            draw_params.m_Height = height;
+            draw_params.m_DisplayFactor = display_factor;
+            dmRive::DrawArtboard(artboard, renderer, draw_params, 0);
         }
-
-        artboard->draw(renderer);
-        renderer->restore();
     };
 
     queue->draw(engine->m_DrawKey, drawLoop);

@@ -62,6 +62,7 @@ public class Rive {
     public static native void SetArtboard(RiveFile rive_file, String name);
     public static native void SetStateMachine(RiveFile rive_file, String name);
     public static native void SetViewModel(RiveFile rive_file, String name);
+    public static native Texture GetTexture(RiveFile rive_file);
     public static native void DebugPrint();
 
     public static class RiveFile {
@@ -78,6 +79,13 @@ public class Rive {
         public void Update(float dt) {
             Rive.Update(this, dt);
         }
+    }
+
+    public static class Texture {
+        public int              width;
+        public int              height;
+        public int              format;
+        public byte[]           data;
     }
 
     public static void UpdateInternal(RiveFile rive_file, float dt)
@@ -124,6 +132,27 @@ public class Rive {
         }
     }
 
+    private static boolean WriteTgaFile(String path, Texture texture) throws IOException {
+        if (texture == null || texture.data == null || texture.width == 0 || texture.height == 0) {
+            return false;
+        }
+
+        try (BufferedOutputStream output = new BufferedOutputStream(new FileOutputStream(path))) {
+            byte[] header = new byte[18];
+            header[2] = 2; // Uncompressed true-color image.
+            header[12] = (byte)(texture.width & 0xFF);
+            header[13] = (byte)((texture.width >> 8) & 0xFF);
+            header[14] = (byte)(texture.height & 0xFF);
+            header[15] = (byte)((texture.height >> 8) & 0xFF);
+            header[16] = 32; // Bits per pixel.
+            header[17] = (byte)(8 | 0x20); // 8-bit alpha, top-left origin.
+
+            output.write(header);
+            output.write(texture.data);
+        }
+        return true;
+    }
+
     // ./utils/test_plugin.sh <rive scene path>
     public static void main(String[] args) throws IOException {
         System.setProperty("java.awt.headless", "true");
@@ -149,6 +178,20 @@ public class Rive {
         System.out.printf("Java: hashCode: %d\n", rive_file.hashCode());
 
         rive_file.Update(0.0f);
+
+        Texture texture = Rive.GetTexture(rive_file);
+        if (texture != null) {
+            String screenshotPath = "screenshot.tga";
+            if (WriteTgaFile(screenshotPath, texture)) {
+                System.out.printf("Wrote screenshot %s (%dx%d)\n", screenshotPath, texture.width, texture.height);
+            } else {
+                System.out.printf("Failed to write screenshot %s\n", screenshotPath);
+            }
+        } else {
+            System.out.printf("Failed to capture screenshot\n");
+        }
+
+        System.out.printf("--------------------------------\n");
 
         System.out.printf("--------------------------------\n");
 

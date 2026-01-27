@@ -14,7 +14,7 @@
 
 #include "rive_jni.h"
 #include "defold_jni.h"
-#include "../commonsrc/file.h"
+#include <common/file.h>
 #include "../commonsrc/texture.h"
 
 #include <common/commands.h>
@@ -293,36 +293,23 @@ jobject GetTexture(JNIEnv* env, jclass cls, jobject rive_file_obj)
     }
 
     const rive::ArtboardHandle artboard_handle = rive_file->m_Artboard;
-    const rive::Fit fit = rive::Fit::contain;
-    const rive::Alignment alignment = rive::Alignment::center;
+    dmRive::DrawArtboardParams draw_params;
+    draw_params.m_Fit = rive::Fit::contain;
+    draw_params.m_Alignment = rive::Alignment::center;
+    draw_params.m_Width = width;
+    draw_params.m_Height = height;
+    draw_params.m_DisplayFactor = display_factor;
 
     auto drawLoop = [artboard_handle,
                      renderer,
-                     fit,
-                     alignment,
-                     width,
-                     height,
-                     display_factor](rive::DrawKey drawKey, rive::CommandServer* server)
+                     draw_params](rive::DrawKey drawKey, rive::CommandServer* server)
     {
         rive::ArtboardInstance* artboard = server->getArtboardInstance(artboard_handle);
         if (artboard == nullptr)
         {
             return;
         }
-
-        renderer->save();
-        rive::AABB bounds = artboard->bounds();
-
-        if (fit == rive::Fit::layout)
-        {
-            artboard->width(width / display_factor);
-            artboard->height(height / display_factor);
-        }
-
-        rive::Mat2D rendererTransform = rive::computeAlignment(fit, alignment, rive::AABB(0, 0, width, height), bounds, display_factor);
-        renderer->transform(rendererTransform);
-        artboard->draw(renderer);
-        renderer->restore();
+        dmRive::DrawArtboard(artboard, renderer, draw_params, 0);
     };
 
     rive::DrawKey draw_key = queue->createDrawKey();
