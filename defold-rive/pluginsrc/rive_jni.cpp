@@ -41,7 +41,7 @@ struct RiveFileJNI
     jfieldID    pointer;       // Pointer to a RiveFile*
     jfieldID    path;          // string
     jfieldID    artboards;     // array of strings
-    jfieldID    stateMachines; // array of strings
+    jfieldID    stateMachines; // HashMap<String, String[]>
     jfieldID    viewModels; // array of strings
     jfieldID    viewModelProperties; // array of ViewModelProperty
     jfieldID    viewModelEnums; // array of ViewModelEnum
@@ -100,7 +100,7 @@ void InitializeJNITypes(JNIEnv* env)
         GET_FLD_STRING(path);
         GET_FLD_TYPESTR(pointer, "J");
         GET_FLD_ARRAY(artboards, "java/lang/String");
-        GET_FLD_ARRAY(stateMachines, "java/lang/String");
+        GET_FLD_TYPESTR(stateMachines, "Ljava/util/HashMap;");
         GET_FLD_ARRAY(viewModels, "java/lang/String");
         GET_FLD_ARRAY(viewModelProperties, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "ViewModelProperty"));
         GET_FLD_ARRAY(viewModelEnums, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "ViewModelEnum"));
@@ -185,6 +185,29 @@ static jobjectArray CreateStringArray(JNIEnv* env, const dmArray<const char*>& n
 static jobjectArray CreateArtboards(JNIEnv* env, dmRive::RiveFile* rive_file)
 {
     return CreateStringArray(env, rive_file->m_Artboards);
+}
+
+static jobject CreateStateMachinesByArtboard(JNIEnv* env, const dmArray<dmRive::ArtboardStateMachines>& entries)
+{
+    jclass hash_map_cls = env->FindClass("java/util/HashMap");
+    jmethodID init = env->GetMethodID(hash_map_cls, "<init>", "()V");
+    jmethodID put = env->GetMethodID(hash_map_cls, "put", "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
+    jobject map = env->NewObject(hash_map_cls, init);
+
+    for (uint32_t i = 0; i < entries.Size(); ++i)
+    {
+        const dmRive::ArtboardStateMachines& entry = entries[i];
+        const char* artboard_name = entry.m_Artboard ? entry.m_Artboard : "";
+        jstring key = env->NewStringUTF(artboard_name);
+        jobjectArray values = CreateStringArray(env, entry.m_StateMachines);
+        env->CallObjectMethod(map, put, key, values);
+        DM_CHECK_JNI_ERROR();
+        env->DeleteLocalRef(key);
+        env->DeleteLocalRef(values);
+    }
+
+    env->DeleteLocalRef(hash_map_cls);
+    return map;
 }
 
 static const char* DataTypeToString(rive::DataType type);
@@ -298,7 +321,7 @@ static jobject CreateRiveFile(JNIEnv* env, dmRive::RiveFile* rive_file)
     dmDefoldJNI::SetFieldObject(env, obj, g_RiveFileJNI.artboards, artboards);
     env->DeleteLocalRef(artboards);
 
-    jobjectArray state_machines = CreateStringArray(env, rive_file->m_StateMachines);
+    jobject state_machines = CreateStateMachinesByArtboard(env, rive_file->m_StateMachinesByArtboard);
     dmDefoldJNI::SetFieldObject(env, obj, g_RiveFileJNI.stateMachines, state_machines);
     env->DeleteLocalRef(state_machines);
 

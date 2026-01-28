@@ -23,7 +23,7 @@
 namespace dmRive
 {
 
-static const int kMaxMessageLoops = 256;
+static const int DM_MAX_MESSAGE_LOOPS = 256;
 
 static void ClearStringArray(dmArray<const char*>& array)
 {
@@ -80,6 +80,17 @@ static void ClearViewModelInstanceNames(dmArray<ViewModelInstanceNames>& array)
         free((void*)array[i].m_ViewModel);
         ClearStringArray(array[i].m_Instances);
         array[i].m_ViewModel = 0;
+    }
+    array.SetSize(0);
+}
+
+static void ClearArtboardStateMachines(dmArray<ArtboardStateMachines>& array)
+{
+    for (uint32_t i = 0; i < array.Size(); ++i)
+    {
+        free((void*)array[i].m_Artboard);
+        ClearStringArray(array[i].m_StateMachines);
+        array[i].m_Artboard = 0;
     }
     array.SetSize(0);
 }
@@ -164,7 +175,8 @@ public:
                                         std::string viewModelName,
                                         std::string instanceName) override;
 
-    bool m_StateMachinesListed;
+    uint32_t m_StateMachinesListedCount;
+    uint32_t m_StateMachinesExpectedCount;
     bool m_ArtboardError;
     bool m_DefaultViewModelInfoReceived;
     RiveFile* m_File;
@@ -296,7 +308,8 @@ void MetadataListener::onViewModelEnumsListed(const rive::FileHandle,
 }
 
 ArtboardMetadataListener::ArtboardMetadataListener()
-: m_StateMachinesListed(false)
+: m_StateMachinesListedCount(0)
+, m_StateMachinesExpectedCount(0)
 , m_ArtboardError(false)
 , m_DefaultViewModelInfoReceived(false)
 , m_File(0)
@@ -304,7 +317,8 @@ ArtboardMetadataListener::ArtboardMetadataListener()
 }
 
 ArtboardMetadataListener::ArtboardMetadataListener(RiveFile* file)
-: m_StateMachinesListed(false)
+: m_StateMachinesListedCount(0)
+, m_StateMachinesExpectedCount(0)
 , m_ArtboardError(false)
 , m_DefaultViewModelInfoReceived(false)
 , m_File(file)
@@ -320,11 +334,39 @@ void ArtboardMetadataListener::onArtboardError(const rive::ArtboardHandle,
 }
 
 void ArtboardMetadataListener::onStateMachinesListed(const rive::ArtboardHandle,
-                                                     uint64_t,
+                                                     uint64_t request_id,
                                                      std::vector<std::string> stateMachineNames)
 {
-    FillStringArray(m_File->m_StateMachines, stateMachineNames);
-    m_StateMachinesListed = true;
+    ++m_StateMachinesListedCount;
+    if (!m_File)
+    {
+        return;
+    }
+
+    const char* artboard_name = 0;
+    uint32_t index = (uint32_t)request_id;
+    if (index < m_File->m_Artboards.Size())
+    {
+        artboard_name = m_File->m_Artboards[index];
+    }
+
+    if (!artboard_name)
+    {
+        artboard_name = "";
+    }
+
+    uint32_t entry_index = m_File->m_StateMachinesByArtboard.Size();
+    uint32_t new_size = entry_index + 1;
+    if (m_File->m_StateMachinesByArtboard.Capacity() < new_size)
+    {
+        m_File->m_StateMachinesByArtboard.SetCapacity(new_size);
+    }
+    m_File->m_StateMachinesByArtboard.SetSize(new_size);
+
+    ArtboardStateMachines* entry = &m_File->m_StateMachinesByArtboard[entry_index];
+    memset(entry, 0, sizeof(*entry));
+    entry->m_Artboard = strdup(artboard_name);
+    FillStringArray(entry->m_StateMachines, stateMachineNames);
 }
 
 void ArtboardMetadataListener::onDefaultViewModelInfoReceived(const rive::ArtboardHandle,
@@ -357,7 +399,7 @@ RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char*
     RiveFile* out = new RiveFile;
     out->m_Path = strdup(path);
     out->m_Artboards.SetSize(0);
-    out->m_StateMachines.SetSize(0);
+    out->m_StateMachinesByArtboard.SetSize(0);
     out->m_ViewModels.SetSize(0);
     out->m_ViewModelProperties.SetSize(0);
     out->m_ViewModelEnums.SetSize(0);
@@ -377,7 +419,7 @@ RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char*
     MetadataListener* listener = out->m_FileListener;
     out->m_File = queue->loadFile(bytes, listener);
 
-    for (int i = 0; i < kMaxMessageLoops && !listener->m_FileLoaded && !listener->m_FileError; ++i)
+    for (int i = 0; i < DM_MAX_MESSAGE_LOOPS && !listener->m_FileLoaded && !listener->m_FileError; ++i)
     {
         dmRiveCommands::ProcessMessages();
     }
@@ -396,7 +438,7 @@ RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char*
 
     queue->requestArtboardNames(out->m_File);
     queue->requestViewModelNames(out->m_File);
-    for (int i = 0; i < kMaxMessageLoops && (!listener->m_ArtboardsListed || !listener->m_ViewModelsListed) && !listener->m_FileError; ++i)
+    for (int i = 0; i < DM_MAX_MESSAGE_LOOPS && (!listener->m_ArtboardsListed || !listener->m_ViewModelsListed) && !listener->m_FileError; ++i)
     {
         dmRiveCommands::ProcessMessages();
     }
@@ -418,7 +460,7 @@ RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char*
         queue->requestViewModelInstanceNames(out->m_File, out->m_ViewModels[i]);
     }
 
-    for (int i = 0; i < kMaxMessageLoops &&
+    for (int i = 0; i < DM_MAX_MESSAGE_LOOPS &&
             (!listener->m_ViewModelEnumsListed ||
              listener->m_ViewModelPropertiesListedCount < listener->m_ViewModelPropertiesExpectedCount ||
              listener->m_ViewModelInstanceNamesListedCount < listener->m_ViewModelInstanceNamesExpectedCount) &&
@@ -429,20 +471,71 @@ RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char*
 #endif
 
     ArtboardMetadataListener* artboard_listener = out->m_ArtboardListener;
+    ClearArtboardStateMachines(out->m_StateMachinesByArtboard);
+    artboard_listener->m_StateMachinesListedCount = 0;
+    artboard_listener->m_StateMachinesExpectedCount = out->m_Artboards.Size();
+    artboard_listener->m_ArtboardError = false;
+
+    dmArray<rive::ArtboardHandle> artboards_to_delete;
+    if (out->m_Artboards.Size() > 0)
+    {
+        artboards_to_delete.SetCapacity(out->m_Artboards.Size());
+    }
+
+    for (uint32_t i = 0; i < out->m_Artboards.Size(); ++i)
+    {
+        const char* artboard_name = out->m_Artboards[i];
+        rive::ArtboardHandle artboard = queue->instantiateArtboardNamed(out->m_File, artboard_name, artboard_listener);
+        if (artboard != RIVE_NULL_HANDLE)
+        {
+            uint32_t handle_index = artboards_to_delete.Size();
+            artboards_to_delete.SetSize(handle_index + 1);
+            artboards_to_delete[handle_index] = artboard;
+            queue->requestStateMachineNames(artboard, i);
+        }
+        else
+        {
+            uint32_t entry_index = out->m_StateMachinesByArtboard.Size();
+            uint32_t new_size = entry_index + 1;
+            if (out->m_StateMachinesByArtboard.Capacity() < new_size)
+            {
+                out->m_StateMachinesByArtboard.SetCapacity(new_size);
+            }
+            out->m_StateMachinesByArtboard.SetSize(new_size);
+            ArtboardStateMachines* entry = &out->m_StateMachinesByArtboard[entry_index];
+            memset(entry, 0, sizeof(*entry));
+            entry->m_Artboard = artboard_name ? strdup(artboard_name) : strdup("");
+            entry->m_StateMachines.SetSize(0);
+            ++artboard_listener->m_StateMachinesListedCount;
+        }
+    }
+
+    for (int i = 0; i < DM_MAX_MESSAGE_LOOPS &&
+            artboard_listener->m_StateMachinesListedCount < artboard_listener->m_StateMachinesExpectedCount &&
+            !artboard_listener->m_ArtboardError; ++i)
+    {
+        dmRiveCommands::ProcessMessages();
+    }
+
+    for (uint32_t i = 0; i < artboards_to_delete.Size(); ++i)
+    {
+        queue->deleteArtboard(artboards_to_delete[i]);
+    }
+    if (artboards_to_delete.Size() > 0)
+    {
+        dmRiveCommands::ProcessMessages();
+    }
+
     out->m_Artboard = queue->instantiateDefaultArtboard(out->m_File, artboard_listener);
     if (out->m_Artboard != RIVE_NULL_HANDLE)
     {
-        queue->requestStateMachineNames(out->m_Artboard);
-        for (int i = 0; i < kMaxMessageLoops && !artboard_listener->m_StateMachinesListed && !artboard_listener->m_ArtboardError; ++i)
-        {
-            dmRiveCommands::ProcessMessages();
-        }
 #if defined(DM_RIVE_PLUGIN) || defined(DM_RIVE_VIEWER)
         ClearDefaultViewModelInfo(out->m_DefaultViewModelInfo);
         out->m_HasDefaultViewModelInfo = false;
         artboard_listener->m_DefaultViewModelInfoReceived = false;
+        artboard_listener->m_ArtboardError = false;
         queue->requestDefaultViewModelInfo(out->m_Artboard, out->m_File);
-        for (int i = 0; i < kMaxMessageLoops && !artboard_listener->m_DefaultViewModelInfoReceived && !artboard_listener->m_ArtboardError; ++i)
+        for (int i = 0; i < DM_MAX_MESSAGE_LOOPS && !artboard_listener->m_DefaultViewModelInfoReceived && !artboard_listener->m_ArtboardError; ++i)
         {
             dmRiveCommands::ProcessMessages();
         }
@@ -468,8 +561,8 @@ void DestroyFile(RiveFile* file)
     }
 
     ClearStringArray(file->m_Artboards);
-    ClearStringArray(file->m_StateMachines);
     ClearStringArray(file->m_ViewModels);
+    ClearArtboardStateMachines(file->m_StateMachinesByArtboard);
     ClearViewModelProperties(file->m_ViewModelProperties);
     ClearViewModelEnums(file->m_ViewModelEnums);
     ClearViewModelInstanceNames(file->m_ViewModelInstanceNames);
@@ -513,7 +606,17 @@ void DebugPrintFileState(const RiveFile* file)
 
     dmLogInfo("RiveFile: path=%s", file->m_Path ? file->m_Path : "<null>");
     LogNameList("RiveFile: artboards", file->m_Artboards);
-    LogNameList("RiveFile: state machines", file->m_StateMachines);
+    for (uint32_t i = 0; i < file->m_StateMachinesByArtboard.Size(); ++i)
+    {
+        const ArtboardStateMachines& entry = file->m_StateMachinesByArtboard[i];
+        const char* artboard_name = entry.m_Artboard ? entry.m_Artboard : "<null>";
+        dmLogInfo("RiveFile: state machines for artboard '%s' (%u)", artboard_name, entry.m_StateMachines.Size());
+        for (uint32_t j = 0; j < entry.m_StateMachines.Size(); ++j)
+        {
+            const char* name = entry.m_StateMachines[j] ? entry.m_StateMachines[j] : "<null>";
+            dmLogInfo("  - '%s'", name);
+        }
+    }
     LogNameList("RiveFile: view models", file->m_ViewModels);
     if (file->m_HasDefaultViewModelInfo)
     {

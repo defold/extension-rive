@@ -94,12 +94,34 @@
   (plugin-invoke-static rive-plugin-cls "SetArtboardInternal" (into-array Class [rive-plugin-file-cls String]) [file artboard]))
 
 ;; Helper for optional Java fields (Rive.java may not expose older data).
-(defn- get-public-field [obj field-name]
+(defn- get-public-field [^Object obj ^String field-name]
   (when obj
     (try
       (let [field (.getField (.getClass obj) field-name)]
         (.get field obj))
       (catch Exception _ nil))))
+
+(defn- to-state-machines-map [^java.util.Map state-machines]
+  (if state-machines
+    (into {}
+          (map (fn [entry]
+                 (let [^java.util.Map$Entry entry entry
+                       key (.getKey entry)
+                       value (.getValue entry)]
+                   [key (if value (vec value) [])]))
+               (.entrySet state-machines)))
+    {}))
+
+(defn- resolve-artboard-name [artboard artboards]
+  (if (and artboard (not-empty artboard))
+    artboard
+    (first artboards)))
+
+(defn- state-machines-for-artboard [state-machines-by-artboard artboard artboards]
+  (let [resolved (resolve-artboard-name artboard artboards)]
+    (if (and resolved state-machines-by-artboard)
+      (get state-machines-by-artboard resolved [])
+      [])))
 
 ; .rivemodel
 (defn load-rive-model [project self resource rive-model-desc]
@@ -238,7 +260,7 @@
   (let [content (resource->bytes resource)
         rive-handle (plugin-load-file content (resource/resource->proj-path resource))
         artboards (or (get-public-field rive-handle "artboards") [])
-        state-machines (or (get-public-field rive-handle "stateMachines") [])
+        state-machines (to-state-machines-map (get-public-field rive-handle "stateMachines"))
 
         _ (.Update rive-handle 0.0)
         aabb (if-let [rive-aabb (get-public-field rive-handle "aabb")]
@@ -694,7 +716,7 @@
   (prop-resource-error node-id :scene rive-scene "Rive Scene"))
 
 (g/defnk produce-model-own-build-errors [_node-id artboard default-state-machine material rive-artboards rive-state-machines rive-scene]
-  (let [state-machine-ids (or rive-state-machines [])]
+  (let [state-machine-ids (state-machines-for-artboard rive-state-machines artboard rive-artboards)]
    (g/package-errors _node-id
                     (validate-model-material _node-id material)
                     (validate-model-rive-scene _node-id rive-scene)
@@ -727,6 +749,7 @@
   (input material-resource resource/Resource)
   (input blit-material-resource resource/Resource)
   (input rive-state-machines g/Any)
+  (input rive-artboards g/Any)
 
   (property rive-scene resource/Resource ; Required protobuf field.
             (value (gu/passthrough rive-scene-resource))
@@ -773,10 +796,12 @@
             (dynamic visible (g/constantly false)))
 
   (property default-state-machine g/Str (default (protobuf/default rive-model-pb-class :default-state-machine))
-            (dynamic error (g/fnk [_node-id rive-state-machines default-state-machine rive-scene]
-                             (validate-model-default-state-machine _node-id rive-scene (or rive-state-machines []) default-state-machine)))
-            (dynamic edit-type (g/fnk [rive-state-machines]
-                                 (properties/->choicebox (cons "" (or rive-state-machines []))))))
+            (dynamic error (g/fnk [_node-id rive-state-machines artboard rive-artboards default-state-machine rive-scene]
+                             (validate-model-default-state-machine _node-id rive-scene
+                                                                   (state-machines-for-artboard rive-state-machines artboard rive-artboards)
+                                                                   default-state-machine)))
+            (dynamic edit-type (g/fnk [rive-state-machines artboard rive-artboards]
+                                 (properties/->choicebox (cons "" (state-machines-for-artboard rive-state-machines artboard rive-artboards))))))
 
   (property artboard g/Str (default (protobuf/default rive-model-pb-class :artboard))
           (dynamic error (g/fnk [_node-id rive-artboards artboard rive-scene]
@@ -797,7 +822,6 @@
   (input dep-build-targets g/Any :array)
   (input rive-file-handle g/Any)
   (input rive-main-scene g/Any)
-  (input rive-artboards g/Any)
   (input texture-set-pb g/Any)
   (input atlas-resource resource/Resource)
   (input material-shader ShaderLifecycle)
@@ -817,11 +841,9 @@
                                      (if (and (some? material-shader) (some? (:renderable rive-main-scene)))
                                        (let [aabb (:aabb rive-main-scene)
                                              rive-scene-node-id (:node-id rive-main-scene)
-                                             _ (plugin-set-artboard rive-file-handle artboard )]
+                                             _ (plugin-set-artboard rive-file-handle artboard)]
                                          (-> rive-main-scene
                                              (assoc-in [:renderable :user-data :shader] material-shader)
-                                        ;;;;;;;;;;;(assoc :gpu-texture texture/white-pixel)
-                                        ;(update-in [:renderable :user-data :gpu-texture] texture/set-params tex-params)
                                              (assoc :aabb aabb)
                                              (assoc :children [(make-rive-outline-scene rive-scene-node-id aabb)])))
 

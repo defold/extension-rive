@@ -48,6 +48,12 @@ namespace dmRive
         dmArray<const char*> m_Instances;
     };
 
+    struct ArtboardStateMachines
+    {
+        const char*          m_Artboard;
+        dmArray<const char*> m_StateMachines;
+    };
+
     struct DefaultViewModelInfo
     {
         const char* m_ViewModel;
@@ -59,7 +65,7 @@ namespace dmRive
         const char*                  m_Path;
         dmArray<const char*>         m_Artboards;
         dmArray<const char*>         m_ViewModels;
-        dmArray<const char*>         m_StateMachines; // The available state machines for the current artboard
+        dmArray<struct ArtboardStateMachines> m_StateMachinesByArtboard;
         dmArray<struct ViewModelProperty> m_ViewModelProperties;
         dmArray<struct ViewModelEnum>     m_ViewModelEnums;
         dmArray<struct ViewModelInstanceNames> m_ViewModelInstanceNames;

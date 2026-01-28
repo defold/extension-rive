@@ -17,6 +17,7 @@ import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.util.List;
 import java.util.Arrays;
+import java.util.HashMap;
 
 import java.lang.reflect.Method;
 
@@ -67,10 +68,11 @@ public class Rive {
 
     public static class RiveFile {
         public String           path;
-        public long             pointer;
+        public long             pointer;        // The C++ pointer
         public String[]         artboards;
-        public String[]         stateMachines; // the statemachines beloning to the current artboard
+        public HashMap<String, String[]> stateMachines; // artboard -> state machines
         public String[]         viewModels;
+
         public ViewModelProperty[] viewModelProperties;
         public ViewModelEnum[]     viewModelEnums;
         public ViewModelInstanceNames[] viewModelInstanceNames;
@@ -231,11 +233,21 @@ public class Rive {
 
         System.out.printf("--------------------------------\n");
 
-        System.out.printf("Num state machines: %d\n", rive_file.stateMachines.length);
-        for (String name : rive_file.stateMachines)
-        {
-            PrintIndent(1);
-            System.out.printf("'%s'\n", name);
+        if (rive_file.stateMachines != null) {
+            System.out.printf("State machines by artboard: %d\n", rive_file.stateMachines.size());
+            for (String artboard : rive_file.stateMachines.keySet()) {
+                PrintIndent(1);
+                System.out.printf("Artboard '%s'\n", artboard);
+                String[] machines = rive_file.stateMachines.get(artboard);
+                if (machines != null) {
+                    for (String name : machines) {
+                        PrintIndent(2);
+                        System.out.printf("State Machine: '%s'\n", name);
+                    }
+                }
+            }
+        } else {
+            System.out.printf("State machines by artboard: <none>\n");
         }
 
         System.out.printf("--------------------------------\n");
