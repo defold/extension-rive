@@ -8,6 +8,7 @@
 
 (ns editor.rive
   (:require [clojure.java.io :as io]
+            [clojure.string :as str]
             [dynamo.graph :as g]
             [editor.buffers :as buffers]
             [editor.build-target :as bt]
@@ -52,6 +53,10 @@
 (def rive-scene-icon "/defold-rive/editor/resources/icons/32/Icons_16-Rive-scene.png")
 (def rive-model-icon "/defold-rive/editor/resources/icons/32/Icons_15-Rive-model.png")
 (def rive-bone-icon "/defold-rive/editor/resources/icons/32/Icons_18-Rive-bone.png")
+(def rive-artboard-icon "/defold-rive/editor/resources/icons/32/Icons_19-Rive-artboard.png")
+(def rive-state-machine-icon "/defold-rive/editor/resources/icons/32/Icons_20-Rive-statemachine.png")
+(def rive-view-model-icon "/defold-rive/editor/resources/icons/32/Icons_21-Rive-viewmodel.png")
+(def rive-view-model-property-icon "/defold-rive/editor/resources/icons/32/Icons_22-Rive-property.png")
 
 ;; These should be read from the .proto file
 (def default-material-proj-path "/defold-rive/assets/rivemodel.material")
@@ -123,6 +128,62 @@
       (get state-machines-by-artboard resolved [])
       [])))
 
+(def ^:private unknown-value-text "<n/a>")
+(def ^:private none-value-text "<none>")
+
+(defn- string-or [value fallback]
+  (if (and (string? value) (not (str/blank? value)))
+    value
+    fallback))
+
+(defn- join-or [values fallback]
+  (if (seq values)
+    (str/join ", " values)
+    fallback))
+
+(defn- to-view-model-properties [view-model-properties]
+  (vec
+    (keep (fn [property]
+            (let [view-model (get-public-field property "viewModel")
+                  name (get-public-field property "name")
+                  type-name (get-public-field property "typeName")
+                  meta-data (get-public-field property "metaData")]
+              (when view-model
+                {:view-model view-model
+                 :name (or name "")
+                 :type-name (or type-name "unknown")
+                 :meta-data (or meta-data "")})))
+          view-model-properties)))
+
+(defn- view-model-properties-by-name [view-model-properties]
+  (reduce (fn [acc property]
+            (update acc (:view-model property) (fnil conj []) property))
+          {}
+          view-model-properties))
+
+(defn- to-view-model-instances [view-model-instance-names]
+  (reduce (fn [acc entry]
+            (let [view-model (get-public-field entry "viewModel")
+                  instances (or (get-public-field entry "instances") [])]
+              (if view-model
+                (assoc acc view-model (vec instances))
+                acc)))
+          {}
+          view-model-instance-names))
+
+(defn- to-default-view-model-info [default-view-model-info]
+  (when default-view-model-info
+    {:view-model (get-public-field default-view-model-info "viewModel")
+     :instance (get-public-field default-view-model-info "instance")}))
+
+(g/defnk produce-rive-file-outline [_node-id child-outlines]
+  {:node-id _node-id
+   :node-outline-key "Rive File"
+   :label "Rive File"
+   :icon rive-file-icon
+   :read-only true
+   :children child-outlines})
+
 ; .rivemodel
 (defn load-rive-model [project self resource rive-model-desc]
   {:pre [(map? rive-model-desc)]} ; Rive$RiveModelDesc in map format.
@@ -145,6 +206,120 @@
   (math/->mat4-non-uniform (Vector3d. (double-array position))
                            (math/euler-z->quat rotation)
                            (Vector3d. (double-array scale))))
+
+;; Outline nodes for artboards, state machines, and view models.
+(g/defnode RiveArtboardNode
+  (inherits outline/OutlineNode)
+
+  (property name g/Str
+            (dynamic label (g/constantly "Name"))
+            (dynamic read-only? (g/constantly true)))
+  (property item-type g/Str
+            (value (g/constantly "Artboard"))
+            (dynamic label (g/constantly "Type"))
+            (dynamic read-only? (g/constantly true)))
+  (property state-machines g/Str
+            (dynamic label (g/constantly "State Machines"))
+            (dynamic visible (g/constantly false))
+            (dynamic read-only? (g/constantly true)))
+
+  (input nodes g/Any :array)
+  (input child-outlines g/Any :array)
+
+  (output node-outline outline/OutlineData
+          (g/fnk [_node-id name child-outlines]
+            {:node-id _node-id
+             :node-outline-key (str "artboard:" name)
+             :label name
+             :icon rive-artboard-icon
+             :children child-outlines
+             :read-only true})))
+
+(g/defnode RiveStateMachineNode
+  (inherits outline/OutlineNode)
+
+  (property name g/Str
+            (dynamic label (g/constantly "Name"))
+            (dynamic read-only? (g/constantly true)))
+  (property item-type g/Str
+            (value (g/constantly "State Machine"))
+            (dynamic label (g/constantly "Type"))
+            (dynamic read-only? (g/constantly true)))
+  (property artboard g/Str
+            (dynamic visible (g/constantly false))
+            (dynamic read-only? (g/constantly true)))
+
+  (output node-outline outline/OutlineData
+          (g/fnk [_node-id name artboard]
+            {:node-id _node-id
+             :node-outline-key (str "state-machine:" artboard ":" name)
+             :label name
+             :icon rive-state-machine-icon
+             :read-only true})))
+
+(g/defnode RiveViewModelNode
+  (inherits outline/OutlineNode)
+
+  (property name g/Str
+            (dynamic label (g/constantly "Name"))
+            (dynamic read-only? (g/constantly true)))
+  (property item-type g/Str
+            (value (g/constantly "View Model"))
+            (dynamic label (g/constantly "Type"))
+            (dynamic read-only? (g/constantly true)))
+  (property default-instance g/Str
+            (dynamic label (g/constantly "Default Instance"))
+            (dynamic visible (g/constantly false))
+            (dynamic read-only? (g/constantly true)))
+  (property instances g/Str
+            (dynamic label (g/constantly "Instances"))
+            (dynamic visible (g/constantly false))
+            (dynamic read-only? (g/constantly true)))
+
+  (input nodes g/Any :array)
+  (input child-outlines g/Any :array)
+
+  (output node-outline outline/OutlineData
+          (g/fnk [_node-id name child-outlines]
+            {:node-id _node-id
+             :node-outline-key (str "view-model:" name)
+             :label name
+             :icon rive-view-model-icon
+             :children child-outlines
+             :read-only true})))
+
+(g/defnode RiveViewModelPropertyNode
+  (inherits outline/OutlineNode)
+
+  (property name g/Str
+            (dynamic label (g/constantly "Name"))
+            (dynamic read-only? (g/constantly true)))
+  (property item-type g/Str
+            (value (g/constantly "View Model Property"))
+            (dynamic label (g/constantly "Type"))
+            (dynamic read-only? (g/constantly true)))
+  (property view-model g/Str
+            (dynamic label (g/constantly "View Model"))
+            (dynamic visible (g/constantly false))
+            (dynamic read-only? (g/constantly true)))
+  (property data-type g/Str
+            (dynamic label (g/constantly "Data Type"))
+            (dynamic read-only? (g/constantly true)))
+  (property value g/Str
+            (dynamic label (g/constantly "Value"))
+            (dynamic visible (g/constantly false))
+            (dynamic read-only? (g/constantly true)))
+  (property meta-data g/Str
+            (dynamic label (g/constantly "Meta"))
+            (dynamic read-only? (g/constantly true)))
+
+  (output node-outline outline/OutlineData
+          (g/fnk [_node-id name view-model]
+            {:node-id _node-id
+             :node-outline-key (str "view-model-property:" view-model ":" name)
+             :label name
+             :icon rive-view-model-property-icon
+             :read-only true})))
 
 ;; Represents a single bone inside a .riv file, a proprietary file format.
 (g/defnode RiveBone
@@ -210,10 +385,13 @@
   (property vertices g/Any)
   (property bones g/Any)
   (property artboards g/Any)
+  (property view-models g/Any)
+  (property view-model-properties g/Any)
 
   (input child-bones g/Any :array)
 
-  (output build-targets g/Any :cached produce-rive-file-build-targets))
+  (output build-targets g/Any :cached produce-rive-file-build-targets)
+  (output node-outline outline/OutlineData :cached produce-rive-file-outline))
 
 (set! *warn-on-reflection* false)
 
@@ -236,12 +414,11 @@
         bone-tx-data (g/make-nodes parent-graph-id [bone [RiveBone :name name :position [x y protobuf/float-zero] :rotation rotation :scale [scale-x scale-y protobuf/float-one] :length length]]
                                    ; Hook this node into the parent's lists
                                    (g/connect bone :_node-id parent-id :nodes)
-                                   (g/connect bone :node-outline parent-id :child-outlines)
                                    (g/connect bone :bone parent-id :child-bones))]
     bone-tx-data))
 
 (defn- tx-first-created [tx-data]
-  (get-in (first tx-data) [:node :_node-id]))
+  (first (g/tx-data-added-node-ids tx-data)))
 
 (defn- create-bone-hierarchy [parent-id bone]
   (let [bone-tx-data (create-bone parent-id bone)
@@ -254,12 +431,81 @@
   ; bones is a list of root Rive$Bone (Rive.java)
   (mapcat (fn [bone] (create-bone-hierarchy parent-id bone)) bones))
 
+(defn- create-state-machine-node [parent-id artboard state-machine]
+  (when parent-id
+    (let [parent-graph-id (g/node-id->graph-id parent-id)]
+      (g/make-nodes parent-graph-id [sm [RiveStateMachineNode :name state-machine :artboard artboard]]
+        (g/connect sm :_node-id parent-id :nodes)
+        (g/connect sm :node-outline parent-id :child-outlines)))))
+
+(defn- create-artboard-node [parent-id artboard state-machines]
+  (let [parent-graph-id (g/node-id->graph-id parent-id)
+        state-machines (vec (remove nil? (or state-machines [])))
+        state-machines-label (join-or state-machines none-value-text)
+        artboard-tx-data (g/make-nodes parent-graph-id [artboard-node [RiveArtboardNode :name artboard :state-machines state-machines-label]]
+                          (g/connect artboard-node :_node-id parent-id :nodes)
+                          (g/connect artboard-node :node-outline parent-id :child-outlines))
+        artboard-id (tx-first-created artboard-tx-data)
+        state-machine-tx-data (mapcat (fn [sm] (create-state-machine-node artboard-id artboard sm)) state-machines)]
+    (concat artboard-tx-data state-machine-tx-data)))
+
+(defn- create-artboard-nodes [parent-id artboards state-machines-by-artboard]
+  (mapcat (fn [artboard]
+            (create-artboard-node parent-id artboard (get state-machines-by-artboard artboard [])))
+          artboards))
+
+(defn- create-view-model-property-node [parent-id view-model property]
+  (let [parent-graph-id (g/node-id->graph-id parent-id)
+        name (:name property)
+        type-name (string-or (:type-name property) "unknown")
+        meta-data (string-or (:meta-data property) none-value-text)]
+    (g/make-nodes parent-graph-id [prop [RiveViewModelPropertyNode :name name
+                                         :view-model view-model
+                                         :data-type type-name
+                                         :value unknown-value-text
+                                         :meta-data meta-data]]
+      (g/connect prop :_node-id parent-id :nodes)
+      (g/connect prop :node-outline parent-id :child-outlines))))
+
+(defn- create-view-model-node [parent-id view-model properties instances default-instance]
+  (let [parent-graph-id (g/node-id->graph-id parent-id)
+        instances-label (join-or instances none-value-text)
+        default-instance-label (string-or default-instance none-value-text)
+        view-model-tx-data (g/make-nodes parent-graph-id [view-model-node [RiveViewModelNode :name view-model
+                                                                           :default-instance default-instance-label
+                                                                           :instances instances-label]]
+                             (g/connect view-model-node :_node-id parent-id :nodes)
+                             (g/connect view-model-node :node-outline parent-id :child-outlines))
+        view-model-id (tx-first-created view-model-tx-data)
+        property-tx-data (mapcat (fn [property]
+                                   (create-view-model-property-node view-model-id view-model property))
+                                 properties)]
+    (concat view-model-tx-data property-tx-data)))
+
+(defn- create-view-model-nodes [parent-id view-models view-model-properties view-model-instances default-view-model-info]
+  (let [properties-by-name (view-model-properties-by-name view-model-properties)
+        default-view-model (:view-model default-view-model-info)
+        default-instance (:instance default-view-model-info)]
+    (mapcat (fn [view-model]
+              (let [properties (get properties-by-name view-model [])
+                    instances (get view-model-instances view-model [])
+                    view-model-default-instance (when (= view-model default-view-model)
+                                                  default-instance)]
+                (create-view-model-node parent-id view-model properties instances view-model-default-instance)))
+            view-models)))
+
 ; Loads the .riv file
 (defn- load-rive-file
   [project node-id resource]
   (let [content (resource->bytes resource)
         rive-handle (plugin-load-file content (resource/resource->proj-path resource))
         artboards (or (get-public-field rive-handle "artboards") [])
+        view-models (or (get-public-field rive-handle "viewModels") [])
+        view-model-properties (or (get-public-field rive-handle "viewModelProperties") [])
+        view-model-properties-info (to-view-model-properties view-model-properties)
+        view-model-instance-names (or (get-public-field rive-handle "viewModelInstanceNames") [])
+        view-model-instances (to-view-model-instances view-model-instance-names)
+        default-view-model-info (to-default-view-model-info (get-public-field rive-handle "defaultViewModelInfo"))
         state-machines (to-state-machines-map (get-public-field rive-handle "stateMachines"))
 
         _ (.Update rive-handle 0.0)
@@ -272,11 +518,18 @@
                  (g/set-property node-id :content content)
                  (g/set-property node-id :rive-handle rive-handle)
                  (g/set-property node-id :artboards artboards)
+                 (g/set-property node-id :view-models view-models)
+                 (g/set-property node-id :view-model-properties view-model-properties)
                  (g/set-property node-id :state-machines state-machines)
                  (g/set-property node-id :aabb aabb)
                  (g/set-property node-id :bones bones))
 
-        all-tx-data (concat tx-data (create-bones node-id bones))]
+        artboard-outline-tx-data (create-artboard-nodes node-id artboards state-machines)
+        view-model-outline-tx-data (create-view-model-nodes node-id view-models view-model-properties-info view-model-instances default-view-model-info)
+        all-tx-data (concat tx-data
+                            artboard-outline-tx-data
+                            view-model-outline-tx-data
+                            (create-bones node-id bones))]
     all-tx-data))
 
 (set! *warn-on-reflection* true)
