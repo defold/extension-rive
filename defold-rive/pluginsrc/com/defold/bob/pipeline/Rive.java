@@ -69,7 +69,7 @@ public class Rive {
         public String           path;
         public long             pointer;
         public String[]         artboards;
-        public String[]         stateMachines;
+        public String[]         stateMachines; // the statemachines beloning to the current artboard
         public String[]         viewModels;
         public ViewModelProperty[] viewModelProperties;
         public ViewModelEnum[]     viewModelEnums;

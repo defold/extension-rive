@@ -87,11 +87,19 @@
 (defn- plugin-destroy-file [file]
   (plugin-invoke-static rive-plugin-cls "Destroy" (into-array Class [rive-plugin-file-cls]) [file]))
 
-(defn- plugin-update-file [file dt bytes-texture-set]
-  (plugin-invoke-static rive-plugin-cls "UpdateInternal" (into-array Class [rive-plugin-file-cls Float/TYPE byte-array-cls]) [file (float dt) bytes-texture-set]))
+(defn- plugin-update-file [file dt]
+  (plugin-invoke-static rive-plugin-cls "UpdateInternal" (into-array Class [rive-plugin-file-cls Float/TYPE]) [file (float dt)]))
 
 (defn- plugin-set-artboard [file artboard]
   (plugin-invoke-static rive-plugin-cls "SetArtboardInternal" (into-array Class [rive-plugin-file-cls String]) [file artboard]))
+
+;; Helper for optional Java fields (Rive.java may not expose older data).
+(defn- get-public-field [obj field-name]
+  (when obj
+    (try
+      (let [field (.getField (.getClass obj) field-name)]
+        (.get field obj))
+      (catch Exception _ nil))))
 
 ; .rivemodel
 (defn load-rive-model [project self resource rive-model-desc]
@@ -104,10 +112,8 @@
         material (resolve-resource (:material :or default-material-proj-path))
         blit-material (resolve-resource (:blit-material :or default-blit-material-proj-path))
         artboard :artboard
-        default-animation :default-animation
         default-state-machine :default-state-machine
         blend-mode :blend-mode
-        create-go-bones :create-go-bones
         auto-bind :auto-bind
         coordinate-system :coordinate-system
         artboard-fit :artboard-fit
@@ -177,7 +183,7 @@
 
   (property content g/Any)
   (property rive-handle g/Any) ; The cpp pointer
-  (property artboard-id-list g/Any)
+  (property state-machines g/Any)
   (property aabb g/Any)
   (property vertices g/Any)
   (property bones g/Any)
@@ -226,34 +232,25 @@
   ; bones is a list of root Rive$Bone (Rive.java)
   (mapcat (fn [bone] (create-bone-hierarchy parent-id bone)) bones))
 
-;; Converts a list of java objects into a clojure map where we can get
-;; all the animations and state machines based on an artboard name.
-(defn- to-artboard-id-list [artboard-id-list-from-java]
-  (into {}
-        (map (fn [id-list]
-             [(.-artboardId id-list)
-              {:animation-ids (into [] (.-animations id-list))
-               :state-machine-ids (mapv (fn [sm] (.-name sm)) (.-stateMachines id-list))}])
-             artboard-id-list-from-java)))
-
 ; Loads the .riv file
 (defn- load-rive-file
   [project node-id resource]
   (let [content (resource->bytes resource)
         rive-handle (plugin-load-file content (resource/resource->proj-path resource))
-        artboard-id-list-from-java (.-artboardId rive-handle)
-        artboard-id-list (to-artboard-id-list artboard-id-list-from-java)
-        artboards (.-artboards rive-handle)
+        artboards (or (get-public-field rive-handle "artboards") [])
+        state-machines (or (get-public-field rive-handle "stateMachines") [])
 
         _ (.Update rive-handle 0.0)
-        aabb (convert-aabb (.-aabb rive-handle))
-        bones (.-bones rive-handle)
+        aabb (if-let [rive-aabb (get-public-field rive-handle "aabb")]
+               (convert-aabb rive-aabb)
+               geom/null-aabb)
+        bones (or (get-public-field rive-handle "bones") [])
 
         tx-data (concat
                  (g/set-property node-id :content content)
                  (g/set-property node-id :rive-handle rive-handle)
                  (g/set-property node-id :artboards artboards)
-                 (g/set-property node-id :artboard-id-list artboard-id-list)
+                 (g/set-property node-id :state-machines state-machines)
                  (g/set-property node-id :aabb aabb)
                  (g/set-property node-id :bones bones))
 
@@ -335,25 +332,26 @@
   (let [node-id (:node-id renderable)
         handle (renderable->handle renderable)
         texture-set-pb (renderable->texture-set-pb renderable)
-        vb-data (.vertices handle)
-        vb-data-float-buffer (FloatBuffer/wrap vb-data)
-        vb (vtx/wrap-vertex-buffer vtx-textured :static vb-data-float-buffer)
-        ib-data (.indices handle)
-        ib-data-int-buffer (IntBuffer/wrap ib-data)
-        ib-buffer-data (buffers/make-buffer-data ib-data-int-buffer)
-        ib (attribute/make-index-buffer node-id ib-buffer-data :static)
-        render-objects (.renderObjects handle)]
-    {:vertex-buffer vb
-     :index-buffer ib
-     :render-objects render-objects
-     :handle handle
-     :texture-set-pb texture-set-pb
-     :renderable renderable}))
+        vb-data (get-public-field handle "vertices")
+        ib-data (get-public-field handle "indices")
+        render-objects (get-public-field handle "renderObjects")]
+    (when (and vb-data ib-data render-objects)
+      (let [vb-data-float-buffer (FloatBuffer/wrap vb-data)
+            vb (vtx/wrap-vertex-buffer vtx-textured :static vb-data-float-buffer)
+            ib-data-int-buffer (IntBuffer/wrap ib-data)
+            ib-buffer-data (buffers/make-buffer-data ib-data-int-buffer)
+            ib (attribute/make-index-buffer node-id ib-buffer-data :static)]
+        {:vertex-buffer vb
+         :index-buffer ib
+         :render-objects render-objects
+         :handle handle
+         :texture-set-pb texture-set-pb
+         :renderable renderable}))))
 
 (set! *warn-on-reflection* true)
 
 (defn collect-render-groups [renderables]
-  (map renderable->render-objects renderables))
+  (keep renderable->render-objects renderables))
 
 (def constant-colors (murmur/hash64 "colors"))
 (def constant-transform_local (murmur/hash64 "transform_local"))
@@ -528,7 +526,7 @@
         render-args (assoc render-args :id-color (scene-picking/renderable-picking-id-uniform first-renderable))
         render-groups (collect-render-groups renderables)]
     (doseq [group render-groups]
-      (plugin-update-file (:handle group) 0.0 (:texture-set-pb group))
+      (plugin-update-file (:handle group) 0.0)
       (condp = (:pass render-args)
         pass/transparent
         (render-group-transparent gl render-args nil group)
@@ -577,7 +575,7 @@
                                             [:content :rive-scene]
                                             [:rive-handle :rive-file-handle]
                                             [:artboards :rive-artboards]
-                                            [:artboard-id-list :rive-artboard-id-list]
+                                            [:state-machines :rive-state-machines]
                                             [:aabb :aabb]
                                             [:node-outline :source-outline]
                                             [:build-targets :dep-build-targets])))
@@ -617,7 +615,7 @@
   (input rive-file-resource resource/Resource)
   (input rive-file-handle g/Any)
   (input rive-artboards g/Any)
-  (input rive-artboard-id-list g/Any)
+  (input rive-state-machines g/Any)
   (input aabb g/Any)
   (input atlas-resource resource/Resource)
 
@@ -638,7 +636,7 @@
   (output scene g/Any :cached produce-rivescene)
   (output rive-file-handle g/Any :cached (gu/passthrough rive-file-handle))
   (output rive-artboards g/Any :cached (gu/passthrough rive-artboards))
-  (output rive-artboard-id-list g/Any :cached (gu/passthrough rive-artboard-id-list))
+  (output rive-state-machines g/Any :cached (gu/passthrough rive-state-machines))
   (output aabb g/Any :cached (gu/passthrough aabb)))
 
 ; .rivescene
@@ -658,16 +656,14 @@
 ; .rivemodel (The "instance" file)
 ;
 
-(g/defnk produce-rivemodel-save-value [rive-scene-resource artboard default-animation default-state-machine material-resource blit-material-resource blend-mode create-go-bones auto-bind coordinate-system artboard-fit artboard-alignment]
+(g/defnk produce-rivemodel-save-value [rive-scene-resource artboard default-state-machine material-resource blit-material-resource blend-mode auto-bind coordinate-system artboard-fit artboard-alignment]
   (protobuf/make-map-without-defaults rive-model-pb-class
     :scene (resource/resource->proj-path rive-scene-resource)
     :material (resource/resource->proj-path material-resource)
     :blit-material (resource/resource->proj-path blit-material-resource)
     :artboard artboard
-    :default-animation default-animation
     :default-state-machine default-state-machine
     :blend-mode blend-mode
-    :create-go-bones create-go-bones
     :auto-bind auto-bind
     :coordinate-system coordinate-system
     :artboard-fit artboard-fit
@@ -681,15 +677,6 @@
                                (format "Artboard '%s' could not be found in the specified rive scene" id)))
                            artboard
                            (set rive-artboards))))
-
-(defn- validate-model-default-animation [node-id rive-scene animation-ids default-animation]
-  (when (and rive-scene (not-empty default-animation))
-    (validation/prop-error :fatal node-id :default-animation
-                           (fn [anim ids]
-                             (when-not (contains? ids anim)
-                               (format "animation '%s' could not be found in the specified rive scene" anim)))
-                           default-animation
-                           (set animation-ids))))
 
 (defn- validate-model-default-state-machine [node-id rive-scene state-machine-ids default-state-machine]
   (when (and rive-scene (not-empty default-state-machine))
@@ -706,14 +693,12 @@
 (defn- validate-model-rive-scene [node-id rive-scene]
   (prop-resource-error node-id :scene rive-scene "Rive Scene"))
 
-(g/defnk produce-model-own-build-errors [_node-id artboard default-animation default-state-machine material rive-artboards rive-artboard-id-list rive-scene]
-  (let [state-machine-ids (:state-machine-ids (get rive-artboard-id-list artboard))
-        animation-ids (:animation-ids (get rive-artboard-id-list artboard))]
+(g/defnk produce-model-own-build-errors [_node-id artboard default-state-machine material rive-artboards rive-state-machines rive-scene]
+  (let [state-machine-ids (or rive-state-machines [])]
    (g/package-errors _node-id
                     (validate-model-material _node-id material)
                     (validate-model-rive-scene _node-id rive-scene)
                     (validate-model-artboard  _node-id rive-scene rive-artboards artboard)
-                    (validate-model-default-animation _node-id rive-scene animation-ids default-animation)
                     (validate-model-default-state-machine _node-id rive-scene state-machine-ids default-state-machine))))
 
 (defn- build-rive-model [resource dep-resources user-data]
@@ -738,6 +723,11 @@
 (g/defnode RiveModelNode
   (inherits resource-node/ResourceNode)
 
+  (input rive-scene-resource resource/Resource)
+  (input material-resource resource/Resource)
+  (input blit-material-resource resource/Resource)
+  (input rive-state-machines g/Any)
+
   (property rive-scene resource/Resource ; Required protobuf field.
             (value (gu/passthrough rive-scene-resource))
             (set (fn [evaluation-context self old-value new-value]
@@ -748,7 +738,7 @@
                                             [:main-scene :rive-main-scene]
                                             [:rive-file-handle :rive-file-handle]
                                             [:rive-artboards :rive-artboards]
-                                            [:rive-artboard-id-list :rive-artboard-id-list]
+                                            [:rive-state-machines :rive-state-machines]
                                             [:build-targets :dep-build-targets]
                                             [:anim-data :anim-data])))
             (dynamic edit-type (g/constantly {:type resource/Resource :ext rive-scene-ext}))
@@ -783,16 +773,10 @@
             (dynamic visible (g/constantly false)))
 
   (property default-state-machine g/Str (default (protobuf/default rive-model-pb-class :default-state-machine))
-            (dynamic error (g/fnk [_node-id artboard rive-artboard-id-list default-state-machine rive-scene]
-                             (validate-model-default-state-machine _node-id rive-scene (:state-machine-ids (get rive-artboard-id-list artboard)) default-state-machine)))
-            (dynamic edit-type (g/fnk [artboard rive-artboard-id-list]
-                                 (properties/->choicebox (cons "" (:state-machine-ids (get rive-artboard-id-list artboard)))))))
-
-  (property default-animation g/Str
-            (dynamic error (g/fnk [_node-id artboard rive-artboard-id-list default-animation rive-scene]
-                             (validate-model-default-animation _node-id rive-scene (:animation-ids (get rive-artboard-id-list artboard)) default-animation)))
-            (dynamic edit-type (g/fnk [artboard rive-artboard-id-list]
-                                 (properties/->choicebox (cons "" (:animation-ids (get rive-artboard-id-list artboard)))))))
+            (dynamic error (g/fnk [_node-id rive-state-machines default-state-machine rive-scene]
+                             (validate-model-default-state-machine _node-id rive-scene (or rive-state-machines []) default-state-machine)))
+            (dynamic edit-type (g/fnk [rive-state-machines]
+                                 (properties/->choicebox (cons "" (or rive-state-machines []))))))
 
   (property artboard g/Str (default (protobuf/default rive-model-pb-class :artboard))
           (dynamic error (g/fnk [_node-id rive-artboards artboard rive-scene]
@@ -800,8 +784,6 @@
           (dynamic edit-type (g/fnk [rive-artboards] (properties/->choicebox (cons "" rive-artboards)))))
 
   (property auto-bind g/Bool (default (protobuf/default rive-model-pb-class :auto-bind)))
-
-  (property create-go-bones g/Bool (default (protobuf/default rive-model-pb-class :create-go-bones)))
 
   (property coordinate-system g/Any (default (protobuf/default rive-model-pb-class :coordinate-system))
             (dynamic edit-type (g/constantly (properties/->pb-choicebox coordinate-system-pb-class))))
@@ -814,16 +796,12 @@
 
   (input dep-build-targets g/Any :array)
   (input rive-file-handle g/Any)
-  (input rive-scene-resource resource/Resource)
   (input rive-main-scene g/Any)
   (input rive-artboards g/Any)
-  (input rive-artboard-id-list g/Any)
   (input texture-set-pb g/Any)
   (input atlas-resource resource/Resource)
-  (input material-resource resource/Resource)
   (input material-shader ShaderLifecycle)
   (input material-samplers g/Any)
-  (input blit-material-resource resource/Resource)
   (input blit-material-shader ShaderLifecycle)
   (input blit-material-samplers g/Any)
   (input default-tex-params g/Any)
@@ -835,7 +813,7 @@
   (output anim-ids g/Any :cached (g/fnk [anim-data] (vec (sort (keys anim-data)))))
   (output state-machine-ids g/Any :cached (g/fnk [anim-data] (vec (sort (keys anim-data)))))
   (output material-shader ShaderLifecycle (gu/passthrough material-shader))
-  (output scene g/Any :cached (g/fnk [_node-id rive-file-handle artboard rive-main-scene artboard default-animation material-shader]
+  (output scene g/Any :cached (g/fnk [_node-id rive-file-handle artboard rive-main-scene material-shader]
                                      (if (and (some? material-shader) (some? (:renderable rive-main-scene)))
                                        (let [aabb (:aabb rive-main-scene)
                                              rive-scene-node-id (:node-id rive-main-scene)

@@ -61,7 +61,7 @@ message RiveModelDesc
     optional string material                = 3 [(resource)=true, default="/defold-rive/assets/rivemodel.material"];
     optional BlendMode blend_mode           = 4 [default = BLEND_MODE_ALPHA];
     optional string default_state_machine   = 5;
-    optional bool create_go_bones           = 6 [default=false];
+    optional bool create_go_bones           = 6 [default=false]; // Deprecated
     optional string artboard                = 7;
 
     optional CoordinateSystem coordinate_system = 8 [default = COORDINATE_SYSTEM_FULLSCREEN];
