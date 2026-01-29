@@ -15,8 +15,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include <dmsdk/dlib/log.h>
+#include <dmsdk/dlib/dstrings.h>
+#include <dmsdk/dlib/hashtable.h>
 
 #include <common/commands.h>
 
@@ -24,6 +25,8 @@ namespace dmRive
 {
 
 static const int DM_MAX_MESSAGE_LOOPS = 256;
+
+#if defined(DM_RIVE_FILE_META_DATA)
 
 static void ClearStringArray(dmArray<const char*>& array)
 {
@@ -36,14 +39,8 @@ static void ClearStringArray(dmArray<const char*>& array)
 
 static void ClearDefaultViewModelInfo(DefaultViewModelInfo& info)
 {
-    if (info.m_ViewModel)
-    {
-        free((void*)info.m_ViewModel);
-    }
-    if (info.m_Instance)
-    {
-        free((void*)info.m_Instance);
-    }
+    free((void*)info.m_ViewModel);
+    free((void*)info.m_Instance);
     info.m_ViewModel = 0;
     info.m_Instance = 0;
 }
@@ -55,9 +52,11 @@ static void ClearViewModelProperties(dmArray<ViewModelProperty>& array)
         free((void*)array[i].m_ViewModel);
         free((void*)array[i].m_Name);
         free((void*)array[i].m_MetaData);
+        free((void*)array[i].m_Value);
         array[i].m_ViewModel = 0;
         array[i].m_Name = 0;
         array[i].m_MetaData = 0;
+        array[i].m_Value = 0;
     }
     array.SetSize(0);
 }
@@ -119,6 +118,8 @@ static void LogNameList(const char* label, const dmArray<const char*>& names)
     }
 }
 
+#endif // DM_RIVE_FILE_META_DATA
+
 class MetadataListener : public rive::CommandQueue::FileListener
 {
 public:
@@ -127,6 +128,9 @@ public:
 
     void onFileLoaded(const rive::FileHandle file, uint64_t request_id) override;
     void onFileError(const rive::FileHandle file, uint64_t request_id, std::string error) override;
+    bool m_FileLoaded;
+    bool m_FileError;
+#if defined(DM_RIVE_FILE_META_DATA)
     void onArtboardsListed(const rive::FileHandle file,
                            uint64_t request_id,
                            std::vector<std::string> artboardNames) override;
@@ -146,8 +150,6 @@ public:
                                 uint64_t request_id,
                                 std::vector<rive::ViewModelEnum> enums) override;
 
-    bool m_FileLoaded;
-    bool m_FileError;
     bool m_ArtboardsListed;
     bool m_ViewModelsListed;
     bool m_ViewModelEnumsListed;
@@ -155,9 +157,11 @@ public:
     uint32_t m_ViewModelPropertiesExpectedCount;
     uint32_t m_ViewModelInstanceNamesListedCount;
     uint32_t m_ViewModelInstanceNamesExpectedCount;
+#endif
     RiveFile* m_File;
 };
 
+#if defined(DM_RIVE_FILE_META_DATA)
 class ArtboardMetadataListener : public rive::CommandQueue::ArtboardListener
 {
 public:
@@ -182,6 +186,40 @@ public:
     RiveFile* m_File;
 };
 
+class ViewModelInstanceMetadataListener : public rive::CommandQueue::ViewModelInstanceListener
+{
+public:
+    explicit ViewModelInstanceMetadataListener(RiveFile* file);
+
+    uint64_t RegisterRequest(uint32_t property_index);
+    uint32_t GetPendingCount() const;
+
+    void onViewModelInstanceError(const rive::ViewModelInstanceHandle,
+                                  uint64_t requestId,
+                                  std::string error) override;
+    void onViewModelDeleted(const rive::ViewModelInstanceHandle,
+                            uint64_t requestId) override;
+    void onViewModelDataReceived(const rive::ViewModelInstanceHandle,
+                                 uint64_t requestId,
+                                 rive::CommandQueue::ViewModelInstanceData data) override;
+    void onViewModelListSizeReceived(const rive::ViewModelInstanceHandle,
+                                     uint64_t requestId,
+                                     std::string path,
+                                     size_t size) override;
+
+private:
+    void ResolvePendingRequest(uint64_t requestId,
+                               const rive::CommandQueue::ViewModelInstanceData* data,
+                               const size_t* list_size,
+                               const char* fallback_value);
+
+    RiveFile* m_File;
+    dmHashTable64<uint32_t> m_PendingRequests;
+    uint64_t m_NextRequestId;
+};
+#endif // DM_RIVE_FILE_META_DATA
+
+#if defined(DM_RIVE_FILE_META_DATA)
 MetadataListener::MetadataListener()
 : m_FileLoaded(false)
 , m_FileError(false)
@@ -209,6 +247,21 @@ MetadataListener::MetadataListener(RiveFile* file)
 , m_File(file)
 {
 }
+#else
+MetadataListener::MetadataListener()
+: m_FileLoaded(false)
+, m_FileError(false)
+, m_File(0)
+{
+}
+
+MetadataListener::MetadataListener(RiveFile* file)
+: m_FileLoaded(false)
+, m_FileError(false)
+, m_File(file)
+{
+}
+#endif
 
 void MetadataListener::onFileLoaded(const rive::FileHandle, uint64_t)
 {
@@ -221,6 +274,7 @@ void MetadataListener::onFileError(const rive::FileHandle, uint64_t, std::string
     m_FileError = true;
 }
 
+#if defined(DM_RIVE_FILE_META_DATA)
 void MetadataListener::onArtboardsListed(const rive::FileHandle,
                                          uint64_t,
                                          std::vector<std::string> artboardNames)
@@ -282,6 +336,7 @@ void MetadataListener::onViewModelPropertiesListed(
             entry->m_Name = strdup(properties[i].name.c_str());
             entry->m_MetaData = strdup(properties[i].metaData.c_str());
             entry->m_Type = properties[i].type;
+            entry->m_Value = 0;
         }
     }
     ++m_ViewModelPropertiesListedCount;
@@ -306,7 +361,9 @@ void MetadataListener::onViewModelEnumsListed(const rive::FileHandle,
     }
     m_ViewModelEnumsListed = true;
 }
+#endif // DM_RIVE_FILE_META_DATA
 
+#if defined(DM_RIVE_FILE_META_DATA)
 ArtboardMetadataListener::ArtboardMetadataListener()
 : m_StateMachinesListedCount(0)
 , m_StateMachinesExpectedCount(0)
@@ -380,61 +437,135 @@ void ArtboardMetadataListener::onDefaultViewModelInfoReceived(const rive::Artboa
     m_File->m_HasDefaultViewModelInfo = true;
     m_DefaultViewModelInfoReceived = true;
 }
+#endif // DM_RIVE_FILE_META_DATA
 
-RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char* path)
+#if defined(DM_RIVE_FILE_META_DATA)
+ViewModelInstanceMetadataListener::ViewModelInstanceMetadataListener(RiveFile* file)
+: m_File(file)
+, m_NextRequestId(1)
 {
-    if (!buffer || buffer_size == 0)
+    m_PendingRequests.OffsetCapacity(32);
+}
+
+uint64_t ViewModelInstanceMetadataListener::RegisterRequest(uint32_t property_index)
+{
+    uint64_t request_id = m_NextRequestId++;
+
+    if (m_PendingRequests.Full())
     {
-        return 0;
+        m_PendingRequests.OffsetCapacity(32);
+    }
+    m_PendingRequests.Put(request_id, property_index);
+    return request_id;
+}
+
+uint32_t ViewModelInstanceMetadataListener::GetPendingCount() const
+{
+    return m_PendingRequests.Size();
+}
+
+
+void ViewModelInstanceMetadataListener::onViewModelInstanceError(const rive::ViewModelInstanceHandle,
+                                                                 uint64_t requestId,
+                                                                 std::string error)
+{
+    (void)error;
+    ResolvePendingRequest(requestId, 0, 0, 0);
+}
+
+void ViewModelInstanceMetadataListener::onViewModelDeleted(const rive::ViewModelInstanceHandle,
+                                                           uint64_t requestId)
+{
+    ResolvePendingRequest(requestId, 0, 0, 0);
+}
+
+void ViewModelInstanceMetadataListener::onViewModelDataReceived(const rive::ViewModelInstanceHandle,
+                                                                uint64_t requestId,
+                                                                rive::CommandQueue::ViewModelInstanceData data)
+{
+    ResolvePendingRequest(requestId, &data, 0, 0);
+}
+
+void ViewModelInstanceMetadataListener::onViewModelListSizeReceived(const rive::ViewModelInstanceHandle,
+                                                                    uint64_t requestId,
+                                                                    std::string path,
+                                                                    size_t size)
+{
+    (void)path;
+    ResolvePendingRequest(requestId, 0, &size, 0);
+}
+
+void ViewModelInstanceMetadataListener::ResolvePendingRequest(uint64_t requestId,
+                                                              const rive::CommandQueue::ViewModelInstanceData* data,
+                                                              const size_t* list_size,
+                                                              const char* fallback_value)
+{
+    uint32_t* property_index = m_PendingRequests.Get(requestId);
+    if (!property_index)
+    {
+        return;
+    }
+    m_PendingRequests.Erase(requestId);
+
+    if (!m_File || *property_index >= m_File->m_ViewModelProperties.Size())
+    {
+        return;
     }
 
-    // rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
-    // if (!queue)
-    // {
-    //     return 0;
-    // }
+    ViewModelProperty* property = &m_File->m_ViewModelProperties[*property_index];
+    const char* value_text = fallback_value;
+    char buffer[64];
 
-    std::vector<uint8_t> bytes((const uint8_t*)buffer, (const uint8_t*)buffer + buffer_size);
-
-    RiveFile* out = new RiveFile;
-    out->m_Path = strdup(path);
-    out->m_Artboards.SetSize(0);
-    out->m_StateMachinesByArtboard.SetSize(0);
-    out->m_ViewModels.SetSize(0);
-    out->m_ViewModelProperties.SetSize(0);
-    out->m_ViewModelEnums.SetSize(0);
-    out->m_ViewModelInstanceNames.SetSize(0);
-    out->m_DefaultViewModelInfo.m_ViewModel = 0;
-    out->m_DefaultViewModelInfo.m_Instance = 0;
-    out->m_HasDefaultViewModelInfo = false;
-    out->m_File = RIVE_NULL_HANDLE;
-    out->m_Artboard = RIVE_NULL_HANDLE;
-    out->m_StateMachine = RIVE_NULL_HANDLE;
-    out->m_ViewModelInstance = RIVE_NULL_HANDLE;
-    out->m_FileListener = new MetadataListener(out);
-    out->m_ArtboardListener = new ArtboardMetadataListener(out);
-
-    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
-
-    MetadataListener* listener = out->m_FileListener;
-    out->m_File = queue->loadFile(bytes, listener);
-
-    for (int i = 0; i < DM_MAX_MESSAGE_LOOPS && !listener->m_FileLoaded && !listener->m_FileError; ++i)
+    if (data)
     {
-        dmRiveCommands::ProcessMessages();
-    }
-
-    if (listener->m_FileError || !listener->m_FileLoaded)
-    {
-        if (out->m_File != RIVE_NULL_HANDLE)
+        switch (data->metaData.type)
         {
-            queue->deleteFile(out->m_File);
-            dmRiveCommands::ProcessMessages();
-            out->m_File = RIVE_NULL_HANDLE;
+            case rive::DataType::boolean:
+                value_text = data->boolValue ? "true" : "false";
+                break;
+            case rive::DataType::number:
+            case rive::DataType::integer:
+                dmSnPrintf(buffer, sizeof(buffer), "%g", data->numberValue);
+                value_text = buffer;
+                break;
+            case rive::DataType::color:
+                dmSnPrintf(buffer, sizeof(buffer), "#%08X", (uint32_t)data->colorValue);
+                value_text = buffer;
+                break;
+            case rive::DataType::enumType:
+            case rive::DataType::string:
+                value_text = data->stringValue.c_str();
+                break;
+            case rive::DataType::list:
+                if (list_size)
+                {
+                    dmSnPrintf(buffer, sizeof(buffer), "%zu", *list_size);
+                    value_text = buffer;
+                }
+                break;
+            default:
+                break;
         }
-        DestroyFile(out);
-        return 0;
     }
+    else if (list_size)
+    {
+        dmSnPrintf(buffer, sizeof(buffer), "%zu", *list_size);
+        value_text = buffer;
+    }
+
+    if (value_text)
+    {
+        free((void*)property->m_Value);
+        property->m_Value = strdup(value_text);
+    }
+}
+#endif // DM_RIVE_FILE_META_DATA
+
+#if defined(DM_RIVE_FILE_META_DATA)
+static void RequestMetaData(RiveFile* out, rive::rcp<rive::CommandQueue> queue)
+{
+    MetadataListener* listener = out->m_FileListener;
+    ArtboardMetadataListener* artboard_listener = out->m_ArtboardListener;
 
     queue->requestArtboardNames(out->m_File);
     queue->requestViewModelNames(out->m_File);
@@ -443,7 +574,6 @@ RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char*
         dmRiveCommands::ProcessMessages();
     }
 
-#if defined(DM_RIVE_PLUGIN) || defined(DM_RIVE_VIEWER)
     ClearViewModelProperties(out->m_ViewModelProperties);
     ClearViewModelEnums(out->m_ViewModelEnums);
     ClearViewModelInstanceNames(out->m_ViewModelInstanceNames);
@@ -468,9 +598,100 @@ RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char*
     {
         dmRiveCommands::ProcessMessages();
     }
-#endif
 
-    ArtboardMetadataListener* artboard_listener = out->m_ArtboardListener;
+    ViewModelInstanceMetadataListener view_model_listener(out);
+
+    dmArray<rive::ViewModelInstanceHandle> view_models_to_delete;
+    if (out->m_ViewModels.Size() > 0)
+    {
+        view_models_to_delete.SetCapacity(out->m_ViewModels.Size());
+    }
+
+    for (uint32_t i = 0; i < out->m_ViewModels.Size(); ++i)
+    {
+        const char* view_model_name = out->m_ViewModels[i];
+        rive::ViewModelInstanceHandle instance = queue->instantiateDefaultViewModelInstance(out->m_File,
+                                                                                            view_model_name,
+                                                                                            &view_model_listener);
+        if (instance == RIVE_NULL_HANDLE)
+        {
+            continue;
+        }
+
+        uint32_t handle_index = view_models_to_delete.Size();
+        view_models_to_delete.SetSize(handle_index + 1);
+        view_models_to_delete[handle_index] = instance;
+
+        for (uint32_t p = 0; p < out->m_ViewModelProperties.Size(); ++p)
+        {
+            ViewModelProperty* property = &out->m_ViewModelProperties[p];
+            if (!property->m_ViewModel || strcmp(property->m_ViewModel, view_model_name) != 0)
+            {
+                continue;
+            }
+
+            const char* property_name = property->m_Name ? property->m_Name : "";
+            switch (property->m_Type)
+            {
+                case rive::DataType::boolean:
+                {
+                    uint64_t request_id = view_model_listener.RegisterRequest(p);
+                    queue->requestViewModelInstanceBool(instance, property_name, request_id);
+                    break;
+                }
+                case rive::DataType::number:
+                case rive::DataType::integer:
+                {
+                    uint64_t request_id = view_model_listener.RegisterRequest(p);
+                    queue->requestViewModelInstanceNumber(instance, property_name, request_id);
+                    break;
+                }
+                case rive::DataType::color:
+                {
+                    uint64_t request_id = view_model_listener.RegisterRequest(p);
+                    queue->requestViewModelInstanceColor(instance, property_name, request_id);
+                    break;
+                }
+                case rive::DataType::enumType:
+                {
+                    uint64_t request_id = view_model_listener.RegisterRequest(p);
+                    queue->requestViewModelInstanceEnum(instance, property_name, request_id);
+                    break;
+                }
+                case rive::DataType::string:
+                {
+                    uint64_t request_id = view_model_listener.RegisterRequest(p);
+                    queue->requestViewModelInstanceString(instance, property_name, request_id);
+                    break;
+                }
+                case rive::DataType::list:
+                {
+                    uint64_t request_id = view_model_listener.RegisterRequest(p);
+                    queue->requestViewModelInstanceListSize(instance, property_name, request_id);
+                    break;
+                }
+                default:
+                    free((void*)property->m_Value);
+                    property->m_Value = strdup("<n/a>");
+                    break;
+            }
+        }
+    }
+
+    for (int i = 0; i < DM_MAX_MESSAGE_LOOPS && view_model_listener.GetPendingCount() > 0; ++i)
+    {
+        dmRiveCommands::ProcessMessages();
+    }
+
+    for (uint32_t i = 0; i < view_models_to_delete.Size(); ++i)
+    {
+        queue->deleteViewModelInstance(view_models_to_delete[i]);
+    }
+    if (view_models_to_delete.Size() > 0)
+    {
+        dmRiveCommands::ProcessMessages();
+    }
+
     ClearArtboardStateMachines(out->m_StateMachinesByArtboard);
     artboard_listener->m_StateMachinesListedCount = 0;
     artboard_listener->m_StateMachinesExpectedCount = out->m_Artboards.Size();
@@ -525,11 +746,75 @@ RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char*
     {
         dmRiveCommands::ProcessMessages();
     }
+}
+#endif // DM_RIVE_FILE_META_DATA
 
+
+RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char* path)
+{
+    if (!buffer || buffer_size == 0)
+    {
+        return 0;
+    }
+
+    std::vector<uint8_t> bytes((const uint8_t*)buffer, (const uint8_t*)buffer + buffer_size);
+
+    RiveFile* out = new RiveFile;
+    out->m_Path = strdup(path);
+    out->m_File = RIVE_NULL_HANDLE;
+    out->m_Artboard = RIVE_NULL_HANDLE;
+    out->m_StateMachine = RIVE_NULL_HANDLE;
+    out->m_ViewModelInstance = RIVE_NULL_HANDLE;
+    out->m_FileListener = new MetadataListener(out);
+
+#if defined(DM_RIVE_FILE_META_DATA)
+    out->m_Artboards.SetSize(0);
+    out->m_StateMachinesByArtboard.SetSize(0);
+    out->m_ViewModels.SetSize(0);
+    out->m_ViewModelProperties.SetSize(0);
+    out->m_ViewModelEnums.SetSize(0);
+    out->m_ViewModelInstanceNames.SetSize(0);
+    out->m_DefaultViewModelInfo.m_ViewModel = 0;
+    out->m_DefaultViewModelInfo.m_Instance = 0;
+    out->m_HasDefaultViewModelInfo = false;
+    out->m_ArtboardListener = new ArtboardMetadataListener(out);
+#endif
+
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+
+    MetadataListener* listener = out->m_FileListener;
+    out->m_File = queue->loadFile(bytes, listener);
+
+    for (int i = 0; i < DM_MAX_MESSAGE_LOOPS && !listener->m_FileLoaded && !listener->m_FileError; ++i)
+    {
+        dmRiveCommands::ProcessMessages();
+    }
+
+    if (listener->m_FileError || !listener->m_FileLoaded)
+    {
+        if (out->m_File != RIVE_NULL_HANDLE)
+        {
+            queue->deleteFile(out->m_File);
+            dmRiveCommands::ProcessMessages();
+            out->m_File = RIVE_NULL_HANDLE;
+        }
+        DestroyFile(out);
+        return 0;
+    }
+#if defined(DM_RIVE_FILE_META_DATA)
+    RequestMetaData(out, queue);
+#endif
+
+#if defined(DM_RIVE_FILE_META_DATA)
+    ArtboardMetadataListener* artboard_listener = out->m_ArtboardListener;
+#else
+    rive::CommandQueue::ArtboardListener* artboard_listener = 0;
+#endif
     out->m_Artboard = queue->instantiateDefaultArtboard(out->m_File, artboard_listener);
+
     if (out->m_Artboard != RIVE_NULL_HANDLE)
     {
-#if defined(DM_RIVE_PLUGIN) || defined(DM_RIVE_VIEWER)
+#if defined(DM_RIVE_FILE_META_DATA)
         ClearDefaultViewModelInfo(out->m_DefaultViewModelInfo);
         out->m_HasDefaultViewModelInfo = false;
         artboard_listener->m_DefaultViewModelInfoReceived = false;
@@ -560,6 +845,7 @@ void DestroyFile(RiveFile* file)
         free((void*)file->m_Path);
     }
 
+#if defined(DM_RIVE_FILE_META_DATA)
     ClearStringArray(file->m_Artboards);
     ClearStringArray(file->m_ViewModels);
     ClearArtboardStateMachines(file->m_StateMachinesByArtboard);
@@ -567,6 +853,7 @@ void DestroyFile(RiveFile* file)
     ClearViewModelEnums(file->m_ViewModelEnums);
     ClearViewModelInstanceNames(file->m_ViewModelInstanceNames);
     ClearDefaultViewModelInfo(file->m_DefaultViewModelInfo);
+#endif
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     if (queue)
@@ -590,8 +877,11 @@ void DestroyFile(RiveFile* file)
         dmRiveCommands::ProcessMessages();
     }
 
-    delete file->m_ArtboardListener;
+
     delete file->m_FileListener;
+#if defined(DM_RIVE_FILE_META_DATA)
+    delete file->m_ArtboardListener;
+#endif
 
     delete file;
 }
@@ -605,6 +895,7 @@ void DebugPrintFileState(const RiveFile* file)
     }
 
     dmLogInfo("RiveFile: path=%s", file->m_Path ? file->m_Path : "<null>");
+#if defined(DM_RIVE_FILE_META_DATA)
     LogNameList("RiveFile: artboards", file->m_Artboards);
     for (uint32_t i = 0; i < file->m_StateMachinesByArtboard.Size(); ++i)
     {
@@ -624,6 +915,7 @@ void DebugPrintFileState(const RiveFile* file)
                   file->m_DefaultViewModelInfo.m_ViewModel ? file->m_DefaultViewModelInfo.m_ViewModel : "<null>",
                   file->m_DefaultViewModelInfo.m_Instance ? file->m_DefaultViewModelInfo.m_Instance : "<null>");
     }
+#endif
 }
 
 

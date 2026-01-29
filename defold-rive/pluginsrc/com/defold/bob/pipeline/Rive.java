@@ -100,6 +100,7 @@ public class Rive {
         public int              type;
         public String           typeName;
         public String           metaData;
+        public String           value;
     }
 
     public static class ViewModelEnum {
@@ -285,7 +286,8 @@ public class Rive {
                     }
                     PrintIndent(2);
                     String typeName = property.typeName != null && property.typeName.length() > 0 ? property.typeName : "unknown";
-                    System.out.printf("'%s' type=%s", property.name, typeName);
+                    String valueText = property.value != null && property.value.length() > 0 ? property.value : "<n/a>";
+                    System.out.printf("'%s' type=%s value=%s", property.name, typeName, valueText);
                     if (property.metaData != null && property.metaData.length() > 0) {
                         System.out.printf(" meta='%s'", property.metaData);
                     }

@@ -23,9 +23,16 @@
 #include <rive/data_bind/data_values/data_type.hpp>
 #include <rive/renderer.hpp>
 
+#if defined(DM_RIVE_PLUGIN) || defined(DM_RIVE_VIEWER)
+    // Used for retrieving edit-time related information
+    #define DM_RIVE_FILE_META_DATA
+#endif
+
 namespace dmRive
 {
     class MetadataListener;
+
+#if defined(DM_RIVE_FILE_META_DATA)
     class ArtboardMetadataListener;
 
     struct ViewModelProperty
@@ -34,6 +41,7 @@ namespace dmRive
         const char*      m_Name;
         rive::DataType   m_Type;
         const char*      m_MetaData;
+        const char*      m_Value;
     };
 
     struct ViewModelEnum
@@ -59,26 +67,30 @@ namespace dmRive
         const char* m_ViewModel;
         const char* m_Instance;
     };
+#endif // DM_RIVE_FILE_META_DATA
 
     struct RiveFile
     {
         const char*                  m_Path;
-        dmArray<const char*>         m_Artboards;
-        dmArray<const char*>         m_ViewModels;
-        dmArray<struct ArtboardStateMachines> m_StateMachinesByArtboard;
-        dmArray<struct ViewModelProperty> m_ViewModelProperties;
-        dmArray<struct ViewModelEnum>     m_ViewModelEnums;
-        dmArray<struct ViewModelInstanceNames> m_ViewModelInstanceNames;
-        struct DefaultViewModelInfo  m_DefaultViewModelInfo;
-        bool                         m_HasDefaultViewModelInfo;
 
         rive::FileHandle             m_File;
         rive::ArtboardHandle         m_Artboard;
         rive::StateMachineHandle     m_StateMachine;
         rive::ViewModelInstanceHandle m_ViewModelInstance;
 
-        MetadataListener*            m_FileListener;
-        ArtboardMetadataListener*    m_ArtboardListener;
+        MetadataListener*                     m_FileListener;
+
+#if defined(DM_RIVE_FILE_META_DATA)
+        ArtboardMetadataListener*             m_ArtboardListener;
+        dmArray<const char*>                    m_Artboards;
+        dmArray<const char*>                    m_ViewModels;
+        dmArray<struct ArtboardStateMachines>   m_StateMachinesByArtboard;
+        dmArray<struct ViewModelProperty>       m_ViewModelProperties;
+        dmArray<struct ViewModelEnum>           m_ViewModelEnums;
+        dmArray<struct ViewModelInstanceNames>  m_ViewModelInstanceNames;
+        DefaultViewModelInfo                    m_DefaultViewModelInfo;
+        bool                                    m_HasDefaultViewModelInfo;
+#endif // DM_RIVE_FILE_META_DATA
     };
 
     RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char* path);

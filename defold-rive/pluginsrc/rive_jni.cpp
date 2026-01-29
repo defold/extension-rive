@@ -66,6 +66,7 @@ struct ViewModelPropertyJNI
     jfieldID    type;
     jfieldID    typeName;
     jfieldID    metaData;
+    jfieldID    value;
 } g_ViewModelPropertyJNI;
 
 struct ViewModelEnumJNI
@@ -121,6 +122,7 @@ void InitializeJNITypes(JNIEnv* env)
         GET_FLD_TYPESTR(type, "I");
         GET_FLD_STRING(typeName);
         GET_FLD_STRING(metaData);
+        GET_FLD_STRING(value);
     }
     {
         SETUP_CLASS(ViewModelEnumJNI, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "ViewModelEnum"));
@@ -224,6 +226,7 @@ static jobjectArray CreateViewModelProperties(JNIEnv* env, const dmArray<dmRive:
         dmDefoldJNI::SetFieldString(env, obj, g_ViewModelPropertyJNI.metaData, properties[i].m_MetaData ? properties[i].m_MetaData : "");
         env->SetIntField(obj, g_ViewModelPropertyJNI.type, (int)properties[i].m_Type);
         dmDefoldJNI::SetFieldString(env, obj, g_ViewModelPropertyJNI.typeName, DataTypeToString(properties[i].m_Type));
+        dmDefoldJNI::SetFieldString(env, obj, g_ViewModelPropertyJNI.value, properties[i].m_Value ? properties[i].m_Value : "");
         env->SetObjectArrayElement(arr, i, obj);
         env->DeleteLocalRef(obj);
     }

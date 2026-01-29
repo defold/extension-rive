@@ -147,12 +147,14 @@
             (let [view-model (get-public-field property "viewModel")
                   name (get-public-field property "name")
                   type-name (get-public-field property "typeName")
-                  meta-data (get-public-field property "metaData")]
+                  meta-data (get-public-field property "metaData")
+                  value (get-public-field property "value")]
               (when view-model
                 {:view-model view-model
                  :name (or name "")
                  :type-name (or type-name "unknown")
-                 :meta-data (or meta-data "")})))
+                 :meta-data (or meta-data "")
+                 :value (or value unknown-value-text)})))
           view-model-properties)))
 
 (defn- view-model-properties-by-name [view-model-properties]
@@ -307,7 +309,6 @@
             (dynamic read-only? (g/constantly true)))
   (property value g/Str
             (dynamic label (g/constantly "Value"))
-            (dynamic visible (g/constantly false))
             (dynamic read-only? (g/constantly true)))
   (property meta-data g/Str
             (dynamic label (g/constantly "Meta"))
@@ -458,11 +459,12 @@
   (let [parent-graph-id (g/node-id->graph-id parent-id)
         name (:name property)
         type-name (string-or (:type-name property) "unknown")
-        meta-data (string-or (:meta-data property) none-value-text)]
+        meta-data (string-or (:meta-data property) none-value-text)
+        value (string-or (:value property) unknown-value-text)]
     (g/make-nodes parent-graph-id [prop [RiveViewModelPropertyNode :name name
                                          :view-model view-model
                                          :data-type type-name
-                                         :value unknown-value-text
+                                         :value value
                                          :meta-data meta-data]]
       (g/connect prop :_node-id parent-id :nodes)
       (g/connect prop :node-outline parent-id :child-outlines))))
