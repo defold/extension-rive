@@ -31,6 +31,7 @@ namespace dmRenderJNI
     void InitializeJNITypes(JNIEnv* env);
     void FinalizeJNITypes(JNIEnv* env);
 
+    jfloatArray     CreateFullscreenQuadVertices(JNIEnv* env);
     jobject         CreateRenderObject(JNIEnv* env, const dmRender::RenderObject* ro);
     jobjectArray    CreateRenderObjectArray(JNIEnv* env, uint32_t num_values, const dmRender::RenderObject* values);
 }

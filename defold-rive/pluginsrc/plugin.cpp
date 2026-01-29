@@ -251,6 +251,17 @@ static jobject JNICALL Java_Rive_GetTexture(JNIEnv* env, jclass cls, jobject riv
     return texture;
 }
 
+static jfloatArray JNICALL Java_Rive_GetFullscreenQuadVerticesInternal(JNIEnv* env, jclass cls)
+{
+    DM_CHECK_JNI_ERROR();
+    dmRiveCrash::ScopedSignalHandler signal_scope;
+
+    TypeRegister register_t(env);
+    jfloatArray vertices = dmRenderJNI::CreateFullscreenQuadVertices(env);
+    DM_CHECK_JNI_ERROR();
+    return vertices;
+}
+
 // static JNIEXPORT jlong JNICALL Java_RiveFile_AddressOf(JNIEnv* env, jclass cls, jobject object)
 // {
 //     TypeRegister register_t(env);
@@ -465,7 +476,8 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
         DM_JNI_FUNCTION(SetArtboard, "(Lcom/dynamo/bob/pipeline/Rive$RiveFile;Ljava/lang/String;)V"),
         DM_JNI_FUNCTION(SetStateMachine, "(Lcom/dynamo/bob/pipeline/Rive$RiveFile;Ljava/lang/String;)V"),
         DM_JNI_FUNCTION(SetViewModel, "(Lcom/dynamo/bob/pipeline/Rive$RiveFile;Ljava/lang/String;)V"),
-        DM_JNI_FUNCTION(GetTexture, "(Lcom/dynamo/bob/pipeline/Rive$RiveFile;)Lcom/dynamo/bob/pipeline/Rive$Texture;")
+        DM_JNI_FUNCTION(GetTexture, "(Lcom/dynamo/bob/pipeline/Rive$RiveFile;)Lcom/dynamo/bob/pipeline/Rive$Texture;"),
+        DM_JNI_FUNCTION(GetFullscreenQuadVerticesInternal, "()[F")
         //DM_JNI_FUNCTION(AddressOf, "(Ljava/lang/Object;)J"),
     };
     #undef DM_JNI_FUNCTION

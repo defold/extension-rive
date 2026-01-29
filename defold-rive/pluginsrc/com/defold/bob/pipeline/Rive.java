@@ -64,7 +64,14 @@ public class Rive {
     public static native void SetStateMachine(RiveFile rive_file, String name);
     public static native void SetViewModel(RiveFile rive_file, String name);
     public static native Texture GetTexture(RiveFile rive_file);
+    private static native float[] GetFullscreenQuadVerticesInternal();
     public static native void DebugPrint();
+
+    public static final float[] FULLSCREEN_QUAD_VERTICES = GetFullscreenQuadVerticesInternal();
+
+    public static float[] GetFullscreenQuadVertices() {
+        return FULLSCREEN_QUAD_VERTICES;
+    }
 
     public static class RiveFile {
         public String           path;

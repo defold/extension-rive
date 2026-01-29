@@ -23,6 +23,7 @@
             [editor.graph-util :as gu]
             [editor.math :as math]
             [editor.outline :as outline]
+            [editor.pipeline.tex-gen :as tex-gen]
             [editor.properties :as properties]
             [editor.protobuf :as protobuf]
             [editor.render-util :as render-util]
@@ -37,6 +38,7 @@
            [editor.gl.shader ShaderLifecycle]
            [java.io IOException]
            [java.nio FloatBuffer IntBuffer]
+           [java.awt.image BufferedImage DataBufferByte]
            [javax.vecmath Matrix4d Vector3d Vector4d]
            [org.apache.commons.io IOUtils]))
 
@@ -97,6 +99,12 @@
 
 (defn- plugin-set-artboard [file artboard]
   (plugin-invoke-static rive-plugin-cls "SetArtboardInternal" (into-array Class [rive-plugin-file-cls String]) [file artboard]))
+
+(defn- plugin-get-texture [file]
+  (plugin-invoke-static rive-plugin-cls "GetTexture" (into-array Class [rive-plugin-file-cls]) [file]))
+
+(defn- plugin-get-fullscreen-quad-vertices []
+  (plugin-invoke-static rive-plugin-cls "GetFullscreenQuadVertices" (into-array Class []) []))
 
 ;; Helper for optional Java fields (Rive.java may not expose older data).
 (defn- get-public-field [^Object obj ^String field-name]
@@ -603,6 +611,68 @@
  (vec2 position)
  (vec2 texcoord0))
 
+(def ^:private fallback-quad-vertices
+  (float-array
+    [-1.0 -1.0 0.0 0.0
+      1.0 -1.0 1.0 0.0
+     -1.0  1.0 0.0 1.0
+      1.0 -1.0 1.0 0.0
+      1.0  1.0 1.0 1.0
+     -1.0  1.0 0.0 1.0]))
+
+(defonce ^:private fullscreen-quad-vertices
+  (delay
+    (or (plugin-get-fullscreen-quad-vertices)
+        fallback-quad-vertices)))
+
+(defonce ^:private fullscreen-quad-vertex-buffer
+  (delay
+    (let [vertices ^floats @fullscreen-quad-vertices]
+      (vtx/wrap-vertex-buffer vtx-textured :static (FloatBuffer/wrap vertices)))))
+
+(def ^:private identity-matrix4d
+  (doto (Matrix4d.) (.setIdentity)))
+
+(defn- copy-bgra->abgr! [^bytes src ^bytes dst pixel-count]
+  (loop [i 0 si 0 di 0]
+    (when (< i pixel-count)
+      (let [b (aget src si)
+            g (aget src (+ si 1))
+            r (aget src (+ si 2))
+            a (aget src (+ si 3))]
+        (aset-byte dst di a)
+        (aset-byte dst (+ di 1) b)
+        (aset-byte dst (+ di 2) g)
+        (aset-byte dst (+ di 3) r)
+        (recur (inc i) (+ si 4) (+ di 4))))))
+
+(defn- rive-texture->buffered-image [texture]
+  (when texture
+    (let [width (get-public-field texture "width")
+          height (get-public-field texture "height")
+          data (get-public-field texture "data")]
+      (when (and data (> width 0) (> height 0))
+        (let [image (BufferedImage. width height BufferedImage/TYPE_4BYTE_ABGR)
+              raster (.getRaster image)
+              ^DataBufferByte buffer (.getDataBuffer raster)
+              dst (.getData buffer)
+              pixel-count (* width height)]
+          (when (>= (alength data) (* pixel-count 4))
+            (copy-bgra->abgr! data dst pixel-count)
+            image))))))
+
+(defn- rive-texture->gpu-texture [request-id texture default-tex-params]
+  (when-let [image (rive-texture->buffered-image texture)]
+    (try
+      (let [texture-image (tex-gen/make-preview-texture-image image nil)
+            gpu-texture (texture/texture-images->gpu-texture request-id [texture-image] {:min-filter gl/nearest
+                                                                                         :mag-filter gl/nearest})]
+        (if default-tex-params
+          (texture/set-params gpu-texture default-tex-params)
+          gpu-texture))
+      (catch Exception _
+        nil))))
+
 (set! *warn-on-reflection* false)
 
 (defn renderable->render-objects [renderable]
@@ -774,44 +844,44 @@
   (.glDisable gl GL/GL_STENCIL_TEST)
   (.glColorMask gl true true true true))
 
-(defn- render-group-transparent [^GL2 gl render-args override-shader group]
-  (let [renderable (:renderable group)
-        is-selection-pass (:selection (:pass render-args))
-        node-id (:node-id renderable)
+(defn- render-rive-quad [^GL2 gl render-args renderable]
+  (let [node-id (:node-id renderable)
         user-data (:user-data renderable)
+        handle (:rive-file-handle user-data)
+        pass (:pass render-args)
         blend-mode (:blend-mode user-data)
-        gpu-texture (or (:gpu-texture user-data) texture/white-pixel)
-        shader (or override-shader (:shader user-data))
-        vb (:vertex-buffer group)
-        ib (:index-buffer group)
-        render-objects (:render-objects group)
-        vertex-binding (vtx/use-with [node-id ::rive-trans] vb shader)]
-    (gl/with-gl-bindings gl render-args [gpu-texture shader vertex-binding ib]
+        shader (if (= pass/selection pass)
+                 (or (:selection-shader user-data)
+                     (:blit-shader user-data)
+                     (:shader user-data))
+                 (or (:blit-shader user-data) (:shader user-data)))
+        texture (when handle (plugin-get-texture handle))
+        gpu-texture (or (rive-texture->gpu-texture node-id texture (:default-tex-params user-data))
+                        (:gpu-texture user-data)
+                        texture/white-pixel)
+        vb @fullscreen-quad-vertex-buffer
+        vertex-binding (vtx/use-with [node-id ::rive-quad] vb shader)]
+    (gl/with-gl-bindings gl render-args [gpu-texture shader vertex-binding]
       (setup-gl gl)
-      (if is-selection-pass
-        (shader/set-uniform shader gl "id_color" (:id-color render-args))
+      (when (= pass/selection pass)
+        (shader/set-uniform shader gl "id_color" (:id-color render-args)))
+      (shader/set-uniform shader gl "world_view_proj" identity-matrix4d)
+      (when (= pass/transparent pass)
         (gl/set-blend-mode gl blend-mode))
-      (doseq [ro render-objects]
-        (do-render-object! gl render-args shader renderable ro))
+      (gl/gl-draw-arrays gl GL/GL_TRIANGLES 0 6)
       (restore-gl gl))))
 
-(defn- render-rive-scenes [^GL2 gl render-args renderables rcount]
-  ;; TODO: Go over batching, rendering, and scene generation properly.
+(defn- render-rive-scenes [^GL2 gl render-args renderables _rcount]
   (let [first-renderable (first renderables)
-        first-renderable-user-data (:user-data first-renderable)
-        selection-shader (:selection-shader first-renderable-user-data)
-        render-args (assoc render-args :id-color (scene-picking/renderable-picking-id-uniform first-renderable))
-        render-groups (collect-render-groups renderables)]
-    (doseq [group render-groups]
-      (plugin-update-file (:handle group) 0.0)
-      (condp = (:pass render-args)
-        pass/transparent
-        (render-group-transparent gl render-args nil group)
+        render-args (assoc render-args :id-color (scene-picking/renderable-picking-id-uniform first-renderable))]
+    (doseq [renderable renderables]
+      (let [user-data (:user-data renderable)
+            handle (:rive-file-handle user-data)]
+        (when handle
+          (plugin-update-file handle 0.0))
+        (render-rive-quad gl render-args renderable)))))
 
-        pass/selection
-        (render-group-transparent gl render-args selection-shader group)))))
-
-(g/defnk produce-main-scene [_node-id material-shader selection-material-shader rive-file-handle aabb rive-scene-pb texture-set-pb]
+(g/defnk produce-main-scene [_node-id material-shader selection-material-shader rive-file-handle aabb rive-scene-pb texture-set-pb default-tex-params]
   (when rive-file-handle
     (let [blend-mode :blend-mode-alpha]
       (assoc {:node-id _node-id :aabb aabb}
@@ -824,6 +894,7 @@
                                       :aabb aabb
                                       :shader material-shader
                                       :selection-shader selection-material-shader
+                                      :default-tex-params default-tex-params
                                       :texture-set-pb texture-set-pb
                                       :blend-mode blend-mode}
                           :passes [pass/transparent pass/selection]}))))
@@ -922,7 +993,7 @@
   (let [resolve-resource #(workspace/resolve-resource resource %)]
     (concat
       (g/connect project :default-tex-params self :default-tex-params)
-      (g/set-property self :material (resolve-resource default-material-proj-path))
+      (g/set-property self :material (resolve-resource default-blit-material-proj-path))
       (g/set-property self :selection-material (resolve-resource selection-material-proj-path))
       (gu/set-properties-from-pb-map self rive-scene-pb-class rive-scene-desc
         rive-file (resolve-resource :scene)
@@ -1092,13 +1163,14 @@
   (output anim-ids g/Any :cached (g/fnk [anim-data] (vec (sort (keys anim-data)))))
   (output state-machine-ids g/Any :cached (g/fnk [anim-data] (vec (sort (keys anim-data)))))
   (output material-shader ShaderLifecycle (gu/passthrough material-shader))
-  (output scene g/Any :cached (g/fnk [_node-id rive-file-handle artboard rive-main-scene material-shader]
+  (output scene g/Any :cached (g/fnk [_node-id rive-file-handle artboard rive-main-scene material-shader blit-material-shader]
                                      (if (and (some? material-shader) (some? (:renderable rive-main-scene)))
                                        (let [aabb (:aabb rive-main-scene)
                                              rive-scene-node-id (:node-id rive-main-scene)
                                              _ (plugin-set-artboard rive-file-handle artboard)]
                                          (-> rive-main-scene
                                              (assoc-in [:renderable :user-data :shader] material-shader)
+                                             (assoc-in [:renderable :user-data :blit-shader] blit-material-shader)
                                              (assoc :aabb aabb)
                                              (assoc :children [(make-rive-outline-scene rive-scene-node-id aabb)])))
 
