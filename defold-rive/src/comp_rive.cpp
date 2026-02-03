@@ -1224,7 +1224,11 @@ namespace dmRive
                 }
             }
         }
-        return dmGameSystem::GetMaterialConstant(GetMaterial(component, component->m_Resource), params.m_PropertyId, params.m_Options.m_Index, out_value, false, CompRiveGetConstantCallback, component);
+
+        int32_t value_index = 0;
+        dmGameObject::GetPropertyOptionsIndex(params.m_Options, 0, &value_index);
+
+        return dmGameSystem::GetMaterialConstant(GetMaterial(component, component->m_Resource), params.m_PropertyId, value_index, out_value, false, CompRiveGetConstantCallback, component);
     }
 
     dmGameObject::PropertyResult CompRiveSetProperty(const dmGameObject::ComponentSetPropertyParams& params)
@@ -1269,7 +1273,9 @@ namespace dmRive
                 }
             }
         }
-        return dmGameSystem::SetMaterialConstant(GetMaterial(component, component->m_Resource), params.m_PropertyId, params.m_Value, params.m_Options.m_Index, CompRiveSetConstantCallback, component);
+        int32_t value_index = 0;
+        dmGameObject::GetPropertyOptionsIndex(params.m_Options, 0, &value_index);
+        return dmGameSystem::SetMaterialConstant(GetMaterial(component, component->m_Resource), params.m_PropertyId, params.m_Value, value_index, CompRiveSetConstantCallback, component);
     }
 
     static void ResourceReloadedCallback(const dmResource::ResourceReloadedParams* params)
