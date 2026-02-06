@@ -9,32 +9,22 @@ embedded_instances {
   ""
 }
 embedded_instances {
-  id: "go_rive"
-  data: "embedded_components {\n"
-  "  id: \"rivemodel\"\n"
-  "  type: \"rivemodel\"\n"
-  "  data: \"scene: \\\"/main/outofband/out-of-band.rivescene\\\"\\n"
-  "default_animation: \\\"\\\"\\n"
-  "material: \\\"/defold-rive/assets/rivemodel.material\\\"\\n"
-  "blit_material: \\\"/defold-rive/assets/shader-library/rivemodel_blit.material\\\"\\n"
-  "\"\n"
-  "}\n"
-  ""
-  position {
-    x: 456.745
-    y: 259.97
-  }
-  scale3 {
-    x: 0.372221
-    y: 0.368649
-    z: 0.66
-  }
-}
-embedded_instances {
   id: "go"
   data: "components {\n"
   "  id: \"outofband\"\n"
   "  component: \"/main/outofband/outofband.script\"\n"
+  "}\n"
+  "embedded_components {\n"
+  "  id: \"outofband_assets\"\n"
+  "  type: \"collectionproxy\"\n"
+  "  data: \"collection: \\\"/main/outofband/outofband-assets.collection\\\"\\n"
+  "\"\n"
+  "}\n"
+  "embedded_components {\n"
+  "  id: \"outofband_scene\"\n"
+  "  type: \"collectionproxy\"\n"
+  "  data: \"collection: \\\"/main/outofband/outofband-scene.collection\\\"\\n"
+  "\"\n"
   "}\n"
   ""
 }
