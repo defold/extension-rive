@@ -367,6 +367,7 @@ void FileListener::onViewModelPropertiesListed(const rive::FileHandle file, uint
     ViewModelPropertyRequest* request = TakeViewModelPropertyRequest(g_PendingViewModelPropertyRequests, requestId);
     if (request)
     {
+        ViewModelInstanceListener* listener = GetViewModelInstanceListener(request->m_Instance);
         rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
         for (uint32_t i = 0; i < properties.size(); ++i)
         {
@@ -391,6 +392,8 @@ void FileListener::onViewModelPropertiesListed(const rive::FileHandle file, uint
                     queue->requestViewModelInstanceString(request->m_Instance, property.name);
                     break;
                 case rive::DataType::list:
+                    if (listener)
+                        listener->EnsureListSize(dmHashString64(property.name.c_str()), 0);
                     queue->requestViewModelInstanceListSize(request->m_Instance, property.name);
                     break;
                 default:
@@ -514,16 +517,16 @@ ViewModelInstanceListener::ViewModelInstanceListener()
 
 ViewModelInstanceListener::~ViewModelInstanceListener()
 {
+    {
+        DM_MUTEX_OPTIONAL_SCOPED_LOCK(m_Mutex);
+        DeleteContext context;
+        m_PropertyValues.Iterate(DeletePropertyValue, &context);
+        m_PropertyValues.Clear();
+        m_ListSizes.Iterate(DeleteListSize, &context);
+        m_ListSizes.Clear();
+    }
     if (m_Mutex)
     {
-        {
-            DM_MUTEX_SCOPED_LOCK(m_Mutex);
-            DeleteContext context;
-            m_PropertyValues.Iterate(DeletePropertyValue, &context);
-            m_PropertyValues.Clear();
-            m_ListSizes.Iterate(DeleteListSize, &context);
-            m_ListSizes.Clear();
-        }
         dmMutex::Delete(m_Mutex);
         m_Mutex = 0;
     }
@@ -534,14 +537,33 @@ void ViewModelInstanceListener::SetAutoDeleteOnViewModelDeleted(bool value)
     m_DeleteOnViewModelDeleted = value;
 }
 
-bool ViewModelInstanceListener::GetPropertyValue(dmhash_t path_hash, rive::CommandQueue::ViewModelInstanceData& out) const
+bool ViewModelInstanceListener::SetPropertyValue(dmhash_t path_hash, const rive::CommandQueue::ViewModelInstanceData& data)
 {
-    if (!m_Mutex)
+    DM_MUTEX_OPTIONAL_SCOPED_LOCK(m_Mutex);
+    if (m_PropertyValues.Capacity() == 0)
     {
-        return false;
+        EnsureTableCapacity(m_PropertyValues, 32);
+    }
+    else if (m_PropertyValues.Full())
+    {
+        EnsureTableCapacity(m_PropertyValues, m_PropertyValues.Capacity() * 2);
     }
 
-    DM_MUTEX_SCOPED_LOCK(m_Mutex);
+    rive::CommandQueue::ViewModelInstanceData** entry = m_PropertyValues.Get(path_hash);
+    if (entry && *entry)
+    {
+        **entry = data;
+        return true;
+    }
+
+    rive::CommandQueue::ViewModelInstanceData* copy = new rive::CommandQueue::ViewModelInstanceData(data);
+    m_PropertyValues.Put(path_hash, copy);
+    return true;
+}
+
+bool ViewModelInstanceListener::GetPropertyValue(dmhash_t path_hash, rive::CommandQueue::ViewModelInstanceData& out) const
+{
+    DM_MUTEX_OPTIONAL_SCOPED_LOCK(m_Mutex);
     if (m_PropertyValues.Capacity() == 0)
     {
         return false;
@@ -558,12 +580,7 @@ bool ViewModelInstanceListener::GetPropertyValue(dmhash_t path_hash, rive::Comma
 
 bool ViewModelInstanceListener::GetListSize(dmhash_t path_hash, size_t& out) const
 {
-    if (!m_Mutex)
-    {
-        return false;
-    }
-
-    DM_MUTEX_SCOPED_LOCK(m_Mutex);
+    DM_MUTEX_OPTIONAL_SCOPED_LOCK(m_Mutex);
     if (m_ListSizes.Capacity() == 0)
     {
         return false;
@@ -576,6 +593,62 @@ bool ViewModelInstanceListener::GetListSize(dmhash_t path_hash, size_t& out) con
         return true;
     }
     return false;
+}
+
+bool ViewModelInstanceListener::AdjustListSize(dmhash_t path_hash, int32_t delta)
+{
+    DM_MUTEX_OPTIONAL_SCOPED_LOCK(m_Mutex);
+    if (m_ListSizes.Capacity() == 0)
+    {
+        EnsureTableCapacity(m_ListSizes, 16);
+    }
+    else if (m_ListSizes.Full())
+    {
+        EnsureTableCapacity(m_ListSizes, m_ListSizes.Capacity() * 2);
+    }
+
+    size_t* const* entry = m_ListSizes.Get(path_hash);
+    if (!entry || !*entry)
+    {
+        size_t* copy = new size_t(0);
+        m_ListSizes.Put(path_hash, copy);
+        entry = m_ListSizes.Get(path_hash);
+        if (!entry || !*entry)
+        {
+            return false;
+        }
+    }
+
+    int64_t new_size = (int64_t)**entry + (int64_t)delta;
+    if (new_size < 0)
+    {
+        new_size = 0;
+    }
+    **entry = (size_t)new_size;
+    return true;
+}
+
+bool ViewModelInstanceListener::EnsureListSize(dmhash_t path_hash, size_t value)
+{
+    DM_MUTEX_OPTIONAL_SCOPED_LOCK(m_Mutex);
+    if (m_ListSizes.Capacity() == 0)
+    {
+        EnsureTableCapacity(m_ListSizes, 16);
+    }
+    else if (m_ListSizes.Full())
+    {
+        EnsureTableCapacity(m_ListSizes, m_ListSizes.Capacity() * 2);
+    }
+
+    size_t** entry = m_ListSizes.Get(path_hash);
+    if (entry && *entry)
+    {
+        return true;
+    }
+
+    size_t* copy = new size_t(value);
+    m_ListSizes.Put(path_hash, copy);
+    return true;
 }
 
 void ViewModelInstanceListener::onViewModelInstanceError(const rive::ViewModelInstanceHandle, uint64_t requestId, std::string error)
@@ -595,12 +668,7 @@ void ViewModelInstanceListener::onViewModelDeleted(const rive::ViewModelInstance
 void ViewModelInstanceListener::onViewModelDataReceived(const rive::ViewModelInstanceHandle, uint64_t requestId, rive::CommandQueue::ViewModelInstanceData data)
 {
     dmhash_t path_hash = dmHashString64(data.metaData.name.c_str());
-    if (!m_Mutex)
-    {
-        return;
-    }
-
-    DM_MUTEX_SCOPED_LOCK(m_Mutex);
+    DM_MUTEX_OPTIONAL_SCOPED_LOCK(m_Mutex);
     if (m_PropertyValues.Capacity() == 0)
     {
         EnsureTableCapacity(m_PropertyValues, 32);
@@ -625,12 +693,7 @@ void ViewModelInstanceListener::onViewModelDataReceived(const rive::ViewModelIns
 void ViewModelInstanceListener::onViewModelListSizeReceived(const rive::ViewModelInstanceHandle, uint64_t requestId, std::string path, size_t size)
 {
     dmhash_t path_hash = dmHashString64(path.c_str());
-    if (!m_Mutex)
-    {
-        return;
-    }
-
-    DM_MUTEX_SCOPED_LOCK(m_Mutex);
+    DM_MUTEX_OPTIONAL_SCOPED_LOCK(m_Mutex);
     if (m_ListSizes.Capacity() == 0)
     {
         EnsureTableCapacity(m_ListSizes, 16);

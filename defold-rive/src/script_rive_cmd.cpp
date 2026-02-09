@@ -48,6 +48,28 @@ static void CheckStringOrArtboard(lua_State* L, int index, const char** string, 
         *handle = CheckArtboardHandle(L, index);
 }
 
+static void AdjustViewModelListSize(rive::ViewModelInstanceHandle handle, const char* path, int32_t delta)
+{
+    ViewModelInstanceListener* listener = GetViewModelInstanceListener(handle);
+    if (!listener)
+    {
+        return;
+    }
+    dmhash_t path_hash = dmHashString64(path);
+    listener->AdjustListSize(path_hash, delta);
+}
+
+static void SetViewModelInstanceCachedValue(rive::ViewModelInstanceHandle handle, const char* path, const rive::CommandQueue::ViewModelInstanceData& data)
+{
+    ViewModelInstanceListener* listener = GetViewModelInstanceListener(handle);
+    if (!listener)
+    {
+        return;
+    }
+    dmhash_t path_hash = dmHashString64(path);
+    listener->SetPropertyValue(path_hash, data);
+}
+
 // *************************************************************************************************
 
 /**
@@ -414,6 +436,7 @@ static int Script_insertViewModelInstanceListViewModel(lua_State* L)
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->insertViewModelInstanceListViewModel(handle, path, value, index);
+    AdjustViewModelListSize(handle, path, 1);
     return 0;
 }
 
@@ -433,6 +456,7 @@ static int Script_appendViewModelInstanceListViewModel(lua_State* L)
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->appendViewModelInstanceListViewModel(handle, path, value);
+    AdjustViewModelListSize(handle, path, 1);
     return 0;
 }
 
@@ -452,6 +476,7 @@ static int Script_removeViewModelInstanceListViewModelIndex(lua_State* L)
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->removeViewModelInstanceListViewModel(handle, path, index, RIVE_NULL_HANDLE);
+    AdjustViewModelListSize(handle, path, -1);
     return 0;
 }
 
@@ -471,6 +496,7 @@ static int Script_removeViewModelInstanceListViewModel(lua_State* L)
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->removeViewModelInstanceListViewModel(handle, path, value);
+    AdjustViewModelListSize(handle, path, -1);
     return 0;
 }
 
@@ -562,11 +588,17 @@ static int Script_setViewModelInstanceBool(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
     rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
-    bool value  = CheckBoolean(L, 3);
-    const char* path = luaL_checkstring(L, 2);
+    bool                          value = CheckBoolean(L, 3);
+    const char*                   path = luaL_checkstring(L, 2);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->setViewModelInstanceBool(handle, path, value);
+    rive::CommandQueue::ViewModelInstanceData data;
+    data.metaData.name = path;
+    data.metaData.type = rive::DataType::boolean;
+    data.stringValue.clear();
+    data.boolValue = value;
+    SetViewModelInstanceCachedValue(handle, path, data);
     return 0;
 }
 
@@ -581,11 +613,17 @@ static int Script_setViewModelInstanceNumber(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
     rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
-    lua_Number value  = luaL_checknumber(L, 3);
-    const char* path = luaL_checkstring(L, 2);
+    lua_Number                    value = luaL_checknumber(L, 3);
+    const char*                   path = luaL_checkstring(L, 2);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->setViewModelInstanceNumber(handle, path, value);
+    rive::CommandQueue::ViewModelInstanceData data;
+    data.metaData.name = path;
+    data.metaData.type = rive::DataType::number;
+    data.stringValue.clear();
+    data.numberValue = (float)value;
+    SetViewModelInstanceCachedValue(handle, path, data);
     return 0;
 }
 
@@ -600,12 +638,18 @@ static int Script_setViewModelInstanceColor(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
     rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
-    const char* path = luaL_checkstring(L, 2);
-    dmVMath::Vector4* color = dmScript::CheckVector4(L, 3);
-    rive::ColorInt value = rive::colorARGB(255 * color->getW(), 255 * color->getX(), 255 * color->getY(), 255 * color->getZ());
+    const char*                   path = luaL_checkstring(L, 2);
+    dmVMath::Vector4*             color = dmScript::CheckVector4(L, 3);
+    rive::ColorInt                value = rive::colorARGB(255 * color->getW(), 255 * color->getX(), 255 * color->getY(), 255 * color->getZ());
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->setViewModelInstanceColor(handle, path, value);
+    rive::CommandQueue::ViewModelInstanceData data;
+    data.metaData.name = path;
+    data.metaData.type = rive::DataType::color;
+    data.stringValue.clear();
+    data.colorValue = value;
+    SetViewModelInstanceCachedValue(handle, path, data);
     return 0;
 }
 
@@ -620,11 +664,17 @@ static int Script_setViewModelInstanceEnum(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
     rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
-    const char* path = luaL_checkstring(L, 2);
-    const char* value = luaL_checkstring(L, 3);
+    const char*                   path = luaL_checkstring(L, 2);
+    const char*                   value = luaL_checkstring(L, 3);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->setViewModelInstanceEnum(handle, path, value);
+    rive::CommandQueue::ViewModelInstanceData data;
+    data.metaData.name = path;
+    data.metaData.type = rive::DataType::enumType;
+    data.stringValue = value;
+    data.numberValue = 0.0f;
+    SetViewModelInstanceCachedValue(handle, path, data);
     return 0;
 }
 
@@ -639,11 +689,17 @@ static int Script_setViewModelInstanceString(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
     rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
-    const char* path = luaL_checkstring(L, 2);
-    const char* value = luaL_checkstring(L, 3);
+    const char*                   path = luaL_checkstring(L, 2);
+    const char*                   value = luaL_checkstring(L, 3);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->setViewModelInstanceString(handle, path, value);
+    rive::CommandQueue::ViewModelInstanceData data;
+    data.metaData.name = path;
+    data.metaData.type = rive::DataType::string;
+    data.stringValue = value;
+    data.numberValue = 0.0f;
+    SetViewModelInstanceCachedValue(handle, path, data);
     return 0;
 }
 

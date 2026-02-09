@@ -19,6 +19,8 @@ local function set_selected_thumb(self, index)
 	set_border(self, self.thumb_index, 10)
 
 	rive.cmd.setViewModelInstanceNumber(self.view_model, "List Index", self.thumb_index)
+
+	print("List Index:", rive.cmd.getViewModelInstanceNumber(self.view_model, "List Index"))
 end
 
 local function move_left(self)
@@ -57,6 +59,10 @@ local function create_thumb(self, image_data)
 	-- -- add the thumb last in the list
 	rive.cmd.appendViewModelInstanceListViewModel(self.view_model, self.list_path, thumb)
 
+	-- The list size is manually modified/incremented in the appendViewModelInstanceListViewModel et.al
+	-- This allows us to get an accurate number directly after
+	print("List Size: ", rive.cmd.getViewModelInstanceListSize(self.view_model, self.list_path))
+
 	-- -- update borders
 	set_selected_thumb(self, #self.thumbs - 1)
 end
@@ -81,9 +87,7 @@ end
 local function remove_thumb(self, index)
 	print("Removing thumb at index", index)
 	local thumb = table.remove(self.thumbs, index)
-	--rive.databind.list_remove_instance(self.rive_url, self.view_model, self.list_path, thumb)
 	rive.cmd.removeViewModelInstanceListViewModel(self.view_model, self.list_path, thumb)
-	--rive.cmd.removeViewModelInstanceListViewModelIndex(self.view_model, self.list_path, index)
 	set_selected_thumb(self, index-1)
 end
 
@@ -96,7 +100,7 @@ end
 function init(self)
 	msg.post(".", "acquire_input_focus") 
 
-	rive.set_file_listener(rive_listener)
+	--rive.set_file_listener(rive_listener)
 
 	self.list_path = 'Thumbs'
 	self.thumbs = {}
@@ -118,11 +122,17 @@ function init(self)
 	self.thumb_index = 0
 	-- self.thumb_index = rive.databind.get_property(self.rive_url, self.view_model, "List Index")
 
+	-- NOTE: due to the asynchronous message order, the list size won't be available until
+	-- two frames from this one. the dmRiveCommands::ProcessMessages() is run in Update(), which means
+	-- the commands above gets processed, which trigger the listeners, which pushes our list size request to the queue.
+	-- And so the list size isn't handled after the second dmRiveCommands::ProcessMessages(), which happens _after_ two frames.
+	--print("Initial List Size:", rive.cmd.getViewModelInstanceListSize(self.view_model, self.list_path))
+	--print("Initial List Index:", rive.cmd.getViewModelInstanceNumber(self.view_model, "List Index"))
+
 	for i=1,MAX_NUM_THUMBS do
 		request_thumb(self, URL)
 	end
 
-	--request_thumb(self, URL)
 end
 
 
