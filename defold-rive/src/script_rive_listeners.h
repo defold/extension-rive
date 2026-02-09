@@ -107,6 +107,10 @@ public:
     dmScript::LuaCallbackInfo* m_Callback;
 };
 
+void RequestViewModelInstanceProperties(rive::FileHandle file, rive::ViewModelInstanceHandle instance, const char* viewmodel_name);
+void RequestDefaultViewModelInstanceProperties(rive::FileHandle file, rive::ArtboardHandle artboard, rive::ViewModelInstanceHandle instance);
+void ClearViewModelInstancePropertyRequests();
+
 } // namespace
 
 #endif // DM_GAMESYS_SCRIPT_RIVE_LISTENERS_H

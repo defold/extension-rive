@@ -210,6 +210,10 @@ static int Script_instantiateBlankViewModelInstance(lua_State* L)
     else
     {
         RegisterViewModelInstanceListener(handle, listener);
+        if (viewmodel_name)
+            RequestViewModelInstanceProperties(file, handle, viewmodel_name);
+        else
+            RequestDefaultViewModelInstanceProperties(file, artboard, handle);
     }
 
     PushViewModelInstanceHandle(L, handle);
@@ -253,6 +257,10 @@ static int Script_instantiateDefaultViewModelInstance(lua_State* L)
     else
     {
         RegisterViewModelInstanceListener(handle, listener);
+        if (viewmodel_name)
+            RequestViewModelInstanceProperties(file, handle, viewmodel_name);
+        else
+            RequestDefaultViewModelInstanceProperties(file, artboard, handle);
     }
 
     PushViewModelInstanceHandle(L, handle);
@@ -299,6 +307,10 @@ static int Script_instantiateViewModelInstanceNamed(lua_State* L)
     else
     {
         RegisterViewModelInstanceListener(handle, listener);
+        if (viewmodel_name)
+            RequestViewModelInstanceProperties(file, handle, viewmodel_name);
+        else
+            RequestDefaultViewModelInstanceProperties(file, artboard, handle);
     }
 
     PushViewModelInstanceHandle(L, handle);
@@ -1381,6 +1393,7 @@ void ScriptCmdRegister(struct lua_State* L, dmResource::HFactory factory)
 
 void ScriptCmdUnregister(struct lua_State* L, dmResource::HFactory factory)
 {
+    ClearViewModelInstancePropertyRequests();
     ClearViewModelInstanceListeners();
     g_ResourceFactory = 0;
 }

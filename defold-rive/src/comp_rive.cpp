@@ -378,6 +378,7 @@ namespace dmRive
             else
             {
                 RegisterViewModelInstanceListener(component->m_ViewModelInstance, listener);
+                RequestViewModelInstanceProperties(file, component->m_ViewModelInstance, viewmodel_name);
             }
         }
 
@@ -393,6 +394,7 @@ namespace dmRive
             else
             {
                 RegisterViewModelInstanceListener(component->m_ViewModelInstance, listener);
+                RequestDefaultViewModelInstanceProperties(file, component->m_Artboard, component->m_ViewModelInstance);
             }
         }
 

@@ -30,9 +30,22 @@ namespace dmRive
         dmMutex::HMutex                                      g_ViewModelRegistryMutex = 0;
         dmHashTable<RegistryKey, ViewModelInstanceListener*> g_ViewModelInstanceListeners;
 
+        struct DeleteRegistryContext
+        {
+        };
+
         RegistryKey                                          ToRegistryKey(rive::ViewModelInstanceHandle handle)
         {
             return (RegistryKey)(uintptr_t)handle;
+        }
+
+        void DeleteRegistryEntry(DeleteRegistryContext*, const RegistryKey*, ViewModelInstanceListener** v)
+        {
+            if (v && *v)
+            {
+                delete *v;
+                *v = 0;
+            }
         }
 
         void EnsureRegistryCapacity(uint32_t capacity)
@@ -103,18 +116,8 @@ namespace dmRive
     {
         EnsureRegistryCapacity(1);
         DM_MUTEX_SCOPED_LOCK(g_ViewModelRegistryMutex);
-        struct DeleteContext
-        {
-        };
-        static void (*delete_cb)(DeleteContext*, const RegistryKey*, ViewModelInstanceListener**) = [](DeleteContext*, const RegistryKey*, ViewModelInstanceListener** v) {
-            if (v && *v)
-            {
-                delete *v;
-                *v = 0;
-            }
-        };
-        DeleteContext context;
-        g_ViewModelInstanceListeners.Iterate(delete_cb, &context);
+        DeleteRegistryContext context;
+        g_ViewModelInstanceListeners.Iterate(DeleteRegistryEntry, &context);
         g_ViewModelInstanceListeners.Clear();
     }
 
