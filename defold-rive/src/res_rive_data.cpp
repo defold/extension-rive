@@ -102,7 +102,7 @@ namespace dmRive
         }
 
         RiveSceneData* old_data = (RiveSceneData*)dmResource::GetResource(params->m_Resource);
-        assert(old_data == 0);
+        assert(old_data != 0);
 
         // We don't want to delete the old resource, as the pointer may be "live"
         rive::FileHandle tmp_handle = scene_data->m_File;
@@ -111,7 +111,7 @@ namespace dmRive
 
         DeleteData(scene_data);
 
-        SetupData(old_data, scene_data->m_File, params->m_Filename, render_context_res);
+        SetupData(old_data, old_data->m_File, params->m_Filename, render_context_res);
 
         dmResource::SetResourceSize(params->m_Resource, params->m_BufferSize);
 
