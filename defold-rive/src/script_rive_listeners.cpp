@@ -14,10 +14,44 @@
 
 #include "res_rive_data.h"
 #include "script_rive_listeners.h"
+#include "viewmodel_instance_registry.h"
 #include <dmsdk/dlib/log.h>
 
 namespace dmRive
 {
+
+template <typename T>
+static void EnsureTableCapacity(dmHashTable<dmhash_t, T*>& table, uint32_t capacity)
+{
+    if (table.Capacity() >= capacity)
+    {
+        return;
+    }
+    uint32_t grow = capacity - table.Capacity();
+    table.OffsetCapacity((int32_t)grow);
+}
+
+struct DeleteContext
+{
+};
+
+static void DeletePropertyValue(DeleteContext*, const dmhash_t*, rive::CommandQueue::ViewModelInstanceData** value)
+{
+    if (value && *value)
+    {
+        delete *value;
+        *value = 0;
+    }
+}
+
+static void DeleteListSize(DeleteContext*, const dmhash_t*, size_t** value)
+{
+    if (value && *value)
+    {
+        delete *value;
+        *value = 0;
+    }
+}
 
 static bool SetupCallback(dmScript::LuaCallbackInfo* callback, dmhash_t id, uint64_t requestId)
 {
@@ -321,24 +355,151 @@ void ArtboardListener::onStateMachinesListed(const rive::ArtboardHandle, uint64_
 
 // ******************************************************************************************************************************
 
+ViewModelInstanceListener::ViewModelInstanceListener()
+    : m_Callback(0)
+    , m_Mutex(dmMutex::New())
+    , m_DeleteOnViewModelDeleted(false)
+{
+}
+
+ViewModelInstanceListener::~ViewModelInstanceListener()
+{
+    if (m_Mutex)
+    {
+        {
+            DM_MUTEX_SCOPED_LOCK(m_Mutex);
+            DeleteContext context;
+            m_PropertyValues.Iterate(DeletePropertyValue, &context);
+            m_PropertyValues.Clear();
+            m_ListSizes.Iterate(DeleteListSize, &context);
+            m_ListSizes.Clear();
+        }
+        dmMutex::Delete(m_Mutex);
+        m_Mutex = 0;
+    }
+}
+
+void ViewModelInstanceListener::SetAutoDeleteOnViewModelDeleted(bool value)
+{
+    m_DeleteOnViewModelDeleted = value;
+}
+
+bool ViewModelInstanceListener::GetPropertyValue(dmhash_t path_hash, rive::CommandQueue::ViewModelInstanceData& out) const
+{
+    if (!m_Mutex)
+    {
+        return false;
+    }
+
+    DM_MUTEX_SCOPED_LOCK(m_Mutex);
+    if (m_PropertyValues.Capacity() == 0)
+    {
+        return false;
+    }
+
+    rive::CommandQueue::ViewModelInstanceData* const* entry = m_PropertyValues.Get(path_hash);
+    if (entry && *entry)
+    {
+        out = **entry;
+        return true;
+    }
+    return false;
+}
+
+bool ViewModelInstanceListener::GetListSize(dmhash_t path_hash, size_t& out) const
+{
+    if (!m_Mutex)
+    {
+        return false;
+    }
+
+    DM_MUTEX_SCOPED_LOCK(m_Mutex);
+    if (m_ListSizes.Capacity() == 0)
+    {
+        return false;
+    }
+
+    size_t* const* entry = m_ListSizes.Get(path_hash);
+    if (entry && *entry)
+    {
+        out = **entry;
+        return true;
+    }
+    return false;
+}
+
 void ViewModelInstanceListener::onViewModelInstanceError(const rive::ViewModelInstanceHandle, uint64_t requestId, std::string error)
 {
 
 }
 
-void ViewModelInstanceListener::onViewModelDeleted(const rive::ViewModelInstanceHandle, uint64_t requestId)
+void ViewModelInstanceListener::onViewModelDeleted(const rive::ViewModelInstanceHandle handle, uint64_t requestId)
 {
-
+    UnregisterViewModelInstanceListener(handle);
+    if (m_DeleteOnViewModelDeleted)
+    {
+        delete this;
+    }
 }
 
-void ViewModelInstanceListener::onViewModelDataReceived(const rive::ViewModelInstanceHandle, uint64_t requestId, rive::CommandQueue::ViewModelInstanceData)
+void ViewModelInstanceListener::onViewModelDataReceived(const rive::ViewModelInstanceHandle, uint64_t requestId, rive::CommandQueue::ViewModelInstanceData data)
 {
+    dmhash_t path_hash = dmHashString64(data.metaData.name.c_str());
+    if (!m_Mutex)
+    {
+        return;
+    }
 
+    DM_MUTEX_SCOPED_LOCK(m_Mutex);
+    if (m_PropertyValues.Capacity() == 0)
+    {
+        EnsureTableCapacity(m_PropertyValues, 32);
+    }
+    else if (m_PropertyValues.Full())
+    {
+        EnsureTableCapacity(m_PropertyValues, m_PropertyValues.Capacity() * 2);
+    }
+
+    rive::CommandQueue::ViewModelInstanceData** entry = m_PropertyValues.Get(path_hash);
+    if (entry && *entry)
+    {
+        **entry = data;
+    }
+    else
+    {
+        rive::CommandQueue::ViewModelInstanceData* copy = new rive::CommandQueue::ViewModelInstanceData(data);
+        m_PropertyValues.Put(path_hash, copy);
+    }
 }
 
 void ViewModelInstanceListener::onViewModelListSizeReceived(const rive::ViewModelInstanceHandle, uint64_t requestId, std::string path, size_t size)
 {
+    dmhash_t path_hash = dmHashString64(path.c_str());
+    if (!m_Mutex)
+    {
+        return;
+    }
 
+    DM_MUTEX_SCOPED_LOCK(m_Mutex);
+    if (m_ListSizes.Capacity() == 0)
+    {
+        EnsureTableCapacity(m_ListSizes, 16);
+    }
+    else if (m_ListSizes.Full())
+    {
+        EnsureTableCapacity(m_ListSizes, m_ListSizes.Capacity() * 2);
+    }
+
+    size_t** entry = m_ListSizes.Get(path_hash);
+    if (entry && *entry)
+    {
+        **entry = size;
+    }
+    else
+    {
+        size_t* copy = new size_t(size);
+        m_ListSizes.Put(path_hash, copy);
+    }
 }
 
 // ******************************************************************************************************************************

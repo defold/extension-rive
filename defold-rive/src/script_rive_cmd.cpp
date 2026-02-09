@@ -21,6 +21,8 @@
 #include <common/commands.h>
 
 #include "script_rive_handles.h"
+#include "script_rive_listeners.h"
+#include "viewmodel_instance_registry.h"
 
 #include <rive/shapes/paint/color.hpp>
 
@@ -194,10 +196,21 @@ static int Script_instantiateBlankViewModelInstance(lua_State* L)
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     rive::ViewModelInstanceHandle handle = 0;
+    ViewModelInstanceListener* listener = new ViewModelInstanceListener();
+    listener->SetAutoDeleteOnViewModelDeleted(true);
     if (viewmodel_name)
-        handle = queue->instantiateBlankViewModelInstance(file, viewmodel_name);
+        handle = queue->instantiateBlankViewModelInstance(file, viewmodel_name, listener);
     else
-        handle = queue->instantiateBlankViewModelInstance(file, artboard);
+        handle = queue->instantiateBlankViewModelInstance(file, artboard, listener);
+
+    if (!handle)
+    {
+        delete listener;
+    }
+    else
+    {
+        RegisterViewModelInstanceListener(handle, listener);
+    }
 
     PushViewModelInstanceHandle(L, handle);
     return 1;
@@ -226,10 +239,21 @@ static int Script_instantiateDefaultViewModelInstance(lua_State* L)
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     rive::ViewModelInstanceHandle handle = 0;
+    ViewModelInstanceListener* listener = new ViewModelInstanceListener();
+    listener->SetAutoDeleteOnViewModelDeleted(true);
     if (viewmodel_name)
-        handle = queue->instantiateDefaultViewModelInstance(file, viewmodel_name);
+        handle = queue->instantiateDefaultViewModelInstance(file, viewmodel_name, listener);
     else
-        handle = queue->instantiateDefaultViewModelInstance(file, artboard);
+        handle = queue->instantiateDefaultViewModelInstance(file, artboard, listener);
+
+    if (!handle)
+    {
+        delete listener;
+    }
+    else
+    {
+        RegisterViewModelInstanceListener(handle, listener);
+    }
 
     PushViewModelInstanceHandle(L, handle);
     return 1;
@@ -261,10 +285,21 @@ static int Script_instantiateViewModelInstanceNamed(lua_State* L)
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     rive::ViewModelInstanceHandle handle = 0;
+    ViewModelInstanceListener* listener = new ViewModelInstanceListener();
+    listener->SetAutoDeleteOnViewModelDeleted(true);
     if (viewmodel_name)
-        handle = queue->instantiateViewModelInstanceNamed(file, viewmodel_name, view_model_instance_name);
+        handle = queue->instantiateViewModelInstanceNamed(file, viewmodel_name, view_model_instance_name, listener);
     else
-        handle = queue->instantiateViewModelInstanceNamed(file, artboard, view_model_instance_name);
+        handle = queue->instantiateViewModelInstanceNamed(file, artboard, view_model_instance_name, listener);
+
+    if (!handle)
+    {
+        delete listener;
+    }
+    else
+    {
+        RegisterViewModelInstanceListener(handle, listener);
+    }
 
     PushViewModelInstanceHandle(L, handle);
     return 1;
@@ -284,7 +319,17 @@ static int Script_referenceNestedViewModelInstance(lua_State* L)
     const char* path = luaL_checkstring(L, 2);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
-    handle = queue->referenceNestedViewModelInstance(handle, path);
+    ViewModelInstanceListener* listener = new ViewModelInstanceListener();
+    listener->SetAutoDeleteOnViewModelDeleted(true);
+    handle = queue->referenceNestedViewModelInstance(handle, path, listener);
+    if (!handle)
+    {
+        delete listener;
+    }
+    else
+    {
+        RegisterViewModelInstanceListener(handle, listener);
+    }
     PushViewModelInstanceHandle(L, handle);
     return 1;
 }
@@ -305,7 +350,17 @@ static int Script_referenceListViewModelInstance(lua_State* L)
     int index = luaL_checkinteger(L, 3);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
-    handle = queue->referenceListViewModelInstance(handle, path, index);
+    ViewModelInstanceListener* listener = new ViewModelInstanceListener();
+    listener->SetAutoDeleteOnViewModelDeleted(true);
+    handle = queue->referenceListViewModelInstance(handle, path, index, listener);
+    if (!handle)
+    {
+        delete listener;
+    }
+    else
+    {
+        RegisterViewModelInstanceListener(handle, listener);
+    }
     PushViewModelInstanceHandle(L, handle);
     return 1;
 }
@@ -1161,6 +1216,7 @@ void ScriptCmdRegister(struct lua_State* L, dmResource::HFactory factory)
 
 void ScriptCmdUnregister(struct lua_State* L, dmResource::HFactory factory)
 {
+    ClearViewModelInstanceListeners();
     g_ResourceFactory = 0;
 }
 

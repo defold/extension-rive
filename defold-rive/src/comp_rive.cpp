@@ -20,6 +20,8 @@
 #include "res_rive_data.h"
 #include "res_rive_scene.h"
 #include "res_rive_model.h"
+#include "script_rive_listeners.h"
+#include "viewmodel_instance_registry.h"
 
 #include <common/bones.h>
 #include <common/commands.h>
@@ -358,23 +360,40 @@ namespace dmRive
 
     rive::ViewModelInstanceHandle CompRiveSetViewModelInstance(RiveComponent* component, const char* viewmodel_name)
     {
-        rive::FileHandle file = CompRiveGetFile(component);
+        rive::FileHandle              file = CompRiveGetFile(component);
         rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
 
         rive::ViewModelInstanceHandle old_handle = component->m_ViewModelInstance;
 
         if (viewmodel_name && viewmodel_name[0] != '\0')
         {
-            component->m_ViewModelInstance = queue->instantiateDefaultViewModelInstance(file, viewmodel_name);
+            ViewModelInstanceListener* listener = new ViewModelInstanceListener();
+            listener->SetAutoDeleteOnViewModelDeleted(true);
+            component->m_ViewModelInstance = queue->instantiateDefaultViewModelInstance(file, viewmodel_name, listener);
             if (!component->m_ViewModelInstance)
             {
                 dmLogWarning("Could not find view model instance with name '%s'", viewmodel_name);
+                delete listener;
+            }
+            else
+            {
+                RegisterViewModelInstanceListener(component->m_ViewModelInstance, listener);
             }
         }
 
         if (!component->m_ViewModelInstance)
         {
-            component->m_ViewModelInstance = queue->instantiateDefaultViewModelInstance(file, component->m_Artboard);
+            ViewModelInstanceListener* listener = new ViewModelInstanceListener();
+            listener->SetAutoDeleteOnViewModelDeleted(true);
+            component->m_ViewModelInstance = queue->instantiateDefaultViewModelInstance(file, component->m_Artboard, listener);
+            if (!component->m_ViewModelInstance)
+            {
+                delete listener;
+            }
+            else
+            {
+                RegisterViewModelInstanceListener(component->m_ViewModelInstance, listener);
+            }
         }
 
         component->m_Enabled = component->m_ViewModelInstance != 0;
