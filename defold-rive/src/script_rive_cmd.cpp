@@ -673,6 +673,159 @@ static int Script_setViewModelInstanceArtboard(lua_State* L)
     return 0;
 }
 
+static int Script_getViewModelInstanceData(lua_State* L, rive::DataType expected_type, bool allow_integer, rive::CommandQueue::ViewModelInstanceData* out_data)
+{
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
+    const char* path = luaL_checkstring(L, 2);
+    ViewModelInstanceListener* listener = GetViewModelInstanceListener(handle);
+    if (!listener)
+    {
+        return luaL_error(L, "View model instance listener missing for property '%s'", path);
+    }
+
+    dmhash_t path_hash = dmHashString64(path);
+    if (!listener->GetPropertyValue(path_hash, *out_data))
+    {
+        return luaL_error(L, "View model property '%s' is not available. Ensure you requested or subscribed before reading.", path);
+    }
+
+    if (out_data->metaData.type != expected_type && !(allow_integer && expected_type == rive::DataType::number && out_data->metaData.type == rive::DataType::integer))
+    {
+        return luaL_error(L, "View model property '%s' has type %d, expected %d", path, (int)out_data->metaData.type, (int)expected_type);
+    }
+    return 0;
+}
+
+static int Script_getViewModelInstanceListSizeValue(lua_State* L, size_t* out_size)
+{
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
+    const char* path = luaL_checkstring(L, 2);
+    ViewModelInstanceListener* listener = GetViewModelInstanceListener(handle);
+    if (!listener)
+    {
+        return luaL_error(L, "View model instance listener missing for list property '%s'", path);
+    }
+
+    dmhash_t path_hash = dmHashString64(path);
+    size_t size = 0;
+    if (!listener->GetListSize(path_hash, size))
+    {
+        return luaL_error(L, "View model list property '%s' is not available. Ensure you requested or subscribed before reading.", path);
+    }
+    *out_size = size;
+    return 0;
+}
+
+/**
+ * Returns the cached boolean property at the path.
+ * @name cmd.getViewModelInstanceBool(view_model_handle, path)
+ * @param view_model_handle [type: ViewModelInstanceHandle] View model instance handle.
+ * @param path [type: string] Path to the boolean property.
+ * @return value [type: boolean] Cached value. Raises error if unavailable.
+ */
+static int Script_getViewModelInstanceBool(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
+    rive::CommandQueue::ViewModelInstanceData data;
+    if (Script_getViewModelInstanceData(L, rive::DataType::boolean, false, &data) != 0)
+        return 0;
+
+    lua_pushboolean(L, data.boolValue);
+    return 1;
+}
+
+/**
+ * Returns the cached numeric property at the path.
+ * @name cmd.getViewModelInstanceNumber(view_model_handle, path)
+ * @param view_model_handle [type: ViewModelInstanceHandle] View model instance handle.
+ * @param path [type: string] Path to the numeric property.
+ * @return value [type: number] Cached value. Raises error if unavailable.
+ */
+static int Script_getViewModelInstanceNumber(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
+    rive::CommandQueue::ViewModelInstanceData data;
+    if (Script_getViewModelInstanceData(L, rive::DataType::number, true, &data) != 0)
+        return 0;
+
+    lua_pushnumber(L, (lua_Number)data.numberValue);
+    return 1;
+}
+
+/**
+ * Returns the cached color property at the path.
+ * @name cmd.getViewModelInstanceColor(view_model_handle, path)
+ * @param view_model_handle [type: ViewModelInstanceHandle] View model instance handle.
+ * @param path [type: string] Path to the color property.
+ * @return value [type: vector4] Cached color. Raises error if unavailable.
+ */
+static int Script_getViewModelInstanceColor(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
+    rive::CommandQueue::ViewModelInstanceData data;
+    if (Script_getViewModelInstanceData(L, rive::DataType::color, false, &data) != 0)
+        return 0;
+
+    float rgba[4];
+    rive::UnpackColorToRGBA32F(data.colorValue, rgba);
+    dmVMath::Vector4 color(rgba[0], rgba[1], rgba[2], rgba[3]);
+    dmScript::PushVector4(L, color);
+    return 1;
+}
+
+/**
+ * Returns the cached enum property at the path.
+ * @name cmd.getViewModelInstanceEnum(view_model_handle, path)
+ * @param view_model_handle [type: ViewModelInstanceHandle] View model instance handle.
+ * @param path [type: string] Path to the enum property.
+ * @return value [type: string] Cached enum name. Raises error if unavailable.
+ */
+static int Script_getViewModelInstanceEnum(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
+    rive::CommandQueue::ViewModelInstanceData data;
+    if (Script_getViewModelInstanceData(L, rive::DataType::enumType, false, &data) != 0)
+        return 0;
+
+    lua_pushstring(L, data.stringValue.c_str());
+    return 1;
+}
+
+/**
+ * Returns the cached string property at the path.
+ * @name cmd.getViewModelInstanceString(view_model_handle, path)
+ * @param view_model_handle [type: ViewModelInstanceHandle] View model instance handle.
+ * @param path [type: string] Path to the string property.
+ * @return value [type: string] Cached value. Raises error if unavailable.
+ */
+static int Script_getViewModelInstanceString(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
+    rive::CommandQueue::ViewModelInstanceData data;
+    if (Script_getViewModelInstanceData(L, rive::DataType::string, false, &data) != 0)
+        return 0;
+
+    lua_pushstring(L, data.stringValue.c_str());
+    return 1;
+}
+
+/**
+ * Returns the cached list size for the path.
+ * @name cmd.getViewModelInstanceListSize(view_model_handle, path)
+ * @param view_model_handle [type: ViewModelInstanceHandle] View model instance handle.
+ * @param path [type: string] Path to the list property.
+ * @return value [type: number] Cached list size. Raises error if unavailable.
+ */
+static int Script_getViewModelInstanceListSize(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
+    size_t size = 0;
+    if (Script_getViewModelInstanceListSizeValue(L, &size) != 0)
+        return 0;
+    lua_pushinteger(L, (lua_Integer)size);
+    return 1;
+}
+
 /**
  * Subscribes for updates to the named property.
  * @name cmd.subscribeToViewModelProperty(view_model_handle, path, data_type)
@@ -1166,6 +1319,18 @@ static const luaL_reg RIVE_COMMAND_FUNCTIONS[] =
     {"setViewModelInstanceString",  Script_setViewModelInstanceString},
     {"setViewModelInstanceImage",   Script_setViewModelInstanceImage},
     {"setViewModelInstanceArtboard",Script_setViewModelInstanceArtboard},
+
+    // BEGIN non-api
+    // NOTE: These aren't synchronous getters
+    //       Nor are they matched by any api in the rive runtime. They are merely
+    //       implemented on top of the subcription model, in order to get somewhat easier acess to the data.
+    {"getViewModelInstanceBool",    Script_getViewModelInstanceBool},
+    {"getViewModelInstanceNumber",  Script_getViewModelInstanceNumber},
+    {"getViewModelInstanceColor",   Script_getViewModelInstanceColor},
+    {"getViewModelInstanceEnum",    Script_getViewModelInstanceEnum},
+    {"getViewModelInstanceString",  Script_getViewModelInstanceString},
+    {"getViewModelInstanceListSize",Script_getViewModelInstanceListSize},
+    // END non-api
 
     {"subscribeToViewModelProperty",    Script_subscribeToViewModelProperty},
     {"unsubscribeToViewModelProperty",  Script_unsubscribeToViewModelProperty},
