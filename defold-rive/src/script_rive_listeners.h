@@ -15,6 +15,9 @@
 
 #include <stdint.h>
 
+#include <dmsdk/dlib/hash.h>
+#include <dmsdk/dlib/hashtable.h>
+#include <dmsdk/dlib/mutex.h>
 #include <dmsdk/script/script.h>
 
 #include <string>
@@ -78,11 +81,24 @@ public:
 class ViewModelInstanceListener : public rive::CommandQueue::ViewModelInstanceListener
 {
 public:
+    ViewModelInstanceListener();
+    ~ViewModelInstanceListener();
+    void SetAutoDeleteOnViewModelDeleted(bool value);
+    bool SetPropertyValue(dmhash_t path_hash, const rive::CommandQueue::ViewModelInstanceData& data);
+    bool GetPropertyValue(dmhash_t path_hash, rive::CommandQueue::ViewModelInstanceData& out) const;
+    bool GetListSize(dmhash_t path_hash, size_t& out) const;
+    bool AdjustListSize(dmhash_t path_hash, int32_t delta);
+    bool EnsureListSize(dmhash_t path_hash, size_t value);
     virtual void onViewModelInstanceError(const rive::ViewModelInstanceHandle, uint64_t requestId, std::string error) override;
     virtual void onViewModelDeleted(const rive::ViewModelInstanceHandle, uint64_t requestId) override;
     virtual void onViewModelDataReceived(const rive::ViewModelInstanceHandle, uint64_t requestId, rive::CommandQueue::ViewModelInstanceData) override;
     virtual void onViewModelListSizeReceived(const rive::ViewModelInstanceHandle, uint64_t requestId, std::string path, size_t size) override;
     dmScript::LuaCallbackInfo* m_Callback;
+private:
+    dmMutex::HMutex m_Mutex;
+    bool m_DeleteOnViewModelDeleted;
+    dmHashTable<dmhash_t, rive::CommandQueue::ViewModelInstanceData*> m_PropertyValues;
+    dmHashTable<dmhash_t, size_t*> m_ListSizes;
 };
 
 class StateMachineListener : public rive::CommandQueue::StateMachineListener
@@ -93,6 +109,10 @@ public:
     virtual void onStateMachineSettled(const rive::StateMachineHandle, uint64_t requestId) override;
     dmScript::LuaCallbackInfo* m_Callback;
 };
+
+void RequestViewModelInstanceProperties(rive::FileHandle file, rive::ViewModelInstanceHandle instance, const char* viewmodel_name);
+void RequestDefaultViewModelInstanceProperties(rive::FileHandle file, rive::ArtboardHandle artboard, rive::ViewModelInstanceHandle instance);
+void ClearViewModelInstancePropertyRequests();
 
 } // namespace
 

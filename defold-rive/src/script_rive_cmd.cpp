@@ -21,6 +21,8 @@
 #include <common/commands.h>
 
 #include "script_rive_handles.h"
+#include "script_rive_listeners.h"
+#include "viewmodel_instance_registry.h"
 
 #include <rive/shapes/paint/color.hpp>
 
@@ -44,6 +46,28 @@ static void CheckStringOrArtboard(lua_State* L, int index, const char** string, 
         *string = luaL_checkstring(L, index);
     else
         *handle = CheckArtboardHandle(L, index);
+}
+
+static void AdjustViewModelListSize(rive::ViewModelInstanceHandle handle, const char* path, int32_t delta)
+{
+    ViewModelInstanceListener* listener = GetViewModelInstanceListener(handle);
+    if (!listener)
+    {
+        return;
+    }
+    dmhash_t path_hash = dmHashString64(path);
+    listener->AdjustListSize(path_hash, delta);
+}
+
+static void SetViewModelInstanceCachedValue(rive::ViewModelInstanceHandle handle, const char* path, const rive::CommandQueue::ViewModelInstanceData& data)
+{
+    ViewModelInstanceListener* listener = GetViewModelInstanceListener(handle);
+    if (!listener)
+    {
+        return;
+    }
+    dmhash_t path_hash = dmHashString64(path);
+    listener->SetPropertyValue(path_hash, data);
 }
 
 // *************************************************************************************************
@@ -194,10 +218,25 @@ static int Script_instantiateBlankViewModelInstance(lua_State* L)
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     rive::ViewModelInstanceHandle handle = 0;
+    ViewModelInstanceListener* listener = new ViewModelInstanceListener();
+    listener->SetAutoDeleteOnViewModelDeleted(true);
     if (viewmodel_name)
-        handle = queue->instantiateBlankViewModelInstance(file, viewmodel_name);
+        handle = queue->instantiateBlankViewModelInstance(file, viewmodel_name, listener);
     else
-        handle = queue->instantiateBlankViewModelInstance(file, artboard);
+        handle = queue->instantiateBlankViewModelInstance(file, artboard, listener);
+
+    if (!handle)
+    {
+        delete listener;
+    }
+    else
+    {
+        RegisterViewModelInstanceListener(handle, listener);
+        if (viewmodel_name)
+            RequestViewModelInstanceProperties(file, handle, viewmodel_name);
+        else
+            RequestDefaultViewModelInstanceProperties(file, artboard, handle);
+    }
 
     PushViewModelInstanceHandle(L, handle);
     return 1;
@@ -226,10 +265,25 @@ static int Script_instantiateDefaultViewModelInstance(lua_State* L)
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     rive::ViewModelInstanceHandle handle = 0;
+    ViewModelInstanceListener* listener = new ViewModelInstanceListener();
+    listener->SetAutoDeleteOnViewModelDeleted(true);
     if (viewmodel_name)
-        handle = queue->instantiateDefaultViewModelInstance(file, viewmodel_name);
+        handle = queue->instantiateDefaultViewModelInstance(file, viewmodel_name, listener);
     else
-        handle = queue->instantiateDefaultViewModelInstance(file, artboard);
+        handle = queue->instantiateDefaultViewModelInstance(file, artboard, listener);
+
+    if (!handle)
+    {
+        delete listener;
+    }
+    else
+    {
+        RegisterViewModelInstanceListener(handle, listener);
+        if (viewmodel_name)
+            RequestViewModelInstanceProperties(file, handle, viewmodel_name);
+        else
+            RequestDefaultViewModelInstanceProperties(file, artboard, handle);
+    }
 
     PushViewModelInstanceHandle(L, handle);
     return 1;
@@ -261,10 +315,25 @@ static int Script_instantiateViewModelInstanceNamed(lua_State* L)
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     rive::ViewModelInstanceHandle handle = 0;
+    ViewModelInstanceListener* listener = new ViewModelInstanceListener();
+    listener->SetAutoDeleteOnViewModelDeleted(true);
     if (viewmodel_name)
-        handle = queue->instantiateViewModelInstanceNamed(file, viewmodel_name, view_model_instance_name);
+        handle = queue->instantiateViewModelInstanceNamed(file, viewmodel_name, view_model_instance_name, listener);
     else
-        handle = queue->instantiateViewModelInstanceNamed(file, artboard, view_model_instance_name);
+        handle = queue->instantiateViewModelInstanceNamed(file, artboard, view_model_instance_name, listener);
+
+    if (!handle)
+    {
+        delete listener;
+    }
+    else
+    {
+        RegisterViewModelInstanceListener(handle, listener);
+        if (viewmodel_name)
+            RequestViewModelInstanceProperties(file, handle, viewmodel_name);
+        else
+            RequestDefaultViewModelInstanceProperties(file, artboard, handle);
+    }
 
     PushViewModelInstanceHandle(L, handle);
     return 1;
@@ -284,7 +353,17 @@ static int Script_referenceNestedViewModelInstance(lua_State* L)
     const char* path = luaL_checkstring(L, 2);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
-    handle = queue->referenceNestedViewModelInstance(handle, path);
+    ViewModelInstanceListener* listener = new ViewModelInstanceListener();
+    listener->SetAutoDeleteOnViewModelDeleted(true);
+    handle = queue->referenceNestedViewModelInstance(handle, path, listener);
+    if (!handle)
+    {
+        delete listener;
+    }
+    else
+    {
+        RegisterViewModelInstanceListener(handle, listener);
+    }
     PushViewModelInstanceHandle(L, handle);
     return 1;
 }
@@ -305,7 +384,17 @@ static int Script_referenceListViewModelInstance(lua_State* L)
     int index = luaL_checkinteger(L, 3);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
-    handle = queue->referenceListViewModelInstance(handle, path, index);
+    ViewModelInstanceListener* listener = new ViewModelInstanceListener();
+    listener->SetAutoDeleteOnViewModelDeleted(true);
+    handle = queue->referenceListViewModelInstance(handle, path, index, listener);
+    if (!handle)
+    {
+        delete listener;
+    }
+    else
+    {
+        RegisterViewModelInstanceListener(handle, listener);
+    }
     PushViewModelInstanceHandle(L, handle);
     return 1;
 }
@@ -347,6 +436,7 @@ static int Script_insertViewModelInstanceListViewModel(lua_State* L)
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->insertViewModelInstanceListViewModel(handle, path, value, index);
+    AdjustViewModelListSize(handle, path, 1);
     return 0;
 }
 
@@ -366,6 +456,7 @@ static int Script_appendViewModelInstanceListViewModel(lua_State* L)
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->appendViewModelInstanceListViewModel(handle, path, value);
+    AdjustViewModelListSize(handle, path, 1);
     return 0;
 }
 
@@ -385,6 +476,7 @@ static int Script_removeViewModelInstanceListViewModelIndex(lua_State* L)
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->removeViewModelInstanceListViewModel(handle, path, index, RIVE_NULL_HANDLE);
+    AdjustViewModelListSize(handle, path, -1);
     return 0;
 }
 
@@ -404,6 +496,7 @@ static int Script_removeViewModelInstanceListViewModel(lua_State* L)
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->removeViewModelInstanceListViewModel(handle, path, value);
+    AdjustViewModelListSize(handle, path, -1);
     return 0;
 }
 
@@ -495,11 +588,17 @@ static int Script_setViewModelInstanceBool(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
     rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
-    bool value  = CheckBoolean(L, 3);
-    const char* path = luaL_checkstring(L, 2);
+    bool                          value = CheckBoolean(L, 3);
+    const char*                   path = luaL_checkstring(L, 2);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->setViewModelInstanceBool(handle, path, value);
+    rive::CommandQueue::ViewModelInstanceData data;
+    data.metaData.name = path;
+    data.metaData.type = rive::DataType::boolean;
+    data.stringValue.clear();
+    data.boolValue = value;
+    SetViewModelInstanceCachedValue(handle, path, data);
     return 0;
 }
 
@@ -514,11 +613,17 @@ static int Script_setViewModelInstanceNumber(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
     rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
-    lua_Number value  = luaL_checknumber(L, 3);
-    const char* path = luaL_checkstring(L, 2);
+    lua_Number                    value = luaL_checknumber(L, 3);
+    const char*                   path = luaL_checkstring(L, 2);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->setViewModelInstanceNumber(handle, path, value);
+    rive::CommandQueue::ViewModelInstanceData data;
+    data.metaData.name = path;
+    data.metaData.type = rive::DataType::number;
+    data.stringValue.clear();
+    data.numberValue = (float)value;
+    SetViewModelInstanceCachedValue(handle, path, data);
     return 0;
 }
 
@@ -533,12 +638,18 @@ static int Script_setViewModelInstanceColor(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
     rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
-    const char* path = luaL_checkstring(L, 2);
-    dmVMath::Vector4* color = dmScript::CheckVector4(L, 3);
-    rive::ColorInt value = rive::colorARGB(255 * color->getW(), 255 * color->getX(), 255 * color->getY(), 255 * color->getZ());
+    const char*                   path = luaL_checkstring(L, 2);
+    dmVMath::Vector4*             color = dmScript::CheckVector4(L, 3);
+    rive::ColorInt                value = rive::colorARGB(255 * color->getW(), 255 * color->getX(), 255 * color->getY(), 255 * color->getZ());
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->setViewModelInstanceColor(handle, path, value);
+    rive::CommandQueue::ViewModelInstanceData data;
+    data.metaData.name = path;
+    data.metaData.type = rive::DataType::color;
+    data.stringValue.clear();
+    data.colorValue = value;
+    SetViewModelInstanceCachedValue(handle, path, data);
     return 0;
 }
 
@@ -553,11 +664,17 @@ static int Script_setViewModelInstanceEnum(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
     rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
-    const char* path = luaL_checkstring(L, 2);
-    const char* value = luaL_checkstring(L, 3);
+    const char*                   path = luaL_checkstring(L, 2);
+    const char*                   value = luaL_checkstring(L, 3);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->setViewModelInstanceEnum(handle, path, value);
+    rive::CommandQueue::ViewModelInstanceData data;
+    data.metaData.name = path;
+    data.metaData.type = rive::DataType::enumType;
+    data.stringValue = value;
+    data.numberValue = 0.0f;
+    SetViewModelInstanceCachedValue(handle, path, data);
     return 0;
 }
 
@@ -572,11 +689,17 @@ static int Script_setViewModelInstanceString(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 0);
     rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
-    const char* path = luaL_checkstring(L, 2);
-    const char* value = luaL_checkstring(L, 3);
+    const char*                   path = luaL_checkstring(L, 2);
+    const char*                   value = luaL_checkstring(L, 3);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->setViewModelInstanceString(handle, path, value);
+    rive::CommandQueue::ViewModelInstanceData data;
+    data.metaData.name = path;
+    data.metaData.type = rive::DataType::string;
+    data.stringValue = value;
+    data.numberValue = 0.0f;
+    SetViewModelInstanceCachedValue(handle, path, data);
     return 0;
 }
 
@@ -616,6 +739,159 @@ static int Script_setViewModelInstanceArtboard(lua_State* L)
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     queue->setViewModelInstanceArtboard(handle, path, value);
     return 0;
+}
+
+static int Script_getViewModelInstanceData(lua_State* L, rive::DataType expected_type, bool allow_integer, rive::CommandQueue::ViewModelInstanceData* out_data)
+{
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
+    const char* path = luaL_checkstring(L, 2);
+    ViewModelInstanceListener* listener = GetViewModelInstanceListener(handle);
+    if (!listener)
+    {
+        return luaL_error(L, "View model instance listener missing for property '%s'", path);
+    }
+
+    dmhash_t path_hash = dmHashString64(path);
+    if (!listener->GetPropertyValue(path_hash, *out_data))
+    {
+        return luaL_error(L, "View model property '%s' is not available. Ensure you requested or subscribed before reading.", path);
+    }
+
+    if (out_data->metaData.type != expected_type && !(allow_integer && expected_type == rive::DataType::number && out_data->metaData.type == rive::DataType::integer))
+    {
+        return luaL_error(L, "View model property '%s' has type %d, expected %d", path, (int)out_data->metaData.type, (int)expected_type);
+    }
+    return 0;
+}
+
+static int Script_getViewModelInstanceListSizeValue(lua_State* L, size_t* out_size)
+{
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
+    const char* path = luaL_checkstring(L, 2);
+    ViewModelInstanceListener* listener = GetViewModelInstanceListener(handle);
+    if (!listener)
+    {
+        return luaL_error(L, "View model instance listener missing for list property '%s'", path);
+    }
+
+    dmhash_t path_hash = dmHashString64(path);
+    size_t size = 0;
+    if (!listener->GetListSize(path_hash, size))
+    {
+        return luaL_error(L, "View model list property '%s' is not available. Ensure you requested or subscribed before reading.", path);
+    }
+    *out_size = size;
+    return 0;
+}
+
+/**
+ * Returns the cached boolean property at the path.
+ * @name cmd.getViewModelInstanceBool(view_model_handle, path)
+ * @param view_model_handle [type: ViewModelInstanceHandle] View model instance handle.
+ * @param path [type: string] Path to the boolean property.
+ * @return value [type: boolean] Cached value. Raises error if unavailable.
+ */
+static int Script_getViewModelInstanceBool(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
+    rive::CommandQueue::ViewModelInstanceData data;
+    if (Script_getViewModelInstanceData(L, rive::DataType::boolean, false, &data) != 0)
+        return 0;
+
+    lua_pushboolean(L, data.boolValue);
+    return 1;
+}
+
+/**
+ * Returns the cached numeric property at the path.
+ * @name cmd.getViewModelInstanceNumber(view_model_handle, path)
+ * @param view_model_handle [type: ViewModelInstanceHandle] View model instance handle.
+ * @param path [type: string] Path to the numeric property.
+ * @return value [type: number] Cached value. Raises error if unavailable.
+ */
+static int Script_getViewModelInstanceNumber(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
+    rive::CommandQueue::ViewModelInstanceData data;
+    if (Script_getViewModelInstanceData(L, rive::DataType::number, true, &data) != 0)
+        return 0;
+
+    lua_pushnumber(L, (lua_Number)data.numberValue);
+    return 1;
+}
+
+/**
+ * Returns the cached color property at the path.
+ * @name cmd.getViewModelInstanceColor(view_model_handle, path)
+ * @param view_model_handle [type: ViewModelInstanceHandle] View model instance handle.
+ * @param path [type: string] Path to the color property.
+ * @return value [type: vector4] Cached color. Raises error if unavailable.
+ */
+static int Script_getViewModelInstanceColor(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
+    rive::CommandQueue::ViewModelInstanceData data;
+    if (Script_getViewModelInstanceData(L, rive::DataType::color, false, &data) != 0)
+        return 0;
+
+    float rgba[4];
+    rive::UnpackColorToRGBA32F(data.colorValue, rgba);
+    dmVMath::Vector4 color(rgba[0], rgba[1], rgba[2], rgba[3]);
+    dmScript::PushVector4(L, color);
+    return 1;
+}
+
+/**
+ * Returns the cached enum property at the path.
+ * @name cmd.getViewModelInstanceEnum(view_model_handle, path)
+ * @param view_model_handle [type: ViewModelInstanceHandle] View model instance handle.
+ * @param path [type: string] Path to the enum property.
+ * @return value [type: string] Cached enum name. Raises error if unavailable.
+ */
+static int Script_getViewModelInstanceEnum(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
+    rive::CommandQueue::ViewModelInstanceData data;
+    if (Script_getViewModelInstanceData(L, rive::DataType::enumType, false, &data) != 0)
+        return 0;
+
+    lua_pushstring(L, data.stringValue.c_str());
+    return 1;
+}
+
+/**
+ * Returns the cached string property at the path.
+ * @name cmd.getViewModelInstanceString(view_model_handle, path)
+ * @param view_model_handle [type: ViewModelInstanceHandle] View model instance handle.
+ * @param path [type: string] Path to the string property.
+ * @return value [type: string] Cached value. Raises error if unavailable.
+ */
+static int Script_getViewModelInstanceString(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
+    rive::CommandQueue::ViewModelInstanceData data;
+    if (Script_getViewModelInstanceData(L, rive::DataType::string, false, &data) != 0)
+        return 0;
+
+    lua_pushstring(L, data.stringValue.c_str());
+    return 1;
+}
+
+/**
+ * Returns the cached list size for the path.
+ * @name cmd.getViewModelInstanceListSize(view_model_handle, path)
+ * @param view_model_handle [type: ViewModelInstanceHandle] View model instance handle.
+ * @param path [type: string] Path to the list property.
+ * @return value [type: number] Cached list size. Raises error if unavailable.
+ */
+static int Script_getViewModelInstanceListSize(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 1);
+    size_t size = 0;
+    if (Script_getViewModelInstanceListSizeValue(L, &size) != 0)
+        return 0;
+    lua_pushinteger(L, (lua_Integer)size);
+    return 1;
 }
 
 /**
@@ -1112,6 +1388,18 @@ static const luaL_reg RIVE_COMMAND_FUNCTIONS[] =
     {"setViewModelInstanceImage",   Script_setViewModelInstanceImage},
     {"setViewModelInstanceArtboard",Script_setViewModelInstanceArtboard},
 
+    // BEGIN non-api
+    // NOTE: These aren't synchronous getters
+    //       Nor are they matched by any api in the rive runtime. They are merely
+    //       implemented on top of the subcription model, in order to get somewhat easier acess to the data.
+    {"getViewModelInstanceBool",    Script_getViewModelInstanceBool},
+    {"getViewModelInstanceNumber",  Script_getViewModelInstanceNumber},
+    {"getViewModelInstanceColor",   Script_getViewModelInstanceColor},
+    {"getViewModelInstanceEnum",    Script_getViewModelInstanceEnum},
+    {"getViewModelInstanceString",  Script_getViewModelInstanceString},
+    {"getViewModelInstanceListSize",Script_getViewModelInstanceListSize},
+    // END non-api
+
     {"subscribeToViewModelProperty",    Script_subscribeToViewModelProperty},
     {"unsubscribeToViewModelProperty",  Script_unsubscribeToViewModelProperty},
 
@@ -1161,6 +1449,8 @@ void ScriptCmdRegister(struct lua_State* L, dmResource::HFactory factory)
 
 void ScriptCmdUnregister(struct lua_State* L, dmResource::HFactory factory)
 {
+    ClearViewModelInstancePropertyRequests();
+    ClearViewModelInstanceListeners();
     g_ResourceFactory = 0;
 }
 

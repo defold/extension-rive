@@ -459,6 +459,7 @@ static int Script_GetStateMachine(lua_State* L)
  * @param url [type: url] Component owning the view model instance.
  * @param name [type: string] View model instance name to activate.
  * @return success [type: boolean] True if the view model instance was activated.
+ * @return view_model_instance_handle [type: ViewModelInstanceHandle] Handle to the old view model instance.
  */
 static int Script_SetViewModelInstance(lua_State* L)
 {
@@ -466,8 +467,8 @@ static int Script_SetViewModelInstance(lua_State* L)
     RiveComponent* component = 0;
     dmScript::GetComponentFromLua(L, 1, dmRive::RIVE_MODEL_EXT, 0, (void**)&component, 0);
     const char* name = luaL_checkstring(L, 2);
-    bool result = CompRiveSetViewModelInstance(component, name);
-    lua_pushboolean(L, result);
+    rive::ViewModelInstanceHandle old_handle = CompRiveSetViewModelInstance(component, name);
+    dmRive::PushViewModelInstanceHandle(L, old_handle);
     return 1;
 }
 
