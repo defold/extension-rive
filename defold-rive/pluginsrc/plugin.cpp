@@ -19,15 +19,15 @@ __declspec(dllexport) int dummyFunc()
 #include <rive/file_asset_loader.hpp>
 // Due to an X11.h issue (Likely Ubuntu 16.04 issue) we include the Rive/C++17 includes first
 
-//#include <dmsdk/sdk.h>
+// #include <dmsdk/sdk.h>
 #include <dmsdk/dlib/array.h>
+#include <dmsdk/dlib/jobsystem.h>
 #include <dmsdk/dlib/log.h>
 #include <dmsdk/dlib/shared_library.h>
 #include <dmsdk/dlib/static_assert.h>
 #include <dmsdk/graphics/graphics.h>
-#include <dlib/job_thread.h>
+#include <dmsdk/platform/window.h>
 #include <graphics/graphics.h>
-#include <platform/platform_window.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdarg.h>
@@ -269,9 +269,9 @@ static jfloatArray JNICALL Java_Rive_GetFullscreenQuadVerticesInternal(JNIEnv* e
 // }
 
 dmRive::HRenderContext g_RenderContext = 0;
-dmPlatform::HWindow g_Window = 0;
-dmGraphics::HContext g_GraphicsContext = 0;
-dmJobThread::HContext g_JobThread = 0;
+HWindow                g_Window = 0;
+dmGraphics::HContext   g_GraphicsContext = 0;
+HJobContext            g_JobContext = 0;
 
 static bool IsDebugLogEnabled()
 {
@@ -324,7 +324,7 @@ static void CreateGraphicsContextInternal()
     }
 
     RiveDebugLog("Rive: creating window for graphics context");
-    g_Window = dmPlatform::NewWindow();
+    g_Window = WindowNew();
     if (!g_Window)
     {
         dmLogError("Rive: failed to create window");
@@ -332,32 +332,33 @@ static void CreateGraphicsContextInternal()
     }
     RiveDebugLog("Rive: window created");
 
-    dmJobThread::JobThreadCreationParams job_params = {};
-    g_JobThread = dmJobThread::Create(job_params);
+    JobSystemCreateParams job_params = { 0 };
+    g_JobContext = JobSystemCreate(&job_params);
 
-    dmPlatform::WindowParams window_params = {};
+    WindowCreateParams window_params;
+    WindowCreateParamsInitialize(&window_params);
     window_params.m_Width = 512;
     window_params.m_Height = 512;
     window_params.m_Title = "Rive Plugin";
-    window_params.m_GraphicsApi = dmPlatform::PLATFORM_GRAPHICS_API_VULKAN;
+    window_params.m_GraphicsApi = WINDOW_GRAPHICS_API_VULKAN;
 
     if (dmGraphics::GetInstalledAdapterFamily() == dmGraphics::ADAPTER_FAMILY_OPENGL)
     {
-        window_params.m_GraphicsApi = dmPlatform::PLATFORM_GRAPHICS_API_OPENGL;
+        window_params.m_GraphicsApi = WINDOW_GRAPHICS_API_OPENGL;
     }
     else if (dmGraphics::GetInstalledAdapterFamily() == dmGraphics::ADAPTER_FAMILY_OPENGLES)
     {
-        window_params.m_GraphicsApi = dmPlatform::PLATFORM_GRAPHICS_API_OPENGLES;
+        window_params.m_GraphicsApi = WINDOW_GRAPHICS_API_OPENGLES;
     }
     else if (dmGraphics::GetInstalledAdapterFamily() == dmGraphics::ADAPTER_FAMILY_DIRECTX)
     {
-        window_params.m_GraphicsApi = dmPlatform::PLATFORM_GRAPHICS_API_DIRECTX;
+        window_params.m_GraphicsApi = WINDOW_GRAPHICS_API_DIRECTX;
     }
 
     RiveDebugLog("Rive: opening window");
-    dmPlatform::OpenWindow(g_Window, window_params);
+    WindowOpen(g_Window, &window_params);
     RiveDebugLog("Rive: window opened");
-    dmPlatform::PollEvents(g_Window);
+    WindowPollEvents(g_Window);
 
     dmGraphics::ContextParams graphics_context_params = {};
     graphics_context_params.m_DefaultTextureMinFilter = dmGraphics::TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST;
@@ -367,7 +368,7 @@ static void CreateGraphicsContextInternal()
     graphics_context_params.m_Window = g_Window;
     graphics_context_params.m_Width = 512;
     graphics_context_params.m_Height = 512;
-    graphics_context_params.m_JobThread = g_JobThread;
+    graphics_context_params.m_JobContext = g_JobContext;
 
     RiveDebugLog("Rive: creating graphics context");
     g_GraphicsContext = dmGraphics::NewContext(graphics_context_params);
@@ -442,10 +443,10 @@ static void PluginRiveFinalize()
         g_Window = 0;
     }
 
-    if (g_JobThread)
+    if (g_JobContext)
     {
-        dmJobThread::Destroy(g_JobThread);
-        g_JobThread = 0;
+        JobSystemDestroy(g_JobContext);
+        g_JobContext = 0;
     }
 #endif
 }

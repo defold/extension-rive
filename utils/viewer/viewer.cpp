@@ -20,14 +20,13 @@
 #include <vector>
 
 #include <dmsdk/dlib/log.h>
+#include <dmsdk/dlib/jobsystem.h>
 #include <dmsdk/dlib/time.h>
 #include <dmsdk/graphics/graphics.h>
+#include <dmsdk/platform/window.h>
 #include <dmsdk/render/render.h>
 
-
-#include <platform/platform_window.h>
-#include <dlib/log.h> // LogParams
-#include <dlib/job_thread.h> // JobThread
+#include <dlib/log.h>          // LogParams
 #include <graphics/graphics.h> // ContextParams
 
 #include <defold/rive.h>
@@ -153,24 +152,23 @@ struct EngineCtx
     int m_WasCreated;
     int m_WasRun;
     int m_WasDestroyed;
-    int m_WasResultCalled;
-    int m_Running;
-    bool m_WindowClosed;
+    int                            m_WasResultCalled;
+    int                            m_Running;
+    bool                           m_WindowClosed;
 
-    dmJobThread::HContext m_JobThread;
+    HJobContext                    m_JobContext;
+    HWindow                        m_Window;
+    dmGraphics::HContext           m_GraphicsContext;
 
-    dmPlatform::HWindow                 m_Window;
-    dmGraphics::HContext                m_GraphicsContext;
-
-    dmGraphics::HVertexBuffer           m_BlitToBackbufferVertexBuffer;
-    dmGraphics::HVertexDeclaration      m_VertexDeclaration;
-    dmGraphics::HProgram                m_BlitProgram;
-    dmGraphics::HTexture                m_Texture;
-    dmGraphics::HUniformLocation        m_SamplerLocation;
+    dmGraphics::HVertexBuffer      m_BlitToBackbufferVertexBuffer;
+    dmGraphics::HVertexDeclaration m_VertexDeclaration;
+    dmGraphics::HProgram           m_BlitProgram;
+    dmGraphics::HTexture           m_Texture;
+    dmGraphics::HUniformLocation   m_SamplerLocation;
 
     // Rive related
-    dmRive::HRenderContext m_RenderContext;
-    dmRive::RiveFile* m_FileMeta;
+    dmRive::HRenderContext          m_RenderContext;
+    dmRive::RiveFile*               m_FileMeta;
 
     rive::FileHandle                m_File;
     rive::ArtboardHandle            m_Artboard;
@@ -300,56 +298,57 @@ static void DrawFullscreenQuad(EngineCtx* engine, dmGraphics::HTexture texture)
     dmGraphics::DisableProgram(context);
 }
 
-static bool OnWindowClose(void* user_data)
+static int OnWindowClose(void* user_data)
 {
-    EngineCtx* engine = (EngineCtx*) user_data;
+    EngineCtx* engine = (EngineCtx*)user_data;
     engine->m_WindowClosed = 1;
-    return true;
+    return 1;
 }
 
 static void* EngineCreate(int argc, char** argv)
 {
     EngineCtx* engine = new EngineCtx;
     memset(engine, 0, sizeof(*engine));
-    engine->m_Window = dmPlatform::NewWindow();
+    engine->m_Window = WindowNew();
 
-    dmJobThread::JobThreadCreationParams job_params = {0};
-    engine->m_JobThread = dmJobThread::Create(job_params);
+    JobSystemCreateParams job_params = { 0 };
+    engine->m_JobContext = JobSystemCreate(&job_params);
 
-    dmPlatform::WindowParams window_params = {};
-    window_params.m_Width                  = 512;
-    window_params.m_Height                 = 512;
-    window_params.m_Title                  = "Rive Viewer App";
+    WindowCreateParams window_params;
+    WindowCreateParamsInitialize(&window_params);
+    window_params.m_Width = 512;
+    window_params.m_Height = 512;
+    window_params.m_Title = "Rive Viewer App";
 
-    window_params.m_GraphicsApi            = dmPlatform::PLATFORM_GRAPHICS_API_VULKAN;
-    window_params.m_CloseCallback          = OnWindowClose;
-    window_params.m_CloseCallbackUserData  = (void*) engine;
+    window_params.m_GraphicsApi = WINDOW_GRAPHICS_API_VULKAN;
+    window_params.m_CloseCallback = OnWindowClose;
+    window_params.m_CloseCallbackUserData = (void*)engine;
 
     if (dmGraphics::GetInstalledAdapterFamily() == dmGraphics::ADAPTER_FAMILY_OPENGL)
     {
-        window_params.m_GraphicsApi = dmPlatform::PLATFORM_GRAPHICS_API_OPENGL;
+        window_params.m_GraphicsApi = WINDOW_GRAPHICS_API_OPENGL;
     }
     else if (dmGraphics::GetInstalledAdapterFamily() == dmGraphics::ADAPTER_FAMILY_OPENGLES)
     {
-        window_params.m_GraphicsApi = dmPlatform::PLATFORM_GRAPHICS_API_OPENGLES;
+        window_params.m_GraphicsApi = WINDOW_GRAPHICS_API_OPENGLES;
     }
     else if (dmGraphics::GetInstalledAdapterFamily() == dmGraphics::ADAPTER_FAMILY_DIRECTX)
     {
-        window_params.m_GraphicsApi = dmPlatform::PLATFORM_GRAPHICS_API_DIRECTX;
+        window_params.m_GraphicsApi = WINDOW_GRAPHICS_API_DIRECTX;
     }
 
-    dmPlatform::OpenWindow(engine->m_Window, window_params);
-    dmPlatform::ShowWindow(engine->m_Window);
+    WindowOpen(engine->m_Window, &window_params);
+    WindowShow(engine->m_Window);
 
     dmGraphics::ContextParams graphics_context_params = {};
     graphics_context_params.m_DefaultTextureMinFilter = dmGraphics::TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST;
     graphics_context_params.m_DefaultTextureMagFilter = dmGraphics::TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST;
-    graphics_context_params.m_VerifyGraphicsCalls     = 1;
-    graphics_context_params.m_UseValidationLayers     = 1;
-    graphics_context_params.m_Window                  = engine->m_Window;
-    graphics_context_params.m_Width                   = 512;
-    graphics_context_params.m_Height                  = 512;
-    graphics_context_params.m_JobThread               = engine->m_JobThread;
+    graphics_context_params.m_VerifyGraphicsCalls = 1;
+    graphics_context_params.m_UseValidationLayers = 1;
+    graphics_context_params.m_Window = engine->m_Window;
+    graphics_context_params.m_Width = 512;
+    graphics_context_params.m_Height = 512;
+    graphics_context_params.m_JobContext = engine->m_JobContext;
 
     engine->m_GraphicsContext = dmGraphics::NewContext(graphics_context_params);
 
@@ -468,7 +467,7 @@ static void EngineDestroy(void* _engine)
     dmRiveCommands::Finalize();
     dmRive::DeleteRenderContext(engine->m_RenderContext);
 
-    dmJobThread::Destroy(engine->m_JobThread);
+    JobSystemDestroy(engine->m_JobContext);
 
     dmGraphics::DeleteVertexBuffer(engine->m_BlitToBackbufferVertexBuffer);
     dmGraphics::DeleteVertexDeclaration(engine->m_VertexDeclaration);
@@ -581,9 +580,9 @@ static UpdateResult EngineUpdate(void* _engine)
         return RESULT_EXIT;
     }
 
-    dmJobThread::Update(engine->m_JobThread, 0); // Flush any graphics jobs
+    JobSystemUpdate(engine->m_JobContext, 0); // Flush any graphics jobs
 
-    dmPlatform::PollEvents(engine->m_Window);
+    WindowPollEvents(engine->m_Window);
 
     if (engine->m_WindowClosed)
     {
