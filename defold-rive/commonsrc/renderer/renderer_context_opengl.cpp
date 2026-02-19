@@ -31,7 +31,7 @@
 #include <rive/renderer/gl/render_context_gl_impl.hpp>
 #include <rive/renderer/gl/render_target_gl.hpp>
 
-#include <dmsdk/graphics/graphics.h>
+#include <dmsdk/graphics/graphics.hpp>
 
 #ifdef RIVE_DESKTOP_GL
     #define GLFW_INCLUDE_NONE

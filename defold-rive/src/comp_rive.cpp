@@ -41,7 +41,7 @@
 #include <dmsdk/gameobject/component.h>
 #include <dmsdk/gameobject/gameobject.h>
 #include <dmsdk/gamesys/property.h>
-#include <dmsdk/graphics/graphics.h>
+#include <dmsdk/graphics/graphics.hpp>
 #include <dmsdk/render/render.h>
 #include <dmsdk/resource/resource.h>
 #include <gameobject/gameobject_ddf.h> // for creating bones where the rive scene bones are

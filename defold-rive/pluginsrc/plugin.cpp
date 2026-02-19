@@ -19,15 +19,13 @@ __declspec(dllexport) int dummyFunc()
 #include <rive/file_asset_loader.hpp>
 // Due to an X11.h issue (Likely Ubuntu 16.04 issue) we include the Rive/C++17 includes first
 
-// #include <dmsdk/sdk.h>
 #include <dmsdk/dlib/array.h>
 #include <dmsdk/dlib/jobsystem.h>
 #include <dmsdk/dlib/log.h>
 #include <dmsdk/dlib/shared_library.h>
 #include <dmsdk/dlib/static_assert.h>
-#include <dmsdk/graphics/graphics.h>
+#include <dmsdk/graphics/graphics.hpp>
 #include <dmsdk/platform/window.h>
-#include <graphics/graphics.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdarg.h>

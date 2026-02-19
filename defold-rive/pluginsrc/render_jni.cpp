@@ -21,7 +21,7 @@
 #include <dmsdk/dlib/align.h>
 #include <dmsdk/dlib/transform.h>
 #include <dmsdk/render/render.h>
-#include <dmsdk/graphics/graphics.h>
+#include <dmsdk/graphics/graphics.hpp>
 #include <string.h>
 
 

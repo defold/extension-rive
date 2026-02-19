@@ -1,7 +1,7 @@
 #include <dmsdk/dlib/log.h>
 #include <dmsdk/dlib/image.h>
 #include <dmsdk/graphics/graphics_vulkan.h>
-#include <dmsdk/graphics/graphics.h>
+#include <dmsdk/graphics/graphics.hpp>
 #include <dmsdk/render/render.h>
 
 #include "renderer_context.h"

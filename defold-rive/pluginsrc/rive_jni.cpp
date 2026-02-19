@@ -22,8 +22,7 @@
 #include <defold/renderer.h>
 
 #include <dmsdk/dlib/log.h>
-#include <dmsdk/graphics/graphics.h>
-#include <graphics/graphics.h>
+#include <dmsdk/graphics/graphics.hpp>
 
 #include <rive/artboard.hpp>
 #include <rive/renderer.hpp>

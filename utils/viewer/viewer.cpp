@@ -22,12 +22,11 @@
 #include <dmsdk/dlib/log.h>
 #include <dmsdk/dlib/jobsystem.h>
 #include <dmsdk/dlib/time.h>
-#include <dmsdk/graphics/graphics.h>
+#include <dmsdk/graphics/graphics.hpp>
 #include <dmsdk/platform/window.h>
 #include <dmsdk/render/render.h>
 
 #include <dlib/log.h>          // LogParams
-#include <graphics/graphics.h> // ContextParams
 
 #include <defold/rive.h>
 #include "common/file.h"
@@ -53,7 +52,20 @@ typedef void (*EngineGetResultFn)(void* engine, int* run_action, int* exit_code,
 
 
 static const char* s_RiveFilePath = 0;
-static bool s_ScreenshotCaptured = false;
+static bool               s_ScreenshotCaptured = false;
+static AdapterFamily      s_AdapterFamily = ADAPTER_FAMILY_NONE;
+
+static WindowsGraphicsApi GetWindowGraphicsApi(AdapterFamily family)
+{
+    switch (family)
+    {
+        case ADAPTER_FAMILY_OPENGL:     return WINDOW_GRAPHICS_API_OPENGL;
+        case ADAPTER_FAMILY_OPENGLES:   return WINDOW_GRAPHICS_API_OPENGLES;
+        case ADAPTER_FAMILY_DIRECTX:    return WINDOW_GRAPHICS_API_DIRECTX;
+        case ADAPTER_FAMILY_VULKAN:     return WINDOW_GRAPHICS_API_VULKAN;
+        default:                        return WINDOW_GRAPHICS_API_VULKAN;
+    }
+}
 
 static bool WriteTgaFile(const char* path, dmRive::TexturePixels* pixels)
 {
@@ -253,22 +265,6 @@ static void AppDestroy(void* _ctx)
     ctx->m_Destroyed++;
 }
 
-static dmGraphics::HUniformLocation FindUniformLocation(dmGraphics::HProgram program, const char* name)
-{
-    uint32_t uniform_count = dmGraphics::GetUniformCount(program);
-    for (uint32_t i = 0; i < uniform_count; ++i)
-    {
-        dmGraphics::Uniform uniform;
-        dmGraphics::GetUniform(program, i, &uniform);
-        if (uniform.m_Name && strcmp(uniform.m_Name, name) == 0)
-        {
-            return uniform.m_Location;
-        }
-    }
-
-    return dmGraphics::INVALID_UNIFORM_LOCATION;
-}
-
 static void DrawFullscreenQuad(EngineCtx* engine, dmGraphics::HTexture texture)
 {
     if (engine->m_BlitProgram == 0 || engine->m_BlitProgram == dmGraphics::INVALID_PROGRAM_HANDLE || texture == 0)
@@ -320,29 +316,17 @@ static void* EngineCreate(int argc, char** argv)
     window_params.m_Height = 512;
     window_params.m_Title = "Rive Viewer App";
 
-    window_params.m_GraphicsApi = WINDOW_GRAPHICS_API_VULKAN;
+    window_params.m_GraphicsApi = GetWindowGraphicsApi(s_AdapterFamily);
     window_params.m_CloseCallback = OnWindowClose;
     window_params.m_CloseCallbackUserData = (void*)engine;
-
-    if (dmGraphics::GetInstalledAdapterFamily() == dmGraphics::ADAPTER_FAMILY_OPENGL)
-    {
-        window_params.m_GraphicsApi = WINDOW_GRAPHICS_API_OPENGL;
-    }
-    else if (dmGraphics::GetInstalledAdapterFamily() == dmGraphics::ADAPTER_FAMILY_OPENGLES)
-    {
-        window_params.m_GraphicsApi = WINDOW_GRAPHICS_API_OPENGLES;
-    }
-    else if (dmGraphics::GetInstalledAdapterFamily() == dmGraphics::ADAPTER_FAMILY_DIRECTX)
-    {
-        window_params.m_GraphicsApi = WINDOW_GRAPHICS_API_DIRECTX;
-    }
 
     WindowOpen(engine->m_Window, &window_params);
     WindowShow(engine->m_Window);
 
-    dmGraphics::ContextParams graphics_context_params = {};
-    graphics_context_params.m_DefaultTextureMinFilter = dmGraphics::TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST;
-    graphics_context_params.m_DefaultTextureMagFilter = dmGraphics::TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST;
+    GraphicsCreateParams graphics_context_params;
+    GraphicsContextParamsInitialize(&graphics_context_params);
+    graphics_context_params.m_DefaultTextureMinFilter = TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST;
+    graphics_context_params.m_DefaultTextureMagFilter = TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST;
     graphics_context_params.m_VerifyGraphicsCalls = 1;
     graphics_context_params.m_UseValidationLayers = 1;
     graphics_context_params.m_Window = engine->m_Window;
@@ -350,7 +334,7 @@ static void* EngineCreate(int argc, char** argv)
     graphics_context_params.m_Height = 512;
     graphics_context_params.m_JobContext = engine->m_JobContext;
 
-    engine->m_GraphicsContext = dmGraphics::NewContext(graphics_context_params);
+    engine->m_GraphicsContext = GraphicsNewContext(&graphics_context_params);
 
     engine->m_WasCreated++;
     engine->m_Running = 1;
@@ -372,12 +356,12 @@ static void* EngineCreate(int argc, char** argv)
     // Graphics
 
     float bottom = 0.0f;
-    float top    = 1.0f;
+    float top = 1.0f;
 
     // Flip texture coordinates on y axis for OpenGL for the final blit:
-    if (dmGraphics::GetInstalledAdapterFamily() != dmGraphics::ADAPTER_FAMILY_OPENGL)
+    if (s_AdapterFamily != ADAPTER_FAMILY_OPENGL)
     {
-        top    = 0.0f;
+        top = 0.0f;
         bottom = 1.0f;
     }
 
@@ -411,7 +395,7 @@ static void* EngineCreate(int argc, char** argv)
     }
     else
     {
-        engine->m_SamplerLocation = FindUniformLocation(engine->m_BlitProgram, "texture_sampler");
+        engine->m_SamplerLocation = dmGraphics::FindUniformLocation(engine->m_BlitProgram, "texture_sampler");
     }
 
     // Rive
@@ -476,9 +460,9 @@ static void EngineDestroy(void* _engine)
         dmGraphics::DeleteProgram(engine->m_GraphicsContext, engine->m_BlitProgram);
     }
 
-    dmGraphics::CloseWindow(engine->m_GraphicsContext);
-    dmGraphics::DeleteContext(engine->m_GraphicsContext);
-    dmGraphics::Finalize();
+    GraphicsCloseWindow(engine->m_GraphicsContext);
+    GraphicsDeleteContext(engine->m_GraphicsContext);
+    GraphicsFinalize();
 
     engine->m_WasDestroyed++;
 
@@ -606,14 +590,12 @@ static UpdateResult EngineUpdate(void* _engine)
         dmRive::RenderEnd(engine->m_RenderContext);
     }
 
-    dmGraphics::BeginFrame(engine->m_GraphicsContext);
-    dmGraphics::Clear(engine->m_GraphicsContext, dmGraphics::BUFFER_TYPE_COLOR0_BIT,
-                                            0.0f, 0.0f, 0.0f, 0.0f,
-                                            1.0f, 0);
+    GraphicsBeginFrame(engine->m_GraphicsContext);
+    dmGraphics::Clear(engine->m_GraphicsContext, dmGraphics::BUFFER_TYPE_COLOR0_BIT, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0);
 
     DrawFullscreenQuad(engine, dmRive::GetBackingTexture(engine->m_RenderContext));
 
-    dmGraphics::Flip(engine->m_GraphicsContext);
+    GraphicsFlip(engine->m_GraphicsContext);
 
     if (!s_ScreenshotCaptured)
     {
@@ -664,10 +646,14 @@ static void dmExportedSymbols()
 #endif
 }
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     dmExportedSymbols();
-    dmGraphics::InstallAdapter();
+    s_AdapterFamily = ADAPTER_FAMILY_VULKAN;
+#if !defined(__APPLE__) && !defined(__linux__)
+    s_AdapterFamily = ADAPTER_FAMILY_OPENGL;
+#endif
+    GraphicsInstallAdapter(s_AdapterFamily);
 
     if (argc > 1)
     {

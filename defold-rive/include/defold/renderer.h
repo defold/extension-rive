@@ -17,7 +17,7 @@
 
 #include <memory>
 #include <dmsdk/resource/resource.h>
-#include <dmsdk/graphics/graphics.h>
+#include <dmsdk/graphics/graphics.hpp>
 #include <dmsdk/render/render.h>
 
 #include <rive/refcnt.hpp>
