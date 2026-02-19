@@ -18,3 +18,4 @@ bob.jar
 manifest.*
 /main/ignore
 .src
+liveupdate.mounts
