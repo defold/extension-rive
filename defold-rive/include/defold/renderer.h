@@ -43,6 +43,7 @@ namespace dmRive
     HRenderContext               NewRenderContext();
     void                         DeleteRenderContext(HRenderContext context);
     rive::rcp<rive::RenderImage> CreateRiveRenderImage(HRenderContext context, void* bytes, uint32_t byte_count);
+    rive::rcp<rive::RenderImage> CreateRiveRenderImageASTC(HRenderContext context, void* bytes, uint32_t byte_count);
     rive::Factory*               GetRiveFactory(HRenderContext context);
     rive::Renderer*              GetRiveRenderer(HRenderContext context);
     rive::Mat2D                  GetViewTransform(HRenderContext context, dmRender::HRenderContext render_context);

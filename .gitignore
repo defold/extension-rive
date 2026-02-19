@@ -20,3 +20,4 @@ manifest.*
 /main/ignore
 .src
 /hs_err_pi*
+liveupdate.mounts

@@ -21,6 +21,7 @@
             [editor.gl.texture :as texture]
             [editor.gl.vertex2 :as vtx]
             [editor.graph-util :as gu]
+            [editor.localization :as localization]
             [editor.math :as math]
             [editor.outline :as outline]
             [editor.pipeline.tex-gen :as tex-gen]
@@ -431,7 +432,7 @@
 
 (defn- create-bone-hierarchy [parent-id bone]
   (let [bone-tx-data (create-bone parent-id bone)
-        bone-id (tx-first-created bone-tx-data)
+        bone-id (first (g/tx-data-added-node-ids bone-tx-data))
         child-bones (.-children bone)
         children-tx-data (mapcat (fn [child] (create-bone-hierarchy bone-id child)) child-bones)]
     (concat bone-tx-data children-tx-data)))
@@ -1201,6 +1202,7 @@
       :ddf-type rive-scene-pb-class
       :load-fn load-rive-scene
       :icon rive-scene-icon
+      :category (localization/message "resource.category.resources")
       :view-types [:scene :text]
       :view-opts {:scene {:grid true}}
       :template "/defold-rive/assets/template.rivescene")
@@ -1211,6 +1213,7 @@
       :ddf-type rive-model-pb-class
       :load-fn load-rive-model
       :icon rive-model-icon
+      :category (localization/message "resource.category.components")
       :view-types [:scene :text]
       :view-opts {:scene {:grid true}}
       :tags #{:component}

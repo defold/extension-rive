@@ -22,6 +22,7 @@ namespace dmRive
 
 		virtual dmGraphics::HTexture GetBackingTexture() = 0;
 		virtual rive::rcp<rive::gpu::Texture> MakeImageTexture(uint32_t width, uint32_t height, uint32_t mipLevelCount, const uint8_t imageDataRGBA[]) = 0;
+		virtual rive::rcp<rive::gpu::Texture> MakeImageTextureASTC(uint32_t width, uint32_t height, uint8_t blockW, uint8_t blockH, const uint8_t astcData[], uint32_t astcDataSize) = 0;
 	};
 
 	IDefoldRiveRenderer* MakeDefoldRiveRendererMetal();

@@ -5,6 +5,7 @@
 #include <dmsdk/render/render.h>
 
 #include "renderer_context.h"
+#include <common/astc.h>
 #include "defold/renderer.h"
 
 #include "common/rive_math.h"
@@ -275,6 +276,26 @@ namespace dmRive
             uint8_t pink[] = {227, 61, 148, 255};
             texture = renderer->m_RenderContext->MakeImageTexture(1, 1, 0, (const uint8_t*) pink);
         }
+
+        return texture != nullptr ? rive::make_rcp<rive::RiveRenderImage>(std::move(texture)) : nullptr;
+    }
+
+    rive::rcp<rive::RenderImage> CreateRiveRenderImageASTC(HRenderContext context, void* bytes, uint32_t byte_count)
+    {
+        DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
+
+        ASTCHeader header;
+        if (!ParseASTCHeader((const uint8_t*)bytes, byte_count, &header))
+        {
+            dmLogError("Failed to parse ASTC header");
+            return nullptr;
+        }
+
+        const uint8_t* astcData = GetASTCCompressedData((const uint8_t*)bytes);
+        size_t astcDataSize = GetASTCCompressedDataSize(byte_count);
+
+        rive::rcp<rive::gpu::Texture> texture = renderer->m_RenderContext->MakeImageTextureASTC(
+            header.width, header.height, header.block_width, header.block_height, astcData, (uint32_t)astcDataSize);
 
         return texture != nullptr ? rive::make_rcp<rive::RiveRenderImage>(std::move(texture)) : nullptr;
     }

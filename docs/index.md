@@ -83,7 +83,7 @@ The `Alignment` parameter determines how the content aligns with respect to the 
 ### Mixing Defold and Rive content
 
 The Rive API does not have an exposed projection matrix that can be set, which means that in order to match the Rive coordinate space, a fullscreen projection is used in the render script.
-To help with mixing Defold and Rive cxontent, the extension provides the helper function `rive.get_projection_matrix()` that can be used as the projection matrix in the render script:
+To help with mixing Defold and Rive content, the extension provides the helper function `rive.get_projection_matrix()` that can be used as the projection matrix in the render script:
 
 ```
 render.set_projection_matrix(rive.get_projection_matrix())

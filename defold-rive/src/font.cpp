@@ -20,9 +20,8 @@
 
 namespace dmRive {
 
-    rive::rcp<rive::Font> LoadFontFromMemory(HRenderContext context, void* resource, uint32_t resource_size)
+    rive::rcp<rive::Font> LoadFontFromMemory(rive::Factory* rive_factory, void* resource, uint32_t resource_size)
     {
-        rive::Factory* rive_factory = GetRiveFactory(context);
         if (!rive_factory)
         {
             dmLogError("No Rive factory available!");
@@ -31,6 +30,11 @@ namespace dmRive {
 
         rive::Span<const uint8_t> data((const uint8_t*)resource, resource_size);
         return rive_factory->decodeFont(data);
+    }
+
+    rive::rcp<rive::Font> LoadFontFromMemory(HRenderContext context, void* resource, uint32_t resource_size)
+    {
+        return LoadFontFromMemory(GetRiveFactory(context), resource, resource_size);
     }
 
     rive::rcp<rive::Font> LoadFontFromFactory(dmResource::HFactory factory, HRenderContext context, const char* path)
