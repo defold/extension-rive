@@ -90,6 +90,12 @@ embedded_instances {
   "  data: \"collection: \\\"/main/scrollist/scrollist.collection\\\"\\n"
   "\"\n"
   "}\n"
+  "embedded_components {\n"
+  "  id: \"fontfallback\"\n"
+  "  type: \"collectionproxy\"\n"
+  "  data: \"collection: \\\"/main/fontfallback/fontfallback.collection\\\"\\n"
+  "\"\n"
+  "}\n"
   ""
 }
 embedded_instances {
