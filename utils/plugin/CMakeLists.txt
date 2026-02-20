@@ -228,9 +228,6 @@ target_include_directories(rive_plugin PRIVATE
         "${DYNAMO_HOME}/include"
         "${DYNAMO_HOME}/sdk/include"
         "${DYNAMO_HOME}/ext/include"
-)
-
-target_include_directories(rive_plugin PRIVATE
         "${JAVA_HOME}/include"
 )
 
@@ -272,9 +269,9 @@ endif()
 
 set(EXTENDER_PLATFORM "${TARGET_PLATFORM}")
 if(TARGET_PLATFORM STREQUAL "arm64-macos")
-        set(EXTENDER_PLATFORM "arm64-osx")
+    set(EXTENDER_PLATFORM "arm64-osx")
 elseif(TARGET_PLATFORM STREQUAL "x86_64-macos")
-        set(EXTENDER_PLATFORM "x86_64-osx")
+    set(EXTENDER_PLATFORM "x86_64-osx")
 endif()
 message(STATUS "EXTENDER_PLATFORM=${EXTENDER_PLATFORM}")
 
@@ -306,27 +303,32 @@ endif()
 
 if(TARGET_PLATFORM MATCHES "macos")
     target_compile_options(rive_plugin PRIVATE "-mmacosx-version-min=10.15")
+    target_link_libraries(rive_plugin PRIVATE platform_vulkan graphics_vulkan glfw3 MoltenVK)
+    target_compile_definitions(rive_plugin PRIVATE DM_PLATFORM_MACOS)
     target_include_directories(rive_plugin PRIVATE
         "${REPO_ROOT}/defold-rive/include/osx"
     )
     target_link_libraries(rive_plugin PRIVATE "-framework CoreFoundation")
     target_link_libraries(rive_plugin PRIVATE "-framework Foundation")
     target_link_libraries(rive_plugin PRIVATE "-framework AppKit")
-    target_link_libraries(rive_plugin PRIVATE "-framework Metal")
-    target_link_libraries(rive_plugin PRIVATE "-framework IOKit")
-    target_link_libraries(rive_plugin PRIVATE "-framework IOSurface")
     target_link_libraries(rive_plugin PRIVATE "-framework QuartzCore")
+    target_link_libraries(rive_plugin PRIVATE "-framework Metal")
+    target_link_libraries(rive_plugin PRIVATE "-framework IOSurface")
+    target_link_libraries(rive_plugin PRIVATE "-framework IOKit")
+    target_link_libraries(rive_plugin PRIVATE "-framework CoreGraphics")
     target_compile_options(rive_plugin PRIVATE "-fno-exceptions" "-fno-rtti")
     set(JAVA_PLATFORM "darwin")
 elseif(TARGET_PLATFORM MATCHES "win32")
     target_include_directories(rive_plugin PRIVATE
         "${REPO_ROOT}/defold-rive/include/win32"
     )
+    target_compile_definitions(rive_plugin PRIVATE DM_PLATFORM_WINDOWS)
     set(JAVA_PLATFORM "win32")
 elseif(TARGET_PLATFORM MATCHES "linux")
     target_include_directories(rive_plugin PRIVATE
         "${REPO_ROOT}/defold-rive/include/linux"
     )
+    target_compile_definitions(rive_plugin PRIVATE DM_PLATFORM_LINUX)
     target_compile_options(rive_plugin PRIVATE "-fno-exceptions" "-fno-rtti")
     set(JAVA_PLATFORM "linux")
 endif()

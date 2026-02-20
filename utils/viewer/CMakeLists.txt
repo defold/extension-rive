@@ -146,6 +146,12 @@ if(${TARGET_PLATFORM} MATCHES "macos")
     target_compile_definitions(viewer PRIVATE DM_PLATFORM_MACOS VIEWER_USE_SPIRV=1)
 endif()
 
+if(${TARGET_PLATFORM} MATCHES "win32")
+    target_compile_definitions(viewer PRIVATE DM_PLATFORM_WINDOWS)
+elseif(${TARGET_PLATFORM} MATCHES "linux")
+    target_compile_definitions(viewer PRIVATE DM_PLATFORM_LINUX)
+endif()
+
 target_link_libraries(viewer PRIVATE ${TARGET_LIBS})
 
 target_compile_options(viewer PRIVATE

@@ -12,7 +12,6 @@ __declspec(dllexport) int dummyFunc()
 }
 #endif
 
-
 // Rive includes
 #include <rive/artboard.hpp>
 #include <rive/file.hpp>
@@ -266,10 +265,24 @@ static jfloatArray JNICALL Java_Rive_GetFullscreenQuadVerticesInternal(JNIEnv* e
 //     return (jlong)(uintptr_t)object;
 // }
 
-dmRive::HRenderContext g_RenderContext = 0;
-HWindow                g_Window = 0;
-dmGraphics::HContext   g_GraphicsContext = 0;
-HJobContext            g_JobContext = 0;
+dmRive::HRenderContext    g_RenderContext = 0;
+HWindow                   g_Window = 0;
+HGraphicsContext          g_GraphicsContext = 0;
+HJobContext               g_JobContext = 0;
+
+static AdapterFamily      s_AdapterFamily = ADAPTER_FAMILY_NONE;
+
+static WindowsGraphicsApi GetWindowGraphicsApi(AdapterFamily family)
+{
+    switch (family)
+    {
+        case ADAPTER_FAMILY_OPENGL:     return WINDOW_GRAPHICS_API_OPENGL;
+        case ADAPTER_FAMILY_OPENGLES:   return WINDOW_GRAPHICS_API_OPENGLES;
+        case ADAPTER_FAMILY_DIRECTX:    return WINDOW_GRAPHICS_API_DIRECTX;
+        case ADAPTER_FAMILY_VULKAN:     return WINDOW_GRAPHICS_API_VULKAN;
+        default:                        return WINDOW_GRAPHICS_API_VULKAN;
+    }
+}
 
 static bool IsDebugLogEnabled()
 {
@@ -309,7 +322,8 @@ static void InstallGraphicsAdapter()
 {
 #if defined(__APPLE__)
     GraphicsAdapterVulkan();
-    dmGraphics::InstallAdapter();
+    s_AdapterFamily = ADAPTER_FAMILY_VULKAN;
+    GraphicsInstallAdapter(s_AdapterFamily);
 #endif
 }
 
@@ -338,29 +352,18 @@ static void CreateGraphicsContextInternal()
     window_params.m_Width = 512;
     window_params.m_Height = 512;
     window_params.m_Title = "Rive Plugin";
-    window_params.m_GraphicsApi = WINDOW_GRAPHICS_API_VULKAN;
-
-    if (dmGraphics::GetInstalledAdapterFamily() == dmGraphics::ADAPTER_FAMILY_OPENGL)
-    {
-        window_params.m_GraphicsApi = WINDOW_GRAPHICS_API_OPENGL;
-    }
-    else if (dmGraphics::GetInstalledAdapterFamily() == dmGraphics::ADAPTER_FAMILY_OPENGLES)
-    {
-        window_params.m_GraphicsApi = WINDOW_GRAPHICS_API_OPENGLES;
-    }
-    else if (dmGraphics::GetInstalledAdapterFamily() == dmGraphics::ADAPTER_FAMILY_DIRECTX)
-    {
-        window_params.m_GraphicsApi = WINDOW_GRAPHICS_API_DIRECTX;
-    }
+    window_params.m_GraphicsApi = GetWindowGraphicsApi(s_AdapterFamily);
+    window_params.m_Hidden = 1;
 
     RiveDebugLog("Rive: opening window");
     WindowOpen(g_Window, &window_params);
     RiveDebugLog("Rive: window opened");
     WindowPollEvents(g_Window);
 
-    dmGraphics::ContextParams graphics_context_params = {};
-    graphics_context_params.m_DefaultTextureMinFilter = dmGraphics::TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST;
-    graphics_context_params.m_DefaultTextureMagFilter = dmGraphics::TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST;
+    GraphicsCreateParams graphics_context_params;
+    GraphicsContextParamsInitialize(&graphics_context_params);
+    graphics_context_params.m_DefaultTextureMinFilter = TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST;
+    graphics_context_params.m_DefaultTextureMagFilter = TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST;
     graphics_context_params.m_VerifyGraphicsCalls = 1;
     graphics_context_params.m_UseValidationLayers = 1;
     graphics_context_params.m_Window = g_Window;
@@ -369,7 +372,7 @@ static void CreateGraphicsContextInternal()
     graphics_context_params.m_JobContext = g_JobContext;
 
     RiveDebugLog("Rive: creating graphics context");
-    g_GraphicsContext = dmGraphics::NewContext(graphics_context_params);
+    g_GraphicsContext = GraphicsNewContext(&graphics_context_params);
     if (!g_GraphicsContext)
     {
         dmLogError("Rive: failed to create graphics context");
@@ -430,9 +433,9 @@ static void PluginRiveFinalize()
 #if defined(__APPLE__)
     if (g_GraphicsContext)
     {
-        dmGraphics::CloseWindow(g_GraphicsContext);
-        dmGraphics::DeleteContext(g_GraphicsContext);
-        dmGraphics::Finalize();
+        GraphicsCloseWindow(g_GraphicsContext);
+        GraphicsDeleteContext(g_GraphicsContext);
+        GraphicsFinalize();
         g_GraphicsContext = 0;
     }
 
