@@ -549,11 +549,10 @@
 ; .rivescene (The "data" file) which in turn points to the .riv file
 
 ; Node defs
-(g/defnk produce-rivescene-save-value [rive-file-resource atlas-resource]
+(g/defnk produce-rivescene-save-value [rive-file-resource]
   ; rive-file-resource may be nil if the :scene isn't set (as seen in the template.rivescene)
   (protobuf/make-map-without-defaults rive-scene-pb-class
-    :scene (resource/resource->proj-path rive-file-resource)
-    :atlas (resource/resource->proj-path atlas-resource)))
+    :scene (resource/resource->proj-path rive-file-resource)))
 
 (defn- prop-resource-error [_node-id prop-kw prop-value prop-name]
   (validation/prop-error :fatal _node-id prop-kw validation/prop-resource-missing? prop-value prop-name))
@@ -561,15 +560,11 @@
 ; The properties of the .rivescene (see RiveSceneDesc in rive_ddf.proto)
 ; The "scene" should point to a .riv file
 
-(defn- validate-scene-atlas [_node-id atlas]
-  (prop-resource-error _node-id :atlas atlas "Atlas"))
-
 (defn- validate-rivescene-riv-file [_node-id rive-file]
   (prop-resource-error _node-id :scene rive-file "Riv File"))
 
-(g/defnk produce-rivescene-own-build-errors [_node-id rive-file atlas]
+(g/defnk produce-rivescene-own-build-errors [_node-id rive-file]
   (g/package-errors _node-id
-                    (validate-scene-atlas _node-id atlas)
                     (validate-rivescene-riv-file _node-id rive-file)))
 
 (defn- build-rive-scene [resource dep-resources user-data]
@@ -586,11 +581,11 @@
 
 
 (g/defnk produce-rivescene-build-targets
-  [_node-id own-build-errors resource rive-scene-pb rive-file atlas-resource dep-build-targets]
+  [_node-id own-build-errors resource rive-scene-pb rive-file dep-build-targets]
   (g/precluding-errors own-build-errors
                        (let [dep-build-targets (flatten dep-build-targets)
                              deps-by-source (into {} (map #(let [res (:resource %)] [(:resource res) res]) dep-build-targets))
-                             dep-resources (map (fn [[label resource]] [label (get deps-by-source resource)]) [[:scene rive-file] [:atlas atlas-resource]])]
+                             dep-resources (map (fn [[label resource]] [label (get deps-by-source resource)]) [[:scene rive-file]])]
                          [(bt/with-content-hash
                             {:node-id _node-id
                              :resource (workspace/make-build-resource resource)
@@ -932,18 +927,6 @@
             (dynamic error (g/fnk [_node-id rive-file]
                                   (validate-rivescene-riv-file _node-id rive-file))))
 
-  (property atlas resource/Resource ; Nil is valid default.
-            (value (gu/passthrough atlas-resource))
-            (set (fn [evaluation-context self old-value new-value]
-                   (project/resource-setter evaluation-context self old-value new-value
-                                            [:resource :atlas-resource]
-                                            [:texture-set-pb :texture-set-pb]
-                                            [:gpu-texture :gpu-texture]
-                                            [:build-targets :dep-build-targets])))
-            (dynamic edit-type (g/constantly {:type resource/Resource :ext "atlas"}))
-            (dynamic error (g/fnk [_node-id atlas]
-                                  (validate-scene-atlas _node-id atlas))))
-
   ;; This property isn't visible, but here to allow us to preview the .rivescene
   (property material resource/Resource ; Default assigned in load-fn.
             (set (fn [evaluation-context self old-value new-value]
@@ -966,7 +949,6 @@
   (input rive-artboards g/Any)
   (input rive-state-machines g/Any)
   (input aabb g/Any)
-  (input atlas-resource resource/Resource)
 
   (input texture-set-pb g/Any)
   (output texture-set-pb g/Any :cached (gu/passthrough texture-set-pb))
@@ -997,8 +979,7 @@
       (g/set-property self :material (resolve-resource default-blit-material-proj-path))
       (g/set-property self :selection-material (resolve-resource selection-material-proj-path))
       (gu/set-properties-from-pb-map self rive-scene-pb-class rive-scene-desc
-        rive-file (resolve-resource :scene)
-        atlas (resolve-resource :atlas)))))
+        rive-file (resolve-resource :scene)))))
 
 
 ;
@@ -1083,7 +1064,6 @@
             (set (fn [evaluation-context self old-value new-value]
                    (project/resource-setter evaluation-context self old-value new-value
                                             [:resource :rive-scene-resource]
-                                            [:atlas-resource :atlas-resource]
                                             [:texture-set-pb :texture-set-pb]
                                             [:main-scene :rive-main-scene]
                                             [:rive-file-handle :rive-file-handle]
@@ -1150,7 +1130,6 @@
   (input rive-file-handle g/Any)
   (input rive-main-scene g/Any)
   (input texture-set-pb g/Any)
-  (input atlas-resource resource/Resource)
   (input material-shader ShaderLifecycle)
   (input material-samplers g/Any)
   (input blit-material-shader ShaderLifecycle)
