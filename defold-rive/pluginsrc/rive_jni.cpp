@@ -46,6 +46,7 @@ struct RiveFileJNI
     jfieldID    viewModelEnums; // array of ViewModelEnum
     jfieldID    viewModelInstanceNames; // array of ViewModelInstanceNames
     jfieldID    defaultViewModelInfo; // DefaultViewModelInfo
+    jfieldID    bounds; // DefoldJNI.Aabb
 } g_RiveFileJNI;
 
 struct RiveTextureJNI
@@ -106,6 +107,7 @@ void InitializeJNITypes(JNIEnv* env)
         GET_FLD_ARRAY(viewModelEnums, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "ViewModelEnum"));
         GET_FLD_ARRAY(viewModelInstanceNames, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "ViewModelInstanceNames"));
         GET_FLD(defaultViewModelInfo, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "DefaultViewModelInfo"));
+        GET_FLD_TYPESTR(bounds, "Lcom/dynamo/bob/pipeline/DefoldJNI$Aabb;");
     }
     {
         SETUP_CLASS(RiveTextureJNI, MAKE_TYPE_NAME(DM_RIVE_JNI_PACKAGE_NAME, "Texture"));
@@ -212,6 +214,21 @@ static jobject CreateStateMachinesByArtboard(JNIEnv* env, const dmArray<dmRive::
 }
 
 static const char* DataTypeToString(rive::DataType type);
+
+static void SetRiveFileBounds(JNIEnv* env, jobject obj, const dmRive::RiveFile* rive_file)
+{
+    if (!rive_file || !obj)
+    {
+        return;
+    }
+
+    const rive::AABB& bounds = rive_file->m_Bounds;
+    dmVMath::Vector4 min(bounds.minX, bounds.minY, 0.0f, 0.0f);
+    dmVMath::Vector4 max(bounds.maxX, bounds.maxY, 0.0f, 0.0f);
+    jobject aabb_obj = dmDefoldJNI::CreateAABB(env, min, max);
+    dmDefoldJNI::SetFieldObject(env, obj, g_RiveFileJNI.bounds, aabb_obj);
+    env->DeleteLocalRef(aabb_obj);
+}
 
 static jobjectArray CreateViewModelProperties(JNIEnv* env, const dmArray<dmRive::ViewModelProperty>& properties)
 {
@@ -349,6 +366,7 @@ static jobject CreateRiveFile(JNIEnv* env, dmRive::RiveFile* rive_file)
     {
         env->DeleteLocalRef(default_view_model_info);
     }
+    SetRiveFileBounds(env, obj, rive_file);
     return obj;
 }
 
@@ -394,6 +412,7 @@ void SetArtboard(JNIEnv* env, jclass cls, jobject rive_file_obj, const char* art
         return;
     }
     dmRive::SetArtboard(rive_file, artboard);
+    SetRiveFileBounds(env, rive_file_obj, rive_file);
 }
 
 void SetStateMachine(JNIEnv* env, jclass cls, jobject rive_file_obj, const char* state_machine)

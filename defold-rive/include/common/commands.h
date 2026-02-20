@@ -18,6 +18,7 @@
 namespace rive
 {
     class Factory;
+    class AABB;
 }
 
 namespace dmRiveCommands
@@ -50,4 +51,5 @@ namespace dmRiveCommands
     rive::Factory*                  GetFactory();
     dmRive::HRenderContext          GetDefoldRenderContext();
     rive::rcp<rive::CommandQueue>   GetCommandQueue();
+    bool                            GetBounds(rive::ArtboardHandle artboard_handle, rive::AABB* out_bounds);
 }

@@ -77,6 +77,7 @@ namespace dmRive
         rive::ArtboardHandle         m_Artboard;
         rive::StateMachineHandle     m_StateMachine;
         rive::ViewModelInstanceHandle m_ViewModelInstance;
+        rive::AABB                     m_Bounds;
 
         MetadataListener*                     m_FileListener;
 

@@ -66,6 +66,7 @@ namespace dmRive
     void InitFileMetaData(RiveFile* file);
     void DestroyFileMetaData(RiveFile* file);
     void RequestMetaData(RiveFile* file, rive::rcp<rive::CommandQueue> queue);
+    rive::ArtboardHandle InstantiateArtboardNamedWithMeta(RiveFile* file, const char* artboard, rive::rcp<rive::CommandQueue> queue);
     rive::ArtboardHandle InstantiateDefaultArtboardWithMeta(RiveFile* file, rive::rcp<rive::CommandQueue> queue);
     void DebugPrintFileMetaData(const RiveFile* file);
 #endif

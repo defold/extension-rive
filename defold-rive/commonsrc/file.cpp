@@ -25,6 +25,8 @@ namespace dmRive
 
 static const int DM_MAX_MESSAGE_LOOPS = 256;
 
+static void UpdateArtboardBounds(RiveFile* file);
+
 RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char* path)
 {
     if (!buffer || buffer_size == 0)
@@ -40,6 +42,7 @@ RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char*
     out->m_Artboard = RIVE_NULL_HANDLE;
     out->m_StateMachine = RIVE_NULL_HANDLE;
     out->m_ViewModelInstance = RIVE_NULL_HANDLE;
+    out->m_Bounds = rive::AABB();
     out->m_FileListener = new MetadataListener(out);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
@@ -82,6 +85,7 @@ RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char*
     }
 
     dmRiveCommands::ProcessMessages();
+    UpdateArtboardBounds(out);
     return out;
 }
 
@@ -129,6 +133,24 @@ void DestroyFile(RiveFile* file)
     delete file;
 }
 
+static void UpdateArtboardBounds(RiveFile* file)
+{
+    if (!file)
+    {
+        return;
+    }
+
+    rive::AABB bounds;
+    if (dmRiveCommands::GetBounds(file->m_Artboard, &bounds))
+    {
+        file->m_Bounds = bounds;
+    }
+    else
+    {
+        file->m_Bounds = rive::AABB();
+    }
+}
+
 void DebugPrintFileState(const RiveFile* file)
 {
     if (!file)
@@ -147,7 +169,61 @@ void DebugPrintFileState(const RiveFile* file)
 
 void SetArtboard(RiveFile* file, const char* artboard)
 {
+    if (!file)
+    {
+        return;
+    }
 
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    if (!queue)
+    {
+        return;
+    }
+
+    if (file->m_StateMachine != RIVE_NULL_HANDLE)
+    {
+        queue->deleteStateMachine(file->m_StateMachine);
+        file->m_StateMachine = RIVE_NULL_HANDLE;
+    }
+    if (file->m_ViewModelInstance != RIVE_NULL_HANDLE)
+    {
+        queue->deleteViewModelInstance(file->m_ViewModelInstance);
+        file->m_ViewModelInstance = RIVE_NULL_HANDLE;
+    }
+    if (file->m_Artboard != RIVE_NULL_HANDLE)
+    {
+        queue->deleteArtboard(file->m_Artboard);
+        file->m_Artboard = RIVE_NULL_HANDLE;
+    }
+
+#if defined(DM_RIVE_FILE_META_DATA)
+    if (artboard && artboard[0] != 0)
+    {
+        file->m_Artboard = InstantiateArtboardNamedWithMeta(file, artboard, queue);
+    }
+    else
+    {
+        file->m_Artboard = InstantiateDefaultArtboardWithMeta(file, queue);
+    }
+#else
+    if (artboard && artboard[0] != 0)
+    {
+        file->m_Artboard = queue->instantiateArtboardNamed(file->m_File, artboard);
+    }
+    else
+    {
+        file->m_Artboard = queue->instantiateDefaultArtboard(file->m_File);
+    }
+#endif
+
+    if (file->m_Artboard != RIVE_NULL_HANDLE)
+    {
+        file->m_StateMachine = queue->instantiateDefaultStateMachine(file->m_Artboard);
+        file->m_ViewModelInstance = queue->instantiateDefaultViewModelInstance(file->m_File, file->m_Artboard);
+    }
+
+    dmRiveCommands::ProcessMessages();
+    UpdateArtboardBounds(file);
 }
 
 void SetStatemachine(RiveFile* file, const char* state_machine)

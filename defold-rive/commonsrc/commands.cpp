@@ -30,6 +30,7 @@ struct Context
 {
     dmThread::Thread    m_Thread;
     int32_atomic_t      m_Run;
+    dmMutex::HMutex     m_Mutex;
 
     dmRive::HRenderContext          m_RenderContext;
     rive::Factory*                  m_Factory;
@@ -55,6 +56,7 @@ Result Initialize(InitParams* params)
 
     g_Context = new Context;
     memset(g_Context, 0, sizeof(*g_Context));
+    g_Context->m_Mutex = dmMutex::New();
 
     if (params->m_UseThreads)
     {
@@ -88,6 +90,10 @@ Result Finalize()
 
     g_Context->m_CommandQueue.reset();
     delete g_Context->m_CommandServer;
+    if (g_Context->m_Mutex)
+    {
+        dmMutex::Delete(g_Context->m_Mutex);
+    }
 
     delete g_Context;
     g_Context = 0;
@@ -114,9 +120,28 @@ dmRive::HRenderContext GetDefoldRenderContext()
 Result ProcessMessages()
 {
     assert(g_Context != 0);
+    DM_MUTEX_OPTIONAL_SCOPED_LOCK(g_Context->m_Mutex);
     g_Context->m_CommandServer->processCommands();
     g_Context->m_CommandQueue->processMessages();
     return RESULT_OK;
+}
+
+bool GetBounds(rive::ArtboardHandle artboard_handle, rive::AABB* out_bounds)
+{
+    if (g_Context == 0 || artboard_handle == RIVE_NULL_HANDLE || out_bounds == 0)
+    {
+        return false;
+    }
+
+    DM_MUTEX_OPTIONAL_SCOPED_LOCK(g_Context->m_Mutex);
+    rive::ArtboardInstance* artboard = g_Context->m_CommandServer->getArtboardInstance(artboard_handle);
+    if (artboard == 0)
+    {
+        return false;
+    }
+
+    *out_bounds = artboard->bounds();
+    return true;
 }
 
 

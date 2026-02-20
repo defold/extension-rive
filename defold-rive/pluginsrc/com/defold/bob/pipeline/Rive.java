@@ -84,6 +84,7 @@ public class Rive {
         public ViewModelEnum[]     viewModelEnums;
         public ViewModelInstanceNames[] viewModelInstanceNames;
         public DefaultViewModelInfo defaultViewModelInfo;
+        public DefoldJNI.Aabb       bounds;
 
         public void Destroy() {
             Rive.Destroy(this);
@@ -229,6 +230,18 @@ public class Rive {
         }
 
         System.out.printf("--------------------------------\n");
+
+        System.out.printf("--------------------------------\n");
+
+        if (rive_file.bounds != null && rive_file.bounds.min != null && rive_file.bounds.max != null) {
+            float minX = rive_file.bounds.min.x;
+            float minY = rive_file.bounds.min.y;
+            float maxX = rive_file.bounds.max.x;
+            float maxY = rive_file.bounds.max.y;
+            System.out.printf("Artboard bounds: min=(%f, %f) max=(%f, %f) size=(%f, %f)\n", minX, minY, maxX, maxY, maxX - minX, maxY - minY);
+        } else {
+            System.out.printf("Artboard bounds: <none>\n");
+        }
 
         System.out.printf("--------------------------------\n");
 
