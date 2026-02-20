@@ -425,7 +425,13 @@
 (defn- convert-aabb [rive-aabb]
   (let [min (.-min rive-aabb)
         max (.-max rive-aabb)
-        aabb (geom/coords->aabb [(.-x min) (.-y min) 0] [(.-x max) (.-y max) 0])]
+        min-x (.-x min)
+        min-y (.-y min)
+        max-x (.-x max)
+        max-y (.-y max)
+        center-x (* 0.5 (+ min-x max-x))
+        center-y (* 0.5 (+ min-y max-y))
+        aabb (geom/coords->aabb [(- min-x center-x) (- min-y center-y) 0] [(- max-x center-x) (- max-y center-y) 0])]
     aabb))
 
 (defn- create-bone [parent-id rive-bone]
@@ -537,11 +543,13 @@
         state-machines (to-state-machines-map (get-public-field rive-handle "stateMachines"))
 
         _ (.Update rive-handle 0.0)
-        bounds-text (if-let [bounds (get-public-field rive-handle "bounds")]
-                      (bounds->string bounds)
+        bounds-obj (or (get-public-field rive-handle "bounds")
+                       (get-public-field rive-handle "aabb"))
+        bounds-text (if bounds-obj
+                      (bounds->string bounds-obj)
                       none-value-text)
-        aabb (if-let [rive-aabb (get-public-field rive-handle "aabb")]
-               (convert-aabb rive-aabb)
+        aabb (if bounds-obj
+               (convert-aabb bounds-obj)
                geom/null-aabb)
         bones (or (get-public-field rive-handle "bones") [])
 
