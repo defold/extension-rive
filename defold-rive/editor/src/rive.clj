@@ -150,6 +150,21 @@
     (str/join ", " values)
     fallback))
 
+(defn- bounds->string [bounds]
+  (let [min (get-public-field bounds "min")
+        max (get-public-field bounds "max")
+        min-x (get-public-field min "x")
+        min-y (get-public-field min "y")
+        max-x (get-public-field max "x")
+        max-y (get-public-field max "y")]
+    (if (and (number? min-x) (number? min-y) (number? max-x) (number? max-y))
+      (let [min-x (double min-x)
+            min-y (double min-y)
+            max-x (double max-x)
+            max-y (double max-y)]
+        (format "%.2f, %.2f, %.2f, %.2f" min-x min-y max-x max-y))
+      none-value-text)))
+
 (defn- to-view-model-properties [view-model-properties]
   (vec
     (keep (fn [property]
@@ -397,6 +412,8 @@
   (property artboards g/Any)
   (property view-models g/Any)
   (property view-model-properties g/Any)
+  (property bounds g/Str
+            (dynamic visible (g/constantly false)))
 
   (input child-bones g/Any :array)
 
@@ -520,6 +537,9 @@
         state-machines (to-state-machines-map (get-public-field rive-handle "stateMachines"))
 
         _ (.Update rive-handle 0.0)
+        bounds-text (if-let [bounds (get-public-field rive-handle "bounds")]
+                      (bounds->string bounds)
+                      none-value-text)
         aabb (if-let [rive-aabb (get-public-field rive-handle "aabb")]
                (convert-aabb rive-aabb)
                geom/null-aabb)
@@ -531,6 +551,7 @@
                  (g/set-property node-id :artboards artboards)
                  (g/set-property node-id :view-models view-models)
                  (g/set-property node-id :view-model-properties view-model-properties)
+                 (g/set-property node-id :bounds bounds-text)
                  (g/set-property node-id :state-machines state-machines)
                  (g/set-property node-id :aabb aabb)
                  (g/set-property node-id :bones bones))
@@ -920,12 +941,18 @@
                                             [:rive-handle :rive-file-handle]
                                             [:artboards :rive-artboards]
                                             [:state-machines :rive-state-machines]
+                                            [:bounds :rive-file-bounds]
                                             [:aabb :aabb]
                                             [:node-outline :source-outline]
                                             [:build-targets :dep-build-targets])))
             (dynamic edit-type (g/constantly {:type resource/Resource :ext rive-file-ext}))
             (dynamic error (g/fnk [_node-id rive-file]
                                   (validate-rivescene-riv-file _node-id rive-file))))
+
+  (property bounds g/Str
+            (value (gu/passthrough rive-file-bounds))
+            (dynamic label (g/constantly "Bounds"))
+            (dynamic read-only? (g/constantly true)))
 
   ;; This property isn't visible, but here to allow us to preview the .rivescene
   (property material resource/Resource ; Default assigned in load-fn.
@@ -948,6 +975,7 @@
   (input rive-file-handle g/Any)
   (input rive-artboards g/Any)
   (input rive-state-machines g/Any)
+  (input rive-file-bounds g/Str)
   (input aabb g/Any)
 
   (input texture-set-pb g/Any)
