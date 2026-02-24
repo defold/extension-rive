@@ -1,0 +1,15 @@
+name: "rivemodel_blit"
+tags: "rive"
+vertex_program: "/defold-rive/editor/resources/materials/rivemodel_blit.vp"
+fragment_program: "/defold-rive/assets/shader-library/rivemodel_blit.fp"
+vertex_constants {
+  name: "world_view_proj"
+  type: CONSTANT_TYPE_WORLDVIEWPROJ
+}
+samplers {
+  name: "texture_sampler"
+  wrap_u: WRAP_MODE_CLAMP_TO_EDGE
+  wrap_v: WRAP_MODE_CLAMP_TO_EDGE
+  filter_min: FILTER_MODE_MIN_LINEAR
+  filter_mag: FILTER_MODE_MAG_LINEAR
+}

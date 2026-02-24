@@ -64,6 +64,7 @@
 ;; These should be read from the .proto file
 (def default-material-proj-path "/defold-rive/assets/rivemodel.material")
 (def default-blit-material-proj-path "/defold-rive/assets/shader-library/rivemodel_blit.material")
+(def editor-blit-material-proj-path "/defold-rive/editor/resources/materials/rivemodel_blit.material")
 
 ;; Used for selection in the editor Scene View.
 (def selection-material-proj-path "/defold-rive/editor/resources/materials/rivemodel_selection.material")
@@ -216,6 +217,7 @@
   (let [resolve-resource #(workspace/resolve-resource resource %)]
     (concat
       (g/connect project :default-tex-params self :default-tex-params)
+      (g/set-property self :editor-blit-material (resolve-resource editor-blit-material-proj-path))
       (gu/set-properties-from-pb-map self rive-model-pb-class rive-model-desc
         rive-scene (resolve-resource :scene)
         material (resolve-resource (:material :or default-material-proj-path))
@@ -645,6 +647,22 @@
       1.0  1.0 1.0 1.0
      -1.0  1.0 0.0 1.0]))
 
+(defn- aabb->quad-vertices [aabb]
+  (when (and aabb (not (geom/null-aabb? aabb)))
+    (let [min-p ^javax.vecmath.Point3d (types/min-p aabb)
+          max-p ^javax.vecmath.Point3d (types/max-p aabb)
+          min-x (.x min-p)
+          min-y (.y min-p)
+          max-x (.x max-p)
+          max-y (.y max-p)]
+      (float-array
+        [min-x min-y 0.0 0.0
+         max-x min-y 1.0 0.0
+         min-x max-y 0.0 1.0
+         max-x min-y 1.0 0.0
+         max-x max-y 1.0 1.0
+         min-x max-y 0.0 1.0]))))
+
 (defonce ^:private fullscreen-quad-vertices
   (delay
     (or (plugin-get-fullscreen-quad-vertices)
@@ -884,13 +902,24 @@
         gpu-texture (or (rive-texture->gpu-texture node-id texture (:default-tex-params user-data))
                         (:gpu-texture user-data)
                         texture/white-pixel)
-        vb @fullscreen-quad-vertex-buffer
+        quad-vertices (aabb->quad-vertices (:aabb renderable))
+        vb (if quad-vertices
+             (vtx/wrap-vertex-buffer vtx-textured :static (FloatBuffer/wrap ^floats quad-vertices))
+             @fullscreen-quad-vertex-buffer)
+        renderable-transform (Matrix4d. (:world-transform renderable))
+        render-args (if quad-vertices
+                      (merge render-args (math/derive-render-transforms renderable-transform
+                                                                       (:view render-args)
+                                                                       (:projection render-args)
+                                                                       (:texture render-args)))
+                      render-args)
+        world-view-proj (if quad-vertices (:world-view-proj render-args) identity-matrix4d)
         vertex-binding (vtx/use-with [node-id ::rive-quad] vb shader)]
     (gl/with-gl-bindings gl render-args [gpu-texture shader vertex-binding]
       (setup-gl gl)
       (when (= pass/selection pass)
         (shader/set-uniform shader gl "id_color" (:id-color render-args)))
-      (shader/set-uniform shader gl "world_view_proj" identity-matrix4d)
+      (shader/set-uniform shader gl "world_view_proj" world-view-proj)
       (when (= pass/transparent pass)
         (gl/set-blend-mode gl blend-mode))
       (gl/gl-draw-arrays gl GL/GL_TRIANGLES 0 6)
@@ -1012,7 +1041,7 @@
   (let [resolve-resource #(workspace/resolve-resource resource %)]
     (concat
       (g/connect project :default-tex-params self :default-tex-params)
-      (g/set-property self :material (resolve-resource default-blit-material-proj-path))
+      (g/set-property self :material (resolve-resource editor-blit-material-proj-path))
       (g/set-property self :selection-material (resolve-resource selection-material-proj-path))
       (gu/set-properties-from-pb-map self rive-scene-pb-class rive-scene-desc
         rive-file (resolve-resource :scene)))))
@@ -1138,6 +1167,12 @@
                                   (validate-model-material _node-id material)))
             (dynamic visible (g/constantly false)))
 
+  (property editor-blit-material resource/Resource ; Default assigned in load-fn.
+            (set (fn [evaluation-context self old-value new-value]
+                   (project/resource-setter evaluation-context self old-value new-value
+                                            [:shader :editor-blit-material-shader])))
+            (dynamic visible (g/constantly false)))
+
   (property default-state-machine g/Str (default (protobuf/default rive-model-pb-class :default-state-machine))
             (dynamic error (g/fnk [_node-id rive-state-machines artboard rive-artboards default-state-machine rive-scene]
                              (validate-model-default-state-machine _node-id rive-scene
@@ -1169,6 +1204,7 @@
   (input material-shader ShaderLifecycle)
   (input material-samplers g/Any)
   (input blit-material-shader ShaderLifecycle)
+  (input editor-blit-material-shader ShaderLifecycle)
   (input blit-material-samplers g/Any)
   (input default-tex-params g/Any)
   (input anim-data g/Any)
@@ -1179,14 +1215,17 @@
   (output anim-ids g/Any :cached (g/fnk [anim-data] (vec (sort (keys anim-data)))))
   (output state-machine-ids g/Any :cached (g/fnk [anim-data] (vec (sort (keys anim-data)))))
   (output material-shader ShaderLifecycle (gu/passthrough material-shader))
-  (output scene g/Any :cached (g/fnk [_node-id rive-file-handle artboard rive-main-scene material-shader blit-material-shader]
+  (output scene g/Any :cached (g/fnk [_node-id rive-file-handle artboard rive-main-scene material-shader blit-material-resource blit-material-shader editor-blit-material-shader]
                                      (if (and (some? material-shader) (some? (:renderable rive-main-scene)))
                                        (let [aabb (:aabb rive-main-scene)
                                              rive-scene-node-id (:node-id rive-main-scene)
+                                             blit-material-path (when blit-material-resource (resource/resource->proj-path blit-material-resource))
+                                             use-editor-blit (or (nil? blit-material-path) (= blit-material-path default-blit-material-proj-path))
+                                             blit-shader (if use-editor-blit editor-blit-material-shader blit-material-shader)
                                              _ (plugin-set-artboard rive-file-handle artboard)]
                                          (-> rive-main-scene
                                              (assoc-in [:renderable :user-data :shader] material-shader)
-                                             (assoc-in [:renderable :user-data :blit-shader] blit-material-shader)
+                                             (assoc-in [:renderable :user-data :blit-shader] blit-shader)
                                              (assoc :aabb aabb)
                                              (assoc :children [(make-rive-outline-scene rive-scene-node-id aabb)])))
 
