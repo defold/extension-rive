@@ -15,7 +15,7 @@
 
 #include <stdint.h>
 
-#include <dmsdk/graphics/graphics.hpp>
+#include <dmsdk/graphics/graphics.h>
 
 namespace dmRive
 {

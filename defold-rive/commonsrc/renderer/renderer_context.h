@@ -4,7 +4,7 @@
 #include <rive/renderer/rive_renderer.hpp>
 #include <rive/renderer/render_context.hpp>
 
-#include <dmsdk/graphics/graphics.hpp>
+#include <dmsdk/graphics/graphics.h>
 
 namespace dmRive
 {

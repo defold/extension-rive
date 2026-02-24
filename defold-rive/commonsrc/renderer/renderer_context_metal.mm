@@ -7,7 +7,7 @@
 #include <rive/renderer/metal/render_context_metal_impl.h>
 
 #include <dmsdk/graphics/graphics_vulkan.h>
-#include <dmsdk/graphics/graphics.hpp>
+#include <dmsdk/graphics/graphics.h>
 
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>

@@ -29,7 +29,7 @@
 #include <dmsdk/gameobject/script.h>
 #include <dmsdk/gamesys/script.h>
 #include <dmsdk/resource/resource.h>
-#include <dmsdk/graphics/graphics.hpp>
+#include <dmsdk/graphics/graphics.h>
 
 #include "comp_rive.h"
 #include "comp_rive_private.h"

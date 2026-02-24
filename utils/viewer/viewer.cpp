@@ -22,7 +22,7 @@
 #include <dmsdk/dlib/log.h>
 #include <dmsdk/dlib/jobsystem.h>
 #include <dmsdk/dlib/time.h>
-#include <dmsdk/graphics/graphics.hpp>
+#include <dmsdk/graphics/graphics.h>
 #include <dmsdk/platform/window.h>
 #include <dmsdk/render/render.h>
 
@@ -53,16 +53,16 @@ typedef void (*EngineGetResultFn)(void* engine, int* run_action, int* exit_code,
 
 static const char* s_RiveFilePath = 0;
 static bool               s_ScreenshotCaptured = false;
-static AdapterFamily      s_AdapterFamily = ADAPTER_FAMILY_NONE;
+static dmGraphics::AdapterFamily      s_AdapterFamily = dmGraphics::ADAPTER_FAMILY_NONE;
 
-static WindowsGraphicsApi GetWindowGraphicsApi(AdapterFamily family)
+static WindowsGraphicsApi GetWindowGraphicsApi(dmGraphics::AdapterFamily family)
 {
     switch (family)
     {
-        case ADAPTER_FAMILY_OPENGL:     return WINDOW_GRAPHICS_API_OPENGL;
-        case ADAPTER_FAMILY_OPENGLES:   return WINDOW_GRAPHICS_API_OPENGLES;
-        case ADAPTER_FAMILY_DIRECTX:    return WINDOW_GRAPHICS_API_DIRECTX;
-        case ADAPTER_FAMILY_VULKAN:     return WINDOW_GRAPHICS_API_VULKAN;
+        case dmGraphics::ADAPTER_FAMILY_OPENGL:     return WINDOW_GRAPHICS_API_OPENGL;
+        case dmGraphics::ADAPTER_FAMILY_OPENGLES:   return WINDOW_GRAPHICS_API_OPENGLES;
+        case dmGraphics::ADAPTER_FAMILY_DIRECTX:    return WINDOW_GRAPHICS_API_DIRECTX;
+        case dmGraphics::ADAPTER_FAMILY_VULKAN:     return WINDOW_GRAPHICS_API_VULKAN;
         default:                        return WINDOW_GRAPHICS_API_VULKAN;
     }
 }
@@ -323,10 +323,9 @@ static void* EngineCreate(int argc, char** argv)
     WindowOpen(engine->m_Window, &window_params);
     WindowShow(engine->m_Window);
 
-    GraphicsCreateParams graphics_context_params;
-    GraphicsContextParamsInitialize(&graphics_context_params);
-    graphics_context_params.m_DefaultTextureMinFilter = TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST;
-    graphics_context_params.m_DefaultTextureMagFilter = TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST;
+    dmGraphics::ContextParams graphics_context_params;
+    graphics_context_params.m_DefaultTextureMinFilter = dmGraphics::TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST;
+    graphics_context_params.m_DefaultTextureMagFilter = dmGraphics::TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST;
     graphics_context_params.m_VerifyGraphicsCalls = 1;
     graphics_context_params.m_UseValidationLayers = 1;
     graphics_context_params.m_Window = engine->m_Window;
@@ -334,7 +333,7 @@ static void* EngineCreate(int argc, char** argv)
     graphics_context_params.m_Height = 512;
     graphics_context_params.m_JobContext = engine->m_JobContext;
 
-    engine->m_GraphicsContext = GraphicsNewContext(&graphics_context_params);
+    engine->m_GraphicsContext = dmGraphics::NewContext(graphics_context_params);
 
     engine->m_WasCreated++;
     engine->m_Running = 1;
@@ -359,7 +358,7 @@ static void* EngineCreate(int argc, char** argv)
     float top = 1.0f;
 
     // Flip texture coordinates on y axis for OpenGL for the final blit:
-    if (s_AdapterFamily != ADAPTER_FAMILY_OPENGL)
+    if (s_AdapterFamily != dmGraphics::ADAPTER_FAMILY_OPENGL)
     {
         top = 0.0f;
         bottom = 1.0f;
@@ -460,9 +459,9 @@ static void EngineDestroy(void* _engine)
         dmGraphics::DeleteProgram(engine->m_GraphicsContext, engine->m_BlitProgram);
     }
 
-    GraphicsCloseWindow(engine->m_GraphicsContext);
-    GraphicsDeleteContext(engine->m_GraphicsContext);
-    GraphicsFinalize();
+    dmGraphics::CloseWindow(engine->m_GraphicsContext);
+    dmGraphics::DeleteContext(engine->m_GraphicsContext);
+    dmGraphics::Finalize();
 
     engine->m_WasDestroyed++;
 
@@ -590,12 +589,12 @@ static UpdateResult EngineUpdate(void* _engine)
         dmRive::RenderEnd(engine->m_RenderContext);
     }
 
-    GraphicsBeginFrame(engine->m_GraphicsContext);
+    dmGraphics::BeginFrame(engine->m_GraphicsContext);
     dmGraphics::Clear(engine->m_GraphicsContext, dmGraphics::BUFFER_TYPE_COLOR0_BIT, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0);
 
     DrawFullscreenQuad(engine, dmRive::GetBackingTexture(engine->m_RenderContext));
 
-    GraphicsFlip(engine->m_GraphicsContext);
+    dmGraphics::Flip(engine->m_GraphicsContext);
 
     if (!s_ScreenshotCaptured)
     {
@@ -649,11 +648,11 @@ static void dmExportedSymbols()
 int main(int argc, char** argv)
 {
     dmExportedSymbols();
-    s_AdapterFamily = ADAPTER_FAMILY_VULKAN;
+    s_AdapterFamily = dmGraphics::ADAPTER_FAMILY_VULKAN;
 #if !defined(__APPLE__) && !defined(__linux__)
-    s_AdapterFamily = ADAPTER_FAMILY_OPENGL;
+    s_AdapterFamily = dmGraphics::ADAPTER_FAMILY_OPENGL;
 #endif
-    GraphicsInstallAdapter(s_AdapterFamily);
+    dmGraphics::InstallAdapter(s_AdapterFamily);
 
     if (argc > 1)
     {

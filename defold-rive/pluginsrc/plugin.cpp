@@ -23,7 +23,7 @@ __declspec(dllexport) int dummyFunc()
 #include <dmsdk/dlib/log.h>
 #include <dmsdk/dlib/shared_library.h>
 #include <dmsdk/dlib/static_assert.h>
-#include <dmsdk/graphics/graphics.hpp>
+#include <dmsdk/graphics/graphics.h>
 #include <dmsdk/platform/window.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -161,6 +161,8 @@ static jobject JNICALL Java_Rive_LoadFromBufferInternal(JNIEnv* env, jclass cls,
         // Debug info
     }
 
+    printf("MAWE: %s\n", __FUNCTION__);
+
     DM_CHECK_JNI_ERROR();
     return rive_file_obj;
 }
@@ -172,6 +174,7 @@ static void JNICALL Java_Rive_Destroy(JNIEnv* env, jclass cls, jobject rive_file
     TypeRegister register_t(env);
     dmRiveJNI::DestroyFile(env, cls, rive_file);
     DM_CHECK_JNI_ERROR();
+    printf("MAWE: %s\n", __FUNCTION__);
 }
 
 static void JNICALL Java_Rive_Update(JNIEnv* env, jclass cls, jobject rive_file, jfloat dt, jbyteArray texture_set_bytes)
@@ -181,6 +184,7 @@ static void JNICALL Java_Rive_Update(JNIEnv* env, jclass cls, jobject rive_file,
 
     jsize texture_set_size = 0;
     jbyte* texture_set_data = 0;
+    printf("MAWE UPDATE: %.3f\n", dt);
 
     if (texture_set_bytes != NULL)
     {
@@ -205,6 +209,7 @@ static void JNICALL Java_Rive_SetArtboard(JNIEnv* env, jclass cls, jobject rive_
     TypeRegister register_t(env);
     dmRiveJNI::SetArtboard(env, cls, rive_file, name);
     DM_CHECK_JNI_ERROR();
+    printf("MAWE: %s\n", __FUNCTION__);
 }
 
 static void JNICALL Java_Rive_SetStateMachine(JNIEnv* env, jclass cls, jobject rive_file, jstring _artboard)
@@ -218,6 +223,7 @@ static void JNICALL Java_Rive_SetStateMachine(JNIEnv* env, jclass cls, jobject r
     TypeRegister register_t(env);
     dmRiveJNI::SetStateMachine(env, cls, rive_file, name);
     DM_CHECK_JNI_ERROR();
+    printf("MAWE: %s\n", __FUNCTION__);
 }
 
 static void JNICALL Java_Rive_SetViewModel(JNIEnv* env, jclass cls, jobject rive_file, jstring _artboard)
@@ -231,6 +237,7 @@ static void JNICALL Java_Rive_SetViewModel(JNIEnv* env, jclass cls, jobject rive
     TypeRegister register_t(env);
     dmRiveJNI::SetViewModel(env, cls, rive_file, name);
     DM_CHECK_JNI_ERROR();
+    printf("MAWE: %s\n", __FUNCTION__);
 }
 
 static void CreateGraphicsContext();
@@ -245,6 +252,7 @@ static jobject JNICALL Java_Rive_GetTexture(JNIEnv* env, jclass cls, jobject riv
     TypeRegister register_t(env);
     jobject texture = dmRiveJNI::GetTexture(env, cls, rive_file);
     DM_CHECK_JNI_ERROR();
+    printf("MAWE: %s\n", __FUNCTION__);
     return texture;
 }
 
@@ -256,6 +264,7 @@ static jfloatArray JNICALL Java_Rive_GetFullscreenQuadVerticesInternal(JNIEnv* e
     TypeRegister register_t(env);
     jfloatArray vertices = dmRenderJNI::CreateFullscreenQuadVertices(env);
     DM_CHECK_JNI_ERROR();
+    printf("MAWE: %s\n", __FUNCTION__);
     return vertices;
 }
 
@@ -267,19 +276,19 @@ static jfloatArray JNICALL Java_Rive_GetFullscreenQuadVerticesInternal(JNIEnv* e
 
 dmRive::HRenderContext    g_RenderContext = 0;
 HWindow                   g_Window = 0;
-HGraphicsContext          g_GraphicsContext = 0;
+dmGraphics::HContext      g_GraphicsContext = 0;
 HJobContext               g_JobContext = 0;
 
-static AdapterFamily      s_AdapterFamily = ADAPTER_FAMILY_NONE;
+static dmGraphics::AdapterFamily      s_AdapterFamily = dmGraphics::ADAPTER_FAMILY_NONE;
 
-static WindowsGraphicsApi GetWindowGraphicsApi(AdapterFamily family)
+static WindowsGraphicsApi GetWindowGraphicsApi(dmGraphics::AdapterFamily family)
 {
     switch (family)
     {
-        case ADAPTER_FAMILY_OPENGL:     return WINDOW_GRAPHICS_API_OPENGL;
-        case ADAPTER_FAMILY_OPENGLES:   return WINDOW_GRAPHICS_API_OPENGLES;
-        case ADAPTER_FAMILY_DIRECTX:    return WINDOW_GRAPHICS_API_DIRECTX;
-        case ADAPTER_FAMILY_VULKAN:     return WINDOW_GRAPHICS_API_VULKAN;
+        case dmGraphics::ADAPTER_FAMILY_OPENGL:     return WINDOW_GRAPHICS_API_OPENGL;
+        case dmGraphics::ADAPTER_FAMILY_OPENGLES:   return WINDOW_GRAPHICS_API_OPENGLES;
+        case dmGraphics::ADAPTER_FAMILY_DIRECTX:    return WINDOW_GRAPHICS_API_DIRECTX;
+        case dmGraphics::ADAPTER_FAMILY_VULKAN:     return WINDOW_GRAPHICS_API_VULKAN;
         default:                        return WINDOW_GRAPHICS_API_VULKAN;
     }
 }
@@ -322,8 +331,8 @@ static void InstallGraphicsAdapter()
 {
 #if defined(__APPLE__)
     GraphicsAdapterVulkan();
-    s_AdapterFamily = ADAPTER_FAMILY_VULKAN;
-    GraphicsInstallAdapter(s_AdapterFamily);
+    s_AdapterFamily = dmGraphics::ADAPTER_FAMILY_VULKAN;
+    dmGraphics::InstallAdapter(s_AdapterFamily);
 #endif
 }
 
@@ -360,10 +369,9 @@ static void CreateGraphicsContextInternal()
     RiveDebugLog("Rive: window opened");
     WindowPollEvents(g_Window);
 
-    GraphicsCreateParams graphics_context_params;
-    GraphicsContextParamsInitialize(&graphics_context_params);
-    graphics_context_params.m_DefaultTextureMinFilter = TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST;
-    graphics_context_params.m_DefaultTextureMagFilter = TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST;
+    dmGraphics::ContextParams graphics_context_params;
+    graphics_context_params.m_DefaultTextureMinFilter = dmGraphics::TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST;
+    graphics_context_params.m_DefaultTextureMagFilter = dmGraphics::TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST;
     graphics_context_params.m_VerifyGraphicsCalls = 1;
     graphics_context_params.m_UseValidationLayers = 1;
     graphics_context_params.m_Window = g_Window;
@@ -372,7 +380,7 @@ static void CreateGraphicsContextInternal()
     graphics_context_params.m_JobContext = g_JobContext;
 
     RiveDebugLog("Rive: creating graphics context");
-    g_GraphicsContext = GraphicsNewContext(&graphics_context_params);
+    g_GraphicsContext = dmGraphics::NewContext(graphics_context_params);
     if (!g_GraphicsContext)
     {
         dmLogError("Rive: failed to create graphics context");
@@ -419,6 +427,7 @@ static void PluginRiveInitialize()
     cmd_params.m_RenderContext = g_RenderContext;
     cmd_params.m_Factory = dmRive::GetRiveFactory(g_RenderContext);
     dmRiveCommands::Initialize(&cmd_params);
+    printf("MAWE: %s\n", __FUNCTION__);
 }
 
 static void PluginRiveFinalize()
@@ -433,9 +442,9 @@ static void PluginRiveFinalize()
 #if defined(__APPLE__)
     if (g_GraphicsContext)
     {
-        GraphicsCloseWindow(g_GraphicsContext);
-        GraphicsDeleteContext(g_GraphicsContext);
-        GraphicsFinalize();
+        dmGraphics::CloseWindow(g_GraphicsContext);
+        dmGraphics::DeleteContext(g_GraphicsContext);
+        dmGraphics::Finalize();
         g_GraphicsContext = 0;
     }
 
@@ -450,6 +459,7 @@ static void PluginRiveFinalize()
         g_JobContext = 0;
     }
 #endif
+    printf("MAWE: %s\n", __FUNCTION__);
 }
 
 JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)

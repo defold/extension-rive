@@ -15,7 +15,7 @@
 #endif
 
 #include <dmsdk/graphics/graphics_webgpu.h>
-#include <dmsdk/graphics/graphics.hpp>
+#include <dmsdk/graphics/graphics.h>
 #include <dmsdk/dlib/log.h>
 #include <dmsdk/dlib/static_assert.h>
 
