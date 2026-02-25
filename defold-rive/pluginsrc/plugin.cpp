@@ -177,21 +177,11 @@ static void JNICALL Java_Rive_Destroy(JNIEnv* env, jclass cls, jobject rive_file
     printf("MAWE: %s\n", __FUNCTION__);
 }
 
-static void JNICALL Java_Rive_Update(JNIEnv* env, jclass cls, jobject rive_file, jfloat dt, jbyteArray texture_set_bytes)
+static void JNICALL Java_Rive_Update(JNIEnv* env, jclass cls, jobject rive_file, jfloat dt)
 {
     DM_CHECK_JNI_ERROR();
     dmRiveCrash::ScopedSignalHandler signal_scope;
-
-    jsize texture_set_size = 0;
-    jbyte* texture_set_data = 0;
     printf("MAWE UPDATE: %.3f\n", dt);
-
-    if (texture_set_bytes != NULL)
-    {
-        texture_set_size = env->GetArrayLength(texture_set_bytes);
-        texture_set_data = env->GetByteArrayElements(texture_set_bytes, 0);
-        DM_CHECK_JNI_ERROR();
-    }
 
     TypeRegister register_t(env);
     dmRiveJNI::Update(env, cls, rive_file, dt);
