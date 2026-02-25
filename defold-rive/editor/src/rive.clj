@@ -24,7 +24,6 @@
             [editor.localization :as localization]
             [editor.math :as math]
             [editor.outline :as outline]
-            [editor.pipeline.tex-gen :as tex-gen]
             [editor.properties :as properties]
             [editor.protobuf :as protobuf]
             [editor.render-util :as render-util]
@@ -39,7 +38,6 @@
            [editor.gl.shader ShaderLifecycle]
            [java.io IOException]
            [java.nio FloatBuffer IntBuffer]
-           [java.awt.image BufferedImage DataBufferByte]
            [javax.vecmath Matrix4d Vector3d Vector4d]
            [org.apache.commons.io IOUtils]))
 
@@ -101,6 +99,9 @@
 
 (defn- plugin-set-artboard [file artboard]
   (plugin-invoke-static rive-plugin-cls "SetArtboardInternal" (into-array Class [rive-plugin-file-cls String]) [file artboard]))
+
+(defn- plugin-set-state-machine [file state-machine]
+  (plugin-invoke-static rive-plugin-cls "SetStateMachine" (into-array Class [rive-plugin-file-cls String]) [file state-machine]))
 
 (defn- plugin-get-texture [file]
   (plugin-invoke-static rive-plugin-cls "GetTexture" (into-array Class [rive-plugin-file-cls]) [file]))
@@ -676,45 +677,25 @@
 (def ^:private identity-matrix4d
   (doto (Matrix4d.) (.setIdentity)))
 
-(defn- copy-bgra->abgr! [^bytes src ^bytes dst pixel-count]
-  (loop [i 0 si 0 di 0]
-    (when (< i pixel-count)
-      (let [b (aget src si)
-            g (aget src (+ si 1))
-            r (aget src (+ si 2))
-            a (aget src (+ si 3))]
-        (aset-byte dst di a)
-        (aset-byte dst (+ di 1) b)
-        (aset-byte dst (+ di 2) g)
-        (aset-byte dst (+ di 3) r)
-        (recur (inc i) (+ si 4) (+ di 4))))))
-
-(defn- rive-texture->buffered-image [texture]
+(defn- rive-texture->gpu-texture [request-id texture default-tex-params texture-version]
   (when texture
     (let [width (get-public-field texture "width")
           height (get-public-field texture "height")
           data (get-public-field texture "data")]
       (when (and data (> width 0) (> height 0))
-        (let [image (BufferedImage. width height BufferedImage/TYPE_4BYTE_ABGR)
-              raster (.getRaster image)
-              ^DataBufferByte buffer (.getDataBuffer raster)
-              dst (.getData buffer)
-              pixel-count (* width height)]
-          (when (>= (alength data) (* pixel-count 4))
-            (copy-bgra->abgr! data dst pixel-count)
-            image))))))
-
-(defn- rive-texture->gpu-texture [request-id texture default-tex-params]
-  (when-let [image (rive-texture->buffered-image texture)]
-    (try
-      (let [texture-image (tex-gen/make-preview-texture-image image nil)
-            gpu-texture (texture/texture-images->gpu-texture request-id [texture-image] {:min-filter gl/nearest
-                                                                                         :mag-filter gl/nearest})]
-        (if default-tex-params
-          (texture/set-params gpu-texture default-tex-params)
-          gpu-texture))
-      (catch Exception _
-        nil))))
+        (let [pixel-count (* width height)
+              data-size (* pixel-count 4)]
+          (when (>= (alength data) data-size)
+            (try
+              (let [data-buffer (buffers/wrap-byte-array data :byte-order/native)
+                    texture-request-data (texture/make-texture-request-data data-buffer texture-version :abgr width height false)
+                    gpu-texture (texture/make-gpu-texture request-id [texture-request-data] (vector-of :int 0) {:min-filter gl/nearest
+                                                                                                                :mag-filter gl/nearest})]
+                (if default-tex-params
+                  (texture/set-params gpu-texture default-tex-params)
+                  gpu-texture))
+              (catch Exception _
+                nil))))))))
 
 (set! *warn-on-reflection* false)
 
@@ -897,7 +878,8 @@
                      (:blit-shader user-data)
                      (:shader user-data))
                  (or (:blit-shader user-data) (:shader user-data)))
-        gpu-texture (or (:gpu-texture user-data)
+        gpu-texture (or (get-in renderable [:updatable :state :gpu-texture])
+                        (:gpu-texture user-data)
                         texture/white-pixel)
         quad-vertices (aabb->quad-vertices (:aabb renderable))
         vb (if quad-vertices
@@ -926,17 +908,13 @@
   (let [first-renderable (first renderables)
         render-args (assoc render-args :id-color (scene-picking/renderable-picking-id-uniform first-renderable))]
     (doseq [renderable renderables]
-      (let [user-data (:user-data renderable)
-            handle (:rive-file-handle user-data)]
-        (when handle
-          (plugin-update-file handle 0.0))
-        (render-rive-quad gl render-args renderable)))))
+      (render-rive-quad gl render-args renderable))))
 
 (g/defnk produce-main-scene [_node-id material-shader selection-material-shader rive-file-handle aabb rive-scene-pb texture-set-pb default-tex-params]
   (when rive-file-handle
     (let [blend-mode :blend-mode-alpha
           texture (plugin-get-texture rive-file-handle)
-          gpu-texture (or (rive-texture->gpu-texture _node-id texture default-tex-params)
+          gpu-texture (or (rive-texture->gpu-texture _node-id texture default-tex-params 0)
                           texture/white-pixel)]
       (assoc {:node-id _node-id :aabb aabb}
              :renderable {:render-fn render-rive-scenes
@@ -1051,6 +1029,37 @@
 ;
 ; .rivemodel (The "instance" file)
 ;
+
+(defn- step-rive-animation
+  [state dt node-id rive-file-handle artboard default-state-machine default-tex-params]
+  (if (some? rive-file-handle)
+    (let [artboard (or artboard "")
+          state-machine (or default-state-machine "")
+          texture-version (unchecked-inc-int (int (or (:texture-version state) 0)))
+          _ (when (not= (:artboard state) artboard)
+              (plugin-set-artboard rive-file-handle artboard))
+          _ (when (or (not= (:artboard state) artboard)
+                      (not= (:state-machine state) state-machine))
+              (plugin-set-state-machine rive-file-handle state-machine))
+          _ (plugin-update-file rive-file-handle dt)
+          texture (plugin-get-texture rive-file-handle)
+          gpu-texture (or (rive-texture->gpu-texture node-id texture default-tex-params texture-version)
+                          (:gpu-texture state)
+                          texture/white-pixel)]
+      (assoc state
+             :artboard artboard
+             :state-machine state-machine
+             :texture-version texture-version
+             :gpu-texture gpu-texture))
+    state))
+
+(g/defnk produce-rive-file-updatable [_node-id rive-file-handle artboard default-state-machine default-tex-params]
+  (when (some? rive-file-handle)
+    {:node-id _node-id
+     :name "Rive Scene Updater"
+     :update-fn (fn [state {:keys [dt]}]
+                  (step-rive-animation state dt _node-id rive-file-handle artboard default-state-machine default-tex-params))
+     :initial-state (step-rive-animation {} 0.0 _node-id rive-file-handle artboard default-state-machine default-tex-params)}))
 
 (g/defnk produce-rivemodel-save-value [rive-scene-resource artboard default-state-machine material-resource blit-material-resource blend-mode auto-bind coordinate-system artboard-fit artboard-alignment]
   (protobuf/make-map-without-defaults rive-model-pb-class
@@ -1216,17 +1225,22 @@
   (output anim-ids g/Any :cached (g/fnk [anim-data] (vec (sort (keys anim-data)))))
   (output state-machine-ids g/Any :cached (g/fnk [anim-data] (vec (sort (keys anim-data)))))
   (output material-shader ShaderLifecycle (gu/passthrough material-shader))
-  (output scene g/Any :cached (g/fnk [_node-id rive-file-handle artboard rive-main-scene material-shader blit-material-resource blit-material-shader editor-blit-material-shader]
+  (output updatable g/Any :cached produce-rive-file-updatable)
+  (output scene g/Any :cached (g/fnk [_node-id rive-main-scene material-shader blit-material-resource blit-material-shader editor-blit-material-shader updatable]
                                      (if (and (some? material-shader) (some? (:renderable rive-main-scene)))
                                        (let [aabb (:aabb rive-main-scene)
                                              rive-scene-node-id (:node-id rive-main-scene)
                                              blit-material-path (when blit-material-resource (resource/resource->proj-path blit-material-resource))
                                              use-editor-blit (or (nil? blit-material-path) (= blit-material-path default-blit-material-proj-path))
                                              blit-shader (if use-editor-blit editor-blit-material-shader blit-material-shader)
-                                             _ (plugin-set-artboard rive-file-handle artboard)]
+                                             gpu-texture (or (get-in updatable [:initial-state :gpu-texture])
+                                                             (get-in rive-main-scene [:renderable :user-data :gpu-texture])
+                                                             texture/white-pixel)]
                                          (-> rive-main-scene
                                              (assoc-in [:renderable :user-data :shader] material-shader)
                                              (assoc-in [:renderable :user-data :blit-shader] blit-shader)
+                                             (assoc-in [:renderable :user-data :gpu-texture] gpu-texture)
+                                             (assoc :updatable updatable)
                                              (assoc :aabb aabb)
                                              (assoc :children [(make-rive-outline-scene rive-scene-node-id aabb)])))
 

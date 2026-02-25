@@ -161,8 +161,6 @@ static jobject JNICALL Java_Rive_LoadFromBufferInternal(JNIEnv* env, jclass cls,
         // Debug info
     }
 
-    printf("MAWE: %s\n", __FUNCTION__);
-
     DM_CHECK_JNI_ERROR();
     return rive_file_obj;
 }
@@ -174,14 +172,12 @@ static void JNICALL Java_Rive_Destroy(JNIEnv* env, jclass cls, jobject rive_file
     TypeRegister register_t(env);
     dmRiveJNI::DestroyFile(env, cls, rive_file);
     DM_CHECK_JNI_ERROR();
-    printf("MAWE: %s\n", __FUNCTION__);
 }
 
 static void JNICALL Java_Rive_Update(JNIEnv* env, jclass cls, jobject rive_file, jfloat dt)
 {
     DM_CHECK_JNI_ERROR();
     dmRiveCrash::ScopedSignalHandler signal_scope;
-    printf("MAWE UPDATE: %.3f\n", dt);
 
     TypeRegister register_t(env);
     dmRiveJNI::Update(env, cls, rive_file, dt);
@@ -199,7 +195,6 @@ static void JNICALL Java_Rive_SetArtboard(JNIEnv* env, jclass cls, jobject rive_
     TypeRegister register_t(env);
     dmRiveJNI::SetArtboard(env, cls, rive_file, name);
     DM_CHECK_JNI_ERROR();
-    printf("MAWE: %s\n", __FUNCTION__);
 }
 
 static void JNICALL Java_Rive_SetStateMachine(JNIEnv* env, jclass cls, jobject rive_file, jstring _artboard)
@@ -213,7 +208,6 @@ static void JNICALL Java_Rive_SetStateMachine(JNIEnv* env, jclass cls, jobject r
     TypeRegister register_t(env);
     dmRiveJNI::SetStateMachine(env, cls, rive_file, name);
     DM_CHECK_JNI_ERROR();
-    printf("MAWE: %s\n", __FUNCTION__);
 }
 
 static void JNICALL Java_Rive_SetViewModel(JNIEnv* env, jclass cls, jobject rive_file, jstring _artboard)
@@ -227,7 +221,6 @@ static void JNICALL Java_Rive_SetViewModel(JNIEnv* env, jclass cls, jobject rive
     TypeRegister register_t(env);
     dmRiveJNI::SetViewModel(env, cls, rive_file, name);
     DM_CHECK_JNI_ERROR();
-    printf("MAWE: %s\n", __FUNCTION__);
 }
 
 static void CreateGraphicsContext();
@@ -242,7 +235,6 @@ static jobject JNICALL Java_Rive_GetTexture(JNIEnv* env, jclass cls, jobject riv
     TypeRegister register_t(env);
     jobject texture = dmRiveJNI::GetTexture(env, cls, rive_file);
     DM_CHECK_JNI_ERROR();
-    printf("MAWE: %s\n", __FUNCTION__);
     return texture;
 }
 
@@ -254,7 +246,6 @@ static jfloatArray JNICALL Java_Rive_GetFullscreenQuadVerticesInternal(JNIEnv* e
     TypeRegister register_t(env);
     jfloatArray vertices = dmRenderJNI::CreateFullscreenQuadVertices(env);
     DM_CHECK_JNI_ERROR();
-    printf("MAWE: %s\n", __FUNCTION__);
     return vertices;
 }
 
@@ -417,7 +408,6 @@ static void PluginRiveInitialize()
     cmd_params.m_RenderContext = g_RenderContext;
     cmd_params.m_Factory = dmRive::GetRiveFactory(g_RenderContext);
     dmRiveCommands::Initialize(&cmd_params);
-    printf("MAWE: %s\n", __FUNCTION__);
 }
 
 static void PluginRiveFinalize()
@@ -449,7 +439,6 @@ static void PluginRiveFinalize()
         g_JobContext = 0;
     }
 #endif
-    printf("MAWE: %s\n", __FUNCTION__);
 }
 
 JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)

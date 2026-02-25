@@ -228,7 +228,44 @@ void SetArtboard(RiveFile* file, const char* artboard)
 
 void SetStatemachine(RiveFile* file, const char* state_machine)
 {
+    if (!file)
+    {
+        return;
+    }
 
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    if (!queue)
+    {
+        return;
+    }
+
+    if (file->m_StateMachine != RIVE_NULL_HANDLE)
+    {
+        queue->deleteStateMachine(file->m_StateMachine);
+        file->m_StateMachine = RIVE_NULL_HANDLE;
+    }
+
+    if (file->m_Artboard == RIVE_NULL_HANDLE)
+    {
+        dmRiveCommands::ProcessMessages();
+        return;
+    }
+
+    if (state_machine && state_machine[0] != 0)
+    {
+        file->m_StateMachine = queue->instantiateStateMachineNamed(file->m_Artboard, state_machine);
+        if (file->m_StateMachine == RIVE_NULL_HANDLE)
+        {
+            dmLogWarning("Could not find state machine with name '%s'", state_machine);
+        }
+    }
+
+    if (file->m_StateMachine == RIVE_NULL_HANDLE)
+    {
+        file->m_StateMachine = queue->instantiateDefaultStateMachine(file->m_Artboard);
+    }
+
+    dmRiveCommands::ProcessMessages();
 }
 
 void SetViewModel(RiveFile* file, const char* view_model)
@@ -238,7 +275,24 @@ void SetViewModel(RiveFile* file, const char* view_model)
 
 void Update(RiveFile* file, float dt)
 {
+    if (!file)
+    {
+        return;
+    }
 
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    if (!queue)
+    {
+        return;
+    }
+
+    if (file->m_StateMachine != RIVE_NULL_HANDLE)
+    {
+        queue->advanceStateMachine(file->m_StateMachine, dt);
+    }
+
+    dmRiveCommands::ProcessMessages();
+    UpdateArtboardBounds(file);
 }
 
 bool DrawArtboard(rive::ArtboardInstance* artboard,
