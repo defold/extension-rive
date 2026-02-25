@@ -881,7 +881,10 @@
         gpu-texture (or (get-in renderable [:updatable :state :gpu-texture])
                         (:gpu-texture user-data)
                         texture/white-pixel)
-        quad-vertices (aabb->quad-vertices (:aabb renderable))
+        ;; The flattened scene renderable AABB is already in world space. Build
+        ;; vertices from the local AABB to avoid applying world-transform twice.
+        quad-vertices (aabb->quad-vertices (or (:aabb user-data)
+                                               (:aabb renderable)))
         vb (if quad-vertices
              (vtx/wrap-vertex-buffer vtx-textured :static (FloatBuffer/wrap ^floats quad-vertices))
              @fullscreen-quad-vertex-buffer)
