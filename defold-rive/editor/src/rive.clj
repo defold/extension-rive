@@ -890,7 +890,6 @@
 (defn- render-rive-quad [^GL2 gl render-args renderable]
   (let [node-id (:node-id renderable)
         user-data (:user-data renderable)
-        handle (:rive-file-handle user-data)
         pass (:pass render-args)
         blend-mode (:blend-mode user-data)
         shader (if (= pass/selection pass)
@@ -898,9 +897,7 @@
                      (:blit-shader user-data)
                      (:shader user-data))
                  (or (:blit-shader user-data) (:shader user-data)))
-        texture (when handle (plugin-get-texture handle))
-        gpu-texture (or (rive-texture->gpu-texture node-id texture (:default-tex-params user-data))
-                        (:gpu-texture user-data)
+        gpu-texture (or (:gpu-texture user-data)
                         texture/white-pixel)
         quad-vertices (aabb->quad-vertices (:aabb renderable))
         vb (if quad-vertices
@@ -937,7 +934,10 @@
 
 (g/defnk produce-main-scene [_node-id material-shader selection-material-shader rive-file-handle aabb rive-scene-pb texture-set-pb default-tex-params]
   (when rive-file-handle
-    (let [blend-mode :blend-mode-alpha]
+    (let [blend-mode :blend-mode-alpha
+          texture (plugin-get-texture rive-file-handle)
+          gpu-texture (or (rive-texture->gpu-texture _node-id texture default-tex-params)
+                          texture/white-pixel)]
       (assoc {:node-id _node-id :aabb aabb}
              :renderable {:render-fn render-rive-scenes
                           :tags #{:rive}
@@ -948,6 +948,7 @@
                                       :aabb aabb
                                       :shader material-shader
                                       :selection-shader selection-material-shader
+                                      :gpu-texture gpu-texture
                                       :default-tex-params default-tex-params
                                       :texture-set-pb texture-set-pb
                                       :blend-mode blend-mode}
