@@ -27,11 +27,75 @@
 #include <rive/artboard.hpp>
 #include <rive/renderer.hpp>
 
+#include <stdlib.h>
+
 
 namespace dmRiveJNI
 {
 
 // ******************************************************************************************************************
+
+static bool ConvertPixelsToABGRAndFlipY(dmRive::TexturePixels* pixels)
+{
+    if (!pixels || !pixels->m_Data)
+    {
+        return false;
+    }
+
+    const bool is_rgba = pixels->m_Format == dmGraphics::TEXTURE_FORMAT_RGBA;
+    const bool is_bgra = pixels->m_Format == dmGraphics::TEXTURE_FORMAT_BGRA8U;
+    if (!is_rgba && !is_bgra)
+    {
+        return false;
+    }
+
+    const uint32_t width = (uint32_t)pixels->m_Width;
+    const uint32_t height = (uint32_t)pixels->m_Height;
+    const uint32_t row_bytes = width * 4;
+    const uint32_t data_size = row_bytes * height;
+
+    uint8_t* out = (uint8_t*)malloc(data_size);
+    if (!out)
+    {
+        return false;
+    }
+
+    const uint8_t* in = pixels->m_Data;
+    for (uint32_t y = 0; y < height; ++y)
+    {
+        const uint8_t* src_row = in + (height - 1 - y) * row_bytes; // Flip Y.
+        uint8_t* dst_row = out + y * row_bytes;
+        for (uint32_t x = 0; x < width; ++x)
+        {
+            const uint8_t* src = src_row + x * 4;
+            uint8_t* dst = dst_row + x * 4;
+
+            if (is_rgba)
+            {
+                // RGBA -> ABGR
+                dst[0] = src[3];
+                dst[1] = src[2];
+                dst[2] = src[1];
+                dst[3] = src[0];
+            }
+            else
+            {
+                // BGRA -> ABGR
+                dst[0] = src[3];
+                dst[1] = src[0];
+                dst[2] = src[1];
+                dst[3] = src[2];
+            }
+        }
+    }
+
+    free(pixels->m_Data);
+    pixels->m_Data = out;
+    pixels->m_DataSize = data_size;
+    // ABGR is not represented by dmGraphics::TextureFormat, keep BGRA marker.
+    pixels->m_Format = dmGraphics::TEXTURE_FORMAT_BGRA8U;
+    return true;
+}
 
 
 struct RiveFileJNI
@@ -545,21 +609,7 @@ jobject GetTexture(JNIEnv* env, jclass cls, jobject rive_file_obj)
         return 0;
     }
 
-    if (pixels.m_Format == dmGraphics::TEXTURE_FORMAT_RGBA)
-    {
-        uint32_t pixel_count = (uint32_t)pixels.m_Width * (uint32_t)pixels.m_Height;
-        uint8_t* data = pixels.m_Data;
-        for (uint32_t i = 0; i < pixel_count; ++i)
-        {
-            uint8_t tmp = data[0];
-            data[0] = data[2];
-            data[2] = tmp;
-            data += 4;
-        }
-        pixels.m_Format = dmGraphics::TEXTURE_FORMAT_BGRA8U;
-    }
-
-    if (pixels.m_Format != dmGraphics::TEXTURE_FORMAT_BGRA8U)
+    if (!ConvertPixelsToABGRAndFlipY(&pixels))
     {
         dmRive::FreePixels(&pixels);
         return 0;
