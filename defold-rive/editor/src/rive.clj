@@ -61,7 +61,6 @@
 (def rive-view-model-property-icon "/defold-rive/editor/resources/icons/32/Icons_22-Rive-property.png")
 
 ;; These should be read from the .proto file
-(def default-material-proj-path "/defold-rive/assets/rivemodel.material")
 (def default-blit-material-proj-path "/defold-rive/assets/shader-library/rivemodel_blit.material")
 (def editor-blit-material-proj-path "/defold-rive/editor/resources/materials/rivemodel_blit.material")
 
@@ -157,8 +156,10 @@
     coordinate-system))
 
 (defn- migrate-rive-model-desc [rive-model-desc]
-  ;; Legacy value migration: fullscreen was deprecated in favor of game space.
-  (update rive-model-desc :coordinate-system migrate-coordinate-system))
+  ;; Legacy migration: fullscreen was deprecated, and material is deprecated.
+  (-> rive-model-desc
+      (update :coordinate-system migrate-coordinate-system)
+      (dissoc :material)))
 
 (def ^:private coordinate-system-edit-type
   (let [hidden? #{:coordinate-system-fullscreen}]
@@ -250,7 +251,6 @@
       (g/set-property self :editor-blit-material (resolve-resource editor-blit-material-proj-path))
       (gu/set-properties-from-pb-map self rive-model-pb-class rive-model-desc
         rive-scene (resolve-resource :scene)
-        material (resolve-resource (:material :or default-material-proj-path))
         blit-material (resolve-resource (:blit-material :or default-blit-material-proj-path))
         artboard :artboard
         default-state-machine :default-state-machine
@@ -1139,10 +1139,9 @@
             texture-version (render-settings->texture-version artboard state-machine fit-int alignment-int)]
         (rive-texture->gpu-texture node-id texture default-tex-params texture-version)))))
 
-(g/defnk produce-rivemodel-save-value [rive-scene-resource artboard default-state-machine material-resource blit-material-resource blend-mode auto-bind coordinate-system artboard-fit artboard-alignment]
+(g/defnk produce-rivemodel-save-value [rive-scene-resource artboard default-state-machine blit-material-resource blend-mode auto-bind coordinate-system artboard-fit artboard-alignment]
   (protobuf/make-map-without-defaults rive-model-pb-class
     :scene (resource/resource->proj-path rive-scene-resource)
-    :material (resource/resource->proj-path material-resource)
     :blit-material (resource/resource->proj-path blit-material-resource)
     :artboard artboard
     :default-state-machine default-state-machine
@@ -1170,16 +1169,16 @@
                            default-state-machine
                            (set state-machine-ids))))
 
-(defn- validate-model-material [node-id material]
-  (prop-resource-error node-id :material material "Material"))
+(defn- validate-model-blit-material [node-id blit-material]
+  (prop-resource-error node-id :blit-material blit-material "Blit Material"))
 
 (defn- validate-model-rive-scene [node-id rive-scene]
   (prop-resource-error node-id :scene rive-scene "Rive Scene"))
 
-(g/defnk produce-model-own-build-errors [_node-id artboard default-state-machine material rive-artboards rive-state-machines rive-scene]
+(g/defnk produce-model-own-build-errors [_node-id artboard default-state-machine blit-material rive-artboards rive-state-machines rive-scene]
   (let [state-machine-ids (state-machines-for-artboard rive-state-machines artboard rive-artboards)]
    (g/package-errors _node-id
-                    (validate-model-material _node-id material)
+                    (validate-model-blit-material _node-id blit-material)
                     (validate-model-rive-scene _node-id rive-scene)
                     (validate-model-artboard  _node-id rive-scene rive-artboards artboard)
                     (validate-model-default-state-machine _node-id rive-scene state-machine-ids default-state-machine))))
@@ -1189,11 +1188,11 @@
         pb (reduce #(assoc %1 (first %2) (second %2)) pb (map (fn [[label res]] [label (resource/proj-path (get dep-resources res))]) (:dep-resources user-data)))]
     {:resource resource :content (protobuf/map->bytes rive-model-pb-class pb)}))
 
-(g/defnk produce-model-build-targets [_node-id own-build-errors resource save-value rive-scene-resource material-resource blit-material-resource dep-build-targets]
+(g/defnk produce-model-build-targets [_node-id own-build-errors resource save-value rive-scene-resource blit-material-resource dep-build-targets]
   (g/precluding-errors own-build-errors
                        (let [dep-build-targets (flatten dep-build-targets)
                              deps-by-source (into {} (map #(let [res (:resource %)] [(:resource res) res]) dep-build-targets))
-                             dep-resources (map (fn [[label resource]] [label (get deps-by-source resource)]) [[:scene rive-scene-resource] [:material material-resource] [:blit-material blit-material-resource]])]
+                             dep-resources (map (fn [[label resource]] [label (get deps-by-source resource)]) [[:scene rive-scene-resource] [:blit-material blit-material-resource]])]
                          [(bt/with-content-hash
                             {:node-id _node-id
                              :resource (workspace/make-build-resource resource)
@@ -1207,7 +1206,6 @@
   (inherits resource-node/ResourceNode)
 
   (input rive-scene-resource resource/Resource)
-  (input material-resource resource/Resource)
   (input blit-material-resource resource/Resource)
   (input rive-state-machines g/Any)
   (input rive-artboards g/Any)
@@ -1230,17 +1228,6 @@
   (property blend-mode g/Any (default (protobuf/default rive-model-pb-class :blend-mode))
             (dynamic tip (validation/blend-mode-tip blend-mode blend-mode-pb-class))
             (dynamic edit-type (g/constantly (properties/->pb-choicebox blend-mode-pb-class))))
-  (property material resource/Resource ; Default assigned in load-fn.
-            (value (gu/passthrough material-resource))
-            (set (fn [evaluation-context self old-value new-value]
-                   (project/resource-setter evaluation-context self old-value new-value
-                                            [:resource :material-resource]
-                                            [:shader :material-shader]
-                                            [:samplers :material-samplers]
-                                            [:build-targets :dep-build-targets])))
-            (dynamic edit-type (g/constantly {:type resource/Resource :ext "material"}))
-            (dynamic error (g/fnk [_node-id material]
-                                  (validate-model-material _node-id material))))
   ; not visible/editable
   (property blit-material resource/Resource ; Default assigned in load-fn.
             (value (gu/passthrough blit-material-resource))
@@ -1251,8 +1238,8 @@
                                             [:samplers :blit-material-samplers]
                                             [:build-targets :dep-build-targets])))
             (dynamic edit-type (g/constantly {:type resource/Resource :ext "material"}))
-            (dynamic error (g/fnk [_node-id material]
-                                  (validate-model-material _node-id material)))
+            (dynamic error (g/fnk [_node-id blit-material]
+                                  (validate-model-blit-material _node-id blit-material)))
             (dynamic visible (g/constantly false)))
 
   (property editor-blit-material resource/Resource ; Default assigned in load-fn.
@@ -1289,23 +1276,17 @@
   (input rive-file-handle g/Any)
   (input rive-main-scene g/Any)
   (input texture-set-pb g/Any)
-  (input material-shader ShaderLifecycle)
-  (input material-samplers g/Any)
   (input blit-material-shader ShaderLifecycle)
   (input editor-blit-material-shader ShaderLifecycle)
   (input blit-material-samplers g/Any)
   (input default-tex-params g/Any)
   (input anim-data g/Any)
 
-  ; (output tex-params g/Any (g/fnk [material-samplers default-tex-params]
-  ;                            (or (some-> material-samplers first material/sampler->tex-params)
-  ;                                default-tex-params)))
   (output anim-ids g/Any :cached (g/fnk [anim-data] (vec (sort (keys anim-data)))))
   (output state-machine-ids g/Any :cached (g/fnk [anim-data] (vec (sort (keys anim-data)))))
-  (output material-shader ShaderLifecycle (gu/passthrough material-shader))
   (output updatable g/Any :cached produce-rive-file-updatable)
-  (output scene g/Any :cached (g/fnk [_node-id rive-main-scene material-shader blit-material-resource blit-material-shader editor-blit-material-shader updatable artboard default-state-machine artboard-fit artboard-alignment default-tex-params]
-                                     (if (and (some? material-shader) (some? (:renderable rive-main-scene)))
+  (output scene g/Any :cached (g/fnk [_node-id rive-main-scene blit-material-resource blit-material-shader editor-blit-material-shader updatable artboard default-state-machine artboard-fit artboard-alignment default-tex-params]
+                                     (if (some? (:renderable rive-main-scene))
                                        (let [fit-value (or artboard-fit (protobuf/default rive-model-pb-class :artboard-fit))
                                              alignment-value (or artboard-alignment (protobuf/default rive-model-pb-class :artboard-alignment))
                                              fit-int (pb-enum-keyword->int artboard-fit-pb-class fit-value)
@@ -1321,7 +1302,6 @@
                                                              (get-in rive-main-scene [:renderable :user-data :gpu-texture])
                                                              texture/white-pixel)]
                                          (-> rive-main-scene
-                                             (assoc-in [:renderable :user-data :shader] material-shader)
                                              (assoc-in [:renderable :user-data :blit-shader] blit-shader)
                                              (assoc-in [:renderable :user-data :gpu-texture] gpu-texture)
                                              (assoc-in [:renderable :user-data :artboard] (or artboard ""))

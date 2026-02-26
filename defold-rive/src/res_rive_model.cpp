@@ -27,12 +27,6 @@ namespace dmRive
             return result;
         }
 
-        result = dmResource::Get(factory, resource->m_DDF->m_Material, (void**) &resource->m_Material);
-        if (result != dmResource::RESULT_OK)
-        {
-            return result;
-        }
-
         result = dmResource::Get(factory, resource->m_DDF->m_BlitMaterial, (void**) &resource->m_BlitMaterial);
         if (result != dmResource::RESULT_OK)
         {
@@ -48,8 +42,6 @@ namespace dmRive
             dmDDF::FreeMessage(resource->m_DDF);
         if (resource->m_Scene != 0x0)
             dmResource::Release(factory, resource->m_Scene);
-        if (resource->m_Material != 0x0)
-            dmResource::Release(factory, resource->m_Material);
         if (resource->m_BlitMaterial != 0x0)
             dmResource::Release(factory, resource->m_BlitMaterial);
     }
@@ -64,7 +56,7 @@ namespace dmRive
         }
 
         dmResource::PreloadHint(params->m_HintInfo, ddf->m_Scene);       // the .rivescenec file
-        dmResource::PreloadHint(params->m_HintInfo, ddf->m_Material);
+        dmResource::PreloadHint(params->m_HintInfo, ddf->m_BlitMaterial);
 
         *params->m_PreloadData = ddf;
         return dmResource::RESULT_OK;

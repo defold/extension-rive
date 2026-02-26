@@ -229,7 +229,7 @@ namespace dmRive
 
     static inline dmGameSystem::MaterialResource* GetMaterialResource(const RiveComponent* component, const RiveModelResource* resource)
     {
-        return component->m_Material ? component->m_Material : resource->m_Material;
+        return component->m_Material ? component->m_Material : resource->m_BlitMaterial;
     }
 
     static inline dmRender::HMaterial GetMaterial(const RiveComponent* component, const RiveModelResource* resource)
@@ -776,7 +776,7 @@ namespace dmRive
         dmRender::HRenderListDispatch dispatch = dmRender::RenderListMakeDispatch(render_context, &RenderListDispatch, world);
         dmRender::RenderListEntry* write_ptr   = render_list;
 
-        world->m_BlitMaterial = components[0]->m_Resource->m_BlitMaterial;
+        world->m_BlitMaterial = GetMaterialResource(components[0], components[0]->m_Resource);
 
         for (uint32_t i = 0; i < count; ++i)
         {

@@ -24,7 +24,6 @@ namespace dmRive
     {
         dmRiveDDF::RiveModelDesc*       m_DDF;
         struct RiveSceneResource*       m_Scene;
-        dmGameSystem::MaterialResource* m_Material;         // TODO: Remove
         dmGameSystem::MaterialResource* m_BlitMaterial;
         uint8_t                         m_CreateGoBones:1;  // TODO: Remove
         uint8_t                         :7;
