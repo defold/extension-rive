@@ -1249,6 +1249,11 @@
                                             [:shader :editor-blit-material-shader])))
             (dynamic visible (g/constantly false)))
 
+  (property artboard g/Str (default (protobuf/default rive-model-pb-class :artboard))
+          (dynamic error (g/fnk [_node-id rive-artboards artboard rive-scene]
+                                (validate-model-artboard _node-id rive-scene rive-artboards artboard)))
+          (dynamic edit-type (g/fnk [rive-artboards] (properties/->choicebox (cons "" rive-artboards)))))
+
   (property default-state-machine g/Str (default (protobuf/default rive-model-pb-class :default-state-machine))
             (dynamic error (g/fnk [_node-id rive-state-machines artboard rive-artboards default-state-machine rive-scene]
                              (validate-model-default-state-machine _node-id rive-scene
@@ -1256,22 +1261,20 @@
                                                                    default-state-machine)))
             (dynamic edit-type (g/fnk [rive-state-machines artboard rive-artboards]
                                  (properties/->choicebox (cons "" (state-machines-for-artboard rive-state-machines artboard rive-artboards))))))
-
-  (property artboard g/Str (default (protobuf/default rive-model-pb-class :artboard))
-          (dynamic error (g/fnk [_node-id rive-artboards artboard rive-scene]
-                                (validate-model-artboard _node-id rive-scene rive-artboards artboard)))
-          (dynamic edit-type (g/fnk [rive-artboards] (properties/->choicebox (cons "" rive-artboards)))))
-
   (property auto-bind g/Bool (default (protobuf/default rive-model-pb-class :auto-bind)))
 
   (property coordinate-system g/Any (default (protobuf/default rive-model-pb-class :coordinate-system))
             (dynamic edit-type (g/constantly coordinate-system-edit-type)))
 
   (property artboard-fit g/Any (default (protobuf/default rive-model-pb-class :artboard-fit))
-            (dynamic edit-type (g/constantly (properties/->pb-choicebox artboard-fit-pb-class))))
+            (dynamic edit-type (g/constantly (properties/->pb-choicebox artboard-fit-pb-class)))
+            (dynamic read-only? (g/fnk [coordinate-system]
+                                  (= :coordinate-system-game coordinate-system))))
 
   (property artboard-alignment g/Any (default (protobuf/default rive-model-pb-class :artboard-alignment))
-            (dynamic edit-type (g/constantly (properties/->pb-choicebox artboard-alignment-pb-class))))
+            (dynamic edit-type (g/constantly (properties/->pb-choicebox artboard-alignment-pb-class)))
+            (dynamic read-only? (g/fnk [coordinate-system]
+                                  (= :coordinate-system-game coordinate-system))))
 
   (input dep-build-targets g/Any :array)
   (input rive-file-handle g/Any)
