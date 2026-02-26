@@ -46,7 +46,6 @@
 
 (def rive-scene-pb-class (workspace/load-class! "com.dynamo.rive.proto.Rive$RiveSceneDesc"))
 (def rive-model-pb-class (workspace/load-class! "com.dynamo.rive.proto.Rive$RiveModelDesc"))
-(def blend-mode-pb-class (workspace/load-class! "com.dynamo.rive.proto.Rive$RiveModelDesc$BlendMode"))
 (def coordinate-system-pb-class (workspace/load-class! "com.dynamo.rive.proto.Rive$RiveModelDesc$CoordinateSystem"))
 (def artboard-fit-pb-class (workspace/load-class! "com.dynamo.rive.proto.Rive$RiveModelDesc$Fit"))
 (def artboard-alignment-pb-class (workspace/load-class! "com.dynamo.rive.proto.Rive$RiveModelDesc$Alignment"))
@@ -156,10 +155,11 @@
     coordinate-system))
 
 (defn- migrate-rive-model-desc [rive-model-desc]
-  ;; Legacy migration: fullscreen, material, and create-go-bones are deprecated.
+  ;; Legacy migration: fullscreen, material, blend-mode, and create-go-bones are deprecated.
   (-> rive-model-desc
       (update :coordinate-system migrate-coordinate-system)
       (dissoc :material)
+      (dissoc :blend-mode)
       (dissoc :create-go-bones)))
 
 (def ^:private coordinate-system-edit-type
@@ -267,7 +267,6 @@
         blit-material (resolve-resource (:blit-material :or default-blit-material-proj-path))
         artboard :artboard
         default-state-machine :default-state-machine
-        blend-mode :blend-mode
         auto-bind :auto-bind
         coordinate-system :coordinate-system
         artboard-fit :artboard-fit
@@ -1152,13 +1151,12 @@
             texture-version (render-settings->texture-version artboard state-machine fit-int alignment-int)]
         (rive-texture->gpu-texture node-id texture default-tex-params texture-version)))))
 
-(g/defnk produce-rivemodel-save-value [rive-scene-resource artboard default-state-machine blit-material-resource blend-mode auto-bind coordinate-system artboard-fit artboard-alignment]
+(g/defnk produce-rivemodel-save-value [rive-scene-resource artboard default-state-machine blit-material-resource auto-bind coordinate-system artboard-fit artboard-alignment]
   (protobuf/make-map-without-defaults rive-model-pb-class
     :scene (resource/resource->proj-path rive-scene-resource)
     :blit-material (resource/resource->proj-path blit-material-resource)
     :artboard artboard
     :default-state-machine default-state-machine
-    :blend-mode blend-mode
     :auto-bind auto-bind
     :coordinate-system coordinate-system
     :artboard-fit artboard-fit
@@ -1238,9 +1236,6 @@
             (dynamic edit-type (g/constantly {:type resource/Resource :ext rive-scene-ext}))
             (dynamic error (g/fnk [_node-id rive-scene]
                                   (validate-model-rive-scene _node-id rive-scene))))
-  (property blend-mode g/Any (default (protobuf/default rive-model-pb-class :blend-mode))
-            (dynamic tip (validation/blend-mode-tip blend-mode blend-mode-pb-class))
-            (dynamic edit-type (g/constantly (properties/->pb-choicebox blend-mode-pb-class))))
   ; not visible/editable
   (property blit-material resource/Resource ; Default assigned in load-fn.
             (value (gu/passthrough blit-material-resource))

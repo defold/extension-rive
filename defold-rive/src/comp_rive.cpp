@@ -488,37 +488,6 @@ namespace dmRive
         return dmGameObject::CREATE_RESULT_OK;
     }
 
-    static void GetBlendFactorsFromBlendMode(dmRiveDDF::RiveModelDesc::BlendMode blend_mode, dmGraphics::BlendFactor* src, dmGraphics::BlendFactor* dst)
-    {
-        switch (blend_mode)
-        {
-            case dmRiveDDF::RiveModelDesc::BLEND_MODE_ALPHA:
-                *src = dmGraphics::BLEND_FACTOR_ONE;
-                *dst = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-            break;
-
-            case dmRiveDDF::RiveModelDesc::BLEND_MODE_ADD:
-                *src = dmGraphics::BLEND_FACTOR_ONE;
-                *dst = dmGraphics::BLEND_FACTOR_ONE;
-            break;
-
-            case dmRiveDDF::RiveModelDesc::BLEND_MODE_MULT:
-                *src = dmGraphics::BLEND_FACTOR_DST_COLOR;
-                *dst = dmGraphics::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-            break;
-
-            case dmRiveDDF::RiveModelDesc::BLEND_MODE_SCREEN:
-                *src = dmGraphics::BLEND_FACTOR_ONE_MINUS_DST_COLOR;
-                *dst = dmGraphics::BLEND_FACTOR_ONE;
-            break;
-
-            default:
-                dmLogError("Unknown blend mode: %d\n", blend_mode);
-                assert(0);
-            break;
-        }
-    }
-
     static void RenderBatchEnd(RiveWorld* world, dmRender::HRenderContext render_context)
     {
         if (world->m_RiveRenderContext)
