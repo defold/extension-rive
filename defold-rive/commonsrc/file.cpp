@@ -308,44 +308,72 @@ void Update(RiveFile* file, float dt)
     UpdateArtboardBounds(file);
 }
 
+rive::Mat2D CalcTransformRive(rive::ArtboardInstance* artboard,
+                              rive::Fit fit,
+                              rive::Alignment alignment,
+                              uint32_t width,
+                              uint32_t height,
+                              float display_factor)
+{
+    if (!artboard)
+    {
+        return rive::Mat2D();
+    }
+
+    if (display_factor == 0.0f)
+    {
+        display_factor = 1.0f;
+    }
+
+    rive::AABB bounds = artboard->bounds();
+
+    if (fit == rive::Fit::layout)
+    {
+        artboard->width(width / display_factor);
+        artboard->height(height / display_factor);
+        bounds = artboard->bounds();
+    }
+
+    return rive::computeAlignment(fit,
+                                  alignment,
+                                  rive::AABB(0, 0, width, height),
+                                  bounds,
+                                  display_factor);
+}
+
+rive::Mat2D CalcTransformGame(rive::ArtboardInstance* artboard,
+                              const rive::Mat2D& view_transform,
+                              const rive::Mat2D& game_transform,
+                              float display_factor,
+                              float window_height)
+{
+    if (!artboard)
+    {
+        return rive::Mat2D();
+    }
+
+    if (display_factor == 0.0f)
+    {
+        display_factor = 1.0f;
+    }
+
+    rive::AABB bounds = artboard->bounds();
+    rive::Mat2D center_adjustment = rive::Mat2D::fromTranslate(-bounds.width() / 2.0f, -bounds.height() / 2.0f);
+    rive::Mat2D scale_dpi = rive::Mat2D::fromScale(1, -1);
+    rive::Mat2D invert_adjustment = rive::Mat2D::fromScaleAndTranslation(display_factor, -display_factor, 0, window_height);
+    return invert_adjustment * view_transform * game_transform * scale_dpi * center_adjustment;
+}
+
 bool DrawArtboard(rive::ArtboardInstance* artboard,
                   rive::Renderer* renderer,
-                  const DrawArtboardParams& params,
-                  rive::Mat2D* out_transform)
+                  const rive::Mat2D& renderer_transform)
 {
     if (!artboard || !renderer)
     {
         return false;
     }
 
-    float display_factor = params.m_DisplayFactor;
-    if (display_factor == 0.0f)
-    {
-        display_factor = 1.0f;
-    }
-
     renderer->save();
-
-    rive::AABB bounds = artboard->bounds();
-
-    if (params.m_Fit == rive::Fit::layout)
-    {
-        artboard->width(params.m_Width / display_factor);
-        artboard->height(params.m_Height / display_factor);
-        bounds = artboard->bounds();
-    }
-
-    rive::Mat2D renderer_transform = rive::computeAlignment(params.m_Fit,
-                                                            params.m_Alignment,
-                                                            rive::AABB(0, 0, params.m_Width, params.m_Height),
-                                                            bounds,
-                                                            display_factor);
-
-    if (out_transform)
-    {
-        *out_transform = renderer_transform;
-    }
-
     renderer->transform(renderer_transform);
     artboard->draw(renderer);
     renderer->restore();

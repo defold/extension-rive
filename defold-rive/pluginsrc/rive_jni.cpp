@@ -756,16 +756,12 @@ jobject GetTexture(JNIEnv* env, jclass cls, jobject rive_file_obj)
 
     const rive::ArtboardHandle artboard_handle = rive_file->m_Artboard;
 
-    dmRive::DrawArtboardParams draw_params;
-    draw_params.m_Fit = rive_file->m_Fit;
-    draw_params.m_Alignment = rive_file->m_Alignment;
-    draw_params.m_Width = render_width;
-    draw_params.m_Height = render_height;
-    draw_params.m_DisplayFactor = artboard_display_factor;
-
     auto drawLoop = [artboard_handle,
                      renderer,
-                     draw_params](rive::DrawKey drawKey, rive::CommandServer* server)
+                     rive_file,
+                     render_width,
+                     render_height,
+                     artboard_display_factor](rive::DrawKey, rive::CommandServer* server)
     {
         rive::ArtboardInstance* artboard = server->getArtboardInstance(artboard_handle);
         if (artboard == nullptr)
@@ -773,7 +769,13 @@ jobject GetTexture(JNIEnv* env, jclass cls, jobject rive_file_obj)
             return;
         }
 
-        dmRive::DrawArtboard(artboard, renderer, draw_params, 0);
+        rive::Mat2D renderer_transform = dmRive::CalcTransformRive(artboard,
+                                                                   rive_file->m_Fit,
+                                                                   rive_file->m_Alignment,
+                                                                   render_width,
+                                                                   render_height,
+                                                                   artboard_display_factor);
+        dmRive::DrawArtboard(artboard, renderer, renderer_transform);
     };
 
     rive::DrawKey draw_key = queue->createDrawKey();

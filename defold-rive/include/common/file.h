@@ -107,19 +107,21 @@ namespace dmRive
     void SetFitAlignment(RiveFile* file, rive::Fit fit, rive::Alignment alignment);
     void SetViewModel(RiveFile* file, const char* view_model);
 
-    struct DrawArtboardParams
-    {
-        rive::Fit       m_Fit;
-        rive::Alignment m_Alignment;
-        uint32_t        m_Width;
-        uint32_t        m_Height;
-        float           m_DisplayFactor;
-    };
+    rive::Mat2D CalcTransformRive(rive::ArtboardInstance* artboard,
+                                  rive::Fit fit,
+                                  rive::Alignment alignment,
+                                  uint32_t width,
+                                  uint32_t height,
+                                  float display_factor);
+    rive::Mat2D CalcTransformGame(rive::ArtboardInstance* artboard,
+                                  const rive::Mat2D& view_transform,
+                                  const rive::Mat2D& game_transform,
+                                  float display_factor,
+                                  float window_height);
 
     bool DrawArtboard(rive::ArtboardInstance* artboard,
                       rive::Renderer* renderer,
-                      const DrawArtboardParams& params,
-                      rive::Mat2D* out_transform);
+                      const rive::Mat2D& renderer_transform);
 
     //jobject GetTexture(RiveFile* file);
 } // namespace dmRive

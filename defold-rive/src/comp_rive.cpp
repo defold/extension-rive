@@ -562,7 +562,7 @@ namespace dmRive
 
         uint32_t window_height = dmGraphics::GetWindowHeight(world->m_Ctx->m_GraphicsContext);
 
-        rive::Mat2D viewTransform = GetViewTransform(world->m_RiveRenderContext, render_context);
+        rive::Mat2D view_transform = GetViewTransform(world->m_RiveRenderContext, render_context);
         rive::Renderer* renderer = GetRiveRenderer(world->m_RiveRenderContext);
 
         float display_factor  = g_DisplayFactor;
@@ -576,34 +576,29 @@ namespace dmRive
             if (!c->m_Enabled || !c->m_AddedToUpdate)
                 continue;
 
-            RiveModelResource* resource = c->m_Resource;
-            dmRiveDDF::RiveModelDesc* ddf = resource->m_DDF;
-
-            // From command_buffer_example.cpp
-
             const rive::ArtboardHandle  artboardHandle  = c->m_Artboard;
             rive::Fit                   fit             = c->m_Fit;
             rive::Alignment             alignment       = c->m_Alignment;
-            bool                        fullscreen      = c->m_Fullscreen;
+            bool                        coord_game      = c->m_Fullscreen;
 
-            rive::Mat2D transform;
-            if (fullscreen)
+            rive::Mat2D world_transform;
+            if (coord_game)
             {
-                Mat4ToMat2D(c->m_World, transform);
+                Mat4ToMat2D(c->m_World, world_transform);
             }
 
             auto drawLoop = [artboardHandle,
                              renderer,
-                             fullscreen,
                              fit,
                              alignment,
-                             transform,
-                             viewTransform,
+                             coord_game,
+                             world_transform,
+                             view_transform,
                              width,
                              height,
                              window_height,
                              display_factor,
-                             c](rive::DrawKey drawKey, rive::CommandServer* server)
+                             c](rive::DrawKey, rive::CommandServer* server)
             {
                 rive::ArtboardInstance* artboard = server->getArtboardInstance(artboardHandle);
                 if (artboard == nullptr)
@@ -611,36 +606,19 @@ namespace dmRive
                     return;
                 }
 
-                rive::Factory* factory = server->factory();
-
-                if (fullscreen)
+                rive::Mat2D renderer_transform;
+                if (coord_game)
                 {
-                    renderer->save();
-                    rive::AABB bounds = artboard->bounds();
-                    // Apply the world matrix from the component to the artboard transform
-                    rive::Mat2D centerAdjustment  = rive::Mat2D::fromTranslate(-bounds.width() / 2.0f, -bounds.height() / 2.0f);
-                    rive::Mat2D scaleDpi          = rive::Mat2D::fromScale(1,-1);
-                    rive::Mat2D invertAdjustment  = rive::Mat2D::fromScaleAndTranslation(display_factor, -display_factor, 0, window_height);
-                    rive::Mat2D rendererTransform = invertAdjustment * viewTransform * transform * scaleDpi * centerAdjustment;
-
-                    renderer->transform(rendererTransform);
-                    c->m_InverseRendererTransform = rendererTransform.invertOrIdentity();
-                    artboard->draw(renderer);
-                    renderer->restore();
+                    renderer_transform = dmRive::CalcTransformGame(artboard, view_transform, world_transform, display_factor, window_height);
                 }
                 else
                 {
-                    dmRive::DrawArtboardParams draw_params;
-                    draw_params.m_Fit = fit;
-                    draw_params.m_Alignment = alignment;
-                    draw_params.m_Width = width;
-                    draw_params.m_Height = height;
-                    draw_params.m_DisplayFactor = display_factor;
-                    rive::Mat2D renderer_transform;
-                    if (dmRive::DrawArtboard(artboard, renderer, draw_params, &renderer_transform))
-                    {
-                        c->m_InverseRendererTransform = renderer_transform.invertOrIdentity();
-                    }
+                    renderer_transform = dmRive::CalcTransformRive(artboard, fit, alignment, width, height, display_factor);
+                }
+
+                if (dmRive::DrawArtboard(artboard, renderer, renderer_transform))
+                {
+                    c->m_InverseRendererTransform = renderer_transform.invertOrIdentity();
                 }
             };
 
