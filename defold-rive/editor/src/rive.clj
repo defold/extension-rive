@@ -82,10 +82,23 @@
 (def rive-plugin-cls (workspace/load-class! "com.dynamo.bob.pipeline.Rive"))
 (def rive-plugin-file-cls (workspace/load-class! "com.dynamo.bob.pipeline.Rive$RiveFile"))
 (def byte-array-cls (Class/forName "[B"))
+(defonce ^:private rive-plugin-initialized? (atom false))
 
-(defn- plugin-invoke-static [^Class cls name types args]
+(defn- invoke-static [^Class cls name types args]
   (let [method (.getMethod cls name types)]
     (.invoke method nil (into-array Object args))))
+
+(defn- ensure-rive-plugin-initialized! []
+  (when-not @rive-plugin-initialized?
+    (locking rive-plugin-initialized?
+      (when-not @rive-plugin-initialized?
+        (invoke-static rive-plugin-cls "Initialize" (into-array Class []) [])
+        (reset! rive-plugin-initialized? true)))))
+
+(defn- plugin-invoke-static [^Class cls name types args]
+  (when (identical? cls rive-plugin-cls)
+    (ensure-rive-plugin-initialized!))
+  (invoke-static cls name types args))
 
 (defn- plugin-load-file [bytes path]
   (plugin-invoke-static rive-plugin-cls "LoadFromBufferInternal" (into-array Class [String byte-array-cls]) [path bytes]))

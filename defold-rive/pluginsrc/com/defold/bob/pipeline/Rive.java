@@ -22,6 +22,9 @@ import java.util.HashMap;
 import java.lang.reflect.Method;
 
 public class Rive {
+    private static final Object NATIVE_INIT_LOCK = new Object();
+    private static volatile boolean sNativeInitialized = false;
+    private static volatile float[] sFullscreenQuadVertices = null;
 
     static String getLibrarySuffix() {
         String os = System.getProperty("os.name").toLowerCase();
@@ -53,8 +56,17 @@ public class Rive {
         System.exit(1);
     }
 
-    static {
-        loadLibrary("libRiveExt" + getLibrarySuffix());
+    public static void Initialize() {
+        if (sNativeInitialized) {
+            return;
+        }
+        synchronized (NATIVE_INIT_LOCK) {
+            if (sNativeInitialized) {
+                return;
+            }
+            loadLibrary("libRiveExt" + getLibrarySuffix());
+            sNativeInitialized = true;
+        }
     }
 
     public static native RiveFile LoadFromBufferInternal(String path, byte[] buffer);
@@ -68,10 +80,12 @@ public class Rive {
     private static native float[] GetFullscreenQuadVerticesInternal();
     public static native void DebugPrint();
 
-    public static final float[] FULLSCREEN_QUAD_VERTICES = GetFullscreenQuadVerticesInternal();
-
     public static float[] GetFullscreenQuadVertices() {
-        return FULLSCREEN_QUAD_VERTICES;
+        Initialize();
+        if (sFullscreenQuadVertices == null) {
+            sFullscreenQuadVertices = GetFullscreenQuadVerticesInternal();
+        }
+        return sFullscreenQuadVertices;
     }
 
     public static class RiveFile {
@@ -129,21 +143,25 @@ public class Rive {
 
     public static void UpdateInternal(RiveFile rive_file, float dt)
     {
+        Initialize();
         Rive.Update(rive_file, dt);
     }
 
     public static void SetArtboardInternal(RiveFile rive_file, String artboard)
     {
+        Initialize();
         Rive.SetArtboard(rive_file, artboard);
     }
 
     public static void SetFitAlignmentInternal(RiveFile rive_file, int fit, int alignment)
     {
+        Initialize();
         Rive.SetFitAlignment(rive_file, fit, alignment);
     }
 
     public static RiveFile LoadFromBuffer(String path, byte[] bytes)
     {
+        Initialize();
         RiveFile rive_file = Rive.LoadFromBufferInternal(path, bytes);
         return rive_file;
     }
@@ -199,6 +217,7 @@ public class Rive {
 
     // ./utils/test_plugin.sh <rive scene path>
     public static void main(String[] args) throws IOException {
+        Initialize();
         System.setProperty("java.awt.headless", "true");
 
         if (args.length < 1) {
