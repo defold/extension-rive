@@ -30,6 +30,7 @@
             [editor.resource :as resource]
             [editor.resource-node :as resource-node]
             [editor.scene-picking :as scene-picking]
+            [editor.shaders :as shaders]
             [editor.types :as types]
             [editor.validation :as validation]
             [editor.workspace :as workspace]
@@ -891,9 +892,7 @@
         pass (:pass render-args)
         blend-mode (:blend-mode user-data)
         shader (if (= pass/selection pass)
-                 (or (:selection-shader user-data)
-                     (:blit-shader user-data)
-                     (:shader user-data))
+                 shaders/selection-uniform-world-space
                  (or (:blit-shader user-data) (:shader user-data)))
         use-updatable-texture? (and updatable-state
                                     (= (:fit-int updatable-state) (:fit-int user-data))
@@ -924,7 +923,10 @@
       (setup-gl gl)
       (when (= pass/selection pass)
         (shader/set-uniform shader gl "id_color" (:id-color render-args)))
+      ;; Rive blit shaders expect `world_view_proj`; editor selection shaders
+      ;; expect `mtx_world_view_proj`. Setting both is safe (missing uniforms are ignored).
       (shader/set-uniform shader gl "world_view_proj" world-view-proj)
+      (shader/set-uniform shader gl "mtx_world_view_proj" world-view-proj)
       (when (= pass/transparent pass)
         (gl/set-blend-mode gl blend-mode))
       (gl/gl-draw-arrays gl GL/GL_TRIANGLES 0 6)
