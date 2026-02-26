@@ -156,10 +156,11 @@
     coordinate-system))
 
 (defn- migrate-rive-model-desc [rive-model-desc]
-  ;; Legacy migration: fullscreen was deprecated, and material is deprecated.
+  ;; Legacy migration: fullscreen, material, and create-go-bones are deprecated.
   (-> rive-model-desc
       (update :coordinate-system migrate-coordinate-system)
-      (dissoc :material)))
+      (dissoc :material)
+      (dissoc :create-go-bones)))
 
 (def ^:private coordinate-system-edit-type
   (let [hidden? #{:coordinate-system-fullscreen}]

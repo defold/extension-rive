@@ -32,6 +32,7 @@ public class RiveModelBuilder extends ProtoBuilder<RiveModelDesc.Builder> {
             builder.setCoordinateSystem(RiveModelDesc.CoordinateSystem.COORDINATE_SYSTEM_GAME);
         }
         builder.clearMaterial();
+        builder.clearCreateGoBones();
 
         if (!builder.getScene().equals("")) {
             BuilderUtil.checkResource(this.project, resource, "scene", builder.getScene());

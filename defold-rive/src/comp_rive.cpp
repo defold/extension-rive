@@ -61,7 +61,6 @@ namespace dmScript
 }
 
 DM_PROPERTY_GROUP(rmtp_Rive, "Rive", 0);
-DM_PROPERTY_U32(rmtp_RiveBones, 0, PROFILE_PROPERTY_FRAME_RESET, "# rive bones", &rmtp_Rive);
 DM_PROPERTY_U32(rmtp_RiveComponents, 0, PROFILE_PROPERTY_FRAME_RESET, "# rive components", &rmtp_Rive);
 
 namespace dmRive
@@ -83,9 +82,6 @@ namespace dmRive
     static void ResourceReloadedCallback(const dmResource::ResourceReloadedParams* params);
     static void DestroyComponent(struct RiveWorld* world, uint32_t index);
     static void CompRiveAnimationReset(RiveComponent* component);
-    static bool CreateBones(struct RiveWorld* world, RiveComponent* component);
-    static void DeleteBones(RiveComponent* component);
-    static void UpdateBones(RiveComponent* component);
 
     // For the entire app's life cycle
     struct CompRiveContext
@@ -459,7 +455,6 @@ namespace dmRive
         rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
 
         RiveComponent* component = GetComponentFromIndex(world, index);
-        //dmGameObject::DeleteBones(component->m_Instance);
 
         if (component->m_RenderConstants)
             dmGameSystem::DestroyRenderConstants(component->m_RenderConstants);
@@ -703,9 +698,6 @@ namespace dmRive
 
             queue->advanceStateMachine(component.m_StateMachine, dt * component.m_AnimationPlaybackRate);
 
-            // if (component.m_Resource->m_CreateGoBones)
-            //     UpdateBones(&component); // after the artboard->advance();
-
             if (component.m_ReHash || (component.m_RenderConstants && dmGameSystem::AreRenderConstantsUpdated(component.m_RenderConstants)))
             {
                 ReHash(&component);
@@ -716,7 +708,6 @@ namespace dmRive
 
         dmRiveCommands::ProcessMessages(); // Update the command server
 
-        // If the child bones have been updated, we need to return true
         update_result.m_TransformsUpdated = false;
 
         return dmGameObject::UPDATE_RESULT_OK;
@@ -1006,118 +997,6 @@ namespace dmRive
         delete rivectx;
         return dmGameObject::RESULT_OK;
     }
-
-    // static void DeleteBones(RiveComponent* component)
-    // {
-    //     dmLogOnceError("MAWE Missing implementation; %s", __FUNCTION__);
-
-    //     // dmGameObject::HInstance rive_instance = component->m_Instance;
-    //     // dmGameObject::HCollection collection = dmGameObject::GetCollection(rive_instance);
-
-    //     // uint32_t num_bones = component->m_BoneGOs.Size();
-    //     // for (uint32_t i = 0; i < num_bones; ++i)
-    //     // {
-    //     //     dmGameObject::HInstance bone_instance = component->m_BoneGOs[i];
-    //     //     if (bone_instance)
-    //     //     {
-    //     //         dmGameObject::Delete(collection, bone_instance, false);
-    //     //     }
-    //     // }
-    //     // component->m_BoneGOs.SetSize(0);
-    // }
-
-    // static void UpdateBones(RiveComponent* component)
-    // {
-    //     dmLogOnceError("MAWE Missing implementation; %s", __FUNCTION__);
-    //     // rive::Artboard* artboard = component->m_Artboard.get();
-
-    //     // rive::AABB bounds = artboard->bounds();
-    //     // float cx = (bounds.maxX - bounds.minX) * 0.5f;
-    //     // float cy = (bounds.maxY - bounds.minY) * 0.5f;
-
-    //     // uint32_t num_bones = component->m_BoneGOs.Size();
-    //     // DM_PROPERTY_ADD_U32(rmtp_RiveBones, num_bones);
-
-    //     // dmVMath::Point3 go_pos = dmGameObject::GetPosition(component->m_Instance);
-
-    //     // for (uint32_t i = 0; i < num_bones; ++i)
-    //     // {
-    //     //     dmGameObject::HInstance bone_instance = component->m_BoneGOs[i];
-    //     //     rive::Bone* bone = component->m_Bones[i];
-
-    //     //     const rive::Mat2D& rt = bone->worldTransform();
-
-    //     //     dmVMath::Vector4 x_axis(rt.xx(), rt.xy(), 0, 0);
-    //     //     dmVMath::Vector4 y_axis(rt.yx(), rt.yy(), 0, 0);
-
-    //     //     float scale_x = length(x_axis);
-    //     //     float scale_y = length(y_axis);
-    //     //     dmVMath::Vector3 scale(scale_x, scale_y, 1);
-
-    //     //     float angle = atan2f(x_axis.getY(), x_axis.getX());
-    //     //     Quat rotation = Quat::rotationZ(-angle);
-
-    //     //     // Since the Rive space is different, we need to flip the y axis
-    //     //     dmVMath::Vector3 pos(rt.tx() - cx, -rt.ty() + cy, 0);
-
-    //     //     dmVMath::Matrix4 world_transform(rotation, pos);
-
-    //     //     dmTransform::Transform transform = dmTransform::ToTransform(world_transform);
-
-    //     //     dmGameObject::SetPosition(bone_instance, Point3(transform.GetTranslation()));
-    //     //     dmGameObject::SetRotation(bone_instance, transform.GetRotation());
-    //     //     dmGameObject::SetScale(bone_instance, transform.GetScale());
-    //     // }
-    // }
-
-    // static bool CreateBones(RiveWorld* world, RiveComponent* component)
-    // {
-    //     dmLogOnceError("MAWE Missing implementation; %s", __FUNCTION__);
-
-    //     // dmGameObject::HInstance rive_instance = component->m_Instance;
-    //     // dmGameObject::HCollection collection = dmGameObject::GetCollection(rive_instance);
-
-    //     // uint32_t num_bones = component->m_Bones.Size();
-
-    //     // component->m_BoneGOs.SetCapacity(num_bones);
-    //     // component->m_BoneGOs.SetSize(num_bones);
-
-    //     // for (uint32_t i = 0; i < num_bones; ++i)
-    //     // {
-    //     //     dmGameObject::HInstance bone_instance = dmGameObject::New(collection, 0x0);
-    //     //     if (bone_instance == 0x0) {
-    //     //         DeleteBones(component);
-    //     //         return false;
-    //     //     }
-
-    //     //     component->m_BoneGOs[i] = bone_instance;
-
-    //     //     uint32_t index = dmGameObject::AcquireInstanceIndex(collection);
-    //     //     if (index == dmGameObject::INVALID_INSTANCE_POOL_INDEX)
-    //     //     {
-    //     //         DeleteBones(component);
-    //     //         return false;
-    //     //     }
-
-    //     //     dmhash_t id = dmGameObject::CreateInstanceId();
-    //     //     dmGameObject::AssignInstanceIndex(index, bone_instance);
-
-    //     //     dmGameObject::Result result = dmGameObject::SetIdentifier(collection, bone_instance, id);
-    //     //     if (dmGameObject::RESULT_OK != result)
-    //     //     {
-    //     //         DeleteBones(component);
-    //     //         return false;
-    //     //     }
-
-    //     //     dmGameObject::SetBone(bone_instance, true);
-
-    //     //     // Since we're given the "world" coordinates from the rive bones,
-    //     //     // we don't really need a full hierarchy. So we use the actual game object as parent
-    //     //     dmGameObject::SetParent(bone_instance, rive_instance);
-    //     // }
-
-    //     return true;
-    // }
 
     // ******************************************************************************
     // SCRIPTING HELPER FUNCTIONS
