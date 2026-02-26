@@ -151,6 +151,22 @@
       (some-> enum-class protobuf/protocol-message-enums first protobuf/pb-enum->int)
       0))
 
+(defn- migrate-coordinate-system [coordinate-system]
+  (if (= coordinate-system :coordinate-system-fullscreen)
+    :coordinate-system-game
+    coordinate-system))
+
+(defn- migrate-rive-model-desc [rive-model-desc]
+  ;; Legacy value migration: fullscreen was deprecated in favor of game space.
+  (update rive-model-desc :coordinate-system migrate-coordinate-system))
+
+(def ^:private coordinate-system-edit-type
+  (let [hidden? #{:coordinate-system-fullscreen}]
+    (update (properties/->pb-choicebox coordinate-system-pb-class)
+            :options
+            (fn [options]
+              (into [] (remove (comp hidden? first)) options)))))
+
 (def ^:private unknown-value-text "<n/a>")
 (def ^:private none-value-text "<none>")
 
@@ -227,7 +243,8 @@
 ; .rivemodel
 (defn load-rive-model [project self resource rive-model-desc]
   {:pre [(map? rive-model-desc)]} ; Rive$RiveModelDesc in map format.
-  (let [resolve-resource #(workspace/resolve-resource resource %)]
+  (let [resolve-resource #(workspace/resolve-resource resource %)
+        rive-model-desc (migrate-rive-model-desc rive-model-desc)]
     (concat
       (g/connect project :default-tex-params self :default-tex-params)
       (g/set-property self :editor-blit-material (resolve-resource editor-blit-material-proj-path))
@@ -1260,7 +1277,7 @@
   (property auto-bind g/Bool (default (protobuf/default rive-model-pb-class :auto-bind)))
 
   (property coordinate-system g/Any (default (protobuf/default rive-model-pb-class :coordinate-system))
-            (dynamic edit-type (g/constantly (properties/->pb-choicebox coordinate-system-pb-class))))
+            (dynamic edit-type (g/constantly coordinate-system-edit-type)))
 
   (property artboard-fit g/Any (default (protobuf/default rive-model-pb-class :artboard-fit))
             (dynamic edit-type (g/constantly (properties/->pb-choicebox artboard-fit-pb-class))))

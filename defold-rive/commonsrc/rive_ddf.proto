@@ -52,8 +52,9 @@ message RiveModelDesc
 
     enum CoordinateSystem
     {
-        COORDINATE_SYSTEM_FULLSCREEN = 0 [(displayName) = "Fullscreen"];
+        COORDINATE_SYSTEM_FULLSCREEN = 0 [(displayName) = "Fullscreen"]; // Deprecated
         COORDINATE_SYSTEM_RIVE       = 1 [(displayName) = "Rive"];
+        COORDINATE_SYSTEM_GAME       = 2 [(displayName) = "Game"];
     }
 
     required string scene                   = 1 [(resource)=true];
@@ -64,11 +65,11 @@ message RiveModelDesc
     optional bool create_go_bones           = 6 [default=false]; // Deprecated
     optional string artboard                = 7;
 
-    optional CoordinateSystem coordinate_system = 8 [default = COORDINATE_SYSTEM_FULLSCREEN];
+    optional CoordinateSystem coordinate_system = 8 [default = COORDINATE_SYSTEM_GAME];
     optional Fit artboard_fit                   = 9 [default = FIT_NONE];
     optional Alignment artboard_alignment       = 10 [default = ALIGNMENT_CENTER];
 
-    optional bool auto_play                 = 11 [default=true];   // auto play animation if selected
+    optional bool auto_play                 = 11 [default=true];   // (Deprecated) auto play animation if selected
     optional bool auto_bind                 = 12 [default=true];   // auto bind default view model
     optional string blit_material           = 13 [(resource)=true, default="/defold-rive/assets/shader-library/rivemodel_blit.material"];
 }

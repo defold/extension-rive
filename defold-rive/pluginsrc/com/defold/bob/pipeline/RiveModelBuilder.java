@@ -27,6 +27,10 @@ public class RiveModelBuilder extends ProtoBuilder<RiveModelDesc.Builder> {
 
     @Override
     protected RiveModelDesc.Builder transform(Task task, IResource resource, RiveModelDesc.Builder builder) throws CompileExceptionError {
+        if (builder.hasCoordinateSystem()
+                && builder.getCoordinateSystem() == RiveModelDesc.CoordinateSystem.COORDINATE_SYSTEM_FULLSCREEN) {
+            builder.setCoordinateSystem(RiveModelDesc.CoordinateSystem.COORDINATE_SYSTEM_GAME);
+        }
 
         if (!builder.getScene().equals("")) {
             BuilderUtil.checkResource(this.project, resource, "scene", builder.getScene());

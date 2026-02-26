@@ -436,10 +436,10 @@ namespace dmRive
 
         dmRiveDDF::RiveModelDesc* ddf = component->m_Resource->m_DDF;
 
-        component->m_Fullscreen = ddf->m_CoordinateSystem == dmRiveDDF::RiveModelDesc::COORDINATE_SYSTEM_FULLSCREEN;
+        component->m_CoordGame = ddf->m_CoordinateSystem == dmRiveDDF::RiveModelDesc::COORDINATE_SYSTEM_GAME;
         component->m_Fit = rive::Fit::layout;
         component->m_Alignment = rive::Alignment::center;
-        if (!component->m_Fullscreen)
+        if (!component->m_CoordGame)
         {
             component->m_Fit = DDFToRiveFit(ddf->m_ArtboardFit);
             component->m_Alignment = DDFToRiveAlignment(ddf->m_ArtboardAlignment);
@@ -579,7 +579,7 @@ namespace dmRive
             const rive::ArtboardHandle  artboardHandle  = c->m_Artboard;
             rive::Fit                   fit             = c->m_Fit;
             rive::Alignment             alignment       = c->m_Alignment;
-            bool                        coord_game      = c->m_Fullscreen;
+            bool                        coord_game      = c->m_CoordGame;
 
             rive::Mat2D world_transform;
             if (coord_game)
