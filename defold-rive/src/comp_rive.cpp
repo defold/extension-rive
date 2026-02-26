@@ -27,6 +27,8 @@
 #include <common/file.h>
 #include <common/commands.h>
 #include <common/rive_math.h>
+#include <rive/animation/state_machine_instance.hpp>
+#include <rive/command_server.hpp>
 
 // Defold Rive Renderer
 #include <defold/rive.h>
@@ -75,8 +77,6 @@ namespace dmRive
     static const dmhash_t PROP_RIVE_FILE        = dmHashString64("rive_file");
 
     static float g_DisplayFactor = 0.0f;
-    static float g_OriginalWindowWidth = 0.0f;
-    static float g_OriginalWindowHeight = 0.0f;
     static RenderBeginParams g_RenderBeginParams;
 
     static void ResourceReloadedCallback(const dmResource::ResourceReloadedParams* params);
@@ -958,8 +958,6 @@ namespace dmRive
             dmLogInfo("Render to framebuffer enabled");
         }
 
-        g_OriginalWindowWidth  = dmGraphics::GetWidth(rivectx->m_GraphicsContext);
-        g_OriginalWindowHeight = dmGraphics::GetHeight(rivectx->m_GraphicsContext);
         g_DisplayFactor        = dmGraphics::GetDisplayScaleFactor(rivectx->m_GraphicsContext);
 
         dmLogInfo("Display Factor: %g", g_DisplayFactor);
@@ -1039,47 +1037,54 @@ namespace dmRive
 
         float window_width = (float) dmGraphics::GetWindowWidth(graphics_context);
         float window_height = (float) dmGraphics::GetWindowHeight(graphics_context);
+        float logical_width = (float) dmGraphics::GetWidth(graphics_context);
+        float logical_height = (float) dmGraphics::GetHeight(graphics_context);
+
+        if (logical_width <= 0.0f)
+        {
+            logical_width = window_width;
+        }
+        if (logical_height <= 0.0f)
+        {
+            logical_height = window_height;
+        }
 
         // Width/height are in screen coordinates and not window coordinates (i.e backbuffer size)
-        float normalized_x = x / g_OriginalWindowWidth;
-        float normalized_y = 1 - (y / g_OriginalWindowHeight);
+        float normalized_x = x / logical_width;
+        float normalized_y = 1 - (y / logical_height);
 
         rive::Vec2D p_local = component->m_InverseRendererTransform * rive::Vec2D(normalized_x * window_width, normalized_y * window_height);
-        //rive::Vec2D p_local = rive::Vec2D(normalized_x * window_width, normalized_y * window_height);
         return p_local;
-    }
-
-    static void FillPointerEvent(RiveComponent* component, rive::CommandQueue::PointerEvent& event, rive::Vec2D& pos)
-    {
-        dmGraphics::HContext graphics_context = dmGraphics::GetInstalledContext();
-        float window_width = (float) dmGraphics::GetWindowWidth(graphics_context);
-        float window_height = (float) dmGraphics::GetWindowHeight(graphics_context);
-
-        event.fit = component->m_Fit;
-        event.alignment = component->m_Alignment;
-        event.screenBounds.x = window_width;
-        event.screenBounds.y = window_height;
-        event.position = pos;
-        event.scaleFactor = CompRiveGetDisplayScaleFactor();
-
-        //printf("    FillEvent: w/h: %f, %f  fit: %d  align: %f,%f\n", window_width, window_height, (int)event.fit, event.alignment.x(), event.alignment.y());
     }
 
     void CompRivePointerAction(RiveComponent* component, dmRive::PointerAction action, float x, float y)
     {
+        if (!component || !component->m_StateMachine)
+        {
+            return;
+        }
 
         rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
-        rive::Vec2D p = WorldToLocal(component, x, y);
-        rive::CommandQueue::PointerEvent event;
-        FillPointerEvent(component, event, p);
+        rive::StateMachineHandle state_machine = component->m_StateMachine;
+        rive::Vec2D p_local = WorldToLocal(component, x, y);
 
-        switch(action)
-        {
-        case dmRive::PointerAction::POINTER_MOVE:   queue->pointerMove(component->m_StateMachine, event); break;
-        case dmRive::PointerAction::POINTER_UP:     queue->pointerUp(component->m_StateMachine, event); break;
-        case dmRive::PointerAction::POINTER_DOWN:   queue->pointerDown(component->m_StateMachine, event); break;
-        case dmRive::PointerAction::POINTER_EXIT:   queue->pointerExit(component->m_StateMachine, event); break;
-        }
+        queue->runOnce(
+            [action, state_machine, p_local](rive::CommandServer* server)
+            {
+                rive::StateMachineInstance* instance = server->getStateMachineInstance(state_machine);
+                if (!instance)
+                {
+                    return;
+                }
+
+                switch (action)
+                {
+                    case dmRive::PointerAction::POINTER_MOVE: instance->pointerMove(p_local); break;
+                    case dmRive::PointerAction::POINTER_UP:   instance->pointerUp(p_local); break;
+                    case dmRive::PointerAction::POINTER_DOWN: instance->pointerDown(p_local); break;
+                    case dmRive::PointerAction::POINTER_EXIT: instance->pointerExit(p_local); break;
+                }
+            });
     }
 
     void CompRiveDebugSetBlitMode(bool value)
