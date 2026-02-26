@@ -125,8 +125,8 @@ namespace dmRive
 
         if (!renderer->m_FrameBegin)
         {
-            uint32_t width  = dmGraphics::GetWindowWidth(renderer->m_GraphicsContext);
-            uint32_t height = dmGraphics::GetWindowHeight(renderer->m_GraphicsContext);
+            uint32_t width = params.m_Width != 0 ? params.m_Width : dmGraphics::GetWindowWidth(renderer->m_GraphicsContext);
+            uint32_t height = params.m_Height != 0 ? params.m_Height : dmGraphics::GetWindowHeight(renderer->m_GraphicsContext);
 
             if (width != renderer->m_LastWidth || height != renderer->m_LastHeight || renderer->m_LastDoFinalBlit != params.m_DoFinalBlit)
             {

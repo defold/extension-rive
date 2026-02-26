@@ -62,6 +62,7 @@ public class Rive {
     public static native void Update(RiveFile rive_file, float dt);
     public static native void SetArtboard(RiveFile rive_file, String name);
     public static native void SetStateMachine(RiveFile rive_file, String name);
+    public static native void SetFitAlignment(RiveFile rive_file, int fit, int alignment);
     public static native void SetViewModel(RiveFile rive_file, String name);
     public static native Texture GetTexture(RiveFile rive_file);
     private static native float[] GetFullscreenQuadVerticesInternal();
@@ -134,6 +135,11 @@ public class Rive {
     public static void SetArtboardInternal(RiveFile rive_file, String artboard)
     {
         Rive.SetArtboard(rive_file, artboard);
+    }
+
+    public static void SetFitAlignmentInternal(RiveFile rive_file, int fit, int alignment)
+    {
+        Rive.SetFitAlignment(rive_file, fit, alignment);
     }
 
     public static RiveFile LoadFromBuffer(String path, byte[] bytes)

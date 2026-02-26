@@ -36,8 +36,10 @@ namespace dmRive
 
     struct RenderBeginParams
     {
-        bool    m_DoFinalBlit = true;
-        uint8_t m_BackbufferSamples = 0;
+        bool     m_DoFinalBlit = true;
+        uint8_t  m_BackbufferSamples = 0;
+        uint32_t m_Width = 0;
+        uint32_t m_Height = 0;
     };
 
     HRenderContext               NewRenderContext();

@@ -103,6 +103,9 @@
 (defn- plugin-set-state-machine [file state-machine]
   (plugin-invoke-static rive-plugin-cls "SetStateMachine" (into-array Class [rive-plugin-file-cls String]) [file state-machine]))
 
+(defn- plugin-set-fit-alignment [file fit alignment]
+  (plugin-invoke-static rive-plugin-cls "SetFitAlignmentInternal" (into-array Class [rive-plugin-file-cls Integer/TYPE Integer/TYPE]) [file (int fit) (int alignment)]))
+
 (defn- plugin-get-texture [file]
   (plugin-invoke-static rive-plugin-cls "GetTexture" (into-array Class [rive-plugin-file-cls]) [file]))
 
@@ -138,6 +141,14 @@
     (if (and resolved state-machines-by-artboard)
       (get state-machines-by-artboard resolved [])
       [])))
+
+(defn- pb-enum-keyword->int [enum-class enum-value]
+  (or (some (fn [enum]
+              (when (= enum-value (protobuf/pb-enum->val enum))
+                (protobuf/pb-enum->int enum)))
+            (protobuf/protocol-message-enums enum-class))
+      (some-> enum-class protobuf/protocol-message-enums first protobuf/pb-enum->int)
+      0))
 
 (def ^:private unknown-value-text "<n/a>")
 (def ^:private none-value-text "<none>")
@@ -536,6 +547,10 @@
   [project node-id resource]
   (let [content (resource->bytes resource)
         rive-handle (plugin-load-file content (resource/resource->proj-path resource))
+        ; .rivescene preview has no fit/alignment properties of its own.
+        ; Use contain+center defaults to avoid FIT_NONE behavior.
+        default-fit-int (pb-enum-keyword->int artboard-fit-pb-class :fit-contain)
+        default-alignment-int (pb-enum-keyword->int artboard-alignment-pb-class :alignment-center)
         artboards (or (get-public-field rive-handle "artboards") [])
         view-models (or (get-public-field rive-handle "viewModels") [])
         view-model-properties (or (get-public-field rive-handle "viewModelProperties") [])
@@ -545,6 +560,7 @@
         default-view-model-info (to-default-view-model-info (get-public-field rive-handle "defaultViewModelInfo"))
         state-machines (to-state-machines-map (get-public-field rive-handle "stateMachines"))
 
+        _ (plugin-set-fit-alignment rive-handle default-fit-int default-alignment-int)
         _ (.Update rive-handle 0.0)
         bounds-obj (or (get-public-field rive-handle "bounds")
                        (get-public-field rive-handle "aabb"))
@@ -871,6 +887,7 @@
 (defn- render-rive-quad [^GL2 gl render-args renderable]
   (let [node-id (:node-id renderable)
         user-data (:user-data renderable)
+        updatable-state (get-in renderable [:updatable :state])
         pass (:pass render-args)
         blend-mode (:blend-mode user-data)
         shader (if (= pass/selection pass)
@@ -878,7 +895,13 @@
                      (:blit-shader user-data)
                      (:shader user-data))
                  (or (:blit-shader user-data) (:shader user-data)))
-        gpu-texture (or (get-in renderable [:updatable :state :gpu-texture])
+        use-updatable-texture? (and updatable-state
+                                    (= (:fit-int updatable-state) (:fit-int user-data))
+                                    (= (:alignment-int updatable-state) (:alignment-int user-data))
+                                    (= (:artboard updatable-state) (:artboard user-data))
+                                    (= (:state-machine updatable-state) (:state-machine user-data)))
+        gpu-texture (or (when use-updatable-texture?
+                          (:gpu-texture updatable-state))
                         (:gpu-texture user-data)
                         texture/white-pixel)
         ;; The flattened scene renderable AABB is already in world space. Build
@@ -1034,7 +1057,7 @@
 ;
 
 (defn- step-rive-animation
-  [state dt node-id rive-file-handle artboard default-state-machine default-tex-params]
+  [state dt node-id rive-file-handle artboard default-state-machine fit-int alignment-int default-tex-params]
   (if (some? rive-file-handle)
     (let [artboard (or artboard "")
           state-machine (or default-state-machine "")
@@ -1044,6 +1067,9 @@
           _ (when (or (not= (:artboard state) artboard)
                       (not= (:state-machine state) state-machine))
               (plugin-set-state-machine rive-file-handle state-machine))
+          _ (when (or (not= (:fit-int state) fit-int)
+                      (not= (:alignment-int state) alignment-int))
+              (plugin-set-fit-alignment rive-file-handle fit-int alignment-int))
           _ (plugin-update-file rive-file-handle dt)
           texture (plugin-get-texture rive-file-handle)
           gpu-texture (or (rive-texture->gpu-texture node-id texture default-tex-params texture-version)
@@ -1052,17 +1078,47 @@
       (assoc state
              :artboard artboard
              :state-machine state-machine
+             :fit-int fit-int
+             :alignment-int alignment-int
              :texture-version texture-version
              :gpu-texture gpu-texture))
     state))
 
-(g/defnk produce-rive-file-updatable [_node-id rive-file-handle artboard default-state-machine default-tex-params]
+(g/defnk produce-rive-file-updatable [_node-id rive-file-handle artboard default-state-machine artboard-fit artboard-alignment default-tex-params]
   (when (some? rive-file-handle)
-    {:node-id _node-id
-     :name "Rive Scene Updater"
-     :update-fn (fn [state {:keys [dt]}]
-                  (step-rive-animation state dt _node-id rive-file-handle artboard default-state-machine default-tex-params))
-     :initial-state (step-rive-animation {} 0.0 _node-id rive-file-handle artboard default-state-machine default-tex-params)}))
+    (let [fit-value (or artboard-fit (protobuf/default rive-model-pb-class :artboard-fit))
+          alignment-value (or artboard-alignment (protobuf/default rive-model-pb-class :artboard-alignment))
+          fit-int (pb-enum-keyword->int artboard-fit-pb-class fit-value)
+          alignment-int (pb-enum-keyword->int artboard-alignment-pb-class alignment-value)]
+      {:node-id _node-id
+       :name "Rive Scene Updater"
+       :update-fn (fn [state {:keys [dt]}]
+                    (step-rive-animation state dt _node-id rive-file-handle artboard default-state-machine fit-int alignment-int default-tex-params))
+       :initial-state (step-rive-animation {} 0.0 _node-id rive-file-handle artboard default-state-machine fit-int alignment-int default-tex-params)})))
+
+(defn- render-settings->texture-version [artboard state-machine fit-int alignment-int]
+  (unchecked-int
+    (bit-and 0x7fffffff
+             (murmur/hash64 (str (or artboard "")
+                                 "|"
+                                 (or state-machine "")
+                                 "|"
+                                 fit-int
+                                 "|"
+                                 alignment-int)))))
+
+(defn- snapshot-rive-gpu-texture
+  [node-id rive-file-handle artboard state-machine fit-int alignment-int default-tex-params]
+  (when (some? rive-file-handle)
+    (let [artboard (or artboard "")
+          state-machine (or state-machine "")]
+      (plugin-set-artboard rive-file-handle artboard)
+      (plugin-set-state-machine rive-file-handle state-machine)
+      (plugin-set-fit-alignment rive-file-handle fit-int alignment-int)
+      (plugin-update-file rive-file-handle 0.0)
+      (let [texture (plugin-get-texture rive-file-handle)
+            texture-version (render-settings->texture-version artboard state-machine fit-int alignment-int)]
+        (rive-texture->gpu-texture node-id texture default-tex-params texture-version)))))
 
 (g/defnk produce-rivemodel-save-value [rive-scene-resource artboard default-state-machine material-resource blit-material-resource blend-mode auto-bind coordinate-system artboard-fit artboard-alignment]
   (protobuf/make-map-without-defaults rive-model-pb-class
@@ -1229,20 +1285,30 @@
   (output state-machine-ids g/Any :cached (g/fnk [anim-data] (vec (sort (keys anim-data)))))
   (output material-shader ShaderLifecycle (gu/passthrough material-shader))
   (output updatable g/Any :cached produce-rive-file-updatable)
-  (output scene g/Any :cached (g/fnk [_node-id rive-main-scene material-shader blit-material-resource blit-material-shader editor-blit-material-shader updatable]
+  (output scene g/Any :cached (g/fnk [_node-id rive-main-scene material-shader blit-material-resource blit-material-shader editor-blit-material-shader updatable artboard default-state-machine artboard-fit artboard-alignment default-tex-params]
                                      (if (and (some? material-shader) (some? (:renderable rive-main-scene)))
-                                       (let [aabb (:aabb rive-main-scene)
+                                       (let [fit-value (or artboard-fit (protobuf/default rive-model-pb-class :artboard-fit))
+                                             alignment-value (or artboard-alignment (protobuf/default rive-model-pb-class :artboard-alignment))
+                                             fit-int (pb-enum-keyword->int artboard-fit-pb-class fit-value)
+                                             alignment-int (pb-enum-keyword->int artboard-alignment-pb-class alignment-value)
+                                             rive-file-handle (get-in rive-main-scene [:renderable :user-data :rive-file-handle])
+                                             aabb (:aabb rive-main-scene)
                                              rive-scene-node-id (:node-id rive-main-scene)
                                              blit-material-path (when blit-material-resource (resource/resource->proj-path blit-material-resource))
                                              use-editor-blit (or (nil? blit-material-path) (= blit-material-path default-blit-material-proj-path))
                                              blit-shader (if use-editor-blit editor-blit-material-shader blit-material-shader)
-                                             gpu-texture (or (get-in updatable [:initial-state :gpu-texture])
+                                             gpu-texture (or (snapshot-rive-gpu-texture _node-id rive-file-handle artboard default-state-machine fit-int alignment-int default-tex-params)
+                                                             (get-in updatable [:initial-state :gpu-texture])
                                                              (get-in rive-main-scene [:renderable :user-data :gpu-texture])
                                                              texture/white-pixel)]
                                          (-> rive-main-scene
                                              (assoc-in [:renderable :user-data :shader] material-shader)
                                              (assoc-in [:renderable :user-data :blit-shader] blit-shader)
                                              (assoc-in [:renderable :user-data :gpu-texture] gpu-texture)
+                                             (assoc-in [:renderable :user-data :artboard] (or artboard ""))
+                                             (assoc-in [:renderable :user-data :state-machine] (or default-state-machine ""))
+                                             (assoc-in [:renderable :user-data :fit-int] fit-int)
+                                             (assoc-in [:renderable :user-data :alignment-int] alignment-int)
                                              (assoc :updatable updatable)
                                              (assoc :aabb aabb)
                                              (assoc :children [(make-rive-outline-scene rive-scene-node-id aabb)])))

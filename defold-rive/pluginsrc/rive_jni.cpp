@@ -27,6 +27,7 @@
 #include <rive/artboard.hpp>
 #include <rive/renderer.hpp>
 
+#include <math.h>
 #include <stdlib.h>
 
 
@@ -35,7 +36,7 @@ namespace dmRiveJNI
 
 // ******************************************************************************************************************
 
-static bool ConvertPixelsToABGRAndFlipY(dmRive::TexturePixels* pixels)
+static bool ConvertPixelsToABGRAndFlipY(dmRive::TexturePixels* pixels, uint32_t out_width = 0, uint32_t out_height = 0, uint32_t crop_x = 0, uint32_t crop_y = 0)
 {
     if (!pixels || !pixels->m_Data)
     {
@@ -49,10 +50,28 @@ static bool ConvertPixelsToABGRAndFlipY(dmRive::TexturePixels* pixels)
         return false;
     }
 
-    const uint32_t width = (uint32_t)pixels->m_Width;
-    const uint32_t height = (uint32_t)pixels->m_Height;
-    const uint32_t row_bytes = width * 4;
-    const uint32_t data_size = row_bytes * height;
+    const uint32_t src_width = (uint32_t)pixels->m_Width;
+    const uint32_t src_height = (uint32_t)pixels->m_Height;
+    if (src_width == 0 || src_height == 0)
+    {
+        return false;
+    }
+
+    const uint32_t width = out_width == 0 ? src_width : (out_width < src_width ? out_width : src_width);
+    const uint32_t height = out_height == 0 ? src_height : (out_height < src_height ? out_height : src_height);
+    if (width == 0 || height == 0)
+    {
+        return false;
+    }
+
+    const uint32_t max_crop_x = src_width - width;
+    const uint32_t max_crop_y = src_height - height;
+    crop_x = crop_x < max_crop_x ? crop_x : max_crop_x;
+    crop_y = crop_y < max_crop_y ? crop_y : max_crop_y;
+
+    const uint32_t src_row_bytes = src_width * 4;
+    const uint32_t dst_row_bytes = width * 4;
+    const uint32_t data_size = dst_row_bytes * height;
 
     uint8_t* out = (uint8_t*)malloc(data_size);
     if (!out)
@@ -63,8 +82,9 @@ static bool ConvertPixelsToABGRAndFlipY(dmRive::TexturePixels* pixels)
     const uint8_t* in = pixels->m_Data;
     for (uint32_t y = 0; y < height; ++y)
     {
-        const uint8_t* src_row = in + (height - 1 - y) * row_bytes; // Flip Y.
-        uint8_t* dst_row = out + y * row_bytes;
+        // Flip Y and crop from a top-left origin rectangle.
+        const uint8_t* src_row = in + (src_height - 1 - (crop_y + y)) * src_row_bytes + crop_x * 4;
+        uint8_t* dst_row = out + y * dst_row_bytes;
         for (uint32_t x = 0; x < width; ++x)
         {
             const uint8_t* src = src_row + x * 4;
@@ -91,10 +111,138 @@ static bool ConvertPixelsToABGRAndFlipY(dmRive::TexturePixels* pixels)
 
     free(pixels->m_Data);
     pixels->m_Data = out;
+    pixels->m_Width = (decltype(pixels->m_Width))width;
+    pixels->m_Height = (decltype(pixels->m_Height))height;
     pixels->m_DataSize = data_size;
     // ABGR is not represented by dmGraphics::TextureFormat, keep BGRA marker.
     pixels->m_Format = dmGraphics::TEXTURE_FORMAT_BGRA8U;
     return true;
+}
+
+static bool AlignmentEquals(const rive::Alignment& lhs, const rive::Alignment& rhs)
+{
+    return lhs.x() == rhs.x() && lhs.y() == rhs.y();
+}
+
+static void AlignmentToCropOffset(const rive::Alignment& alignment,
+                                  uint32_t src_width,
+                                  uint32_t src_height,
+                                  uint32_t dst_width,
+                                  uint32_t dst_height,
+                                  uint32_t* out_crop_x,
+                                  uint32_t* out_crop_y)
+{
+    if (!out_crop_x || !out_crop_y)
+    {
+        return;
+    }
+
+    const uint32_t extra_x = src_width > dst_width ? src_width - dst_width : 0;
+    const uint32_t extra_y = src_height > dst_height ? src_height - dst_height : 0;
+
+    if (extra_x == 0)
+    {
+        *out_crop_x = 0;
+    }
+    else if (AlignmentEquals(alignment, rive::Alignment::topLeft) ||
+             AlignmentEquals(alignment, rive::Alignment::centerLeft) ||
+             AlignmentEquals(alignment, rive::Alignment::bottomLeft))
+    {
+        *out_crop_x = 0;
+    }
+    else if (AlignmentEquals(alignment, rive::Alignment::topRight) ||
+             AlignmentEquals(alignment, rive::Alignment::centerRight) ||
+             AlignmentEquals(alignment, rive::Alignment::bottomRight))
+    {
+        *out_crop_x = extra_x;
+    }
+    else
+    {
+        *out_crop_x = extra_x / 2;
+    }
+
+    if (extra_y == 0)
+    {
+        *out_crop_y = 0;
+    }
+    else if (AlignmentEquals(alignment, rive::Alignment::topLeft) ||
+             AlignmentEquals(alignment, rive::Alignment::topCenter) ||
+             AlignmentEquals(alignment, rive::Alignment::topRight))
+    {
+        *out_crop_y = 0;
+    }
+    else if (AlignmentEquals(alignment, rive::Alignment::bottomLeft) ||
+             AlignmentEquals(alignment, rive::Alignment::bottomCenter) ||
+             AlignmentEquals(alignment, rive::Alignment::bottomRight))
+    {
+        *out_crop_y = extra_y;
+    }
+    else
+    {
+        *out_crop_y = extra_y / 2;
+    }
+}
+
+static rive::Fit ToFit(jint fit)
+{
+    switch ((rive::Fit)fit)
+    {
+        case rive::Fit::fill:
+        case rive::Fit::contain:
+        case rive::Fit::cover:
+        case rive::Fit::fitWidth:
+        case rive::Fit::fitHeight:
+        case rive::Fit::none:
+        case rive::Fit::scaleDown:
+        case rive::Fit::layout:
+            return (rive::Fit)fit;
+        default:
+            return rive::Fit::contain;
+    }
+}
+
+// Local copy of dmRiveDDF::RiveModelDesc::Alignment values.
+enum class RiveModelDescAlignment : jint
+{
+    ALIGNMENT_TOP_LEFT = 0,
+    ALIGNMENT_TOP_CENTER = 1,
+    ALIGNMENT_TOP_RIGHT = 2,
+    ALIGNMENT_CENTER_LEFT = 3,
+    ALIGNMENT_CENTER = 4,
+    ALIGNMENT_CENTER_RIGHT = 5,
+    ALIGNMENT_BOTTOM_LEFT = 6,
+    ALIGNMENT_BOTTOM_CENTER = 7,
+    ALIGNMENT_BOTTOM_RIGHT = 8
+};
+
+static rive::Alignment ToAlignment(jint alignment)
+{
+    switch ((RiveModelDescAlignment)alignment)
+    {
+        case RiveModelDescAlignment::ALIGNMENT_TOP_LEFT:      return rive::Alignment::topLeft;
+        case RiveModelDescAlignment::ALIGNMENT_TOP_CENTER:    return rive::Alignment::topCenter;
+        case RiveModelDescAlignment::ALIGNMENT_TOP_RIGHT:     return rive::Alignment::topRight;
+        case RiveModelDescAlignment::ALIGNMENT_CENTER_LEFT:   return rive::Alignment::centerLeft;
+        case RiveModelDescAlignment::ALIGNMENT_CENTER:        return rive::Alignment::center;
+        case RiveModelDescAlignment::ALIGNMENT_CENTER_RIGHT:  return rive::Alignment::centerRight;
+        case RiveModelDescAlignment::ALIGNMENT_BOTTOM_LEFT:   return rive::Alignment::bottomLeft;
+        case RiveModelDescAlignment::ALIGNMENT_BOTTOM_CENTER: return rive::Alignment::bottomCenter;
+        case RiveModelDescAlignment::ALIGNMENT_BOTTOM_RIGHT:  return rive::Alignment::bottomRight;
+        default:                                              return rive::Alignment::center;
+    }
+}
+
+// TODO: No need for this
+static uint32_t BoundsDimension(float min_value, float max_value, uint32_t fallback)
+{
+    float size = max_value - min_value;
+    if (size <= 0.0f)
+    {
+        return fallback;
+    }
+
+    uint32_t dim = (uint32_t)ceilf(size);
+    return dim > 0 ? dim : fallback;
 }
 
 
@@ -466,6 +614,7 @@ void Update(JNIEnv* env, jclass cls, jobject rive_file_obj, jfloat dt)
         return;
     }
     dmRive::Update(rive_file, dt);
+    SetRiveFileBounds(env, rive_file_obj, rive_file);
 }
 
 void SetArtboard(JNIEnv* env, jclass cls, jobject rive_file_obj, const char* artboard)
@@ -487,6 +636,20 @@ void SetStateMachine(JNIEnv* env, jclass cls, jobject rive_file_obj, const char*
         return;
     }
     dmRive::SetStatemachine(rive_file, state_machine);
+}
+
+void SetFitAlignment(JNIEnv* env, jclass cls, jobject rive_file_obj, jint fit, jint alignment)
+{
+    dmRive::RiveFile* rive_file = FromObject(env, rive_file_obj);
+    if (!rive_file)
+    {
+        return;
+    }
+
+    rive::Fit fit_value = ToFit(fit);
+    rive::Alignment alignment_value = ToAlignment(alignment);
+
+    dmRive::SetFitAlignment(rive_file, fit_value, alignment_value);
 }
 
 void SetViewModel(JNIEnv* env, jclass cls, jobject rive_file_obj, const char* view_model)
@@ -535,6 +698,34 @@ jobject GetTexture(JNIEnv* env, jclass cls, jobject rive_file_obj)
 
     dmGraphics::AdapterFamily adapter_family = dmGraphics::GetInstalledAdapterFamily();
     bool render_to_backbuffer = adapter_family == dmGraphics::ADAPTER_FAMILY_VULKAN;
+    uint32_t window_width = dmGraphics::GetWindowWidth(graphics_context);
+    uint32_t window_height = dmGraphics::GetWindowHeight(graphics_context);
+
+    rive::AABB render_bounds = rive_file->m_Bounds;
+    rive::AABB fresh_bounds;
+    if (dmRiveCommands::GetBounds(rive_file->m_Artboard, &fresh_bounds))
+    {
+        render_bounds = fresh_bounds;
+    }
+
+    uint32_t target_width = BoundsDimension(render_bounds.minX, render_bounds.maxX, window_width);
+    uint32_t target_height = BoundsDimension(render_bounds.minY, render_bounds.maxY, window_height);
+    if (target_width == 0 || target_height == 0)
+    {
+        dmLogError("Rive: invalid render size %u x %u (adapter=%d)", target_width, target_height, (int)adapter_family);
+        return 0;
+    }
+
+    uint32_t render_width = target_width;
+    uint32_t render_height = target_height;
+
+    if (render_to_backbuffer)
+    {
+        // Vulkan readback currently pulls from the swapchain image dimensions.
+        // Keep render dimensions in sync with the current swapchain.
+        render_width = window_width;
+        render_height = window_height;
+    }
 
     if (render_to_backbuffer)
     {
@@ -544,6 +735,8 @@ jobject GetTexture(JNIEnv* env, jclass cls, jobject rive_file_obj)
     dmRive::RenderBeginParams render_params;
     render_params.m_DoFinalBlit = !render_to_backbuffer;
     render_params.m_BackbufferSamples = 0;
+    render_params.m_Width = render_width;
+    render_params.m_Height = render_height;
 
     dmRive::RenderBegin(render_context, 0, render_params);
 
@@ -554,16 +747,7 @@ jobject GetTexture(JNIEnv* env, jclass cls, jobject rive_file_obj)
         return 0;
     }
 
-    uint32_t width = dmGraphics::GetWindowWidth(graphics_context);
-    uint32_t height = dmGraphics::GetWindowHeight(graphics_context);
-    if (width == 0 || height == 0)
-    {
-        dmRive::RenderEnd(render_context);
-        dmLogError("Rive: invalid render size %u x %u (adapter=%d)", width, height, (int)adapter_family);
-        return 0;
-    }
-
-    float display_factor = dmGraphics::GetDisplayScaleFactor(graphics_context);
+    const float artboard_display_factor = 1.0f;
 
     if (rive_file->m_StateMachine != RIVE_NULL_HANDLE)
     {
@@ -571,12 +755,13 @@ jobject GetTexture(JNIEnv* env, jclass cls, jobject rive_file_obj)
     }
 
     const rive::ArtboardHandle artboard_handle = rive_file->m_Artboard;
+
     dmRive::DrawArtboardParams draw_params;
-    draw_params.m_Fit = rive::Fit::contain;
-    draw_params.m_Alignment = rive::Alignment::center;
-    draw_params.m_Width = width;
-    draw_params.m_Height = height;
-    draw_params.m_DisplayFactor = display_factor;
+    draw_params.m_Fit = rive_file->m_Fit;
+    draw_params.m_Alignment = rive_file->m_Alignment;
+    draw_params.m_Width = render_width;
+    draw_params.m_Height = render_height;
+    draw_params.m_DisplayFactor = artboard_display_factor;
 
     auto drawLoop = [artboard_handle,
                      renderer,
@@ -587,6 +772,7 @@ jobject GetTexture(JNIEnv* env, jclass cls, jobject rive_file_obj)
         {
             return;
         }
+
         dmRive::DrawArtboard(artboard, renderer, draw_params, 0);
     };
 
@@ -609,7 +795,11 @@ jobject GetTexture(JNIEnv* env, jclass cls, jobject rive_file_obj)
         return 0;
     }
 
-    if (!ConvertPixelsToABGRAndFlipY(&pixels))
+    uint32_t crop_x = 0;
+    uint32_t crop_y = 0;
+    AlignmentToCropOffset(rive_file->m_Alignment, (uint32_t)pixels.m_Width, (uint32_t)pixels.m_Height, target_width, target_height, &crop_x, &crop_y);
+
+    if (!ConvertPixelsToABGRAndFlipY(&pixels, target_width, target_height, crop_x, crop_y))
     {
         dmRive::FreePixels(&pixels);
         return 0;

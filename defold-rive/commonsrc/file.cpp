@@ -42,6 +42,8 @@ RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char*
     out->m_Artboard = RIVE_NULL_HANDLE;
     out->m_StateMachine = RIVE_NULL_HANDLE;
     out->m_ViewModelInstance = RIVE_NULL_HANDLE;
+    out->m_Fit = rive::Fit::contain;
+    out->m_Alignment = rive::Alignment::center;
     out->m_Bounds = rive::AABB();
     out->m_FileListener = new MetadataListener(out);
 
@@ -268,6 +270,17 @@ void SetStatemachine(RiveFile* file, const char* state_machine)
     dmRiveCommands::ProcessMessages();
 }
 
+void SetFitAlignment(RiveFile* file, rive::Fit fit, rive::Alignment alignment)
+{
+    if (!file)
+    {
+        return;
+    }
+
+    file->m_Fit = fit;
+    file->m_Alignment = alignment;
+}
+
 void SetViewModel(RiveFile* file, const char* view_model)
 {
 
@@ -319,6 +332,7 @@ bool DrawArtboard(rive::ArtboardInstance* artboard,
     {
         artboard->width(params.m_Width / display_factor);
         artboard->height(params.m_Height / display_factor);
+        bounds = artboard->bounds();
     }
 
     rive::Mat2D renderer_transform = rive::computeAlignment(params.m_Fit,

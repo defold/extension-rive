@@ -210,6 +210,16 @@ static void JNICALL Java_Rive_SetStateMachine(JNIEnv* env, jclass cls, jobject r
     DM_CHECK_JNI_ERROR();
 }
 
+static void JNICALL Java_Rive_SetFitAlignment(JNIEnv* env, jclass cls, jobject rive_file, jint fit, jint alignment)
+{
+    DM_CHECK_JNI_ERROR();
+    dmRiveCrash::ScopedSignalHandler signal_scope;
+
+    TypeRegister register_t(env);
+    dmRiveJNI::SetFitAlignment(env, cls, rive_file, fit, alignment);
+    DM_CHECK_JNI_ERROR();
+}
+
 static void JNICALL Java_Rive_SetViewModel(JNIEnv* env, jclass cls, jobject rive_file, jstring _artboard)
 {
     DM_CHECK_JNI_ERROR();
@@ -466,6 +476,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
         DM_JNI_FUNCTION(Update, "(Lcom/dynamo/bob/pipeline/Rive$RiveFile;F)V"),
         DM_JNI_FUNCTION(SetArtboard, "(Lcom/dynamo/bob/pipeline/Rive$RiveFile;Ljava/lang/String;)V"),
         DM_JNI_FUNCTION(SetStateMachine, "(Lcom/dynamo/bob/pipeline/Rive$RiveFile;Ljava/lang/String;)V"),
+        DM_JNI_FUNCTION(SetFitAlignment, "(Lcom/dynamo/bob/pipeline/Rive$RiveFile;II)V"),
         DM_JNI_FUNCTION(SetViewModel, "(Lcom/dynamo/bob/pipeline/Rive$RiveFile;Ljava/lang/String;)V"),
         DM_JNI_FUNCTION(GetTexture, "(Lcom/dynamo/bob/pipeline/Rive$RiveFile;)Lcom/dynamo/bob/pipeline/Rive$Texture;"),
         DM_JNI_FUNCTION(GetFullscreenQuadVerticesInternal, "()[F")

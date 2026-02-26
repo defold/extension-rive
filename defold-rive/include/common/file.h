@@ -77,6 +77,8 @@ namespace dmRive
         rive::ArtboardHandle         m_Artboard;
         rive::StateMachineHandle     m_StateMachine;
         rive::ViewModelInstanceHandle m_ViewModelInstance;
+        rive::Fit                     m_Fit;
+        rive::Alignment               m_Alignment;
         rive::AABB                     m_Bounds;
 
         MetadataListener*                     m_FileListener;
@@ -102,6 +104,7 @@ namespace dmRive
 
     void SetArtboard(RiveFile* file, const char* artboard);
     void SetStatemachine(RiveFile* file, const char* state_machine);
+    void SetFitAlignment(RiveFile* file, rive::Fit fit, rive::Alignment alignment);
     void SetViewModel(RiveFile* file, const char* view_model);
 
     struct DrawArtboardParams

@@ -33,6 +33,7 @@ namespace dmRiveJNI
 
     void    SetArtboard(JNIEnv* env, jclass cls, jobject rive_file, const char* artboard);
     void    SetStateMachine(JNIEnv* env, jclass cls, jobject rive_file, const char* state_machine);
+    void    SetFitAlignment(JNIEnv* env, jclass cls, jobject rive_file, jint fit, jint alignment);
     void    SetViewModel(JNIEnv* env, jclass cls, jobject rive_file, const char* view_model);
 
     jobject GetTexture(JNIEnv* env, jclass cls, jobject rive_file);
