@@ -171,6 +171,18 @@
 
 (def ^:private unknown-value-text "<n/a>")
 (def ^:private none-value-text "<none>")
+(def ^:private artboard-fit-tooltip
+  (str "Fill: The content scales to completely fill the available area. If the aspect ratio of the container differs from your artboard, the animation will be stretched to fit.\n"
+       "Contain (default): The content scales to be as large as possible within the view while preserving its original aspect ratio. If the ratios differ, there will be empty space (letterboxing) on the sides or top/bottom.\n"
+       "Cover: The content scales to fill the entire area while preserving the aspect ratio. If the container ratio differs, the content will be cropped to ensure no empty space is shown.\n"
+       "Fit Width: The content scales to match the width of the container, potentially causing vertical cropping or empty space.\n"
+       "Fit Height: The content scales to match the height of the container, potentially causing horizontal cropping or empty space.\n"
+       "None: The content remains at its original pixel size, regardless of the container size. This may cause clipping or leave significant empty space.\n"
+       "Scale Down: Similar to Contain, but only scales down if the content is larger than the container. If the container is larger, the content stays at its original size."))
+(def ^:private default-state-machine-tooltip
+  "The name of the initial state machine of the selected artboard. If empty, uses the default state machine.")
+(def ^:private auto-bind-tooltip
+  "If true, the default viewmodel for the artboard will be used.\nIf false, scripting needs to set this up.")
 
 (defn- string-or [value fallback]
   (if (and (string? value) (not (str/blank? value)))
@@ -1252,6 +1264,7 @@
   (property artboard g/Str (default (protobuf/default rive-model-pb-class :artboard))
           (dynamic error (g/fnk [_node-id rive-artboards artboard rive-scene]
                                 (validate-model-artboard _node-id rive-scene rive-artboards artboard)))
+          (dynamic tooltip (g/constantly "The name of the initial artboard. If empty, uses the default artboard."))
           (dynamic edit-type (g/fnk [rive-artboards] (properties/->choicebox (cons "" rive-artboards)))))
 
   (property default-state-machine g/Str (default (protobuf/default rive-model-pb-class :default-state-machine))
@@ -1259,15 +1272,19 @@
                              (validate-model-default-state-machine _node-id rive-scene
                                                                    (state-machines-for-artboard rive-state-machines artboard rive-artboards)
                                                                    default-state-machine)))
+            (dynamic tooltip (g/constantly default-state-machine-tooltip))
             (dynamic edit-type (g/fnk [rive-state-machines artboard rive-artboards]
                                  (properties/->choicebox (cons "" (state-machines-for-artboard rive-state-machines artboard rive-artboards))))))
-  (property auto-bind g/Bool (default (protobuf/default rive-model-pb-class :auto-bind)))
+  (property auto-bind g/Bool (default (protobuf/default rive-model-pb-class :auto-bind))
+            (dynamic tooltip (g/constantly auto-bind-tooltip)))
 
   (property coordinate-system g/Any (default (protobuf/default rive-model-pb-class :coordinate-system))
+            (dynamic tooltip (g/constantly "Rive: Uses a fullscreen quad for rendering\nGame: Uses the game object transform."))
             (dynamic edit-type (g/constantly coordinate-system-edit-type)))
 
   (property artboard-fit g/Any (default (protobuf/default rive-model-pb-class :artboard-fit))
             (dynamic edit-type (g/constantly (properties/->pb-choicebox artboard-fit-pb-class)))
+            (dynamic tooltip (g/constantly artboard-fit-tooltip))
             (dynamic read-only? (g/fnk [coordinate-system]
                                   (= :coordinate-system-game coordinate-system))))
 
