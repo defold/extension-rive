@@ -91,7 +91,8 @@ jobs:
           path: |
             ${{ inputs.bob_output_path }}
             ${{ inputs.sdk_output_path }}
-          key: defoldsdk-${{ runner.os }}-${{ steps.resolve-version.outputs.defold_version }}
+          key: defoldsdk-${{ steps.resolve-version.outputs.defold_version }}
+          enableCrossOsArchive: true
 
       - name: Download and extract Defold SDK
         if: steps.cache-defoldsdk.outputs.cache-hit != 'true'
