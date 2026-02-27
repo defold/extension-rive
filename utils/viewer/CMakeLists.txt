@@ -203,12 +203,12 @@ elseif(${TARGET_PLATFORM} MATCHES "linux")
     # that are provided by legacy libGL, not GLVND's libOpenGL.
     set(OpenGL_GL_PREFERENCE LEGACY)
     find_package(OpenGL REQUIRED)
-    target_link_libraries(viewer PRIVATE OpenGL::GL)
-    target_link_libraries(viewer PRIVATE pthread dl m)
 endif()
 
 if(${TARGET_PLATFORM} MATCHES "linux")
     target_link_libraries(viewer PRIVATE "-Wl,--start-group" ${TARGET_LIBS} "-Wl,--end-group")
+    # Keep system GL libs after static engine archives to satisfy --as-needed linkers.
+    target_link_libraries(viewer PRIVATE OpenGL::GL pthread dl m)
 else()
     target_link_libraries(viewer PRIVATE ${TARGET_LIBS})
 endif()
