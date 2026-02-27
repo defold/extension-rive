@@ -26,7 +26,16 @@
 #include <dmsdk/platform/window.h>
 #include <dmsdk/render/render.h>
 
-#include <dlib/log.h>          // LogParams
+#include <dmsdk/dlib/log.h> // LogParams
+
+// until Defold 1.12.3
+namespace dmLog
+{
+    struct LogParams;
+
+    extern void LogInitialize(const LogParams* params);
+    extern void LogFinalize();
+}
 
 #include <defold/rive.h>
 #include "common/file.h"
@@ -252,8 +261,9 @@ static int RunLoop(const RunLoopParams* params)
 
 static void AppCreate(void* _ctx)
 {
-    dmLog::LogParams params;
-    dmLog::LogInitialize(&params);
+    //dmLog::LogParams params;
+    int params = 0;
+    dmLog::LogInitialize((const dmLog::LogParams*)&params);
 
     AppCtx* ctx = (AppCtx*)_ctx;
     ctx->m_Created++;
@@ -263,6 +273,8 @@ static void AppDestroy(void* _ctx)
 {
     AppCtx* ctx = (AppCtx*)_ctx;
     ctx->m_Destroyed++;
+
+    dmLog::LogFinalize();
 }
 
 static void DrawFullscreenQuad(EngineCtx* engine, dmGraphics::HTexture texture)
