@@ -59,7 +59,7 @@ message RiveModelDesc
 
     required string scene                   = 1 [(resource)=true];
     optional string default_animation       = 2; // Deprecated
-    optional string material                = 3 [(resource)=true, default="/defold-rive/assets/rivemodel.material"]; // Deprecated
+    optional string material                = 3 [(resource)=true]; // Deprecated
     optional BlendMode blend_mode           = 4 [default = BLEND_MODE_ALPHA];
     optional string default_state_machine   = 5;
     optional bool create_go_bones           = 6 [default=false]; // Deprecated

@@ -1,5 +1,5 @@
 scene: "/main/scrollist/scrolllist.rivescene"
 default_animation: ""
-material: "/defold-rive/assets/rivemodel.material"
+blit_material: "/defold-rive/assets/shader-library/rivemodel_blit.material"
 artboard: "Main"
 artboard_fit: FIT_LAYOUT

@@ -1,4 +1,3 @@
 scene: "/main/egg/egg.rivescene"
 default_animation: ""
-material: "/defold-rive/assets/rivemodel.material"
 blit_material: "/defold-rive/assets/shader-library/rivemodel_blit.material"

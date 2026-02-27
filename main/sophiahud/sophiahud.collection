@@ -15,7 +15,7 @@ embedded_instances {
   "  type: \"rivemodel\"\n"
   "  data: \"scene: \\\"/main/sophiahud/sophiahud.rivescene\\\"\\n"
   "default_animation: \\\"LOGO_INTRO\\\"\\n"
-  "material: \\\"/defold-rive/assets/rivemodel.material\\\"\\n"
+  "blit_material: \\\"/defold-rive/assets/shader-library/rivemodel_blit.material\\\"\\n"
   "default_state_machine: \\\"SOPHIA_III_DASHBOARD_SEQ\\\"\\n"
   "artboard: \\\"SOPHIA III HUD\\\"\\n"
   "coordinate_system: COORDINATE_SYSTEM_RIVE\\n"
