@@ -26,12 +26,16 @@ on:
       defold_version:
         description: "Resolved Defold version tag used for download/cache."
         value: ${{ jobs.prepare.outputs.defold_version }}
+      defoldsdk_cache_key:
+        description: "Resolved cache key including release asset ETags."
+        value: ${{ jobs.prepare.outputs.defoldsdk_cache_key }}
 
 jobs:
   prepare:
     runs-on: ${{ inputs.runner }}
     outputs:
       defold_version: ${{ steps.resolve-version.outputs.defold_version }}
+      defoldsdk_cache_key: ${{ steps.compute-cache-key.outputs.cache_key }}
     steps:
       - name: Setup Python 3
         uses: actions/setup-python@v5
@@ -90,6 +94,56 @@ jobs:
           echo "defold_version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Using Defold version: ${VERSION}"
 
+      - name: Resolve release asset ETags
+        id: resolve-etags
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.resolve-version.outputs.defold_version }}"
+          BASE_URL="https://github.com/defold/defold/releases/download/${VERSION}"
+          SDK_URL="${BASE_URL}/defoldsdk.zip"
+          BOB_URL="${BASE_URL}/bob.jar"
+
+          get_etag() {
+            local url="$1"
+            local etag
+            etag="$(curl -fsSIL "${url}" | tr -d '\r' | awk 'tolower($1) == "etag:" { print $2 }' | tail -n 1 || true)"
+            if [ -z "${etag}" ]; then
+              etag="missing"
+            fi
+            etag="${etag#W/}"
+            etag="${etag%\"}"
+            etag="${etag#\"}"
+            etag="$(printf '%s' "${etag}" | tr -cs '[:alnum:]_.:-' '-')"
+            printf '%s' "${etag}"
+          }
+
+          SDK_ETAG="$(get_etag "${SDK_URL}")"
+          BOB_ETAG="$(get_etag "${BOB_URL}")"
+
+          ETAG_FINGERPRINT="$(SDK_ETAG="${SDK_ETAG}" BOB_ETAG="${BOB_ETAG}" python - <<'PY'
+          import hashlib
+          import os
+
+          value = f"{os.environ['SDK_ETAG']}|{os.environ['BOB_ETAG']}"
+          print(hashlib.sha256(value.encode("utf-8")).hexdigest()[:16])
+          PY
+          )"
+
+          echo "sdk_etag=${SDK_ETAG}" >> "$GITHUB_OUTPUT"
+          echo "bob_etag=${BOB_ETAG}" >> "$GITHUB_OUTPUT"
+          echo "etag_fingerprint=${ETAG_FINGERPRINT}" >> "$GITHUB_OUTPUT"
+          echo "Resolved ETags: defoldsdk.zip=${SDK_ETAG}, bob.jar=${BOB_ETAG}"
+
+      - name: Compute Defold SDK cache key
+        id: compute-cache-key
+        shell: bash
+        run: |
+          set -euo pipefail
+          CACHE_KEY="defoldsdk-${{ steps.resolve-version.outputs.defold_version }}-${{ steps.resolve-etags.outputs.etag_fingerprint }}"
+          echo "cache_key=${CACHE_KEY}" >> "$GITHUB_OUTPUT"
+          echo "Using cache key: ${CACHE_KEY}"
+
       - name: Cache Defold SDK and bob.jar
         id: cache-defoldsdk
         uses: actions/cache@v4
@@ -97,7 +151,7 @@ jobs:
           path: |
             ${{ inputs.bob_output_path }}
             ${{ inputs.sdk_output_path }}
-          key: defoldsdk-${{ steps.resolve-version.outputs.defold_version }}
+          key: ${{ steps.compute-cache-key.outputs.cache_key }}
           enableCrossOsArchive: true
 
       - name: Download and extract Defold SDK
