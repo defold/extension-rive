@@ -196,12 +196,27 @@ elseif(${TARGET_PLATFORM} MATCHES "linux")
         RIVE_LINUX
         RIVE_DESKTOP_GL
     )
+    list(APPEND TARGET_LIBS
+        mbedtls
+        profilerext_null
+        resource
+        script
+        gamesys
+        lua
+        font
+        render_font_default
+        zlib
+    )
     find_package(OpenGL REQUIRED)
     target_link_libraries(viewer PRIVATE OpenGL::GL)
     target_link_libraries(viewer PRIVATE pthread dl m)
 endif()
 
-target_link_libraries(viewer PRIVATE ${TARGET_LIBS})
+if(${TARGET_PLATFORM} MATCHES "linux")
+    target_link_libraries(viewer PRIVATE "-Wl,--start-group" ${TARGET_LIBS} "-Wl,--end-group")
+else()
+    target_link_libraries(viewer PRIVATE ${TARGET_LIBS})
+endif()
 
 target_compile_options(viewer PRIVATE
     $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:Release>>:/O2>
