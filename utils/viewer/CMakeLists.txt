@@ -100,7 +100,7 @@ target_link_directories(viewer PRIVATE
 if(${TARGET_PLATFORM} MATCHES "macos")
     target_link_directories(viewer PRIVATE "${EXTENSION_ROOT}/defold-rive/lib/arm64-osx")
 else()
-    target_link_directories(viewer PRIVATE "${EXTENSION_ROOT}/defold-rive/lib/{TARGET_PLATFORM}")
+    target_link_directories(viewer PRIVATE "${EXTENSION_ROOT}/defold-rive/lib/${TARGET_PLATFORM}")
 endif()
 
 set(TARGET_LIBS
@@ -150,6 +150,9 @@ if(${TARGET_PLATFORM} MATCHES "win32")
     target_compile_definitions(viewer PRIVATE DM_PLATFORM_WINDOWS)
 elseif(${TARGET_PLATFORM} MATCHES "linux")
     target_compile_definitions(viewer PRIVATE DM_PLATFORM_LINUX)
+    list(APPEND TARGET_LIBS
+        graphics_vulkan
+    )
 endif()
 
 target_link_libraries(viewer PRIVATE ${TARGET_LIBS})

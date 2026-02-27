@@ -1,0 +1,140 @@
+name: Build Viewer
+
+on:
+  push:
+
+env:
+  DEFOLD_SDK_OUTPUT_PATH: build/defoldsdk
+  DEFOLD_BOB_OUTPUT_PATH: bob.jar
+
+jobs:
+  resolve-defold-version:
+    name: Resolve Defold Version
+    runs-on: ubuntu-22.04
+    outputs:
+      defold_version: ${{ steps.resolve-version.outputs.defold_version }}
+    steps:
+      - name: Resolve latest stable Defold version
+        id: resolve-version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(curl -fsSL "https://api.github.com/repos/defold/defold/releases/latest" | python -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])')"
+          echo "defold_version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Using Defold version: ${VERSION}"
+
+  prepare-defoldsdk:
+    name: defoldsdk-${{ matrix.platform }}
+    needs: resolve-defold-version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            platform: x86_64-linux
+          - os: macos-latest
+            platform: arm64-macos
+          - os: windows-2022
+            platform: x86_64-win32
+    uses: ./.github/workflows/defoldsdk.yml
+    with:
+      runner: ${{ matrix.os }}
+      defold_version: ${{ needs.resolve-defold-version.outputs.defold_version }}
+      sdk_output_path: ${{ env.DEFOLD_SDK_OUTPUT_PATH }}
+      bob_output_path: ${{ env.DEFOLD_BOB_OUTPUT_PATH }}
+
+  build-viewer:
+    name: viewer-${{ matrix.platform }}
+    needs:
+      - resolve-defold-version
+      - prepare-defoldsdk
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            platform: x86_64-linux
+          - os: macos-latest
+            platform: arm64-macos
+          - os: windows-2022
+            platform: x86_64-win32
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Temurin Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Python 3
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Setup CMake
+        uses: lukka/get-cmake@v4.1.1
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y \
+            ninja-build \
+            uuid-dev \
+            libx11-dev \
+            libxcursor-dev \
+            libxrandr-dev \
+            libxi-dev \
+            libxinerama-dev \
+            libxxf86vm-dev
+
+      - name: Install macOS dependencies
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew install ninja
+
+      - name: Install Windows dependencies
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install ninja -y
+
+      - name: Setup MSVC environment
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+          vsversion: 2022
+
+      - name: Restore Defold SDK and bob.jar from cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ${{ env.DEFOLD_BOB_OUTPUT_PATH }}
+            ${{ env.DEFOLD_SDK_OUTPUT_PATH }}
+          key: defoldsdk-${{ runner.os }}-${{ needs.resolve-defold-version.outputs.defold_version }}
+          fail-on-cache-miss: true
+
+      - name: Build viewer
+        shell: bash
+        env:
+          DYNAMO_HOME: ${{ github.workspace }}/${{ env.DEFOLD_SDK_OUTPUT_PATH }}/defoldsdk
+          BOB: ${{ github.workspace }}/${{ env.DEFOLD_BOB_OUTPUT_PATH }}
+        run: |
+          set -euo pipefail
+          ./utils/viewer/build.sh "${{ matrix.platform }}"
+
+      - name: Upload viewer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: viewer-${{ matrix.platform }}
+          path: utils/viewer/build/${{ matrix.platform }}
+          if-no-files-found: error
