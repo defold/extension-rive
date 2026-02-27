@@ -109,12 +109,28 @@ else()
     target_link_directories(viewer PRIVATE "${EXTENSION_ROOT}/defold-rive/lib/${TARGET_PLATFORM}")
 endif()
 
-set(TARGET_LIBS
+set(ENGINE_LIBS
     ddf
     dlib
     profile_null
     platform
+    render
     graphics
+)
+
+if(${TARGET_PLATFORM} MATCHES "win32")
+    set(ENGINE_LIBS
+        libddf
+        libdlib
+        libprofile_null
+        libplatform
+        librender
+        libgraphics
+    )
+endif()
+
+set(TARGET_LIBS
+    ${ENGINE_LIBS}
 
     rive
     rive_decoders
@@ -136,8 +152,8 @@ endif()
 if(USE_VULKAN_BACKEND)
     target_compile_definitions(viewer PRIVATE DM_GRAPHICS_USE_VULKAN)
     list(APPEND TARGET_LIBS
-        platform_vulkan
         graphics_vulkan
+        platform_vulkan
         glfw3
     )
 endif()
@@ -164,9 +180,19 @@ if(${TARGET_PLATFORM} MATCHES "macos")
 endif()
 
 if(${TARGET_PLATFORM} MATCHES "win32")
-    target_compile_definitions(viewer PRIVATE DM_PLATFORM_WINDOWS)
+    target_compile_definitions(viewer PRIVATE
+        DM_PLATFORM_WINDOWS
+        DM_RIVE_USE_OPENGL
+        RIVE_WINDOWS
+        RIVE_DESKTOP_GL
+    )
 elseif(${TARGET_PLATFORM} MATCHES "linux")
-    target_compile_definitions(viewer PRIVATE DM_PLATFORM_LINUX)
+    target_compile_definitions(viewer PRIVATE
+        DM_PLATFORM_LINUX
+        DM_RIVE_USE_OPENGL
+        RIVE_LINUX
+        RIVE_DESKTOP_GL
+    )
     list(APPEND TARGET_LIBS
         vulkan
     )
