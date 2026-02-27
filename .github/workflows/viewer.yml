@@ -4,36 +4,19 @@ on:
   push:
 
 jobs:
-  resolve-defold-version:
-    name: Resolve Defold Version
-    runs-on: ubuntu-22.04
-    outputs:
-      defold_version: ${{ steps.resolve-version.outputs.defold_version }}
-    steps:
-      - name: Resolve latest stable Defold version
-        id: resolve-version
-        shell: bash
-        run: |
-          set -euo pipefail
-          VERSION="$(curl -fsSL "https://api.github.com/repos/defold/defold/releases/latest" | python -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])')"
-          echo "defold_version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Using Defold version: ${VERSION}"
-
   prepare-defoldsdk:
     name: defoldsdk
-    needs: resolve-defold-version
     uses: ./.github/workflows/defoldsdk.yml
     with:
       runner: ubuntu-22.04
-      defold_version: ${{ needs.resolve-defold-version.outputs.defold_version }}
+      defold_channel: alpha
+      defold_version: latest
       sdk_output_path: build/defoldsdk
       bob_output_path: bob.jar
 
   build-viewer:
     name: viewer-${{ matrix.platform }}
-    needs:
-      - resolve-defold-version
-      - prepare-defoldsdk
+    needs: prepare-defoldsdk
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -106,7 +89,7 @@ jobs:
           path: |
             bob.jar
             build/defoldsdk
-          key: defoldsdk-${{ needs.resolve-defold-version.outputs.defold_version }}
+          key: defoldsdk-${{ needs.prepare-defoldsdk.outputs.defold_version }}
           enableCrossOsArchive: true
           fail-on-cache-miss: true
 

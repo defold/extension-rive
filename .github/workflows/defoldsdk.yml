@@ -22,10 +22,16 @@ on:
         required: false
         type: string
         default: "bob.jar"
+    outputs:
+      defold_version:
+        description: "Resolved Defold version tag used for download/cache."
+        value: ${{ jobs.prepare.outputs.defold_version }}
 
 jobs:
   prepare:
     runs-on: ${{ inputs.runner }}
+    outputs:
+      defold_version: ${{ steps.resolve-version.outputs.defold_version }}
     steps:
       - name: Setup Python 3
         uses: actions/setup-python@v5
