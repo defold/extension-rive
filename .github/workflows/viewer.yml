@@ -3,10 +3,6 @@ name: Build Viewer
 on:
   push:
 
-env:
-  DEFOLD_SDK_OUTPUT_PATH: build/defoldsdk
-  DEFOLD_BOB_OUTPUT_PATH: bob.jar
-
 jobs:
   resolve-defold-version:
     name: Resolve Defold Version
@@ -32,16 +28,22 @@ jobs:
         include:
           - os: ubuntu-22.04
             platform: x86_64-linux
+            sdk_output_path: build/defoldsdk
+            bob_output_path: bob.jar
           - os: macos-latest
             platform: arm64-macos
+            sdk_output_path: build/defoldsdk
+            bob_output_path: bob.jar
           - os: windows-2022
             platform: x86_64-win32
+            sdk_output_path: build/defoldsdk
+            bob_output_path: bob.jar
     uses: ./.github/workflows/defoldsdk.yml
     with:
       runner: ${{ matrix.os }}
       defold_version: ${{ needs.resolve-defold-version.outputs.defold_version }}
-      sdk_output_path: ${{ env.DEFOLD_SDK_OUTPUT_PATH }}
-      bob_output_path: ${{ env.DEFOLD_BOB_OUTPUT_PATH }}
+      sdk_output_path: ${{ matrix.sdk_output_path }}
+      bob_output_path: ${{ matrix.bob_output_path }}
 
   build-viewer:
     name: viewer-${{ matrix.platform }}
@@ -55,10 +57,16 @@ jobs:
         include:
           - os: ubuntu-22.04
             platform: x86_64-linux
+            sdk_output_path: build/defoldsdk
+            bob_output_path: bob.jar
           - os: macos-latest
             platform: arm64-macos
+            sdk_output_path: build/defoldsdk
+            bob_output_path: bob.jar
           - os: windows-2022
             platform: x86_64-win32
+            sdk_output_path: build/defoldsdk
+            bob_output_path: bob.jar
 
     steps:
       - name: Checkout repository
@@ -118,16 +126,16 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            ${{ env.DEFOLD_BOB_OUTPUT_PATH }}
-            ${{ env.DEFOLD_SDK_OUTPUT_PATH }}
+            ${{ matrix.bob_output_path }}
+            ${{ matrix.sdk_output_path }}
           key: defoldsdk-${{ runner.os }}-${{ needs.resolve-defold-version.outputs.defold_version }}
           fail-on-cache-miss: true
 
       - name: Build viewer
         shell: bash
         env:
-          DYNAMO_HOME: ${{ github.workspace }}/${{ env.DEFOLD_SDK_OUTPUT_PATH }}/defoldsdk
-          BOB: ${{ github.workspace }}/${{ env.DEFOLD_BOB_OUTPUT_PATH }}
+          DYNAMO_HOME: ${{ github.workspace }}/${{ matrix.sdk_output_path }}/defoldsdk
+          BOB: ${{ github.workspace }}/${{ matrix.bob_output_path }}
         run: |
           set -euo pipefail
           ./utils/viewer/build.sh "${{ matrix.platform }}"
