@@ -539,13 +539,13 @@ static void DrawRiveScene(EngineCtx* engine)
         }
         else
         {
-            dmRive::DrawArtboardParams draw_params;
-            draw_params.m_Fit = fit;
-            draw_params.m_Alignment = alignment;
-            draw_params.m_Width = width;
-            draw_params.m_Height = height;
-            draw_params.m_DisplayFactor = display_factor;
-            dmRive::DrawArtboard(artboard, renderer, draw_params, 0);
+            rive::Mat2D renderer_transform = dmRive::CalcTransformRive(artboard,
+                                                                        fit,
+                                                                        alignment,
+                                                                        width,
+                                                                        height,
+                                                                        display_factor);
+            dmRive::DrawArtboard(artboard, renderer, renderer_transform);
         }
     };
 
