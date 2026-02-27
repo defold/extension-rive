@@ -48,7 +48,6 @@ namespace dmRive
     rive::rcp<rive::RenderImage> CreateRiveRenderImageASTC(HRenderContext context, void* bytes, uint32_t byte_count);
     rive::Factory*               GetRiveFactory(HRenderContext context);
     rive::Renderer*              GetRiveRenderer(HRenderContext context);
-    rive::Mat2D                  GetViewTransform(HRenderContext context, dmRender::HRenderContext render_context);
     rive::Mat2D                  GetViewProjectionTransform(HRenderContext context, dmRender::HRenderContext render_context);
     void                         GetDimensions(HRenderContext context, uint32_t* width, uint32_t* height);
     void                         RenderBegin(HRenderContext context, dmResource::HFactory factory, const RenderBeginParams& params);

@@ -8,8 +8,6 @@
 #include <common/astc.h>
 #include "defold/renderer.h"
 
-#include "common/rive_math.h"
-
 #include <rive/shapes/image.hpp>
 #include <rive/renderer.hpp>
 #include <rive/renderer/texture.hpp>
@@ -300,13 +298,6 @@ namespace dmRive
         return texture != nullptr ? rive::make_rcp<rive::RiveRenderImage>(std::move(texture)) : nullptr;
     }
 
-    rive::Mat2D GetViewTransform(HRenderContext context, dmRender::HRenderContext render_context)
-    {
-        const dmVMath::Matrix4& view_matrix = dmRender::GetViewMatrix(render_context);
-        rive::Mat2D viewTransform;
-        Mat4ToMat2D(view_matrix, viewTransform);
-        return viewTransform;
-    }
 }
 
 #endif // DM_HEADLESS

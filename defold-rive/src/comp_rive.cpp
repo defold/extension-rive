@@ -161,6 +161,14 @@ namespace dmRive
         return rive::Alignment::center;
     }
 
+    static rive::Mat2D GetViewTransform(dmRender::HRenderContext render_context)
+    {
+        const dmVMath::Matrix4& view_matrix = dmRender::GetViewMatrix(render_context);
+        rive::Mat2D view_transform;
+        Mat4ToMat2D(view_matrix, view_transform);
+        return view_transform;
+    }
+
     dmGameObject::CreateResult CompRiveNewWorld(const dmGameObject::ComponentNewWorldParams& params)
     {
         CompRiveContext* context = (CompRiveContext*)params.m_Context;
@@ -526,7 +534,7 @@ namespace dmRive
 
         uint32_t window_height = dmGraphics::GetWindowHeight(world->m_Ctx->m_GraphicsContext);
 
-        rive::Mat2D view_transform = GetViewTransform(world->m_RiveRenderContext, render_context);
+        rive::Mat2D view_transform = GetViewTransform(render_context);
         rive::Renderer* renderer = GetRiveRenderer(world->m_RiveRenderContext);
 
         float display_factor  = g_DisplayFactor;
