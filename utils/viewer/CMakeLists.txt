@@ -133,7 +133,6 @@ set(TARGET_LIBS
     ${ENGINE_LIBS}
 
     rive
-    rive_decoders
     rive_harfbuzz
     rive_pls_renderer
     rive_sheenbidi
@@ -143,6 +142,10 @@ set(TARGET_LIBS
     libwebp
     miniaudio
 )
+
+if(NOT TARGET_PLATFORM MATCHES "win32")
+    list(APPEND TARGET_LIBS rive_decoders)
+endif()
 
 set(USE_VULKAN_BACKEND FALSE)
 if(${TARGET_PLATFORM} MATCHES "macos")
