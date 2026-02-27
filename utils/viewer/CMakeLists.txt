@@ -199,6 +199,9 @@ elseif(${TARGET_PLATFORM} MATCHES "linux")
         RIVE_LINUX
         RIVE_DESKTOP_GL
     )
+    # Defold's libgraphics.a references ARB entry points (e.g. glBindBufferARB)
+    # that are provided by legacy libGL, not GLVND's libOpenGL.
+    set(OpenGL_GL_PREFERENCE LEGACY)
     find_package(OpenGL REQUIRED)
     target_link_libraries(viewer PRIVATE OpenGL::GL)
     target_link_libraries(viewer PRIVATE pthread dl m)
