@@ -34,41 +34,39 @@ if(WITH_ASAN AND NOT ASAN_SUPPORTED)
     message(WARNING "Address Sanitizer is not supported for ${CMAKE_CXX_COMPILER_ID}; disabling")
     set(WITH_ASAN OFF)
 endif()
-set(VIEWER_SHADER_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/shaders.cpp")
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
-if(${TARGET_PLATFORM} MATCHES "macos")
-    set(RIVE_BLIT_SHADER_VP "${EXTENSION_ROOT}/defold-rive/assets/shader-library/rivemodel_blit.vp")
-    set(RIVE_BLIT_SHADER_FP "${EXTENSION_ROOT}/defold-rive/assets/shader-library/rivemodel_blit.fp")
-    set(RIVE_BLIT_SHADER_OUT "${CMAKE_CURRENT_BINARY_DIR}/shaders.cpp")
-    set(RIVE_SHADER_GEN_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/gen_shaders.py")
+set(RIVE_BLIT_SHADER_VP "${EXTENSION_ROOT}/defold-rive/assets/shader-library/rivemodel_blit.vp")
+set(RIVE_BLIT_SHADER_FP "${EXTENSION_ROOT}/defold-rive/assets/shader-library/rivemodel_blit.fp")
+set(RIVE_BLIT_SHADER_OUT "${CMAKE_CURRENT_BINARY_DIR}/shaders.cpp")
+set(RIVE_SHADER_GEN_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/gen_shaders.py")
 
-    set(BOB_PATH $ENV{BOB})
-    if(NOT BOB_PATH)
-        if(DEFINED ENV{DYNAMO_HOME})
-            set(BOB_PATH "$ENV{DYNAMO_HOME}/share/java/bob.jar")
-        else()
-            set(BOB_PATH "${EXTENSION_ROOT}/bob.jar")
-        endif()
+set(BOB_PATH $ENV{BOB})
+if(NOT BOB_PATH)
+    if(DEFINED ENV{DYNAMO_HOME})
+        set(BOB_PATH "$ENV{DYNAMO_HOME}/share/java/bob.jar")
+    else()
+        set(BOB_PATH "${EXTENSION_ROOT}/bob.jar")
     endif()
-
-    add_custom_command(
-        OUTPUT "${RIVE_BLIT_SHADER_OUT}"
-        COMMAND python3 "${RIVE_SHADER_GEN_SCRIPT}"
-            --bob "${BOB_PATH}"
-            --platform "${TARGET_PLATFORM}"
-            --content-root "${EXTENSION_ROOT}"
-            --vertex "${RIVE_BLIT_SHADER_VP}"
-            --fragment "${RIVE_BLIT_SHADER_FP}"
-            --output "${RIVE_BLIT_SHADER_OUT}"
-        DEPENDS
-            "${RIVE_SHADER_GEN_SCRIPT}"
-            "${RIVE_BLIT_SHADER_VP}"
-            "${RIVE_BLIT_SHADER_FP}"
-        VERBATIM
-    )
-
-    set(VIEWER_SHADER_SOURCE "${RIVE_BLIT_SHADER_OUT}")
 endif()
+
+add_custom_command(
+    OUTPUT "${RIVE_BLIT_SHADER_OUT}"
+    COMMAND "${Python3_EXECUTABLE}" "${RIVE_SHADER_GEN_SCRIPT}"
+        --bob "${BOB_PATH}"
+        --platform "${TARGET_PLATFORM}"
+        --content-root "${EXTENSION_ROOT}"
+        --vertex "${RIVE_BLIT_SHADER_VP}"
+        --fragment "${RIVE_BLIT_SHADER_FP}"
+        --output "${RIVE_BLIT_SHADER_OUT}"
+    DEPENDS
+        "${RIVE_SHADER_GEN_SCRIPT}"
+        "${RIVE_BLIT_SHADER_VP}"
+        "${RIVE_BLIT_SHADER_FP}"
+    VERBATIM
+)
+
+set(VIEWER_SHADER_SOURCE "${RIVE_BLIT_SHADER_OUT}")
 
 add_executable(viewer
     "${CMAKE_CURRENT_SOURCE_DIR}/viewer.cpp"
