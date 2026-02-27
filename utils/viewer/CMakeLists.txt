@@ -145,7 +145,7 @@ set(TARGET_LIBS
 )
 
 set(USE_VULKAN_BACKEND FALSE)
-if(${TARGET_PLATFORM} MATCHES "macos" OR ${TARGET_PLATFORM} MATCHES "linux")
+if(${TARGET_PLATFORM} MATCHES "macos")
     set(USE_VULKAN_BACKEND TRUE)
 endif()
 
@@ -180,22 +180,24 @@ if(${TARGET_PLATFORM} MATCHES "macos")
 endif()
 
 if(${TARGET_PLATFORM} MATCHES "win32")
+    list(APPEND TARGET_LIBS glfw3)
     target_compile_definitions(viewer PRIVATE
         DM_PLATFORM_WINDOWS
         DM_RIVE_USE_OPENGL
         RIVE_WINDOWS
         RIVE_DESKTOP_GL
     )
+    target_link_libraries(viewer PRIVATE opengl32)
 elseif(${TARGET_PLATFORM} MATCHES "linux")
+    list(APPEND TARGET_LIBS glfw3)
     target_compile_definitions(viewer PRIVATE
         DM_PLATFORM_LINUX
         DM_RIVE_USE_OPENGL
         RIVE_LINUX
         RIVE_DESKTOP_GL
     )
-    list(APPEND TARGET_LIBS
-        vulkan
-    )
+    find_package(OpenGL REQUIRED)
+    target_link_libraries(viewer PRIVATE OpenGL::GL)
     target_link_libraries(viewer PRIVATE pthread dl m)
 endif()
 

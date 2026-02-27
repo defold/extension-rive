@@ -56,7 +56,9 @@ jobs:
           sudo apt-get install -y \
             ninja-build \
             uuid-dev \
-            libvulkan-dev \
+            mesa-common-dev \
+            libgl1-mesa-dev \
+            libglx-dev \
             libx11-dev \
             libxcursor-dev \
             libxrandr-dev \
