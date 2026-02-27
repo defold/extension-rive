@@ -27,9 +27,6 @@ jobs:
   prepare:
     runs-on: ${{ inputs.runner }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Setup Python 3
         uses: actions/setup-python@v5
         with:
