@@ -642,7 +642,7 @@ static void EngineGetResult(void* _engine, int* run_action, int* exit_code, int*
     ctx->m_WasResultCalled++;
 }
 
-#if defined(__APPLE__) || defined(__linux__)
+#if defined(DM_GRAPHICS_USE_VULKAN)
 extern "C" void GraphicsAdapterVulkan();
 #else
 extern "C" void GraphicsAdapterOpenGL();
@@ -650,7 +650,7 @@ extern "C" void GraphicsAdapterOpenGL();
 
 static void dmExportedSymbols()
 {
-#if defined(__APPLE__) || defined(__linux__)
+#if defined(DM_GRAPHICS_USE_VULKAN)
     GraphicsAdapterVulkan();
 #else
     GraphicsAdapterOpenGL();
@@ -661,7 +661,7 @@ int main(int argc, char** argv)
 {
     dmExportedSymbols();
     s_AdapterFamily = dmGraphics::ADAPTER_FAMILY_VULKAN;
-#if !defined(__APPLE__) && !defined(__linux__)
+#if !defined(DM_GRAPHICS_USE_VULKAN)
     s_AdapterFamily = dmGraphics::ADAPTER_FAMILY_OPENGL;
 #endif
     dmGraphics::InstallAdapter(s_AdapterFamily);

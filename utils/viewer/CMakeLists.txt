@@ -102,8 +102,8 @@ else()
 endif()
 
 set(TARGET_LIBS
-    dlib
     ddf
+    dlib
     profile_null
     platform
     graphics
@@ -120,6 +120,20 @@ set(TARGET_LIBS
     miniaudio
 )
 
+set(USE_VULKAN_BACKEND FALSE)
+if(${TARGET_PLATFORM} MATCHES "macos" OR ${TARGET_PLATFORM} MATCHES "linux")
+    set(USE_VULKAN_BACKEND TRUE)
+endif()
+
+if(USE_VULKAN_BACKEND)
+    target_compile_definitions(viewer PRIVATE DM_GRAPHICS_USE_VULKAN)
+    list(APPEND TARGET_LIBS
+        platform_vulkan
+        graphics_vulkan
+        glfw3
+    )
+endif()
+
 if(${TARGET_PLATFORM} MATCHES "macos")
     file(GLOB RIVE_COMMON_OBJCXX_SRC
         "${EXTENSION_ROOT}/defold-rive/commonsrc/renderer/*.mm"
@@ -127,9 +141,6 @@ if(${TARGET_PLATFORM} MATCHES "macos")
     target_sources(viewer PRIVATE ${RIVE_COMMON_OBJCXX_SRC})
 
     list(APPEND TARGET_LIBS
-        platform_vulkan
-        graphics_vulkan
-        glfw3
         MoltenVK
     )
     target_link_libraries(viewer PRIVATE
@@ -149,8 +160,9 @@ if(${TARGET_PLATFORM} MATCHES "win32")
 elseif(${TARGET_PLATFORM} MATCHES "linux")
     target_compile_definitions(viewer PRIVATE DM_PLATFORM_LINUX)
     list(APPEND TARGET_LIBS
-        graphics_vulkan
+        vulkan
     )
+    target_link_libraries(viewer PRIVATE pthread dl m)
 endif()
 
 target_link_libraries(viewer PRIVATE ${TARGET_LIBS})
