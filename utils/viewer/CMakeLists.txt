@@ -156,10 +156,14 @@ endif()
 target_link_libraries(viewer PRIVATE ${TARGET_LIBS})
 
 target_compile_options(viewer PRIVATE
-    $<$<CONFIG:Release>:-O2>
-    $<$<CONFIG:Release>:-g>
-    $<$<NOT:$<CONFIG:Release>>:-O0>
-    $<$<NOT:$<CONFIG:Release>>:-g>
+    $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:Release>>:/O2>
+    $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:Release>>:/Zi>
+    $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<NOT:$<CONFIG:Release>>>:/Od>
+    $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<NOT:$<CONFIG:Release>>>:/Zi>
+    $<$<AND:$<NOT:$<CXX_COMPILER_ID:MSVC>>,$<CONFIG:Release>>:-O2>
+    $<$<AND:$<NOT:$<CXX_COMPILER_ID:MSVC>>,$<CONFIG:Release>>:-g>
+    $<$<AND:$<NOT:$<CXX_COMPILER_ID:MSVC>>,$<NOT:$<CONFIG:Release>>>:-O0>
+    $<$<AND:$<NOT:$<CXX_COMPILER_ID:MSVC>>,$<NOT:$<CONFIG:Release>>>:-g>
 )
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     target_compile_options(viewer PRIVATE -fno-rtti)

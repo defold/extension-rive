@@ -100,7 +100,7 @@ jobs:
           BOB: ${{ github.workspace }}/bob.jar
         run: |
           set -euo pipefail
-          ./utils/viewer/build.sh "${{ matrix.platform }}"
+          ./utils/viewer/build.sh --config Release "${{ matrix.platform }}"
 
       - name: Upload viewer artifact
         uses: actions/upload-artifact@v4

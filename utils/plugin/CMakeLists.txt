@@ -217,8 +217,12 @@ endif()
 target_compile_definitions(rive_plugin PRIVATE DM_RIVE_PLUGIN)
 
 target_compile_options(rive_plugin PRIVATE
-    "$<$<CONFIG:Debug>:-O0>"
-    "$<$<CONFIG:RelWithDebInfo>:-O0>"
+    "$<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:Debug>>:/Od>"
+    "$<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:Debug>>:/Zi>"
+    "$<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:RelWithDebInfo>>:/Od>"
+    "$<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:RelWithDebInfo>>:/Zi>"
+    "$<$<AND:$<NOT:$<CXX_COMPILER_ID:MSVC>>,$<CONFIG:Debug>>:-O0>"
+    "$<$<AND:$<NOT:$<CXX_COMPILER_ID:MSVC>>,$<CONFIG:RelWithDebInfo>>:-O0>"
 )
 
 target_include_directories(rive_plugin PRIVATE
