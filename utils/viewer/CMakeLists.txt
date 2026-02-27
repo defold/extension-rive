@@ -123,7 +123,7 @@ if(${TARGET_PLATFORM} MATCHES "win32")
         libddf
         libdlib
         libprofile_null
-        libplatform
+        platform
         librender
         libgraphics
     )
@@ -195,17 +195,6 @@ elseif(${TARGET_PLATFORM} MATCHES "linux")
         DM_RIVE_USE_OPENGL
         RIVE_LINUX
         RIVE_DESKTOP_GL
-    )
-    list(APPEND TARGET_LIBS
-        mbedtls
-        profilerext_null
-        resource
-        script
-        gamesys
-        lua
-        font
-        render_font_default
-        zlib
     )
     find_package(OpenGL REQUIRED)
     target_link_libraries(viewer PRIVATE OpenGL::GL)
