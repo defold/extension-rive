@@ -78,6 +78,10 @@ fi
 if [ -n "${PROTOC:-}" ] && [ -x "${PROTOC}" ]; then
     PROTOC_DIR="$(dirname "${PROTOC}")"
     export PATH="${PROTOC_DIR}:${PATH}"
+elif command -v protoc >/dev/null 2>&1; then
+    PROTOC_PATH="$(command -v protoc)"
+    PROTOC_DIR="$(dirname "${PROTOC_PATH}")"
+    export PATH="${PROTOC_DIR}:${PATH}"
 else
     #PROTOBUF_BIN="${REPO_ROOT}/build/bin/${HOST_PLATFORM}"
     PROTOBUF_BIN="${DYNAMO_HOME}/ext/bin/${HOST_PLATFORM}"
@@ -86,8 +90,7 @@ else
     else
         echo "Warning: protobuf bin directory not found at ${PROTOBUF_BIN}" >&2
         echo "build folder: ${REPO_ROOT}/build"
-        ls -la ${REPO_ROOT}/build
-        tree ${PROTOBUF_BIN}
+        ls -la "${REPO_ROOT}/build"
     fi
 fi
 
