@@ -50,6 +50,16 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  prepare-defoldsdk:
+    name: defoldsdk
+    uses: ./.github/workflows/defoldsdk.yml
+    with:
+      runner: ubuntu-22.04
+      defold_channel: stable
+      defold_version: ${{ github.event.inputs.defold_version }}
+      sdk_output_path: build/defoldsdk
+      bob_output_path: bob.jar
+
   build-linux:
     if: ${{ github.event.inputs.platform == 'x86_64-linux' || github.event.inputs.platform == 'all' }}
     runs-on: ubuntu-22.04
@@ -288,6 +298,7 @@ jobs:
 
   build-windows:
     if: ${{ github.event.inputs.platform == 'x86-win32' || github.event.inputs.platform == 'x86_64-win32' || github.event.inputs.platform == 'all' }}
+    needs: prepare-defoldsdk
     runs-on: ubuntu-22.04
     strategy:
       matrix:
@@ -330,16 +341,15 @@ jobs:
           set -euo pipefail
           java --version
 
-      - name: Download Defold SDK
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p ./build
-          DOWNLOADDIR=$(realpath ./build)
-          echo "DOWNLOADDIR=${DOWNLOADDIR}" >> "$GITHUB_ENV"
-          ./utils/plugin/download_defoldsdk.sh --channel stable --version "${{ github.event.inputs.defold_version }}" --bob-only --output-sdk "${DOWNLOADDIR}/defoldsdk"
-          echo "Verifying bob.jar"
-          ls -la ./bob.jar
+      - name: Restore Defold SDK and bob.jar from cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            bob.jar
+            build/defoldsdk
+          key: ${{ needs.prepare-defoldsdk.outputs.defoldsdk_cache_key }}
+          enableCrossOsArchive: true
+          fail-on-cache-miss: true
 
       - name: Verify Bob
         shell: bash
@@ -394,7 +404,7 @@ jobs:
 
   build-plugin-macos:
     if: ${{ github.event.inputs.platform == 'arm64-macos' || github.event.inputs.platform == 'x86_64-macos' || github.event.inputs.platform == 'all' }}
-    needs: build-macos
+    needs: [build-macos, prepare-defoldsdk]
     runs-on: macos-latest
     steps:
       - name: Checkout repository
@@ -431,21 +441,20 @@ jobs:
           brew install jq
           brew install tree
 
-      - name: Download Defold SDK
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p ./build
-          DOWNLOADDIR=$(realpath ./build)
-          echo "DOWNLOADDIR=${DOWNLOADDIR}" >> "$GITHUB_ENV"
-          ./utils/plugin/download_defoldsdk.sh --channel stable --version "${{ github.event.inputs.defold_version }}" --output-sdk "${DOWNLOADDIR}/defoldsdk"
-          echo "Verifying bin dir: ${DOWNLOADDIR}/defoldsdk"
-          find ${DOWNLOADDIR}/defoldsdk -iname "protoc*"
+      - name: Restore Defold SDK and bob.jar from cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            bob.jar
+            build/defoldsdk
+          key: ${{ needs.prepare-defoldsdk.outputs.defoldsdk_cache_key }}
+          enableCrossOsArchive: true
+          fail-on-cache-miss: true
 
       - name: Build editor plugins
         shell: bash
         env:
-          DYNAMO_HOME: ${{ env.DOWNLOADDIR }}/defoldsdk/defoldsdk
+          DYNAMO_HOME: ${{ github.workspace }}/build/defoldsdk/defoldsdk
           BOB: ${{ github.workspace }}/bob.jar
         run: |
           set -euo pipefail
@@ -496,7 +505,7 @@ jobs:
 
   build-plugin-linux:
     if: ${{ github.event.inputs.platform == 'x86_64-linux' || github.event.inputs.platform == 'all' }}
-    needs: build-linux
+    needs: [build-linux, prepare-defoldsdk]
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout repository
@@ -548,19 +557,20 @@ jobs:
           sudo apt-get install -y jq
           sudo apt-get install -y tree
 
-      - name: Download Defold SDK
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p ./build
-          DOWNLOADDIR=$(realpath ./build)
-          echo "DOWNLOADDIR=${DOWNLOADDIR}" >> "$GITHUB_ENV"
-          ./utils/plugin/download_defoldsdk.sh --channel stable --version "${{ github.event.inputs.defold_version }}" --output-sdk "${DOWNLOADDIR}/defoldsdk"
+      - name: Restore Defold SDK and bob.jar from cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            bob.jar
+            build/defoldsdk
+          key: ${{ needs.prepare-defoldsdk.outputs.defoldsdk_cache_key }}
+          enableCrossOsArchive: true
+          fail-on-cache-miss: true
 
       - name: Build linux plugin
         shell: bash
         env:
-          DYNAMO_HOME: ${{ env.DOWNLOADDIR }}/defoldsdk/defoldsdk
+          DYNAMO_HOME: ${{ github.workspace }}/build/defoldsdk/defoldsdk
           BOB: ${{ github.workspace }}/bob.jar
         run: |
           set -euo pipefail
@@ -610,7 +620,7 @@ jobs:
 
   build-plugin-windows:
     if: ${{ github.event.inputs.platform == 'x86_64-win32' || github.event.inputs.platform == 'all' }}
-    needs: build-windows
+    needs: [build-windows, prepare-defoldsdk]
     runs-on: windows-2022
     steps:
       - name: Checkout repository
@@ -644,19 +654,20 @@ jobs:
           jq --version
           tree --version
 
-      - name: Download Defold SDK
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p ./build
-          DOWNLOADDIR=$(realpath ./build)
-          echo "DOWNLOADDIR=${DOWNLOADDIR}" >> "$GITHUB_ENV"
-          ./utils/plugin/download_defoldsdk.sh --channel stable --version "${{ github.event.inputs.defold_version }}" --output-sdk "${DOWNLOADDIR}/defoldsdk"
+      - name: Restore Defold SDK and bob.jar from cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            bob.jar
+            build/defoldsdk
+          key: ${{ needs.prepare-defoldsdk.outputs.defoldsdk_cache_key }}
+          enableCrossOsArchive: true
+          fail-on-cache-miss: true
 
       - name: Build windows plugin
         shell: bash
         env:
-          DYNAMO_HOME: ${{ env.DOWNLOADDIR }}/defoldsdk/defoldsdk
+          DYNAMO_HOME: ${{ github.workspace }}/build/defoldsdk/defoldsdk
           BOB: ${{ github.workspace }}/bob.jar
         run: |
           set -euo pipefail
