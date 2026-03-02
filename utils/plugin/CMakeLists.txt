@@ -244,8 +244,13 @@ if(TARGET_PLATFORM STREQUAL "x86_64-win32")
             libresource libscript libgamesys libluajit-5.1)
     target_link_libraries(rive_plugin PRIVATE Iphlpapi.lib)
 
-    # old libraries built with build_pls.sh
-    target_link_libraries(rive_plugin PRIVATE rive sheenbidi harfbuzz yoga)
+    # Keep this aligned with defold-rive/lib/x86_64-win32 runtime outputs.
+    target_link_libraries(rive_plugin PRIVATE
+            rive
+            rive_renderer
+            sheenbidi
+            harfbuzz
+            yoga)
 
 else()
     if(TARGET_PLATFORM MATCHES "linux")

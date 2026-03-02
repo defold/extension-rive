@@ -433,14 +433,6 @@ jobs:
           set -euo pipefail
           cmake --version
 
-      - name: Install jq
-        shell: bash
-        run: |
-          set -euo pipefail
-          brew update
-          brew install jq
-          brew install tree
-
       - name: Restore Defold SDK and bob.jar from cache
         uses: actions/cache/restore@v4
         with:
@@ -450,6 +442,15 @@ jobs:
           key: ${{ needs.prepare-defoldsdk.outputs.defoldsdk_cache_key }}
           enableCrossOsArchive: true
           fail-on-cache-miss: true
+
+      - name: Setup protoc
+        uses: arduino/setup-protoc@v3
+
+      - name: Verify protoc
+        shell: bash
+        run: |
+          set -euo pipefail
+          protoc --version
 
       - name: Build editor plugins
         shell: bash
@@ -549,14 +550,6 @@ jobs:
           clang --version
           clang++ --version
 
-      - name: Install jq
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y jq
-          sudo apt-get install -y tree
-
       - name: Restore Defold SDK and bob.jar from cache
         uses: actions/cache/restore@v4
         with:
@@ -566,6 +559,15 @@ jobs:
           key: ${{ needs.prepare-defoldsdk.outputs.defoldsdk_cache_key }}
           enableCrossOsArchive: true
           fail-on-cache-miss: true
+
+      - name: Setup protoc
+        uses: arduino/setup-protoc@v3
+
+      - name: Verify protoc
+        shell: bash
+        run: |
+          set -euo pipefail
+          protoc --version
 
       - name: Build linux plugin
         shell: bash
@@ -647,13 +649,6 @@ jobs:
         run: |
           cmake --version
 
-      - name: Install jq and tree
-        shell: pwsh
-        run: |
-          choco install jq tree -y || true
-          jq --version
-          tree --version
-
       - name: Restore Defold SDK and bob.jar from cache
         uses: actions/cache/restore@v4
         with:
@@ -663,6 +658,15 @@ jobs:
           key: ${{ needs.prepare-defoldsdk.outputs.defoldsdk_cache_key }}
           enableCrossOsArchive: true
           fail-on-cache-miss: true
+
+      - name: Setup protoc
+        uses: arduino/setup-protoc@v3
+
+      - name: Verify protoc
+        shell: bash
+        run: |
+          set -euo pipefail
+          protoc --version
 
       - name: Build windows plugin
         shell: bash

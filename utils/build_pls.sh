@@ -223,32 +223,6 @@ mkdir -p ${SHEENBIDI_SOURCE_DIR}
 cp -r -v ${SHEENBIDI_ORIGINAL_DIR}/Headers ${SHEENBIDI_SOURCE_DIR}
 cp -r -v ${SHEENBIDI_ORIGINAL_DIR}/Source ${SHEENBIDI_SOURCE_DIR}
 
-echo "*************************************************"
-echo "Downloading libtess2 files"
-
-LIBTESS2_VERSION=1.0.2
-LIBTESS2_ZIP=${DOWNLOAD_DIR}/libtess2-${LIBTESS2_VERSION}.zip
-LIBTESS2_URL=https://github.com/memononen/libtess2/archive/refs/tags/v${LIBTESS2_VERSION}.zip
-LIBTESS2_ORIGINAL_DIR=${DOWNLOAD_DIR}/libtess2/libtess2-${LIBTESS2_VERSION}
-LIBTESS2_SOURCE_DIR=${SOURCE_DIR}/libtess2/src
-
-download_zip ${LIBTESS2_ZIP} ${DOWNLOAD_DIR}/libtess2 ${LIBTESS2_URL}
-
-mkdir -p ${LIBTESS2_SOURCE_DIR}
-cp -r -v ${LIBTESS2_ORIGINAL_DIR}/Include ${LIBTESS2_SOURCE_DIR}
-cp -r -v ${LIBTESS2_ORIGINAL_DIR}/Source ${LIBTESS2_SOURCE_DIR}
-
-echo "*************************************************"
-echo "Downloading earcut files"
-
-EARCUT_VERSION=master
-EARCUT_ZIP=${DOWNLOAD_DIR}/earcut-${EARCUT_VERSION}.zip
-EARCUT_URL="https://github.com/mapbox/earcut.hpp/archive/refs/heads/${EARCUT_VERSION}.zip"
-EARCUT_ORIGINAL_DIR=${DOWNLOAD_DIR}/earcut/earcut.hpp-${EARCUT_VERSION}
-EARCUT_SOURCE_DIR=${SOURCE_DIR}/earcut/src
-
-download_zip ${EARCUT_ZIP} ${DOWNLOAD_DIR}/earcut ${EARCUT_URL}
-
 if [ -z "$RIVE_DIR" ]; then
     echo "*************************************************"
     echo "Downloading rive-cpp files"
@@ -268,7 +242,6 @@ else
 fi
 
 RIVECPP_SOURCE_DIR=${SOURCE_DIR}/rivecpp/src
-RIVECPP_TESS_SOURCE_DIR=${SOURCE_DIR}/rivecpp-tess/src
 RIVECPP_RENDERER_SOURCE_DIR=${SOURCE_DIR}/rivecpp-renderer/src
 RIVECPP_HARFBUZZ_INCLUDE_DIR=${RIVECPP_SOURCE_DIR}/src/text
 RIVECPP_RENDERER_SHADER_DIR=${RIVECPP_RENDERER_SOURCE_DIR}/src/
@@ -282,23 +255,8 @@ mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}
 mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include
 mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src
 mkdir -p ${RIVECPP_RENDERER_SHADER_DIR}
-mkdir -p ${RIVECPP_TESS_SOURCE_DIR}
-mkdir -p ${RIVECPP_TESS_SOURCE_DIR}/math
 mkdir -p ${RIVECPP_HARFBUZZ_INCLUDE_DIR}
 RIVECPP_HARFBUZZ_INCLUDE_DIR=$(realpath $RIVECPP_HARFBUZZ_INCLUDE_DIR)
-
-echo "COPY TESS"
-# tess tenderer
-cp -v ${RIVECPP_ORIGINAL_DIR}/tess/src/*.cpp ${RIVECPP_TESS_SOURCE_DIR}
-cp -v ${RIVECPP_ORIGINAL_DIR}/tess/src/math/*.cpp ${RIVECPP_TESS_SOURCE_DIR}/math
-cp -r -v ${RIVECPP_ORIGINAL_DIR}/tess/include/rive ${RIVECPP_TESS_SOURCE_DIR}
-# copy some extra includes
-cp -r -v ${RIVECPP_ORIGINAL_DIR}/include/rive ${RIVECPP_TESS_SOURCE_DIR}
-cp -r -v ${RIVECPP_ORIGINAL_DIR}/include/utils ${RIVECPP_TESS_SOURCE_DIR}
-# copy earcut.hpp
-cp -v ${EARCUT_ORIGINAL_DIR}/include/mapbox/earcut.hpp ${RIVECPP_TESS_SOURCE_DIR}
-# copy tesselator.h
-cp -v ${LIBTESS2_ORIGINAL_DIR}/Include/tesselator.h ${RIVECPP_TESS_SOURCE_DIR}
 
 echo "COPY RIVECPP"
 
@@ -388,15 +346,6 @@ for platform in $PLATFORMS; do
     build_library sheenbidi $platform $platform_ne ${SHEENBIDI_SOURCE_DIR} ${BUILD}
 
     echo "************************************************************"
-    echo "TESS2 ${platform}"
-    echo "************************************************************"
-
-    export INCLUDES="upload/Include" # TODO: Make includes work with relative paths
-    export CXXFLAGS="-x c"
-    unset DEFINES
-    build_library tess2 $platform $platform_ne ${LIBTESS2_SOURCE_DIR} ${BUILD}
-
-    echo "************************************************************"
     echo "RIVE CPP ${platform}"
     echo "************************************************************"
 
@@ -404,14 +353,6 @@ for platform in $PLATFORMS; do
     export DEFINES="WITH_RIVE_TEXT WITH_RIVE_LAYOUT _RIVE_INTERNAL_ YOGA_EXPORT="
     unset INCLUDES
     build_library rive $platform $platform_ne ${RIVECPP_SOURCE_DIR} ${BUILD}
-
-    echo "************************************************************"
-    echo "RIVECPP TESS ${platform}"
-    echo "************************************************************"
-    unset DEFINES
-    unset INCLUDES
-    export CXXFLAGS="-std=c++17 -fno-rtti -fno-exceptions"
-    build_library rivetess $platform $platform_ne ${RIVECPP_TESS_SOURCE_DIR} ${BUILD}
 
     echo "************************************************************"
     echo "RIVE Renderer ${platform}"
