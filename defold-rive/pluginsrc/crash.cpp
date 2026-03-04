@@ -326,9 +326,9 @@ void HandleUnknownCppException(JNIEnv* env, const char* context)
     ThrowRuntimeException(env, message);
 }
 
+#if defined(__APPLE__) || defined(__linux__)
 ScopedSignalHandler::ScopedSignalHandler()
 {
-#if defined(__APPLE__) || defined(__linux__)
     m_State.installed = false;
     if (!ShouldInstallSignalHandler())
         return;
@@ -351,12 +351,10 @@ ScopedSignalHandler::ScopedSignalHandler()
     }
     g_SignalStateDepth++;
     m_State.installed = true;
-#endif
 }
 
 ScopedSignalHandler::~ScopedSignalHandler()
 {
-#if defined(__APPLE__) || defined(__linux__)
     if (!m_State.installed)
         return;
 
@@ -371,7 +369,7 @@ ScopedSignalHandler::~ScopedSignalHandler()
         sigaction(SIGILL, &g_SignalState.old_sigill, 0);
         g_SignalState.installed = false;
     }
-#endif
 }
+#endif
 
 } // namespace dmRiveCrash

@@ -34,10 +34,36 @@
 #include <dmsdk/graphics/graphics.h>
 
 #ifdef RIVE_DESKTOP_GL
-    #define GLFW_INCLUDE_NONE
-    #include "glfw/glfw3.h"
-
+    #if !defined(DM_PLATFORM_WINDOWS)
+        #define GLFW_INCLUDE_NONE
+        #include "glfw/glfw3.h"
+    #endif
     #include <glad/gles2.h>
+#endif
+
+#if defined(RIVE_DESKTOP_GL) && defined(DM_PLATFORM_WINDOWS)
+    #ifndef WIN32_LEAN_AND_MEAN
+        #define WIN32_LEAN_AND_MEAN
+    #endif
+    #include <windows.h>
+
+static GLADapiproc Win32GetGLProcAddress(const char* name)
+{
+    GLADapiproc proc = (GLADapiproc)wglGetProcAddress(name);
+    if (proc == 0 ||
+        proc == (GLADapiproc)0x1 ||
+        proc == (GLADapiproc)0x2 ||
+        proc == (GLADapiproc)0x3 ||
+        proc == (GLADapiproc)-1)
+    {
+        static HMODULE s_OpenGL32 = LoadLibraryA("opengl32.dll");
+        if (s_OpenGL32)
+        {
+            proc = (GLADapiproc)GetProcAddress(s_OpenGL32, name);
+        }
+    }
+    return proc;
+}
 #endif
 
 static void OpenGLCheckError(const char* context)
@@ -59,18 +85,25 @@ namespace dmRive
     public:
         DefoldRiveRendererOpenGL()
         {
+            m_DefoldRenderTarget = 0;
+
         #ifdef RIVE_DESKTOP_GL
             // Load the OpenGL API using glad.
-            if (!gladLoadCustomLoader((GLADloadfunc)glfwGetProcAddress))
+            bool loaded = false;
+            #if defined(DM_PLATFORM_WINDOWS)
+                loaded = gladLoadCustomLoader((GLADloadfunc)Win32GetGLProcAddress) != 0;
+            #else
+                loaded = gladLoadCustomLoader((GLADloadfunc)glfwGetProcAddress) != 0;
+            #endif
+            if (!loaded)
             {
-                fprintf(stderr, "Failed to initialize glad.\n");
-                abort();
+                dmLogError("Failed to initialize glad");
+                return;
             }
         #endif
 
-            dmLogInfo("==== GL GPU: %s ====\n", glGetString(GL_RENDERER));
-
-            m_DefoldRenderTarget = 0;
+            const GLubyte* renderer = glGetString(GL_RENDERER);
+            dmLogInfo("==== GL GPU: %s ====\n", renderer ? (const char*)renderer : "<unknown>");
 
             m_RenderContext = rive::gpu::RenderContextGLImpl::MakeContext({
                 .disableFragmentShaderInterlock = false // options.disableRasterOrdering,

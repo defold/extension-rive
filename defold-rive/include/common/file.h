@@ -93,6 +93,7 @@ namespace dmRive
         dmArray<struct ViewModelInstanceNames>  m_ViewModelInstanceNames;
         DefaultViewModelInfo                    m_DefaultViewModelInfo;
         bool                                    m_HasDefaultViewModelInfo;
+        const char*                             m_SelectedArtboardName;
 #endif // DM_RIVE_FILE_META_DATA
     };
 

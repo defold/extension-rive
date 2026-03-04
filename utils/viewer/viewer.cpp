@@ -64,6 +64,36 @@ static const char* s_RiveFilePath = 0;
 static bool               s_ScreenshotCaptured = false;
 static dmGraphics::AdapterFamily      s_AdapterFamily = dmGraphics::ADAPTER_FAMILY_NONE;
 
+class ViewerRenderImageListener : public rive::CommandQueue::RenderImageListener
+{
+public:
+    void onRenderImageDecoded(const rive::RenderImageHandle image, uint64_t request_id) override
+    {
+        dmLogInfo("RenderImage decoded: handle=%llu request_id=%llu",
+                  (unsigned long long)image,
+                  (unsigned long long)request_id);
+    }
+
+    void onRenderImageError(const rive::RenderImageHandle image,
+                            uint64_t request_id,
+                            std::string error) override
+    {
+        dmLogError("RenderImage error: handle=%llu request_id=%llu error=%s",
+                   (unsigned long long)image,
+                   (unsigned long long)request_id,
+                   error.c_str());
+    }
+
+    void onRenderImageDeleted(const rive::RenderImageHandle image, uint64_t request_id) override
+    {
+        dmLogInfo("RenderImage deleted: handle=%llu request_id=%llu",
+                  (unsigned long long)image,
+                  (unsigned long long)request_id);
+    }
+};
+
+static ViewerRenderImageListener s_RenderImageListener;
+
 static WindowsGraphicsApi GetWindowGraphicsApi(dmGraphics::AdapterFamily family)
 {
     switch (family)
@@ -289,8 +319,8 @@ static void DrawFullscreenQuad(EngineCtx* engine, dmGraphics::HTexture texture)
     uint32_t window_height = dmGraphics::GetWindowHeight(context);
     dmGraphics::SetViewport(context, 0, 0, window_width, window_height);
     dmGraphics::EnableProgram(context, engine->m_BlitProgram);
-    dmGraphics::EnableVertexDeclaration(context, engine->m_VertexDeclaration, 0, 0, engine->m_BlitProgram);
     dmGraphics::EnableVertexBuffer(context, engine->m_BlitToBackbufferVertexBuffer, 0);
+    dmGraphics::EnableVertexDeclaration(context, engine->m_VertexDeclaration, 0, 0, engine->m_BlitProgram);
 
     dmGraphics::EnableTexture(context, 0, 0, texture);
     if (engine->m_SamplerLocation != dmGraphics::INVALID_UNIFORM_LOCATION)
@@ -320,6 +350,9 @@ static void* EngineCreate(int argc, char** argv)
     engine->m_Window = WindowNew();
 
     JobSystemCreateParams job_params = { 0 };
+#if !defined(DM_RIVE_USE_OPENGL)
+    job_params.m_ThreadCount = 1; // Needed for OpenGL graphics backend.
+#endif
     engine->m_JobContext = JobSystemCreate(&job_params);
 
     WindowCreateParams window_params;
@@ -422,6 +455,7 @@ static void* EngineCreate(int argc, char** argv)
         printf("Loading '%s'\n", s_RiveFilePath);
 
         rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+        queue->setGlobalRenderImageListener(&s_RenderImageListener);
         std::vector<uint8_t> bytes;
         if (ReadFile(s_RiveFilePath, bytes))
         {
@@ -437,7 +471,11 @@ static void* EngineCreate(int argc, char** argv)
                 engine->m_StateMachine = engine->m_FileMeta->m_StateMachine;
                 engine->m_ViewModelInstance = engine->m_FileMeta->m_ViewModelInstance;
 
-                if (engine->m_StateMachine && engine->m_ViewModelInstance)
+                bool has_view_models = true;
+#if defined(DM_RIVE_FILE_META_DATA)
+                has_view_models = engine->m_FileMeta->m_ViewModels.Size() > 0;
+#endif
+                if (has_view_models && engine->m_StateMachine && engine->m_ViewModelInstance)
                 {
                     queue->bindViewModelInstance(engine->m_StateMachine, engine->m_ViewModelInstance);
                 }
@@ -459,10 +497,14 @@ static void EngineDestroy(void* _engine)
         dmRive::DestroyFile(engine->m_FileMeta);
     }
 
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    if (queue)
+    {
+        queue->setGlobalRenderImageListener(0);
+    }
+
     dmRiveCommands::Finalize();
     dmRive::DeleteRenderContext(engine->m_RenderContext);
-
-    JobSystemDestroy(engine->m_JobContext);
 
     dmGraphics::DeleteVertexBuffer(engine->m_BlitToBackbufferVertexBuffer);
     dmGraphics::DeleteVertexDeclaration(engine->m_VertexDeclaration);
@@ -474,6 +516,8 @@ static void EngineDestroy(void* _engine)
     dmGraphics::CloseWindow(engine->m_GraphicsContext);
     dmGraphics::DeleteContext(engine->m_GraphicsContext);
     dmGraphics::Finalize();
+
+    JobSystemDestroy(engine->m_JobContext);
 
     engine->m_WasDestroyed++;
 
@@ -584,6 +628,8 @@ static UpdateResult EngineUpdate(void* _engine)
         return RESULT_EXIT;
     }
 
+    dmGraphics::BeginFrame(engine->m_GraphicsContext);
+
     UpdateRiveScene(engine);
 
     {
@@ -601,7 +647,6 @@ static UpdateResult EngineUpdate(void* _engine)
         dmRive::RenderEnd(engine->m_RenderContext);
     }
 
-    dmGraphics::BeginFrame(engine->m_GraphicsContext);
     dmGraphics::Clear(engine->m_GraphicsContext, dmGraphics::BUFFER_TYPE_COLOR0_BIT, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0);
 
     DrawFullscreenQuad(engine, dmRive::GetBackingTexture(engine->m_RenderContext));

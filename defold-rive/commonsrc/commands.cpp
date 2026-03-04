@@ -12,9 +12,12 @@
 
 #include <common/commands.h>
 
+#include <stdint.h>
+
 #include <dmsdk/dlib/atomic.h>
 #include <dmsdk/dlib/mutex.h>
 #include <dmsdk/dlib/thread.h>
+#include <dmsdk/dlib/time.h>
 
 #include <rive/artboard.hpp>
 #include <rive/factory.hpp>
@@ -22,7 +25,6 @@
 
 #include <rive/command_queue.hpp>
 #include <rive/command_server.hpp>
-
 
 namespace dmRiveCommands {
 
@@ -40,15 +42,110 @@ struct Context
 
 Context* g_Context = 0;
 
-// static void RiveCommandThread(void* _ctx)
-// {
-//     Context* ctx = (Context*)_ctx;
+static void DestroyContext(Context* context)
+{
+    if (context == 0)
+    {
+        return;
+    }
 
-//     while (dmAtomicGet32(&g_Context->m_Run))
-//     {
+    if (context->m_Thread)
+    {
+        dmAtomicStore32(&context->m_Run, 0);
+        if (context->m_CommandQueue)
+        {
+            context->m_CommandQueue->disconnect();
+        }
+        dmThread::Join(context->m_Thread);
+        context->m_Thread = 0;
+    }
 
-//     }
-// }
+    context->m_CommandQueue.reset();
+
+    if (context->m_CommandServer != 0)
+    {
+        delete context->m_CommandServer;
+        context->m_CommandServer = 0;
+    }
+
+    if (context->m_Mutex != 0)
+    {
+        dmMutex::Delete(context->m_Mutex);
+        context->m_Mutex = 0;
+    }
+
+    delete context;
+}
+
+static void PumpMessagesLocked(Context* context)
+{
+    if (!context->m_Thread)
+    {
+        context->m_CommandServer->processCommands();
+    }
+
+    context->m_CommandQueue->processMessages();
+}
+
+static void PumpMessages(Context* context)
+{
+    DM_MUTEX_OPTIONAL_SCOPED_LOCK(context->m_Mutex);
+    PumpMessagesLocked(context);
+}
+
+template <typename Fn>
+static bool RunOnServerAndWait(Context* context, Fn fn, uint64_t timeout)
+{
+    assert(context != 0);
+    assert(context->m_CommandQueue);
+
+    int32_atomic_t done = 0;
+
+    context->m_CommandQueue->runOnce([&done, fn](rive::CommandServer* server) mutable {
+        fn(server);
+        dmAtomicStore32(&done, 1);
+    });
+
+    uint64_t deadline = UINT64_MAX;
+    if (timeout != 0)
+    {
+        deadline = dmTime::GetMonotonicTime() + timeout;
+    }
+
+    while (dmAtomicGet32(&done) == 0)
+    {
+        PumpMessages(context);
+        if (dmAtomicGet32(&done) != 0)
+        {
+            break;
+        }
+
+        if (dmTime::GetMonotonicTime() >= deadline)
+        {
+            return false;
+        }
+
+        dmTime::Sleep(1000);
+    }
+
+    // Ensure listener callbacks produced by the fenced work are delivered.
+    PumpMessages(context);
+    return true;
+}
+
+static void RiveCommandThread(void* _ctx)
+{
+    Context* ctx = (Context*)_ctx;
+    ctx->m_CommandServer = new rive::CommandServer(ctx->m_CommandQueue, ctx->m_Factory);
+
+    while (dmAtomicGet32(&ctx->m_Run))
+    {
+        if (ctx->m_CommandServer->waitCommands() == false)
+        {
+            break;
+        }
+    }
+}
 
 Result Initialize(InitParams* params)
 {
@@ -58,21 +155,26 @@ Result Initialize(InitParams* params)
     memset(g_Context, 0, sizeof(*g_Context));
     g_Context->m_Mutex = dmMutex::New();
 
-    if (params->m_UseThreads)
-    {
-        // dmAtomicAdd32(&g_Context->m_Run, 1);
-        // g_Context->m_Thread = dmThread::New(RiveCommandThread, 1 * 1024*1024, g_Context, "RiveCommandThread");
-        // if (!g_Context->m_Thread)
-        // {
-        //     return RESULT_FAILED_CREATE_THREAD;
-        // }
-    }
-
     g_Context->m_RenderContext = params->m_RenderContext;
     g_Context->m_Factory = params->m_Factory;
 
     g_Context->m_CommandQueue = rive::make_rcp<rive::CommandQueue>();
-    g_Context->m_CommandServer = new rive::CommandServer(g_Context->m_CommandQueue, g_Context->m_Factory);
+    if (params->m_UseThreads == false)
+    {
+        g_Context->m_CommandServer = new rive::CommandServer(g_Context->m_CommandQueue, g_Context->m_Factory);
+    }
+
+    if (params->m_UseThreads)
+    {
+        dmAtomicAdd32(&g_Context->m_Run, 1);
+        g_Context->m_Thread = dmThread::New(RiveCommandThread, 1 * 1024 * 1024, g_Context, "RiveCommandThread");
+        if (!g_Context->m_Thread)
+        {
+            DestroyContext(g_Context);
+            g_Context = 0;
+            return RESULT_FAILED_CREATE_THREAD;
+        }
+    }
 
     return RESULT_OK;
 }
@@ -80,28 +182,14 @@ Result Initialize(InitParams* params)
 Result Finalize()
 {
     assert(g_Context != 0);
-
-    if (dmAtomicGet32(&g_Context->m_Run))
-    {
-        dmAtomicSub32(&g_Context->m_Run, 1);
-        dmThread::Join(g_Context->m_Thread);
-        g_Context->m_Thread = 0;
-    }
-
-    g_Context->m_CommandQueue.reset();
-    delete g_Context->m_CommandServer;
-    if (g_Context->m_Mutex)
-    {
-        dmMutex::Delete(g_Context->m_Mutex);
-    }
-
-    delete g_Context;
+    DestroyContext(g_Context);
     g_Context = 0;
     return RESULT_OK;
 }
 
 rive::rcp<rive::CommandQueue> GetCommandQueue()
 {
+    assert(g_Context != 0);
     return g_Context->m_CommandQueue;
 }
 
@@ -120,10 +208,51 @@ dmRive::HRenderContext GetDefoldRenderContext()
 Result ProcessMessages()
 {
     assert(g_Context != 0);
-    DM_MUTEX_OPTIONAL_SCOPED_LOCK(g_Context->m_Mutex);
-    g_Context->m_CommandServer->processCommands();
-    g_Context->m_CommandQueue->processMessages();
+    if (g_Context->m_Thread)
+    {
+        // In threaded mode, give the server a small bounded window to advance
+        // queued work before dispatching messages. This keeps legacy polling
+        // loops functional without introducing unbounded stalls.
+        Wait(1000);
+    }
+    else
+    {
+        PumpMessages(g_Context);
+    }
     return RESULT_OK;
+}
+
+bool Wait(uint64_t timeout)
+{
+    assert(g_Context != 0);
+    return RunOnServerAndWait(g_Context, [](rive::CommandServer*) {}, timeout);
+}
+
+bool WaitUntil(bool (*condition)(void*), void* user_data, uint64_t timeout)
+{
+    assert(g_Context != 0);
+    assert(condition != 0);
+
+    uint64_t deadline = UINT64_MAX;
+    if (timeout != 0)
+    {
+        deadline = dmTime::GetMonotonicTime() + timeout;
+    }
+
+    do
+    {
+        if (condition(user_data))
+        {
+            return true;
+        }
+
+        if (dmTime::GetMonotonicTime() >= deadline)
+        {
+            return false;
+        }
+
+        ProcessMessages();
+    } while (true);
 }
 
 bool GetBounds(rive::ArtboardHandle artboard_handle, rive::AABB* out_bounds)
@@ -133,14 +262,23 @@ bool GetBounds(rive::ArtboardHandle artboard_handle, rive::AABB* out_bounds)
         return false;
     }
 
-    DM_MUTEX_OPTIONAL_SCOPED_LOCK(g_Context->m_Mutex);
-    rive::ArtboardInstance* artboard = g_Context->m_CommandServer->getArtboardInstance(artboard_handle);
-    if (artboard == 0)
+    bool found = false;
+    rive::AABB bounds;
+    bool completed = RunOnServerAndWait(g_Context, [&](rive::CommandServer* server) {
+        rive::ArtboardInstance* artboard = server->getArtboardInstance(artboard_handle);
+        if (artboard != 0)
+        {
+            bounds = artboard->bounds();
+            found = true;
+        }
+    }, 0);
+
+    if (!completed || !found)
     {
         return false;
     }
 
-    *out_bounds = artboard->bounds();
+    *out_bounds = bounds;
     return true;
 }
 

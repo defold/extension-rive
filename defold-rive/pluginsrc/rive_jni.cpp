@@ -27,8 +27,11 @@
 #include <rive/artboard.hpp>
 #include <rive/renderer.hpp>
 
+#include <ctype.h>
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 
 namespace dmRiveJNI
@@ -36,7 +39,12 @@ namespace dmRiveJNI
 
 // ******************************************************************************************************************
 
-static bool ConvertPixelsToABGRAndFlipY(dmRive::TexturePixels* pixels, uint32_t out_width = 0, uint32_t out_height = 0, uint32_t crop_x = 0, uint32_t crop_y = 0)
+static bool ConvertPixelsToABGR(dmRive::TexturePixels* pixels,
+                                bool flip_y,
+                                uint32_t out_width = 0,
+                                uint32_t out_height = 0,
+                                uint32_t crop_x = 0,
+                                uint32_t crop_y = 0)
 {
     if (!pixels || !pixels->m_Data)
     {
@@ -82,8 +90,8 @@ static bool ConvertPixelsToABGRAndFlipY(dmRive::TexturePixels* pixels, uint32_t 
     const uint8_t* in = pixels->m_Data;
     for (uint32_t y = 0; y < height; ++y)
     {
-        // Flip Y and crop from a top-left origin rectangle.
-        const uint8_t* src_row = in + (src_height - 1 - (crop_y + y)) * src_row_bytes + crop_x * 4;
+        const uint32_t src_y = flip_y ? (src_height - 1 - (crop_y + y)) : (crop_y + y);
+        const uint8_t* src_row = in + src_y * src_row_bytes + crop_x * 4;
         uint8_t* dst_row = out + y * dst_row_bytes;
         for (uint32_t x = 0; x < width; ++x)
         {
@@ -243,6 +251,11 @@ static uint32_t BoundsDimension(float min_value, float max_value, uint32_t fallb
 
     uint32_t dim = (uint32_t)ceilf(size);
     return dim > 0 ? dim : fallback;
+}
+
+static bool IsBoundsValid(const rive::AABB& bounds)
+{
+    return !bounds.isEmptyOrNaN();
 }
 
 
@@ -435,6 +448,12 @@ static void SetRiveFileBounds(JNIEnv* env, jobject obj, const dmRive::RiveFile* 
     }
 
     const rive::AABB& bounds = rive_file->m_Bounds;
+    if (!IsBoundsValid(bounds))
+    {
+        dmDefoldJNI::SetFieldObject(env, obj, g_RiveFileJNI.bounds, 0);
+        return;
+    }
+
     dmVMath::Vector4 min(bounds.minX, bounds.minY, 0.0f, 0.0f);
     dmVMath::Vector4 max(bounds.maxX, bounds.maxY, 0.0f, 0.0f);
     jobject aabb_obj = dmDefoldJNI::CreateAABB(env, min, max);
@@ -702,8 +721,13 @@ jobject GetTexture(JNIEnv* env, jclass cls, jobject rive_file_obj)
     uint32_t window_height = dmGraphics::GetWindowHeight(graphics_context);
 
     rive::AABB render_bounds = rive_file->m_Bounds;
+    if (!IsBoundsValid(render_bounds))
+    {
+        render_bounds = rive::AABB(0.0f, 0.0f, (float)window_width, (float)window_height);
+    }
+
     rive::AABB fresh_bounds;
-    if (dmRiveCommands::GetBounds(rive_file->m_Artboard, &fresh_bounds))
+    if (dmRiveCommands::GetBounds(rive_file->m_Artboard, &fresh_bounds) && IsBoundsValid(fresh_bounds))
     {
         render_bounds = fresh_bounds;
     }
@@ -714,6 +738,20 @@ jobject GetTexture(JNIEnv* env, jclass cls, jobject rive_file_obj)
     {
         dmLogError("Rive: invalid render size %u x %u (adapter=%d)", target_width, target_height, (int)adapter_family);
         return 0;
+    }
+
+    // Keep editor/plugin thumbnail rendering bounded to avoid oversized render
+    // targets on drivers that are unstable with large offscreen FBOs.
+    const uint32_t max_preview_dim = 1024;
+    if (target_width > max_preview_dim || target_height > max_preview_dim)
+    {
+        double sx = (double)max_preview_dim / (double)target_width;
+        double sy = (double)max_preview_dim / (double)target_height;
+        double s = sx < sy ? sx : sy;
+        uint32_t clamped_width = (uint32_t)((double)target_width * s);
+        uint32_t clamped_height = (uint32_t)((double)target_height * s);
+        target_width = clamped_width > 0 ? clamped_width : 1;
+        target_height = clamped_height > 0 ? clamped_height : 1;
     }
 
     uint32_t render_width = target_width;
@@ -801,7 +839,14 @@ jobject GetTexture(JNIEnv* env, jclass cls, jobject rive_file_obj)
     uint32_t crop_y = 0;
     AlignmentToCropOffset(rive_file->m_Alignment, (uint32_t)pixels.m_Width, (uint32_t)pixels.m_Height, target_width, target_height, &crop_x, &crop_y);
 
-    if (!ConvertPixelsToABGRAndFlipY(&pixels, target_width, target_height, crop_x, crop_y))
+    bool flip_y = true;
+    if (adapter_family == dmGraphics::ADAPTER_FAMILY_OPENGL ||
+        adapter_family == dmGraphics::ADAPTER_FAMILY_OPENGLES)
+    {
+        flip_y = false;
+    }
+
+    if (!ConvertPixelsToABGR(&pixels, flip_y, target_width, target_height, crop_x, crop_y))
     {
         dmRive::FreePixels(&pixels);
         return 0;

@@ -37,7 +37,7 @@ static dmExtension::Result InitializeRive(dmExtension::Params* params)
     assert(g_RenderContext != 0);
 
     dmRiveCommands::InitParams cmd_params;
-    cmd_params.m_UseThreads = true; // TODO: Use define and/or config flag
+    cmd_params.m_UseThreads = true;
     cmd_params.m_RenderContext = g_RenderContext;
     cmd_params.m_Factory = dmRive::GetRiveFactory(g_RenderContext);
     dmRiveCommands::Initialize(&cmd_params);

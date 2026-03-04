@@ -11,8 +11,7 @@ if [ $# -lt 1 ]; then
 fi
 
 PLATFORM="$1"
-#CONFIG="RelWithDebInfo"
-CONFIG="Debug"
+CONFIG="${CONFIG:-RelWithDebInfo}"
 BUILD_DIR="${REPO_ROOT}/build/plugin/${PLATFORM}"
 
 EXTENDER_PLATFORM="${PLATFORM}"
@@ -26,6 +25,9 @@ case $PLATFORM in
 esac
 TARGET_LIB_DIR="${REPO_ROOT}/defold-rive/plugins/lib/${EXTENDER_PLATFORM}"
 TARGET_SHARE_DIR="${REPO_ROOT}/defold-rive/plugins/share"
+EDITOR_PLUGIN_ROOT="${REPO_ROOT}/build/plugins/defold-rive/plugins"
+EDITOR_TARGET_LIB_DIR="${EDITOR_PLUGIN_ROOT}/lib/${EXTENDER_PLATFORM}"
+EDITOR_TARGET_SHARE_DIR="${EDITOR_PLUGIN_ROOT}/share"
 
 if [ -z "${DYNAMO_HOME:-}" ]; then
     echo "DYNAMO_HOME must be set before running $0" >&2
@@ -106,20 +108,39 @@ cmake -S "${SCRIPT_DIR}/plugin" -B "${BUILD_DIR}" \
 
 cmake --build "${BUILD_DIR}" --config "${CONFIG}"
 
-case $PLATFORM in
-    "arm64-macos"|"x86_64-macos")
-        cp -v ${BUILD_DIR}/*.dylib ${TARGET_LIB_DIR}
-        ;;
-    "arm64-linux"|"x86_64-linux")
-        cp -v ${BUILD_DIR}/*.so ${TARGET_LIB_DIR}
-        ;;
-    "x86_64-win32")
-        cp -v ${BUILD_DIR}/${CONFIG}/*.dll ${TARGET_LIB_DIR}
-        ;;
-esac
+copy_plugin_libs() {
+    local dst_dir="$1"
+    mkdir -p "${dst_dir}"
+    case $PLATFORM in
+        "arm64-macos"|"x86_64-macos")
+            cp -v "${BUILD_DIR}"/*.dylib "${dst_dir}"
+            ;;
+        "arm64-linux"|"x86_64-linux")
+            cp -v "${BUILD_DIR}"/*.so "${dst_dir}"
+            ;;
+        "x86_64-win32")
+            if compgen -G "${BUILD_DIR}/${CONFIG}/*.dll" > /dev/null; then
+                cp -v "${BUILD_DIR}/${CONFIG}"/*.dll "${dst_dir}"
+            else
+                cp -v "${BUILD_DIR}"/*.dll "${dst_dir}"
+            fi
+            ;;
+    esac
+}
+
+copy_plugin_libs "${TARGET_LIB_DIR}"
 
 mkdir -p ${TARGET_SHARE_DIR}
 cp -v ${BUILD_DIR}/pluginRiveExt.jar ${TARGET_SHARE_DIR}
 
+if [ -d "${EDITOR_PLUGIN_ROOT}" ]; then
+    mkdir -p "${EDITOR_TARGET_SHARE_DIR}"
+    cp -v "${BUILD_DIR}/pluginRiveExt.jar" "${EDITOR_TARGET_SHARE_DIR}"
+
+    if ! copy_plugin_libs "${EDITOR_TARGET_LIB_DIR}"; then
+        echo "Warning: failed to copy editor plugin libraries to ${EDITOR_TARGET_LIB_DIR}" >&2
+        echo "Warning: the editor may still be running and locking libRiveExt.dll. Close editor and rebuild." >&2
+    fi
+fi
 
 echo "Done."

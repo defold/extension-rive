@@ -1,7 +1,7 @@
 name: "rivemodel_blit"
 tags: "rive"
 vertex_program: "/defold-rive/editor/resources/materials/rivemodel_blit.vp"
-fragment_program: "/defold-rive/assets/shader-library/rivemodel_blit.fp"
+fragment_program: "/defold-rive/editor/resources/materials/rivemodel_blit.fp"
 vertex_constants {
   name: "world_view_proj"
   type: CONSTANT_TYPE_WORLDVIEWPROJ

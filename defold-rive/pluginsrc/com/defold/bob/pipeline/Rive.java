@@ -18,6 +18,12 @@ import java.nio.FloatBuffer;
 import java.util.List;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
 
 import java.lang.reflect.Method;
 
@@ -25,6 +31,40 @@ public class Rive {
     private static final Object NATIVE_INIT_LOCK = new Object();
     private static volatile boolean sNativeInitialized = false;
     private static volatile float[] sFullscreenQuadVertices = null;
+    private static final ExecutorService NATIVE_EXECUTOR = Executors.newSingleThreadExecutor(new ThreadFactory() {
+        @Override
+        public Thread newThread(Runnable runnable) {
+            Thread thread = new Thread(runnable, "RiveNativeThread");
+            thread.setDaemon(true);
+            return thread;
+        }
+    });
+
+    private static <T> T runOnNativeThread(Callable<T> callable) {
+        Future<T> future = NATIVE_EXECUTOR.submit(callable);
+        try {
+            return future.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted while waiting for Rive native call", e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof RuntimeException) {
+                throw (RuntimeException) cause;
+            }
+            throw new RuntimeException("Rive native call failed", cause);
+        }
+    }
+
+    private static void runOnNativeThreadVoid(final Runnable runnable) {
+        runOnNativeThread(new Callable<Void>() {
+            @Override
+            public Void call() {
+                runnable.run();
+                return null;
+            }
+        });
+    }
 
     static String getLibrarySuffix() {
         String os = System.getProperty("os.name").toLowerCase();
@@ -81,11 +121,16 @@ public class Rive {
     public static native void DebugPrint();
 
     public static float[] GetFullscreenQuadVertices() {
-        Initialize();
-        if (sFullscreenQuadVertices == null) {
-            sFullscreenQuadVertices = GetFullscreenQuadVerticesInternal();
-        }
-        return sFullscreenQuadVertices;
+        return runOnNativeThread(new Callable<float[]>() {
+            @Override
+            public float[] call() {
+                Initialize();
+                if (sFullscreenQuadVertices == null) {
+                    sFullscreenQuadVertices = GetFullscreenQuadVerticesInternal();
+                }
+                return sFullscreenQuadVertices;
+            }
+        });
     }
 
     public static class RiveFile {
@@ -102,11 +147,11 @@ public class Rive {
         public DefoldJNI.Aabb       bounds;
 
         public void Destroy() {
-            Rive.Destroy(this);
+            Rive.DestroyInternal(this);
         }
 
         public void Update(float dt) {
-            Rive.Update(this, dt);
+            Rive.UpdateInternal(this, dt);
         }
     }
 
@@ -143,27 +188,90 @@ public class Rive {
 
     public static void UpdateInternal(RiveFile rive_file, float dt)
     {
-        Initialize();
-        Rive.Update(rive_file, dt);
+        runOnNativeThreadVoid(new Runnable() {
+            @Override
+            public void run() {
+                Initialize();
+                Rive.Update(rive_file, dt);
+            }
+        });
+    }
+
+    public static void DestroyInternal(RiveFile rive_file)
+    {
+        runOnNativeThreadVoid(new Runnable() {
+            @Override
+            public void run() {
+                Initialize();
+                Rive.Destroy(rive_file);
+            }
+        });
     }
 
     public static void SetArtboardInternal(RiveFile rive_file, String artboard)
     {
-        Initialize();
-        Rive.SetArtboard(rive_file, artboard);
+        runOnNativeThreadVoid(new Runnable() {
+            @Override
+            public void run() {
+                Initialize();
+                Rive.SetArtboard(rive_file, artboard);
+            }
+        });
+    }
+
+    public static void SetStateMachineInternal(RiveFile rive_file, String stateMachine)
+    {
+        runOnNativeThreadVoid(new Runnable() {
+            @Override
+            public void run() {
+                Initialize();
+                Rive.SetStateMachine(rive_file, stateMachine);
+            }
+        });
     }
 
     public static void SetFitAlignmentInternal(RiveFile rive_file, int fit, int alignment)
     {
-        Initialize();
-        Rive.SetFitAlignment(rive_file, fit, alignment);
+        runOnNativeThreadVoid(new Runnable() {
+            @Override
+            public void run() {
+                Initialize();
+                Rive.SetFitAlignment(rive_file, fit, alignment);
+            }
+        });
+    }
+
+    public static void SetViewModelInternal(RiveFile rive_file, String viewModel)
+    {
+        runOnNativeThreadVoid(new Runnable() {
+            @Override
+            public void run() {
+                Initialize();
+                Rive.SetViewModel(rive_file, viewModel);
+            }
+        });
+    }
+
+    public static Texture GetTextureInternal(RiveFile rive_file)
+    {
+        return runOnNativeThread(new Callable<Texture>() {
+            @Override
+            public Texture call() {
+                Initialize();
+                return Rive.GetTexture(rive_file);
+            }
+        });
     }
 
     public static RiveFile LoadFromBuffer(String path, byte[] bytes)
     {
-        Initialize();
-        RiveFile rive_file = Rive.LoadFromBufferInternal(path, bytes);
-        return rive_file;
+        return runOnNativeThread(new Callable<RiveFile>() {
+            @Override
+            public RiveFile call() {
+                Initialize();
+                return Rive.LoadFromBufferInternal(path, bytes);
+            }
+        });
     }
 
     public static RiveFile LoadFromPath(String path) throws FileNotFoundException, IOException
@@ -210,7 +318,20 @@ public class Rive {
             header[17] = (byte)(8 | 0x20); // 8-bit alpha, top-left origin.
 
             output.write(header);
-            output.write(texture.data);
+            // Native plugin snapshot data is ABGR for editor upload.
+            // TGA expects BGRA bytes, so swizzle before writing.
+            byte[] bgra = new byte[texture.data.length];
+            for (int i = 0; i + 3 < texture.data.length; i += 4) {
+                byte a = texture.data[i + 0];
+                byte b = texture.data[i + 1];
+                byte g = texture.data[i + 2];
+                byte r = texture.data[i + 3];
+                bgra[i + 0] = b;
+                bgra[i + 1] = g;
+                bgra[i + 2] = r;
+                bgra[i + 3] = a;
+            }
+            output.write(bgra);
         }
         return true;
     }
@@ -233,7 +354,13 @@ public class Rive {
 
         long timeEnd = System.currentTimeMillis();
 
-        System.out.printf("Loaded %s %s  (hashCode: %d)\n", path, rive_file!=null ? "ok":"failed", rive_file.hashCode());
+        System.out.printf("%s: %s  (hashCode: %d)\n", rive_file!=null ? "Loaded ok":"Loading failed", path, rive_file.hashCode());
+
+        if (rive_file == null) {
+            System.exit(2);
+            return;
+        }
+
         System.out.printf("Loading took %d ms\n", (timeEnd - timeStart));
 
         System.out.printf("--------------------------------\n");
@@ -242,7 +369,7 @@ public class Rive {
 
         rive_file.Update(0.0f);
 
-        Texture texture = Rive.GetTexture(rive_file);
+        Texture texture = Rive.GetTextureInternal(rive_file);
         if (texture != null) {
             String screenshotPath = "screenshot.tga";
             if (WriteTgaFile(screenshotPath, texture)) {

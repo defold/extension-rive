@@ -101,10 +101,10 @@
   (invoke-static cls name types args))
 
 (defn- plugin-load-file [bytes path]
-  (plugin-invoke-static rive-plugin-cls "LoadFromBufferInternal" (into-array Class [String byte-array-cls]) [path bytes]))
+  (plugin-invoke-static rive-plugin-cls "LoadFromBuffer" (into-array Class [String byte-array-cls]) [path bytes]))
 
 (defn- plugin-destroy-file [file]
-  (plugin-invoke-static rive-plugin-cls "Destroy" (into-array Class [rive-plugin-file-cls]) [file]))
+  (plugin-invoke-static rive-plugin-cls "DestroyInternal" (into-array Class [rive-plugin-file-cls]) [file]))
 
 (defn- plugin-update-file [file dt]
   (plugin-invoke-static rive-plugin-cls "UpdateInternal" (into-array Class [rive-plugin-file-cls Float/TYPE]) [file (float dt)]))
@@ -113,13 +113,13 @@
   (plugin-invoke-static rive-plugin-cls "SetArtboardInternal" (into-array Class [rive-plugin-file-cls String]) [file artboard]))
 
 (defn- plugin-set-state-machine [file state-machine]
-  (plugin-invoke-static rive-plugin-cls "SetStateMachine" (into-array Class [rive-plugin-file-cls String]) [file state-machine]))
+  (plugin-invoke-static rive-plugin-cls "SetStateMachineInternal" (into-array Class [rive-plugin-file-cls String]) [file state-machine]))
 
 (defn- plugin-set-fit-alignment [file fit alignment]
   (plugin-invoke-static rive-plugin-cls "SetFitAlignmentInternal" (into-array Class [rive-plugin-file-cls Integer/TYPE Integer/TYPE]) [file (int fit) (int alignment)]))
 
 (defn- plugin-get-texture [file]
-  (plugin-invoke-static rive-plugin-cls "GetTexture" (into-array Class [rive-plugin-file-cls]) [file]))
+  (plugin-invoke-static rive-plugin-cls "GetTextureInternal" (into-array Class [rive-plugin-file-cls]) [file]))
 
 (defn- plugin-get-fullscreen-quad-vertices []
   (plugin-invoke-static rive-plugin-cls "GetFullscreenQuadVertices" (into-array Class []) []))

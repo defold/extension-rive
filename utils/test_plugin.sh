@@ -11,14 +11,26 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 set -e
 
-PLUGIN_PLATFORM_DIR=$(realpath ${SCRIPT_DIR}/../defold-rive/plugins/lib/x86_64-linux)
-if [ "Darwin" == "$(uname)" ]; then
-    if [ "arm64" == "$(arch)" ]; then
-        PLUGIN_PLATFORM_DIR=$(realpath ${SCRIPT_DIR}/../defold-rive/plugins/lib/arm64-osx)
-    else
-        PLUGIN_PLATFORM_DIR=$(realpath ${SCRIPT_DIR}/../defold-rive/plugins/lib/x86_64-osx)
-    fi
-fi
+UNAME_S="$(uname -s)"
+IS_WINDOWS=0
+PLUGIN_PLATFORM="x86_64-linux"
+case "${UNAME_S}" in
+    Darwin)
+        if [ "arm64" == "$(uname -m)" ]; then
+            PLUGIN_PLATFORM="arm64-osx"
+        else
+            PLUGIN_PLATFORM="x86_64-osx"
+        fi
+        ;;
+    MINGW*|MSYS*|CYGWIN*|Windows_NT)
+        PLUGIN_PLATFORM="x86_64-win32"
+        IS_WINDOWS=1
+        ;;
+    *)
+        PLUGIN_PLATFORM="x86_64-linux"
+        ;;
+esac
+PLUGIN_PLATFORM_DIR=$(realpath "${SCRIPT_DIR}/../defold-rive/plugins/lib/${PLUGIN_PLATFORM}")
 
 if [ -z "${JAR}" ]; then
     echo "Couldn't find the jar file!"
@@ -78,15 +90,34 @@ rm -f "${DUMP_FILE}"
 export DM_RIVE_SIGNAL_DUMP_PATH="${DUMP_FILE}"
 
 LIB_EXT=".so"
-if [ "Darwin" == "$(uname)" ]; then
+if [ "Darwin" == "${UNAME_S}" ]; then
     LIB_EXT=".dylib"
-elif [ "MINGW" == "$(uname -s | cut -c1-5)" ]; then
+elif [ "${IS_WINDOWS}" -eq 1 ]; then
     LIB_EXT=".dll"
 fi
 LIB_FILE="${PLUGIN_PLATFORM_DIR}/lib${LIBNAME}${LIB_EXT}"
 
+JAVA_PLUGIN_PLATFORM_DIR="${PLUGIN_PLATFORM_DIR}"
+JAVA_JAR="${JAR}"
+JAVA_BOB="${BOB}"
+CLASSPATH_SEP=":"
+if [ "${IS_WINDOWS}" -eq 1 ]; then
+    CLASSPATH_SEP=";"
+    if command -v cygpath >/dev/null 2>&1; then
+        JAVA_PLUGIN_PLATFORM_DIR="$(cygpath -m "${PLUGIN_PLATFORM_DIR}")"
+        JAVA_JAR="$(cygpath -m "${JAR}")"
+        JAVA_BOB="$(cygpath -m "${BOB}")"
+    fi
+fi
+JAVA_CLASSPATH="${JAVA_JAR}${CLASSPATH_SEP}${JAVA_BOB}"
+
 set +e
-java ${JNI_DEBUG_FLAGS} -Djava.library.path=${PLUGIN_PLATFORM_DIR} -Djni.library.path=${PLUGIN_PLATFORM_DIR} -cp ${JAR}:${BOB} ${CLASS_NAME} $*
+if [ "${IS_WINDOWS}" -eq 1 ]; then
+    MSYS2_ARG_CONV_EXCL="*" MSYS_NO_PATHCONV=1 \
+    java ${JNI_DEBUG_FLAGS} -Djava.library.path="${JAVA_PLUGIN_PLATFORM_DIR}" -Djni.library.path="${JAVA_PLUGIN_PLATFORM_DIR}" -cp "${JAVA_CLASSPATH}" ${CLASS_NAME} "$@"
+else
+    java ${JNI_DEBUG_FLAGS} -Djava.library.path="${JAVA_PLUGIN_PLATFORM_DIR}" -Djni.library.path="${JAVA_PLUGIN_PLATFORM_DIR}" -cp "${JAVA_CLASSPATH}" ${CLASS_NAME} "$@"
+fi
 JAVA_STATUS=$?
 set -e
 

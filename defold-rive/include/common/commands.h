@@ -46,6 +46,8 @@ namespace dmRiveCommands
     Result Finalize();   // Once per session
 
     Result ProcessMessages();
+    bool Wait(uint64_t timeout);
+    bool WaitUntil(bool (*condition)(void*), void* user_data, uint64_t timeout);
 
     // Getters
     rive::Factory*                  GetFactory();

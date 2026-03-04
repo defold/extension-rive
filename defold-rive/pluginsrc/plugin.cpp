@@ -21,6 +21,7 @@ __declspec(dllexport) int dummyFunc()
 #include <dmsdk/dlib/array.h>
 #include <dmsdk/dlib/jobsystem.h>
 #include <dmsdk/dlib/log.h>
+#include <dmsdk/dlib/mutex.h>
 #include <dmsdk/dlib/shared_library.h>
 #include <dmsdk/dlib/static_assert.h>
 #include <dmsdk/graphics/graphics.h>
@@ -32,6 +33,9 @@ __declspec(dllexport) int dummyFunc()
 #if defined(__APPLE__)
 #include <dispatch/dispatch.h>
 #include <pthread.h>
+#endif
+#if defined(_WIN32)
+#include <dmsdk/dlib/safe_windows.h>
 #endif
 
 #include <defold/renderer.h>
@@ -131,10 +135,47 @@ struct TypeRegister
     }
 };
 
+static bool CreateGraphicsContext();
+static bool PluginRiveInitialize();
+extern dmRive::HRenderContext g_RenderContext;
+extern dmGraphics::HContext g_GraphicsContext;
+static dmMutex::HMutex g_JNINativeCallMutex = 0;
+static const uint64_t g_CommandServerWaitTimeout = 1 * 1000000;
+
+static bool WaitForCommandServer()
+{
+    if (g_RenderContext == 0)
+    {
+        return true;
+    }
+
+    if (!dmRiveCommands::Wait(g_CommandServerWaitTimeout))
+    {
+        dmLogError("Rive: timed out waiting for command server");
+        return false;
+    }
+    return true;
+}
+
 static jobject JNICALL Java_Rive_LoadFromBufferInternal(JNIEnv* env, jclass cls, jstring _path, jbyteArray array)
 {
+    // The editor invokes plugin JNI methods from a worker pool.
+    // Serialize all native calls to keep JNI class refs + graphics state thread-safe.
+    DM_MUTEX_OPTIONAL_SCOPED_LOCK(g_JNINativeCallMutex);
     DM_CHECK_JNI_ERROR();
     dmRiveCrash::ScopedSignalHandler signal_scope;
+
+    if (!CreateGraphicsContext())
+    {
+        dmLogError("Rive: failed to create graphics context");
+        return 0;
+    }
+
+    if (!PluginRiveInitialize() || g_RenderContext == 0)
+    {
+        dmLogError("Rive: render context was not initialized");
+        return 0;
+    }
 
     dmDefoldJNI::ScopedString j_path(env, _path);
     const char* path = j_path.m_String;
@@ -156,6 +197,11 @@ static jobject JNICALL Java_Rive_LoadFromBufferInternal(JNIEnv* env, jclass cls,
     jobject rive_file_obj = dmRiveJNI::LoadFileFromBuffer(env, cls, path, (const uint8_t*)file_data, (uint32_t)file_size);
     DM_CHECK_JNI_ERROR();
 
+    if (!WaitForCommandServer())
+    {
+        return 0;
+    }
+
     if (dmLogGetLevel() == LOG_SEVERITY_DEBUG) // verbose mode
     {
         // Debug info
@@ -167,25 +213,30 @@ static jobject JNICALL Java_Rive_LoadFromBufferInternal(JNIEnv* env, jclass cls,
 
 static void JNICALL Java_Rive_Destroy(JNIEnv* env, jclass cls, jobject rive_file)
 {
+    DM_MUTEX_OPTIONAL_SCOPED_LOCK(g_JNINativeCallMutex);
     DM_CHECK_JNI_ERROR();
     dmRiveCrash::ScopedSignalHandler signal_scope;
     TypeRegister register_t(env);
     dmRiveJNI::DestroyFile(env, cls, rive_file);
     DM_CHECK_JNI_ERROR();
+    WaitForCommandServer();
 }
 
 static void JNICALL Java_Rive_Update(JNIEnv* env, jclass cls, jobject rive_file, jfloat dt)
 {
+    DM_MUTEX_OPTIONAL_SCOPED_LOCK(g_JNINativeCallMutex);
     DM_CHECK_JNI_ERROR();
     dmRiveCrash::ScopedSignalHandler signal_scope;
 
     TypeRegister register_t(env);
     dmRiveJNI::Update(env, cls, rive_file, dt);
     DM_CHECK_JNI_ERROR();
+    WaitForCommandServer();
 }
 
 static void JNICALL Java_Rive_SetArtboard(JNIEnv* env, jclass cls, jobject rive_file, jstring _artboard)
 {
+    DM_MUTEX_OPTIONAL_SCOPED_LOCK(g_JNINativeCallMutex);
     DM_CHECK_JNI_ERROR();
     dmRiveCrash::ScopedSignalHandler signal_scope;
 
@@ -195,10 +246,12 @@ static void JNICALL Java_Rive_SetArtboard(JNIEnv* env, jclass cls, jobject rive_
     TypeRegister register_t(env);
     dmRiveJNI::SetArtboard(env, cls, rive_file, name);
     DM_CHECK_JNI_ERROR();
+    WaitForCommandServer();
 }
 
 static void JNICALL Java_Rive_SetStateMachine(JNIEnv* env, jclass cls, jobject rive_file, jstring _artboard)
 {
+    DM_MUTEX_OPTIONAL_SCOPED_LOCK(g_JNINativeCallMutex);
     DM_CHECK_JNI_ERROR();
     dmRiveCrash::ScopedSignalHandler signal_scope;
 
@@ -208,20 +261,24 @@ static void JNICALL Java_Rive_SetStateMachine(JNIEnv* env, jclass cls, jobject r
     TypeRegister register_t(env);
     dmRiveJNI::SetStateMachine(env, cls, rive_file, name);
     DM_CHECK_JNI_ERROR();
+    WaitForCommandServer();
 }
 
 static void JNICALL Java_Rive_SetFitAlignment(JNIEnv* env, jclass cls, jobject rive_file, jint fit, jint alignment)
 {
+    DM_MUTEX_OPTIONAL_SCOPED_LOCK(g_JNINativeCallMutex);
     DM_CHECK_JNI_ERROR();
     dmRiveCrash::ScopedSignalHandler signal_scope;
 
     TypeRegister register_t(env);
     dmRiveJNI::SetFitAlignment(env, cls, rive_file, fit, alignment);
     DM_CHECK_JNI_ERROR();
+    WaitForCommandServer();
 }
 
 static void JNICALL Java_Rive_SetViewModel(JNIEnv* env, jclass cls, jobject rive_file, jstring _artboard)
 {
+    DM_MUTEX_OPTIONAL_SCOPED_LOCK(g_JNINativeCallMutex);
     DM_CHECK_JNI_ERROR();
     dmRiveCrash::ScopedSignalHandler signal_scope;
 
@@ -231,25 +288,40 @@ static void JNICALL Java_Rive_SetViewModel(JNIEnv* env, jclass cls, jobject rive
     TypeRegister register_t(env);
     dmRiveJNI::SetViewModel(env, cls, rive_file, name);
     DM_CHECK_JNI_ERROR();
+    WaitForCommandServer();
 }
-
-static void CreateGraphicsContext();
 
 static jobject JNICALL Java_Rive_GetTexture(JNIEnv* env, jclass cls, jobject rive_file)
 {
+    DM_MUTEX_OPTIONAL_SCOPED_LOCK(g_JNINativeCallMutex);
     DM_CHECK_JNI_ERROR();
     dmRiveCrash::ScopedSignalHandler signal_scope;
 
-    CreateGraphicsContext();
+    if (!CreateGraphicsContext())
+    {
+        dmLogError("Rive: failed to create graphics context");
+        return 0;
+    }
+
+    if (!PluginRiveInitialize() || g_RenderContext == 0)
+    {
+        dmLogError("Rive: render context was not initialized");
+        return 0;
+    }
 
     TypeRegister register_t(env);
     jobject texture = dmRiveJNI::GetTexture(env, cls, rive_file);
     DM_CHECK_JNI_ERROR();
+    if (!WaitForCommandServer())
+    {
+        return 0;
+    }
     return texture;
 }
 
 static jfloatArray JNICALL Java_Rive_GetFullscreenQuadVerticesInternal(JNIEnv* env, jclass cls)
 {
+    DM_MUTEX_OPTIONAL_SCOPED_LOCK(g_JNINativeCallMutex);
     DM_CHECK_JNI_ERROR();
     dmRiveCrash::ScopedSignalHandler signal_scope;
 
@@ -269,20 +341,8 @@ dmRive::HRenderContext    g_RenderContext = 0;
 HWindow                   g_Window = 0;
 dmGraphics::HContext      g_GraphicsContext = 0;
 HJobContext               g_JobContext = 0;
-
-static dmGraphics::AdapterFamily      s_AdapterFamily = dmGraphics::ADAPTER_FAMILY_NONE;
-
-static WindowsGraphicsApi GetWindowGraphicsApi(dmGraphics::AdapterFamily family)
-{
-    switch (family)
-    {
-        case dmGraphics::ADAPTER_FAMILY_OPENGL:     return WINDOW_GRAPHICS_API_OPENGL;
-        case dmGraphics::ADAPTER_FAMILY_OPENGLES:   return WINDOW_GRAPHICS_API_OPENGLES;
-        case dmGraphics::ADAPTER_FAMILY_DIRECTX:    return WINDOW_GRAPHICS_API_DIRECTX;
-        case dmGraphics::ADAPTER_FAMILY_VULKAN:     return WINDOW_GRAPHICS_API_VULKAN;
-        default:                        return WINDOW_GRAPHICS_API_VULKAN;
-    }
-}
+static bool               s_AdapterInstallAttempted = false;
+static bool               s_AdapterInstallSuccess = false;
 
 static bool IsDebugLogEnabled()
 {
@@ -316,23 +376,38 @@ static void RiveDebugLog(const char* fmt, ...)
 
 #if defined(__APPLE__)
 extern "C" void GraphicsAdapterVulkan();
+#else
+extern "C" void GraphicsAdapterOpenGL();
 #endif
 
-static void InstallGraphicsAdapter()
+static bool InstallGraphicsAdapter()
 {
+    if (s_AdapterInstallAttempted)
+    {
+        return s_AdapterInstallSuccess;
+    }
+    s_AdapterInstallAttempted = true;
+
 #if defined(__APPLE__)
-    GraphicsAdapterVulkan();
-    s_AdapterFamily = dmGraphics::ADAPTER_FAMILY_VULKAN;
-    dmGraphics::InstallAdapter(s_AdapterFamily);
+    GraphicsAdapterVulkan();  // register the dapter
+#elif defined(_WIN32)
+    GraphicsAdapterOpenGL(); // register the dapter
 #endif
+    s_AdapterInstallSuccess = dmGraphics::InstallAdapter(dmGraphics::ADAPTER_FAMILY_NONE);
+    return s_AdapterInstallSuccess;
 }
 
-static void CreateGraphicsContextInternal()
+static bool CreateGraphicsContextInternal()
 {
-#if defined(__APPLE__)
     if (g_GraphicsContext != 0)
     {
-        return;
+        return true;
+    }
+
+    if (!InstallGraphicsAdapter())
+    {
+        dmLogError("Rive: failed to install graphics adapter");
+        return false;
     }
 
     RiveDebugLog("Rive: creating window for graphics context");
@@ -340,31 +415,51 @@ static void CreateGraphicsContextInternal()
     if (!g_Window)
     {
         dmLogError("Rive: failed to create window");
-        return;
+        return false;
     }
     RiveDebugLog("Rive: window created");
 
     JobSystemCreateParams job_params = { 0 };
+    job_params.m_ThreadNamePrefix = "RivePlugin";
+    // Keep plugin-side rendering single-threaded in the editor to avoid
+    // cross-thread context/assert issues.
+    job_params.m_ThreadCount = 1;
     g_JobContext = JobSystemCreate(&job_params);
+    if (!g_JobContext)
+    {
+        dmLogError("Rive: failed to create job context");
+        return false;
+    }
 
     WindowCreateParams window_params;
     WindowCreateParamsInitialize(&window_params);
     window_params.m_Width = 512;
     window_params.m_Height = 512;
     window_params.m_Title = "Rive Plugin";
-    window_params.m_GraphicsApi = GetWindowGraphicsApi(s_AdapterFamily);
+#if defined(__APPLE__)
+    window_params.m_GraphicsApi = WINDOW_GRAPHICS_API_VULKAN;
+#else
+    window_params.m_GraphicsApi = WINDOW_GRAPHICS_API_OPENGL;
+#endif
     window_params.m_Hidden = 1;
 
     RiveDebugLog("Rive: opening window");
-    WindowOpen(g_Window, &window_params);
+    WindowResult open_result = WindowOpen(g_Window, &window_params);
+    if (open_result != WINDOW_RESULT_OK)
+    {
+        dmLogError("Rive: failed to open window (%d)", (int)open_result);
+        WindowDelete(g_Window);
+        g_Window = 0;
+        return false;
+    }
     RiveDebugLog("Rive: window opened");
     WindowPollEvents(g_Window);
 
-    dmGraphics::ContextParams graphics_context_params;
-    graphics_context_params.m_DefaultTextureMinFilter = dmGraphics::TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST;
-    graphics_context_params.m_DefaultTextureMagFilter = dmGraphics::TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST;
-    graphics_context_params.m_VerifyGraphicsCalls = 1;
-    graphics_context_params.m_UseValidationLayers = 1;
+    dmGraphics::ContextParams graphics_context_params = {};
+    graphics_context_params.m_DefaultTextureMinFilter = dmGraphics::TEXTURE_FILTER_LINEAR;
+    graphics_context_params.m_DefaultTextureMagFilter = dmGraphics::TEXTURE_FILTER_LINEAR;
+    graphics_context_params.m_VerifyGraphicsCalls = 0;
+    graphics_context_params.m_UseValidationLayers = 0;
     graphics_context_params.m_Window = g_Window;
     graphics_context_params.m_Width = 512;
     graphics_context_params.m_Height = 512;
@@ -375,49 +470,71 @@ static void CreateGraphicsContextInternal()
     if (!g_GraphicsContext)
     {
         dmLogError("Rive: failed to create graphics context");
+        return false;
     }
-    else
-    {
-        RiveDebugLog("Rive: graphics context created");
-    }
-#endif
+    RiveDebugLog("Rive: graphics context created");
+    return true;
 }
 
-static void CreateGraphicsContext()
+static bool CreateGraphicsContext()
 {
 #if defined(__APPLE__)
     if (g_GraphicsContext != 0)
     {
-        return;
+        return true;
     }
 
+    bool created = false;
     if (!pthread_main_np())
     {
         RiveDebugLog("Rive: dispatching graphics context creation to main thread");
         dispatch_sync(dispatch_get_main_queue(), ^{
-            CreateGraphicsContextInternal();
+            created = CreateGraphicsContextInternal();
         });
     }
     else
     {
-        CreateGraphicsContextInternal();
+        created = CreateGraphicsContextInternal();
     }
+    return created;
 #else
-    CreateGraphicsContextInternal();
+    return CreateGraphicsContextInternal();
 #endif
 }
 
-static void PluginRiveInitialize()
+static bool PluginRiveInitialize()
 {
-    InstallGraphicsAdapter();
+    if (g_RenderContext != 0)
+    {
+        return true;
+    }
+
+    if (!InstallGraphicsAdapter())
+    {
+        dmLogError("Rive: failed to install graphics adapter");
+        return false;
+    }
+
     g_RenderContext = dmRive::NewRenderContext();
-    assert(g_RenderContext != 0);
+    if (g_RenderContext == 0)
+    {
+        dmLogError("Rive: failed to create render context");
+        return false;
+    }
 
     dmRiveCommands::InitParams cmd_params;
-    cmd_params.m_UseThreads = true; // TODO: Use define and/or config flag
+    cmd_params.m_UseThreads = false;
     cmd_params.m_RenderContext = g_RenderContext;
     cmd_params.m_Factory = dmRive::GetRiveFactory(g_RenderContext);
+    if (cmd_params.m_Factory == 0)
+    {
+        dmLogError("Rive: failed to get Rive factory");
+        dmRive::DeleteRenderContext(g_RenderContext);
+        g_RenderContext = 0;
+        return false;
+    }
     dmRiveCommands::Initialize(&cmd_params);
+    return true;
 }
 
 static void PluginRiveFinalize()
@@ -429,7 +546,6 @@ static void PluginRiveFinalize()
         g_RenderContext = 0;
     }
 
-#if defined(__APPLE__)
     if (g_GraphicsContext)
     {
         dmGraphics::CloseWindow(g_GraphicsContext);
@@ -437,23 +553,22 @@ static void PluginRiveFinalize()
         dmGraphics::Finalize();
         g_GraphicsContext = 0;
     }
-
-    if (g_Window)
-    {
-        g_Window = 0;
-    }
+    g_Window = 0;
 
     if (g_JobContext)
     {
         JobSystemDestroy(g_JobContext);
         g_JobContext = 0;
     }
-#endif
 }
 
 JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
 {
     dmLogDebug("JNI_OnLoad Rive ->\n");
+    if (g_JNINativeCallMutex == 0)
+    {
+        g_JNINativeCallMutex = dmMutex::New();
+    }
 
     JNIEnv* env;
     if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) != JNI_OK) {
@@ -489,8 +604,6 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
 
     if (rc != JNI_OK) return rc;
 
-    PluginRiveInitialize();
-
     dmLogDebug("JNI_OnLoad return.\n");
     return JNI_VERSION_1_8;
 }
@@ -502,6 +615,11 @@ JNIEXPORT void JNI_OnUnload(JavaVM* vm, void* reserved)
     dmLogDebug("JNI_OnUnload Rive ->\n");
 
     PluginRiveFinalize();
+    if (g_JNINativeCallMutex)
+    {
+        dmMutex::Delete(g_JNINativeCallMutex);
+        g_JNINativeCallMutex = 0;
+    }
 
     dmLogDebug("JNI_OnUnload return.\n");
 }

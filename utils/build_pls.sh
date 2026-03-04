@@ -98,6 +98,13 @@ function copy_results() {
         copyfile $path $target_dir
     done
     for path in ./build/$platform_ne/*.lib; do
+        local filename=$(basename "$path")
+        case "$filename" in
+            RiveExt_*.lib)
+                echo "Skipping ${filename}"
+                continue
+                ;;
+        esac
         copyfile $path $target_dir
     done
 }
@@ -136,9 +143,10 @@ function download_zip() {
     local dir=$2
     local url=$3
 
-    if [ ! -e "${zip}" ]; then
+    if [ ! -s "${zip}" ]; then
         echo "Downloading ${url} to ${zip}"
         mkdir -p $(dirname ${zip})
+        rm -f "${zip}"
         wget -O ${zip} ${url}
     else
         echo "${zip} already downloaded!"
@@ -223,6 +231,107 @@ mkdir -p ${SHEENBIDI_SOURCE_DIR}
 cp -r -v ${SHEENBIDI_ORIGINAL_DIR}/Headers ${SHEENBIDI_SOURCE_DIR}
 cp -r -v ${SHEENBIDI_ORIGINAL_DIR}/Source ${SHEENBIDI_SOURCE_DIR}
 
+echo "*************************************************"
+echo "Downloading libjpeg files"
+
+LIBJPEG_VERSION=9f
+LIBJPEG_ZIP=${DOWNLOAD_DIR}/libjpeg-${LIBJPEG_VERSION}.zip
+LIBJPEG_URL=https://github.com/rive-app/libjpeg/archive/refs/tags/v${LIBJPEG_VERSION}.zip
+LIBJPEG_ORIGINAL_DIR=${DOWNLOAD_DIR}/libjpeg/libjpeg-${LIBJPEG_VERSION}
+LIBJPEG_SOURCE_DIR=${SOURCE_DIR}/libjpeg/src
+
+download_zip ${LIBJPEG_ZIP} ${DOWNLOAD_DIR}/libjpeg ${LIBJPEG_URL}
+
+if [ ! -d "${LIBJPEG_ORIGINAL_DIR}" ]; then
+    LIBJPEG_ORIGINAL_DIR=$(find ${DOWNLOAD_DIR}/libjpeg -maxdepth 1 -type d -name "libjpeg-*" | sort | tail -n 1)
+fi
+
+if [ ! -d "${LIBJPEG_ORIGINAL_DIR}" ]; then
+    echo "ERROR: Unable to locate extracted libjpeg source directory in ${DOWNLOAD_DIR}/libjpeg"
+    exit 1
+fi
+
+echo "*************************************************"
+echo "Downloading zlib files"
+
+ZLIB_VERSION=1.3.1
+ZLIB_ZIP=${DOWNLOAD_DIR}/zlib-${ZLIB_VERSION}.zip
+ZLIB_URL=https://github.com/madler/zlib/archive/refs/tags/v${ZLIB_VERSION}.zip
+ZLIB_ORIGINAL_DIR=${DOWNLOAD_DIR}/zlib/zlib-${ZLIB_VERSION}
+ZLIB_SOURCE_DIR=${SOURCE_DIR}/zlib/src
+
+download_zip ${ZLIB_ZIP} ${DOWNLOAD_DIR}/zlib ${ZLIB_URL}
+
+if [ ! -d "${ZLIB_ORIGINAL_DIR}" ]; then
+    ZLIB_ORIGINAL_DIR=$(find ${DOWNLOAD_DIR}/zlib -maxdepth 1 -type d -name "zlib-*" | sort | tail -n 1)
+fi
+
+if [ ! -d "${ZLIB_ORIGINAL_DIR}" ]; then
+    echo "ERROR: Unable to locate extracted zlib source directory in ${DOWNLOAD_DIR}/zlib"
+    exit 1
+fi
+
+echo "*************************************************"
+echo "Downloading libpng files"
+
+LIBPNG_VERSION=libpng16
+LIBPNG_ZIP=${DOWNLOAD_DIR}/libpng-${LIBPNG_VERSION}.zip
+LIBPNG_URL=https://github.com/pnggroup/libpng/archive/refs/heads/${LIBPNG_VERSION}.zip
+LIBPNG_ORIGINAL_DIR=${DOWNLOAD_DIR}/libpng/libpng-${LIBPNG_VERSION}
+LIBPNG_SOURCE_DIR=${SOURCE_DIR}/libpng/src
+
+download_zip ${LIBPNG_ZIP} ${DOWNLOAD_DIR}/libpng ${LIBPNG_URL}
+
+if [ ! -d "${LIBPNG_ORIGINAL_DIR}" ]; then
+    LIBPNG_ORIGINAL_DIR=$(find ${DOWNLOAD_DIR}/libpng -maxdepth 1 -type d -name "libpng-*" | sort | tail -n 1)
+fi
+
+if [ ! -d "${LIBPNG_ORIGINAL_DIR}" ]; then
+    echo "ERROR: Unable to locate extracted libpng source directory in ${DOWNLOAD_DIR}/libpng"
+    exit 1
+fi
+
+echo "*************************************************"
+echo "Downloading libwebp files"
+
+LIBWEBP_VERSION=1.4.0
+LIBWEBP_ZIP=${DOWNLOAD_DIR}/libwebp-${LIBWEBP_VERSION}.zip
+LIBWEBP_URL=https://github.com/webmproject/libwebp/archive/refs/tags/v${LIBWEBP_VERSION}.zip
+LIBWEBP_ORIGINAL_DIR=${DOWNLOAD_DIR}/libwebp/libwebp-${LIBWEBP_VERSION}
+LIBWEBP_SOURCE_DIR=${SOURCE_DIR}/libwebp/src
+
+download_zip ${LIBWEBP_ZIP} ${DOWNLOAD_DIR}/libwebp ${LIBWEBP_URL}
+
+if [ ! -d "${LIBWEBP_ORIGINAL_DIR}" ]; then
+    LIBWEBP_ORIGINAL_DIR=$(find ${DOWNLOAD_DIR}/libwebp -maxdepth 1 -type d -name "libwebp-*" | sort | tail -n 1)
+fi
+
+if [ ! -d "${LIBWEBP_ORIGINAL_DIR}" ]; then
+    echo "ERROR: Unable to locate extracted libwebp source directory in ${DOWNLOAD_DIR}/libwebp"
+    exit 1
+fi
+
+echo "*************************************************"
+echo "Downloading miniaudio files"
+
+MINIAUDIO_VERSION=rive_changes_5
+MINIAUDIO_ZIP=${DOWNLOAD_DIR}/miniaudio-${MINIAUDIO_VERSION}.zip
+MINIAUDIO_URL=https://github.com/rive-app/miniaudio/archive/refs/heads/${MINIAUDIO_VERSION}.zip
+MINIAUDIO_ORIGINAL_DIR=${DOWNLOAD_DIR}/miniaudio/miniaudio-${MINIAUDIO_VERSION}
+MINIAUDIO_SOURCE_DIR=${SOURCE_DIR}/miniaudio/src
+RIVE_DECODERS_SOURCE_DIR=${SOURCE_DIR}/rive-decoders/src
+
+download_zip ${MINIAUDIO_ZIP} ${DOWNLOAD_DIR}/miniaudio ${MINIAUDIO_URL}
+
+if [ ! -d "${MINIAUDIO_ORIGINAL_DIR}" ]; then
+    MINIAUDIO_ORIGINAL_DIR=$(find ${DOWNLOAD_DIR}/miniaudio -maxdepth 1 -type d -name "miniaudio-*" | sort | tail -n 1)
+fi
+
+if [ ! -d "${MINIAUDIO_ORIGINAL_DIR}" ]; then
+    echo "ERROR: Unable to locate extracted miniaudio source directory in ${DOWNLOAD_DIR}/miniaudio"
+    exit 1
+fi
+
 if [ -z "$RIVE_DIR" ]; then
     echo "*************************************************"
     echo "Downloading rive-cpp files"
@@ -240,6 +349,297 @@ if [ -z "$RIVE_DIR" ]; then
 else
     RIVECPP_ORIGINAL_DIR=${RIVE_DIR}
 fi
+
+echo "*************************************************"
+echo "Copying libjpeg files"
+
+rm -rf ${LIBJPEG_SOURCE_DIR}
+mkdir -p ${LIBJPEG_SOURCE_DIR}
+cp -v ${LIBJPEG_ORIGINAL_DIR}/*.h ${LIBJPEG_SOURCE_DIR}
+cp -v ${RIVECPP_ORIGINAL_DIR}/dependencies/jconfig.h ${LIBJPEG_SOURCE_DIR}
+cp -v ${RIVECPP_ORIGINAL_DIR}/dependencies/rive_libjpeg_renames.h ${LIBJPEG_SOURCE_DIR}
+
+LIBJPEG_BUILD_SOURCES=(
+    jaricom.c
+    jcapimin.c
+    jcapistd.c
+    jcarith.c
+    jccoefct.c
+    jccolor.c
+    jcdctmgr.c
+    jchuff.c
+    jcinit.c
+    jcmainct.c
+    jcmarker.c
+    jcmaster.c
+    jcomapi.c
+    jcparam.c
+    jcprepct.c
+    jcsample.c
+    jctrans.c
+    jdapimin.c
+    jdapistd.c
+    jdarith.c
+    jdatadst.c
+    jdatasrc.c
+    jdcoefct.c
+    jdcolor.c
+    jddctmgr.c
+    jdhuff.c
+    jdinput.c
+    jdmainct.c
+    jdmarker.c
+    jdmaster.c
+    jdmerge.c
+    jdpostct.c
+    jdsample.c
+    jdtrans.c
+    jerror.c
+    jfdctflt.c
+    jfdctfst.c
+    jfdctint.c
+    jidctflt.c
+    jidctfst.c
+    jidctint.c
+    jquant1.c
+    jquant2.c
+    jutils.c
+    jmemmgr.c
+    jmemansi.c
+)
+
+for file in "${LIBJPEG_BUILD_SOURCES[@]}"; do
+    cp -v ${LIBJPEG_ORIGINAL_DIR}/${file} ${LIBJPEG_SOURCE_DIR}
+
+    # Defold extender doesn't accept '-include' in ext.manifest flags.
+    # Inject the rename header directly into each translation unit instead.
+    tmp_file="${LIBJPEG_SOURCE_DIR}/${file}.tmp"
+    echo "#include \"rive_libjpeg_renames.h\"" > "${tmp_file}"
+    cat "${LIBJPEG_SOURCE_DIR}/${file}" >> "${tmp_file}"
+    mv "${tmp_file}" "${LIBJPEG_SOURCE_DIR}/${file}"
+done
+
+echo "*************************************************"
+echo "Copying zlib files"
+
+rm -rf ${ZLIB_SOURCE_DIR}
+mkdir -p ${ZLIB_SOURCE_DIR}
+cp -v ${ZLIB_ORIGINAL_DIR}/*.h ${ZLIB_SOURCE_DIR}
+
+ZLIB_BUILD_SOURCES=(
+    adler32.c
+    compress.c
+    crc32.c
+    deflate.c
+    gzclose.c
+    gzlib.c
+    gzread.c
+    gzwrite.c
+    infback.c
+    inffast.c
+    inftrees.c
+    trees.c
+    uncompr.c
+    zutil.c
+    inflate.c
+)
+
+for file in "${ZLIB_BUILD_SOURCES[@]}"; do
+    cp -v ${ZLIB_ORIGINAL_DIR}/${file} ${ZLIB_SOURCE_DIR}
+done
+
+echo "*************************************************"
+echo "Copying libpng files"
+
+rm -rf ${LIBPNG_SOURCE_DIR}
+mkdir -p ${LIBPNG_SOURCE_DIR}/arm
+cp -v ${LIBPNG_ORIGINAL_DIR}/*.h ${LIBPNG_SOURCE_DIR}
+cp -v ${LIBPNG_ORIGINAL_DIR}/scripts/pnglibconf.h.prebuilt ${LIBPNG_SOURCE_DIR}/pnglibconf.h
+cp -v ${ZLIB_SOURCE_DIR}/zlib.h ${LIBPNG_SOURCE_DIR}
+cp -v ${ZLIB_SOURCE_DIR}/zconf.h ${LIBPNG_SOURCE_DIR}
+cp -v ${RIVECPP_ORIGINAL_DIR}/dependencies/rive_png_renames.h ${LIBPNG_SOURCE_DIR}
+
+LIBPNG_BUILD_SOURCES=(
+    png.c
+    pngerror.c
+    pngget.c
+    pngmem.c
+    pngpread.c
+    pngread.c
+    pngrio.c
+    pngrtran.c
+    pngrutil.c
+    pngset.c
+    pngtrans.c
+    pngwio.c
+    pngwrite.c
+    pngwtran.c
+    pngwutil.c
+    arm/arm_init.c
+    arm/filter_neon_intrinsics.c
+    arm/palette_neon_intrinsics.c
+)
+
+for file in "${LIBPNG_BUILD_SOURCES[@]}"; do
+    mkdir -p ${LIBPNG_SOURCE_DIR}/$(dirname ${file})
+    cp -v ${LIBPNG_ORIGINAL_DIR}/${file} ${LIBPNG_SOURCE_DIR}/${file}
+
+    # Defold extender doesn't accept '-include' in ext.manifest flags.
+    # Inject the rename header directly into each translation unit instead.
+    tmp_file="${LIBPNG_SOURCE_DIR}/${file}.tmp"
+    echo "#include \"rive_png_renames.h\"" > "${tmp_file}"
+    cat "${LIBPNG_SOURCE_DIR}/${file}" >> "${tmp_file}"
+    mv "${tmp_file}" "${LIBPNG_SOURCE_DIR}/${file}"
+done
+
+echo "*************************************************"
+echo "Copying libwebp files"
+
+rm -rf ${LIBWEBP_SOURCE_DIR}
+mkdir -p ${LIBWEBP_SOURCE_DIR}
+cp -r -v ${LIBWEBP_ORIGINAL_DIR}/src ${LIBWEBP_SOURCE_DIR}
+find ${LIBWEBP_SOURCE_DIR}/src -type f -name "*.c" -delete
+
+# Use a config header to keep SIMD disabled for Defold extender builds where
+# we cannot pass per-file target-feature flags (e.g. -mssse3/-msse4.1).
+cat > ${LIBWEBP_SOURCE_DIR}/src/webp/config.h << 'EOF'
+#ifndef WEBP_WEBP_CONFIG_H_
+#define WEBP_WEBP_CONFIG_H_
+#endif
+EOF
+
+LIBWEBP_BUILD_SOURCES=(
+    src/dsp/alpha_processing.c
+    src/dsp/cpu.c
+    src/dsp/dec.c
+    src/dsp/dec_clip_tables.c
+    src/dsp/filters.c
+    src/dsp/lossless.c
+    src/dsp/rescaler.c
+    src/dsp/upsampling.c
+    src/dsp/yuv.c
+    src/dsp/cost.c
+    src/dsp/enc.c
+    src/dsp/lossless_enc.c
+    src/dsp/ssim.c
+    src/dec/alpha_dec.c
+    src/dec/buffer_dec.c
+    src/dec/frame_dec.c
+    src/dec/idec_dec.c
+    src/dec/io_dec.c
+    src/dec/quant_dec.c
+    src/dec/tree_dec.c
+    src/dec/vp8_dec.c
+    src/dec/vp8l_dec.c
+    src/dec/webp_dec.c
+    src/dsp/alpha_processing_sse41.c
+    src/dsp/dec_sse41.c
+    src/dsp/lossless_sse41.c
+    src/dsp/upsampling_sse41.c
+    src/dsp/yuv_sse41.c
+    src/dsp/alpha_processing_sse2.c
+    src/dsp/dec_sse2.c
+    src/dsp/filters_sse2.c
+    src/dsp/lossless_sse2.c
+    src/dsp/rescaler_sse2.c
+    src/dsp/upsampling_sse2.c
+    src/dsp/yuv_sse2.c
+    src/dsp/alpha_processing_neon.c
+    src/dsp/dec_neon.c
+    src/dsp/filters_neon.c
+    src/dsp/lossless_neon.c
+    src/dsp/rescaler_neon.c
+    src/dsp/upsampling_neon.c
+    src/dsp/yuv_neon.c
+    src/dsp/dec_msa.c
+    src/dsp/filters_msa.c
+    src/dsp/lossless_msa.c
+    src/dsp/rescaler_msa.c
+    src/dsp/upsampling_msa.c
+    src/dsp/dec_mips32.c
+    src/dsp/rescaler_mips32.c
+    src/dsp/yuv_mips32.c
+    src/dsp/alpha_processing_mips_dsp_r2.c
+    src/dsp/dec_mips_dsp_r2.c
+    src/dsp/filters_mips_dsp_r2.c
+    src/dsp/lossless_mips_dsp_r2.c
+    src/dsp/rescaler_mips_dsp_r2.c
+    src/dsp/upsampling_mips_dsp_r2.c
+    src/dsp/yuv_mips_dsp_r2.c
+    src/dsp/cost_sse2.c
+    src/dsp/enc_sse2.c
+    src/dsp/lossless_enc_sse2.c
+    src/dsp/ssim_sse2.c
+    src/dsp/enc_sse41.c
+    src/dsp/lossless_enc_sse41.c
+    src/dsp/cost_neon.c
+    src/dsp/enc_neon.c
+    src/dsp/lossless_enc_neon.c
+    src/dsp/enc_msa.c
+    src/dsp/lossless_enc_msa.c
+    src/dsp/cost_mips32.c
+    src/dsp/enc_mips32.c
+    src/dsp/lossless_enc_mips32.c
+    src/dsp/cost_mips_dsp_r2.c
+    src/dsp/enc_mips_dsp_r2.c
+    src/dsp/lossless_enc_mips_dsp_r2.c
+    src/utils/bit_reader_utils.c
+    src/utils/color_cache_utils.c
+    src/utils/filters_utils.c
+    src/utils/huffman_utils.c
+    src/utils/palette.c
+    src/utils/quant_levels_dec_utils.c
+    src/utils/rescaler_utils.c
+    src/utils/random_utils.c
+    src/utils/thread_utils.c
+    src/utils/utils.c
+    src/utils/bit_writer_utils.c
+    src/utils/huffman_encode_utils.c
+    src/utils/quant_levels_utils.c
+    src/demux/anim_decode.c
+    src/demux/demux.c
+)
+
+for file in "${LIBWEBP_BUILD_SOURCES[@]}"; do
+    cp -v ${LIBWEBP_ORIGINAL_DIR}/${file} ${LIBWEBP_SOURCE_DIR}/${file}
+done
+
+echo "*************************************************"
+echo "Copying miniaudio files"
+
+rm -rf ${MINIAUDIO_SOURCE_DIR}
+mkdir -p ${MINIAUDIO_SOURCE_DIR}
+cp -v ${MINIAUDIO_ORIGINAL_DIR}/miniaudio.h ${MINIAUDIO_SOURCE_DIR}
+cp -v ${MINIAUDIO_ORIGINAL_DIR}/miniaudio.c ${MINIAUDIO_SOURCE_DIR}
+
+echo "*************************************************"
+echo "Copying rive_decoders files"
+
+rm -rf ${RIVE_DECODERS_SOURCE_DIR}
+mkdir -p ${RIVE_DECODERS_SOURCE_DIR}/include/rive
+mkdir -p ${RIVE_DECODERS_SOURCE_DIR}/include/utils
+mkdir -p ${RIVE_DECODERS_SOURCE_DIR}/src
+mkdir -p ${RIVE_DECODERS_SOURCE_DIR}/webp
+
+cp -r -v ${RIVECPP_ORIGINAL_DIR}/include/rive/* ${RIVE_DECODERS_SOURCE_DIR}/include/rive
+cp -r -v ${RIVECPP_ORIGINAL_DIR}/include/utils/* ${RIVE_DECODERS_SOURCE_DIR}/include/utils
+cp -r -v ${RIVECPP_ORIGINAL_DIR}/decoders/include/rive/decoders ${RIVE_DECODERS_SOURCE_DIR}/include/rive/
+cp -v ${RIVECPP_ORIGINAL_DIR}/decoders/src/*.cpp ${RIVE_DECODERS_SOURCE_DIR}/src
+
+# Pull third-party decoder headers into this package so the native extension
+# build has everything it needs locally.
+cp -v ${LIBJPEG_SOURCE_DIR}/*.h ${RIVE_DECODERS_SOURCE_DIR}
+cp -v ${LIBPNG_SOURCE_DIR}/*.h ${RIVE_DECODERS_SOURCE_DIR}
+cp -v ${LIBWEBP_SOURCE_DIR}/src/webp/*.h ${RIVE_DECODERS_SOURCE_DIR}/webp
+
+# Keep symbol names consistent with our renamed libjpeg/libpng builds.
+for file in decode_jpeg.cpp decode_png.cpp; do
+    tmp_file="${RIVE_DECODERS_SOURCE_DIR}/src/${file}.tmp"
+    echo "#include \"rive_png_renames.h\"" > "${tmp_file}"
+    echo "#include \"rive_libjpeg_renames.h\"" >> "${tmp_file}"
+    cat "${RIVE_DECODERS_SOURCE_DIR}/src/${file}" >> "${tmp_file}"
+    mv "${tmp_file}" "${RIVE_DECODERS_SOURCE_DIR}/src/${file}"
+done
 
 RIVECPP_SOURCE_DIR=${SOURCE_DIR}/rivecpp/src
 RIVECPP_RENDERER_SOURCE_DIR=${SOURCE_DIR}/rivecpp-renderer/src
@@ -279,6 +679,7 @@ cp -r -v ${RIVE_YOGA_ORIGINAL_DIR}/yoga/event/*.h ${RIVECPP_SOURCE_DIR}/yoga/eve
 
 echo "COPY RIVE-RENDERER"
 cp -r -v ${RIVECPP_ORIGINAL_DIR}/include/rive ${RIVECPP_RENDERER_SOURCE_DIR}/include/rive
+cp -r -v ${RIVECPP_ORIGINAL_DIR}/decoders/include/rive/decoders ${RIVECPP_RENDERER_SOURCE_DIR}/include/rive/
 cp -r -v ${RIVECPP_ORIGINAL_DIR}/include/utils ${RIVECPP_RENDERER_SOURCE_DIR}/include
 cp -r -v ${RIVECPP_ORIGINAL_DIR}/renderer/include ${RIVECPP_RENDERER_SOURCE_DIR}
 cp -r -v ${RIVECPP_ORIGINAL_DIR}/renderer/src/*.cpp ${RIVECPP_RENDERER_SOURCE_DIR}/src
@@ -295,6 +696,7 @@ LIBPLY_URL=https://github.com/dabeaz/ply/archive/${LIBPLY_VERSION}.zip
 LIBPLY_ORIGINAL_DIR=${DOWNLOAD_DIR}/libply/libply-${LIBPLY_VERSION}
 LIBPLY_SOURCE_DIR=${SOURCE_DIR}/libply/src
 LIBPLY_PATH=${DOWNLOAD_DIR}/libply/ply-${LIBPLY_VERSION}/src
+LIBPLY_PATH=$(realpath ${LIBPLY_PATH})
 
 download_zip ${LIBPLY_ZIP} ${DOWNLOAD_DIR}/libply ${LIBPLY_URL}
 
@@ -346,6 +748,66 @@ for platform in $PLATFORMS; do
     build_library sheenbidi $platform $platform_ne ${SHEENBIDI_SOURCE_DIR} ${BUILD}
 
     echo "************************************************************"
+    echo "LIBJPEG ${platform}"
+    echo "************************************************************"
+
+    export INCLUDES="upload/src"
+    export CXXFLAGS="-x c"
+    unset DEFINES
+    build_library libjpeg $platform $platform_ne ${LIBJPEG_SOURCE_DIR} ${BUILD}
+
+    echo "************************************************************"
+    echo "ZLIB ${platform}"
+    echo "************************************************************"
+
+    export INCLUDES="upload/src"
+    export CXXFLAGS="-x c"
+    export DEFINES="ZLIB_IMPLEMENTATION"
+    case ${platform} in
+        x86_64-win32|x86-win32)
+            ;;
+        *)
+            export DEFINES="${DEFINES} HAVE_UNISTD_H"
+            ;;
+    esac
+    build_library zlib $platform $platform_ne ${ZLIB_SOURCE_DIR} ${BUILD}
+
+    echo "************************************************************"
+    echo "LIBPNG ${platform}"
+    echo "************************************************************"
+
+    export INCLUDES="upload/src upload/src/arm"
+    export CXXFLAGS="-x c"
+    unset DEFINES
+    build_library libpng $platform $platform_ne ${LIBPNG_SOURCE_DIR} ${BUILD}
+
+    echo "************************************************************"
+    echo "LIBWEBP ${platform}"
+    echo "************************************************************"
+
+    export INCLUDES="upload/src"
+    export CXXFLAGS="-x c"
+    export DEFINES="HAVE_CONFIG_H"
+    build_library libwebp $platform $platform_ne ${LIBWEBP_SOURCE_DIR} ${BUILD}
+
+    echo "************************************************************"
+    echo "MINIAUDIO ${platform}"
+    echo "************************************************************"
+
+    export INCLUDES="upload/src"
+    unset DEFINES
+    case ${platform} in
+        x86_64-ios|arm64-ios)
+            echo "Skipping miniaudio for ${platform} (Objective-C source path not wired in build_pls.sh yet)"
+            clear_build_options
+            ;;
+        *)
+            export CXXFLAGS="-x c"
+            build_library miniaudio $platform $platform_ne ${MINIAUDIO_SOURCE_DIR} ${BUILD}
+            ;;
+    esac
+
+    echo "************************************************************"
     echo "RIVE CPP ${platform}"
     echo "************************************************************"
 
@@ -355,10 +817,19 @@ for platform in $PLATFORMS; do
     build_library rive $platform $platform_ne ${RIVECPP_SOURCE_DIR} ${BUILD}
 
     echo "************************************************************"
+    echo "RIVE_DECODERS ${platform}"
+    echo "************************************************************"
+
+    export INCLUDES="upload/src/include upload/src"
+    export CXXFLAGS="-std=c++17 -fno-rtti -fno-exceptions"
+    export DEFINES="RIVE_PNG RIVE_JPEG RIVE_WEBP"
+    build_library rive_decoders $platform $platform_ne ${RIVE_DECODERS_SOURCE_DIR} ${BUILD}
+
+    echo "************************************************************"
     echo "RIVE Renderer ${platform}"
     echo "************************************************************"
 
-    RIVE_RENDERER_DEFINES=
+    RIVE_RENDERER_DEFINES="RIVE_DECODERS"
     RIVE_RENDERER_CXXFLAGS=
     RIVE_RENDERER_INCLUDES="upload/src"
 
@@ -369,7 +840,7 @@ for platform in $PLATFORMS; do
 
     case ${platform} in
         armv7-android|arm64-android)
-            RIVE_RENDERER_DEFINES="RIVE_ANDROID"
+            RIVE_RENDERER_DEFINES="${RIVE_RENDERER_DEFINES} RIVE_ANDROID"
 
             mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/src/gl
             mkdir -p ${RIVECPP_RENDERER_SOURCE_DIR}/include/shaders
@@ -398,7 +869,7 @@ for platform in $PLATFORMS; do
             cp -v -r ${RIVECPP_ORIGINAL_DIR}/renderer/glad/include/                      ${RIVECPP_RENDERER_SOURCE_DIR}/include
             ;;
         x86_64-win32|x86-win32)
-            RIVE_RENDERER_DEFINES="RIVE_DESKTOP_GL RIVE_WINDOWS"
+            RIVE_RENDERER_DEFINES="${RIVE_RENDERER_DEFINES} RIVE_DESKTOP_GL RIVE_WINDOWS"
             RIVE_RENDERER_INCLUDES="upload/src/glad ${RIVE_RENDERER_INCLUDES}"
 
             # remove any previously generated shaders
@@ -428,7 +899,7 @@ for platform in $PLATFORMS; do
             ;;
 
         arm64-linux|x86_64-linux)
-            RIVE_RENDERER_DEFINES="RIVE_DESKTOP_GL RIVE_LINUX"
+            RIVE_RENDERER_DEFINES="${RIVE_RENDERER_DEFINES} RIVE_DESKTOP_GL RIVE_LINUX"
             RIVE_RENDERER_INCLUDES="upload/src/glad ${RIVE_RENDERER_INCLUDES}"
 
             # remove any previously generated shaders
@@ -459,7 +930,7 @@ for platform in $PLATFORMS; do
             ;;
 
         x86_64-macos|arm64-macos)
-            RIVE_RENDERER_DEFINES="RIVE_DESKTOP_GL RIVE_MACOSX"
+            RIVE_RENDERER_DEFINES="${RIVE_RENDERER_DEFINES} RIVE_DESKTOP_GL RIVE_MACOSX"
             RIVE_RENDERER_CXXFLAGS="-fobjc-arc"
             RIVE_RENDERER_INCLUDES="upload/src/glad ${RIVE_RENDERER_INCLUDES}"
 
@@ -493,9 +964,9 @@ for platform in $PLATFORMS; do
             ;;
       x86_64-ios|arm64-ios)
 
-            RIVE_RENDERER_DEFINES="RIVE_IOS"
+            RIVE_RENDERER_DEFINES="${RIVE_RENDERER_DEFINES} RIVE_IOS"
             if [ "${platform}" == "x86_64-ios" ]; then
-                RIVE_RENDERER_DEFINES="RIVE_IOS_SIMULATOR"
+                RIVE_RENDERER_DEFINES="${RIVE_RENDERER_DEFINES} RIVE_IOS_SIMULATOR"
             fi
             RIVE_RENDERER_CXXFLAGS="-fobjc-arc"
             RIVE_RENDERER_INCLUDES="upload/src/glad ${RIVE_RENDERER_INCLUDES}"
@@ -522,7 +993,7 @@ for platform in $PLATFORMS; do
             ;;
 
         wasm-web|wasm_pthread-web|js-web)
-            RIVE_RENDERER_DEFINES="RIVE_WEBGL RIVE_WEBGPU=1"
+            RIVE_RENDERER_DEFINES="${RIVE_RENDERER_DEFINES} RIVE_WEBGL RIVE_WEBGPU=1"
 
             # NOTE: To build WebGL, you have to do the following manual steps:
             #   * Don't pass a DEFOLDSDK to bob when building, you need to use a local dynamo home SDK
@@ -593,7 +1064,7 @@ for platform in $PLATFORMS; do
 
             ##########################################################################
             echo "Building RIVE_WEBGPU=2"
-            RIVE_RENDERER_DEFINES="RIVE_WEBGL RIVE_WEBGPU=2 RIVE_WAGYU"
+            RIVE_RENDERER_DEFINES="${RIVE_RENDERER_DEFINES} RIVE_WEBGL RIVE_WEBGPU=2 RIVE_WAGYU"
             export INCLUDES="upload/src ${RIVE_RENDERER_INCLUDES}"
 
             if [ "${RIVE_RENDERER_DEFINES}" != "" ]; then

@@ -206,11 +206,17 @@ else()
 endif()
 
 add_library(rive_plugin SHARED ${ALL_SOURCES})
+target_compile_features(rive_plugin PRIVATE cxx_std_20)
+set_target_properties(rive_plugin PROPERTIES
+        CXX_STANDARD 20
+        CXX_STANDARD_REQUIRED YES
+        CXX_EXTENSIONS NO
+)
 
 if(TARGET_PLATFORM STREQUAL "arm64-macos" OR TARGET_PLATFORM STREQUAL "x86_64-macos")
     target_compile_definitions(rive_plugin PRIVATE DM_PLATFORM_MACOS)
 elseif(TARGET_PLATFORM STREQUAL "x86_64-win32")
-    target_compile_definitions(rive_plugin PRIVATE DM_PLATFORM_WINDOWS)
+    target_compile_definitions(rive_plugin PRIVATE DM_PLATFORM_WINDOWS DM_RIVE_USE_OPENGL RIVE_WINDOWS RIVE_DESKTOP_GL NOMINMAX WIN32_LEAN_AND_MEAN)
 elseif(TARGET_PLATFORM STREQUAL "x86_64-linux")
     target_compile_definitions(rive_plugin PRIVATE DM_PLATFORM_LINUX)
 endif()
@@ -239,18 +245,23 @@ if(TARGET_PLATFORM STREQUAL "x86_64-win32")
     target_link_libraries(rive_plugin PRIVATE
             libdlib libmbedtls libddf
             libprofile_null libprofilerext_null
-            libplatform_null librender libgraphics_null
+            platform librender libgraphics
             librender_font_default libfont
             libresource libscript libgamesys libluajit-5.1)
-    target_link_libraries(rive_plugin PRIVATE Iphlpapi.lib)
+    target_link_libraries(rive_plugin PRIVATE Iphlpapi.lib libglfw3 opengl32)
 
     # Keep this aligned with defold-rive/lib/x86_64-win32 runtime outputs.
     target_link_libraries(rive_plugin PRIVATE
             rive
             rive_renderer
+            rive_decoders
             sheenbidi
             harfbuzz
-            yoga)
+            yoga
+            zlib
+            libjpeg
+            libpng
+            libwebp)
 
 else()
     if(TARGET_PLATFORM MATCHES "linux")
@@ -269,10 +280,20 @@ else()
         target_link_libraries(rive_plugin PRIVATE
                     dlib mbedtls ddf
                     profile_null profilerext_null
-                    platform_null render graphics_vulkan MoltenVK
+                    platform render graphics
                     resource script gamesys lua)
     endif()
-    target_link_libraries(rive_plugin PRIVATE rive rive_decoders rive_sheenbidi rive_harfbuzz rive_yoga rive_pls_renderer zlib libjpeg libpng libwebp)
+    target_link_libraries(rive_plugin PRIVATE
+                    rive
+                    rive_decoders
+                    rive_sheenbidi
+                    rive_harfbuzz
+                    rive_yoga
+                    rive_pls_renderer
+                    zlib
+                    libjpeg
+                    libpng
+                    libwebp)
 
 endif()
 

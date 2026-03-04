@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 project(viewer LANGUAGES CXX)
+include(CheckCXXCompilerFlag)
 
 set(DYNAMO_HOME $ENV{DYNAMO_HOME})
 if(NOT DYNAMO_HOME)
@@ -18,21 +19,47 @@ if(${TARGET_PLATFORM} MATCHES "macos")
     enable_language(OBJCXX)
 endif()
 
+if(${TARGET_PLATFORM} MATCHES "win32" AND NOT MSVC)
+    message(FATAL_ERROR
+        "TARGET_PLATFORM=${TARGET_PLATFORM} must be built with MSVC on Windows. "
+        "Use ./utils/viewer/build.sh x86_64-win32 (which selects Visual Studio generator) "
+        "or configure CMake with -G \"Visual Studio 17 2022\" -A x64.")
+endif()
+
 option(WITH_ASAN "Build viewer with Address Sanitizer" OFF)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
 
-if(MSVC)
-    string(REPLACE "/DNDEBUG" "" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
-    string(REPLACE "/DNDEBUG" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
-else()
-    string(REPLACE "-DNDEBUG" "" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
-    string(REPLACE "-DNDEBUG" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
-endif()
+function(strip_ndebug flag_var)
+    if(DEFINED ${flag_var})
+        set(_value "${${flag_var}}")
+        string(REPLACE "/DNDEBUG" "" _value "${_value}")
+        string(REPLACE "-DNDEBUG" "" _value "${_value}")
+        set(${flag_var} "${_value}" PARENT_SCOPE)
+    endif()
+endfunction()
+
+foreach(_flag_var IN ITEMS
+    CMAKE_C_FLAGS
+    CMAKE_C_FLAGS_RELEASE
+    CMAKE_C_FLAGS_RELWITHDEBINFO
+    CMAKE_C_FLAGS_MINSIZEREL
+    CMAKE_CXX_FLAGS
+    CMAKE_CXX_FLAGS_RELEASE
+    CMAKE_CXX_FLAGS_RELWITHDEBINFO
+    CMAKE_CXX_FLAGS_MINSIZEREL
+)
+    strip_ndebug(${_flag_var})
+endforeach()
+
+unset(_flag_var)
 
 file(REAL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../.." EXTENSION_ROOT)
+
+set(VIEWER_WIN32_RIVE_LIB_DIR "" CACHE PATH
+    "Override directory containing Windows Rive static libraries for viewer")
 
 set(ASAN_SUPPORTED FALSE)
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
@@ -81,10 +108,27 @@ add_executable(viewer
     "${VIEWER_SHADER_SOURCE}"
 )
 
+set(USE_VULKAN_BACKEND TRUE)
+if(${TARGET_PLATFORM} MATCHES "win32")
+    # Vulkan backend in rive_renderer.lib is currently unavailable on win32 in this repo setup.
+    set(USE_VULKAN_BACKEND FALSE)
+endif()
+
 file(GLOB RIVE_COMMON_SRC
     "${EXTENSION_ROOT}/defold-rive/commonsrc/*.cpp"
-    "${EXTENSION_ROOT}/defold-rive/commonsrc/renderer/*.cpp"
+    "${EXTENSION_ROOT}/defold-rive/commonsrc/renderer/renderer_private.cpp"
 )
+
+if (USE_VULKAN_BACKEND)
+    if(${TARGET_PLATFORM} MATCHES "macos")
+        list(APPEND RIVE_COMMON_SRC "${EXTENSION_ROOT}/defold-rive/commonsrc/renderer/renderer_context_metal.mm")
+    else()
+        list(APPEND RIVE_COMMON_SRC "${EXTENSION_ROOT}/defold-rive/commonsrc/renderer/renderer_context_vulkan.cpp")
+    endif()
+else()
+    list(APPEND RIVE_COMMON_SRC "${EXTENSION_ROOT}/defold-rive/commonsrc/renderer/renderer_context_opengl.cpp")
+endif()
+
 target_sources(viewer PRIVATE ${RIVE_COMMON_SRC})
 
 target_include_directories(viewer PRIVATE
@@ -103,11 +147,13 @@ target_link_directories(viewer PRIVATE
     "${DYNAMO_HOME}/ext/lib/${TARGET_PLATFORM}"
 )
 
-if(${TARGET_PLATFORM} MATCHES "macos")
-    target_link_directories(viewer PRIVATE "${EXTENSION_ROOT}/defold-rive/lib/arm64-osx")
-else()
-    target_link_directories(viewer PRIVATE "${EXTENSION_ROOT}/defold-rive/lib/${TARGET_PLATFORM}")
+set(RIVE_LINK_DIR "${EXTENSION_ROOT}/defold-rive/lib/${TARGET_PLATFORM}")
+
+if(NOT EXISTS "${RIVE_LINK_DIR}")
+    message(FATAL_ERROR "Rive library directory does not exist: ${RIVE_LINK_DIR}")
 endif()
+
+target_link_directories(viewer PRIVATE "${RIVE_LINK_DIR}")
 
 set(ENGINE_LIBS
     ddf
@@ -129,22 +175,35 @@ if(${TARGET_PLATFORM} MATCHES "win32")
     )
 endif()
 
-set(TARGET_LIBS
-    ${ENGINE_LIBS}
-
+set(RIVE_RUNTIME_LIBS
     rive
     rive_harfbuzz
     rive_pls_renderer
     rive_sheenbidi
     rive_yoga
+    rive_decoders
     libjpeg
     libpng
     libwebp
     miniaudio
 )
 
-if(NOT TARGET_PLATFORM MATCHES "win32")
-    list(APPEND TARGET_LIBS rive_decoders)
+if(${TARGET_PLATFORM} MATCHES "win32")
+    # Keep win32 viewer aligned with the actual archive names in
+    # defold-rive/lib/x86_64-win32.
+    set(RIVE_RUNTIME_LIBS
+        rive
+        rive_renderer
+        rive_decoders
+        harfbuzz
+        sheenbidi
+        yoga
+        libjpeg
+        libpng
+        libwebp
+        miniaudio
+        zlib
+    )
 endif()
 
 set(USE_VULKAN_BACKEND FALSE)
@@ -154,12 +213,27 @@ endif()
 
 if(USE_VULKAN_BACKEND)
     target_compile_definitions(viewer PRIVATE DM_GRAPHICS_USE_VULKAN)
-    list(APPEND TARGET_LIBS
+
+    set(GRAPHICS_LIBS
         graphics_vulkan
         platform_vulkan
         glfw3
     )
+
+    if(${TARGET_PLATFORM} MATCHES "win32")
+        set(GRAPHICS_LIBS
+            libgraphics_vulkan
+            platform_vulkan
+            libglfw3
+        )
+    endif()
+else()
 endif()
+
+set(TARGET_LIBS
+    ${ENGINE_LIBS}
+    ${GRAPHICS_LIBS}
+    ${RIVE_RUNTIME_LIBS})
 
 if(${TARGET_PLATFORM} MATCHES "macos")
     file(GLOB RIVE_COMMON_OBJCXX_SRC
@@ -183,14 +257,27 @@ if(${TARGET_PLATFORM} MATCHES "macos")
 endif()
 
 if(${TARGET_PLATFORM} MATCHES "win32")
-    list(APPEND TARGET_LIBS glfw3)
-    target_compile_definitions(viewer PRIVATE
-        DM_PLATFORM_WINDOWS
-        DM_RIVE_USE_OPENGL
-        RIVE_WINDOWS
-        RIVE_DESKTOP_GL
-    )
-    target_link_libraries(viewer PRIVATE opengl32)
+    if(USE_VULKAN_BACKEND)
+        target_compile_definitions(viewer PRIVATE
+            DM_PLATFORM_WINDOWS
+            DM_RIVE_USE_VULKAN
+            RIVE_WINDOWS
+        )
+    else()
+        target_compile_definitions(viewer PRIVATE
+            DM_PLATFORM_WINDOWS
+            DM_RIVE_USE_OPENGL
+            RIVE_WINDOWS
+            RIVE_DESKTOP_GL
+        )
+    endif()
+    # defold-rive Windows libs are built with /MT.
+    set_property(TARGET viewer PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
+    if(USE_VULKAN_BACKEND)
+        target_link_libraries(viewer PRIVATE Iphlpapi.lib libglfw3 ws2_32 vulkan-1)
+    else()
+        target_link_libraries(viewer PRIVATE Iphlpapi.lib libglfw3 ws2_32 opengl32)
+    endif()
 elseif(${TARGET_PLATFORM} MATCHES "linux")
     list(APPEND TARGET_LIBS glfw3)
     target_compile_definitions(viewer PRIVATE
@@ -236,7 +323,24 @@ endif()
 
 target_compile_definitions(viewer PRIVATE DLIB_LOG_DOMAIN=\"VIEWER\" DM_RIVE_VIEWER)
 
-set_target_properties(viewer PROPERTIES
-    CXX_STANDARD 20
-    CXX_STANDARD_REQUIRED ON
-)
+if(MSVC)
+    target_compile_options(viewer PRIVATE /std:c++20)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    check_cxx_compiler_flag("-std=gnu++20" COMPILER_SUPPORTS_GNUXX20)
+    check_cxx_compiler_flag("-std=gnu++2a" COMPILER_SUPPORTS_GNUXX2A)
+
+    if(COMPILER_SUPPORTS_GNUXX20)
+        target_compile_options(viewer PRIVATE -std=gnu++20)
+    elseif(COMPILER_SUPPORTS_GNUXX2A)
+        target_compile_options(viewer PRIVATE -std=gnu++2a)
+    else()
+        message(FATAL_ERROR
+            "Compiler ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION} does not support C++20 "
+            "(expected -std=gnu++20 or -std=gnu++2a).")
+    endif()
+endif()
+
+if(MSVC)
+    # Make F5 run the viewer target in generated Visual Studio solutions.
+    set_property(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" PROPERTY VS_STARTUP_PROJECT viewer)
+endif()

@@ -500,7 +500,7 @@ namespace dmRive
     {
         if (world->m_RiveRenderContext)
         {
-            dmRiveCommands::ProcessMessages(); // Flush any draw() messages
+            dmRiveCommands::Wait(5000); // if it fails, let's try continue
             RenderEnd(world->m_RiveRenderContext);
 
             if (g_RenderBeginParams.m_DoFinalBlit)
