@@ -28,15 +28,6 @@
 
 #include <dmsdk/dlib/log.h> // LogParams
 
-// until Defold 1.12.3
-namespace dmLog
-{
-    struct LogParams;
-
-    extern void LogInitialize(const LogParams* params);
-    extern void LogFinalize();
-}
-
 #include <defold/rive.h>
 #include "common/file.h"
 #include "texture.h"
