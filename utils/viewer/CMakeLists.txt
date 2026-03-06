@@ -147,7 +147,14 @@ target_link_directories(viewer PRIVATE
     "${DYNAMO_HOME}/ext/lib/${TARGET_PLATFORM}"
 )
 
-set(RIVE_LINK_DIR "${EXTENSION_ROOT}/defold-rive/lib/${TARGET_PLATFORM}")
+set(RIVE_TARGET_PLATFORM "${TARGET_PLATFORM}")
+if(TARGET_PLATFORM STREQUAL "arm64-macos")
+    set(RIVE_TARGET_PLATFORM "arm64-osx")
+elseif(TARGET_PLATFORM STREQUAL "x86_64-macos")
+    set(RIVE_TARGET_PLATFORM "x86_64-osx")
+endif()
+
+set(RIVE_LINK_DIR "${EXTENSION_ROOT}/defold-rive/lib/${RIVE_TARGET_PLATFORM}")
 
 if(NOT EXISTS "${RIVE_LINK_DIR}")
     message(FATAL_ERROR "Rive library directory does not exist: ${RIVE_LINK_DIR}")

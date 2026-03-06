@@ -264,26 +264,29 @@ if(TARGET_PLATFORM STREQUAL "x86_64-win32")
             libwebp)
 
 else()
+    set(RIVE_PLUGIN_LIBS)
+
     if(TARGET_PLATFORM MATCHES "linux")
         target_link_options(rive_plugin PRIVATE "-fuse-ld=lld")
-        target_link_libraries(rive_plugin PRIVATE pthread m dl)
+        list(APPEND RIVE_PLUGIN_LIBS pthread m dl)
     endif()
 
     if(TARGET_PLATFORM MATCHES "macos")
-        target_link_libraries(rive_plugin PRIVATE
+        list(APPEND RIVE_PLUGIN_LIBS
                     dlib mbedtls ddf
                     profile_null profilerext_null
                     platform render graphics
                     platform_vulkan graphics_vulkan glfw3 MoltenVK
                     resource script gamesys lua)
     else()
-        target_link_libraries(rive_plugin PRIVATE
+        list(APPEND RIVE_PLUGIN_LIBS
                     dlib mbedtls ddf
                     profile_null profilerext_null
                     platform render graphics
                     resource script gamesys lua)
     endif()
-    target_link_libraries(rive_plugin PRIVATE
+
+    list(APPEND RIVE_PLUGIN_LIBS
                     rive
                     rive_decoders
                     rive_sheenbidi
@@ -294,6 +297,9 @@ else()
                     libjpeg
                     libpng
                     libwebp)
+
+    list(REMOVE_DUPLICATES RIVE_PLUGIN_LIBS)
+    target_link_libraries(rive_plugin PRIVATE ${RIVE_PLUGIN_LIBS})
 
 endif()
 
@@ -333,7 +339,6 @@ endif()
 
 if(TARGET_PLATFORM MATCHES "macos")
     target_compile_options(rive_plugin PRIVATE "-mmacosx-version-min=10.15")
-    target_link_libraries(rive_plugin PRIVATE platform_vulkan graphics_vulkan glfw3 MoltenVK)
     target_compile_definitions(rive_plugin PRIVATE DM_PLATFORM_MACOS)
     target_include_directories(rive_plugin PRIVATE
         "${REPO_ROOT}/defold-rive/include/osx"

@@ -1,5 +1,6 @@
 #include <dmsdk/dlib/log.h>
 #include <dmsdk/dlib/image.h>
+#include <dmsdk/dlib/mutex.h>
 #include <dmsdk/graphics/graphics_vulkan.h>
 #include <dmsdk/graphics/graphics.h>
 #include <dmsdk/render/render.h>
@@ -58,6 +59,7 @@ namespace dmRive
         dmResource::HFactory m_Factory;
         rive::Renderer*      m_RiveRenderer;
         dmGraphics::HContext m_GraphicsContext;
+        dmMutex::HMutex      m_RenderMutex;
 
         uint32_t             m_LastWidth;
         uint32_t             m_LastHeight;
@@ -74,6 +76,7 @@ namespace dmRive
             g_RiveRenderer = new DefoldRiveRenderer();
             g_RiveRenderer->m_RiveRenderer    = 0;
             g_RiveRenderer->m_GraphicsContext = 0;
+            g_RiveRenderer->m_RenderMutex     = 0;
             g_RiveRenderer->m_LastWidth       = 0;
             g_RiveRenderer->m_LastHeight      = 0;
             g_RiveRenderer->m_FrameBegin      = 0;
@@ -112,6 +115,7 @@ namespace dmRive
     void RenderBegin(HRenderContext context, dmResource::HFactory factory, const RenderBeginParams& params)
     {
         DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
+        DM_MUTEX_OPTIONAL_SCOPED_LOCK(renderer->m_RenderMutex);
 
         if (!renderer->m_RiveRenderer)
         {
@@ -171,12 +175,19 @@ namespace dmRive
         *height = renderer->m_LastHeight;
     }
 
+    void SetRenderMutex(HRenderContext context, dmMutex::HMutex mutex)
+    {
+        DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
+        renderer->m_RenderMutex = mutex;
+    }
+
     void RenderEnd(HRenderContext context)
     {
         DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
 
         if (renderer->m_FrameBegin)
         {
+            DM_MUTEX_OPTIONAL_SCOPED_LOCK(renderer->m_RenderMutex);
             renderer->m_RenderContext->Flush();
             renderer->m_FrameBegin = 0;
         }

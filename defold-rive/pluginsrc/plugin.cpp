@@ -140,7 +140,6 @@ static bool PluginRiveInitialize();
 extern dmRive::HRenderContext g_RenderContext;
 extern dmGraphics::HContext g_GraphicsContext;
 static dmMutex::HMutex g_JNINativeCallMutex = 0;
-static const uint64_t g_CommandServerWaitTimeout = 1 * 1000000;
 
 static bool WaitForCommandServer()
 {
@@ -149,9 +148,9 @@ static bool WaitForCommandServer()
         return true;
     }
 
-    if (!dmRiveCommands::Wait(g_CommandServerWaitTimeout))
+    if (dmRiveCommands::ProcessMessages() != dmRiveCommands::RESULT_OK)
     {
-        dmLogError("Rive: timed out waiting for command server");
+        dmLogError("Rive: failed to process command server messages");
         return false;
     }
     return true;
@@ -338,6 +337,7 @@ static jfloatArray JNICALL Java_Rive_GetFullscreenQuadVerticesInternal(JNIEnv* e
 // }
 
 dmRive::HRenderContext    g_RenderContext = 0;
+dmMutex::HMutex           g_RenderMutex = 0;
 HWindow                   g_Window = 0;
 dmGraphics::HContext      g_GraphicsContext = 0;
 HJobContext               g_JobContext = 0;
@@ -476,6 +476,14 @@ static bool CreateGraphicsContextInternal()
     return true;
 }
 
+#if defined(__APPLE__)
+static void CreateGraphicsContextOnMainThread(void* ctx)
+{
+    bool* created = (bool*)ctx;
+    *created = CreateGraphicsContextInternal();
+}
+#endif
+
 static bool CreateGraphicsContext()
 {
 #if defined(__APPLE__)
@@ -488,9 +496,7 @@ static bool CreateGraphicsContext()
     if (!pthread_main_np())
     {
         RiveDebugLog("Rive: dispatching graphics context creation to main thread");
-        dispatch_sync(dispatch_get_main_queue(), ^{
-            created = CreateGraphicsContextInternal();
-        });
+        dispatch_sync_f(dispatch_get_main_queue(), &created, CreateGraphicsContextOnMainThread);
     }
     else
     {
@@ -521,14 +527,27 @@ static bool PluginRiveInitialize()
         dmLogError("Rive: failed to create render context");
         return false;
     }
+    g_RenderMutex = dmMutex::New();
+    if (g_RenderMutex == 0)
+    {
+        dmLogError("Rive: failed to create render mutex");
+        dmRive::DeleteRenderContext(g_RenderContext);
+        g_RenderContext = 0;
+        return false;
+    }
+    dmRive::SetRenderMutex(g_RenderContext, g_RenderMutex);
 
     dmRiveCommands::InitParams cmd_params;
     cmd_params.m_UseThreads = false;
     cmd_params.m_RenderContext = g_RenderContext;
     cmd_params.m_Factory = dmRive::GetRiveFactory(g_RenderContext);
+    cmd_params.m_Mutex = g_RenderMutex;
     if (cmd_params.m_Factory == 0)
     {
         dmLogError("Rive: failed to get Rive factory");
+        dmRive::SetRenderMutex(g_RenderContext, 0);
+        dmMutex::Delete(g_RenderMutex);
+        g_RenderMutex = 0;
         dmRive::DeleteRenderContext(g_RenderContext);
         g_RenderContext = 0;
         return false;
@@ -542,8 +561,14 @@ static void PluginRiveFinalize()
     if (g_RenderContext)
     {
         dmRiveCommands::Finalize();
+        dmRive::SetRenderMutex(g_RenderContext, 0);
         dmRive::DeleteRenderContext(g_RenderContext);
         g_RenderContext = 0;
+    }
+    if (g_RenderMutex)
+    {
+        dmMutex::Delete(g_RenderMutex);
+        g_RenderMutex = 0;
     }
 
     if (g_GraphicsContext)

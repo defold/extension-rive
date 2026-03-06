@@ -68,11 +68,7 @@ static void DestroyContext(Context* context)
         context->m_CommandServer = 0;
     }
 
-    if (context->m_Mutex != 0)
-    {
-        dmMutex::Delete(context->m_Mutex);
-        context->m_Mutex = 0;
-    }
+    context->m_Mutex = 0;
 
     delete context;
 }
@@ -94,23 +90,16 @@ static void PumpMessages(Context* context)
 }
 
 template <typename Fn>
-static bool RunOnServerAndWait(Context* context, Fn fn, uint64_t timeout)
+static bool RunOnServerAndWait(Context* context, Fn fn)
 {
     assert(context != 0);
     assert(context->m_CommandQueue);
 
     int32_atomic_t done = 0;
-
     context->m_CommandQueue->runOnce([&done, fn](rive::CommandServer* server) mutable {
         fn(server);
         dmAtomicStore32(&done, 1);
     });
-
-    uint64_t deadline = UINT64_MAX;
-    if (timeout != 0)
-    {
-        deadline = dmTime::GetMonotonicTime() + timeout;
-    }
 
     while (dmAtomicGet32(&done) == 0)
     {
@@ -118,11 +107,6 @@ static bool RunOnServerAndWait(Context* context, Fn fn, uint64_t timeout)
         if (dmAtomicGet32(&done) != 0)
         {
             break;
-        }
-
-        if (dmTime::GetMonotonicTime() >= deadline)
-        {
-            return false;
         }
 
         dmTime::Sleep(1000);
@@ -140,10 +124,19 @@ static void RiveCommandThread(void* _ctx)
 
     while (dmAtomicGet32(&ctx->m_Run))
     {
-        if (ctx->m_CommandServer->waitCommands() == false)
+        bool keep_running = true;
+        {
+            // This lock is due to RenderContext interactions
+            DM_MUTEX_OPTIONAL_SCOPED_LOCK(ctx->m_Mutex);
+            keep_running = ctx->m_CommandServer->processCommands();
+        }
+
+        if (keep_running == false)
         {
             break;
         }
+
+        dmTime::Sleep(1);
     }
 }
 
@@ -153,7 +146,7 @@ Result Initialize(InitParams* params)
 
     g_Context = new Context;
     memset(g_Context, 0, sizeof(*g_Context));
-    g_Context->m_Mutex = dmMutex::New();
+    g_Context->m_Mutex = params->m_Mutex;
 
     g_Context->m_RenderContext = params->m_RenderContext;
     g_Context->m_Factory = params->m_Factory;
@@ -210,22 +203,13 @@ Result ProcessMessages()
     assert(g_Context != 0);
     if (g_Context->m_Thread)
     {
-        // In threaded mode, give the server a small bounded window to advance
-        // queued work before dispatching messages. This keeps legacy polling
-        // loops functional without introducing unbounded stalls.
-        Wait(1000);
+        RunOnServerAndWait(g_Context, [](rive::CommandServer*) {});
     }
     else
     {
         PumpMessages(g_Context);
     }
     return RESULT_OK;
-}
-
-bool Wait(uint64_t timeout)
-{
-    assert(g_Context != 0);
-    return RunOnServerAndWait(g_Context, [](rive::CommandServer*) {}, timeout);
 }
 
 bool WaitUntil(bool (*condition)(void*), void* user_data, uint64_t timeout)
@@ -271,7 +255,7 @@ bool GetBounds(rive::ArtboardHandle artboard_handle, rive::AABB* out_bounds)
             bounds = artboard->bounds();
             found = true;
         }
-    }, 0);
+    });
 
     if (!completed || !found)
     {
@@ -281,6 +265,5 @@ bool GetBounds(rive::ArtboardHandle artboard_handle, rive::AABB* out_bounds)
     *out_bounds = bounds;
     return true;
 }
-
 
 } // namespace
