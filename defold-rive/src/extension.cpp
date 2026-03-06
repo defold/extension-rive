@@ -26,6 +26,8 @@
 
 dmRive::HRenderContext g_RenderContext = 0;
 
+static const char* PROJECT_PROPERTY_USE_THREADS = "rive.use_threads";
+
 static dmExtension::Result AppInitializeRive(dmExtension::AppParams* params)
 {
     return dmExtension::RESULT_OK;
@@ -37,6 +39,7 @@ static dmExtension::Result InitializeRive(dmExtension::Params* params)
     assert(g_RenderContext != 0);
 
     dmRiveCommands::InitParams cmd_params;
+    cmd_params.m_UseThreads = dmConfigFile::GetInt(params->m_ConfigFile, PROJECT_PROPERTY_USE_THREADS, 0) > 0;
     cmd_params.m_UseThreads = true;
     cmd_params.m_RenderContext = g_RenderContext;
     cmd_params.m_Factory = dmRive::GetRiveFactory(g_RenderContext);
