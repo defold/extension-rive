@@ -14,6 +14,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #if defined(__APPLE__) || defined(__linux__)
 #include <cxxabi.h>
