@@ -795,9 +795,9 @@ void RequestMetaData(RiveFile* file, rive::rcp<rive::CommandQueue> queue)
 
 rive::ArtboardHandle InstantiateArtboardNamedWithMeta(RiveFile* file, const char* artboard, rive::rcp<rive::CommandQueue> queue)
 {
-    ArtboardMetadataListener* artboard_listener = file->m_ArtboardListener;
+    ArtboardMetadataListener artboard_listener(file);
     const char* artboard_name = artboard ? artboard : "";
-    rive::ArtboardHandle artboard_handle = queue->instantiateArtboardNamed(file->m_File, artboard_name, artboard_listener);
+    rive::ArtboardHandle artboard_handle = queue->instantiateArtboardNamed(file->m_File, artboard_name, &artboard_listener);
     if (artboard_handle == RIVE_NULL_HANDLE)
     {
         return artboard_handle;
@@ -809,12 +809,12 @@ rive::ArtboardHandle InstantiateArtboardNamedWithMeta(RiveFile* file, const char
     {
         return artboard_handle;
     }
-    artboard_listener->m_DefaultViewModelInfoReceived = false;
-    artboard_listener->m_ArtboardError = false;
+    artboard_listener.m_DefaultViewModelInfoReceived = false;
+    artboard_listener.m_ArtboardError = false;
     queue->requestDefaultViewModelInfo(artboard_handle, file->m_File);
     for (int i = 0; i < DM_MAX_MESSAGE_LOOPS &&
-            !artboard_listener->m_DefaultViewModelInfoReceived &&
-            !artboard_listener->m_ArtboardError; ++i)
+            !artboard_listener.m_DefaultViewModelInfoReceived &&
+            !artboard_listener.m_ArtboardError; ++i)
     {
         dmRiveCommands::ProcessMessages();
     }
@@ -824,8 +824,8 @@ rive::ArtboardHandle InstantiateArtboardNamedWithMeta(RiveFile* file, const char
 
 rive::ArtboardHandle InstantiateDefaultArtboardWithMeta(RiveFile* file, rive::rcp<rive::CommandQueue> queue)
 {
-    ArtboardMetadataListener* artboard_listener = file->m_ArtboardListener;
-    rive::ArtboardHandle artboard = queue->instantiateDefaultArtboard(file->m_File, artboard_listener);
+    ArtboardMetadataListener artboard_listener(file);
+    rive::ArtboardHandle artboard = queue->instantiateDefaultArtboard(file->m_File, &artboard_listener);
     if (artboard == RIVE_NULL_HANDLE)
     {
         return artboard;
@@ -837,12 +837,12 @@ rive::ArtboardHandle InstantiateDefaultArtboardWithMeta(RiveFile* file, rive::rc
     {
         return artboard;
     }
-    artboard_listener->m_DefaultViewModelInfoReceived = false;
-    artboard_listener->m_ArtboardError = false;
+    artboard_listener.m_DefaultViewModelInfoReceived = false;
+    artboard_listener.m_ArtboardError = false;
     queue->requestDefaultViewModelInfo(artboard, file->m_File);
     for (int i = 0; i < DM_MAX_MESSAGE_LOOPS &&
-            !artboard_listener->m_DefaultViewModelInfoReceived &&
-            !artboard_listener->m_ArtboardError; ++i)
+            !artboard_listener.m_DefaultViewModelInfoReceived &&
+            !artboard_listener.m_ArtboardError; ++i)
     {
         dmRiveCommands::ProcessMessages();
     }
