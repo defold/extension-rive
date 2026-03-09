@@ -693,12 +693,25 @@ echo "Downloading python PLY files"
 LIBPLY_VERSION=5c4dc94d4c6d059ec127ee1493c735963a5d2645
 LIBPLY_ZIP=${DOWNLOAD_DIR}/libply-${LIBPLY_VERSION}.zip
 LIBPLY_URL=https://github.com/dabeaz/ply/archive/${LIBPLY_VERSION}.zip
-LIBPLY_ORIGINAL_DIR=${DOWNLOAD_DIR}/libply/libply-${LIBPLY_VERSION}
 LIBPLY_SOURCE_DIR=${SOURCE_DIR}/libply/src
-LIBPLY_PATH=${DOWNLOAD_DIR}/libply/ply-${LIBPLY_VERSION}/src
-LIBPLY_PATH=$(realpath ${LIBPLY_PATH})
 
 download_zip ${LIBPLY_ZIP} ${DOWNLOAD_DIR}/libply ${LIBPLY_URL}
+
+LIBPLY_PATH=${DOWNLOAD_DIR}/libply/ply-${LIBPLY_VERSION}/src
+if [ ! -d "${LIBPLY_PATH}" ]; then
+    # Some archives may extract with a different top-level directory name.
+    LIBPLY_PATH=${DOWNLOAD_DIR}/libply/libply-${LIBPLY_VERSION}/src
+fi
+
+if [ ! -d "${LIBPLY_PATH}" ]; then
+    echo "Error: Unable to locate extracted PLY source directory."
+    echo "Expected one of:"
+    echo "  ${DOWNLOAD_DIR}/libply/ply-${LIBPLY_VERSION}/src"
+    echo "  ${DOWNLOAD_DIR}/libply/libply-${LIBPLY_VERSION}/src"
+    exit 1
+fi
+
+LIBPLY_PATH=$(realpath "${LIBPLY_PATH}")
 
 echo "*************************************************"
 
