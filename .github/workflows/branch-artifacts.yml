@@ -52,10 +52,10 @@ concurrency:
 jobs:
   prepare-defoldsdk:
     name: defoldsdk
-    uses: ./.github/workflows/defoldsdk.yml
+    uses: defold/github-actions-common/.github/workflows/defoldsdk.yml@master
     with:
       runner: ubuntu-22.04
-      defold_channel: stable
+      defold_channel: alpha
       defold_version: ${{ github.event.inputs.defold_version }}
       sdk_output_path: build/defoldsdk
       bob_output_path: bob.jar

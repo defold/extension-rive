@@ -6,11 +6,11 @@ on:
 jobs:
   prepare-defoldsdk:
     name: defoldsdk
-    uses: defold/github-actions-common/.github/workflows/defoldsdk.yml@defoldsdk-workflow
+    uses: defold/github-actions-common/.github/workflows/defoldsdk.yml@master
     with:
       runner: ubuntu-22.04
       defold_channel: alpha
-      defold_version: latest
+      defold_version: ${{ github.event.inputs.defold_version }}
       sdk_output_path: build/defoldsdk
       bob_output_path: bob.jar
 
