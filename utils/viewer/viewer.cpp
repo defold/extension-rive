@@ -343,9 +343,7 @@ static void* EngineCreate(int argc, char** argv)
     engine->m_Window = WindowNew();
 
     JobSystemCreateParams job_params = { 0 };
-#if !defined(DM_RIVE_USE_OPENGL)
     job_params.m_ThreadCount = 1; // Needed for OpenGL graphics backend.
-#endif
     engine->m_JobContext = JobSystemCreate(&job_params);
 
     WindowCreateParams window_params;
