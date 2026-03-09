@@ -25,6 +25,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 PREFIX=""
 ABIS="arm64"
 CONFIG="release"
+WITH_PIC=false
 
 print_help() {
     cat <<EOF
@@ -35,6 +36,7 @@ Options:
   -a, --abis LIST       Comma- or space-separated ABIs (default: arm64)
                         Supported: arm64, arm, x64, x86
   -c, --config NAME     Build config: release|debug (default: release)
+      --with-pic        Pass --with-pic to build_rive.sh when supported
   -h, --help            Show this help
 
 Env:
@@ -60,6 +62,10 @@ while [[ $# -gt 0 ]]; do
         -c|--config)
             CONFIG="${2:-}"
             shift 2
+            ;;
+        --with-pic)
+            WITH_PIC=true
+            shift
             ;;
         -h|--help)
             print_help
@@ -130,6 +136,17 @@ BUILD_DIR="$ROOT_DIR/renderer"
 echo "Changing directory to: $BUILD_DIR"
 cd "$BUILD_DIR"
 
+EXTRA_BUILD_ARGS=()
+if [[ "$WITH_PIC" == "true" ]]; then
+    BUILD_HELP="$("$BUILD_SCRIPT" --help 2>&1 || true)"
+    if echo "$BUILD_HELP" | grep -q -- "--with-pic"; then
+        EXTRA_BUILD_ARGS+=(--with-pic)
+        echo "Using --with-pic for Android builds."
+    else
+        echo "Warning: $BUILD_SCRIPT does not support --with-pic. Continuing without it."
+    fi
+fi
+
 # Build and install for each ABI
 for ABI in "${ABI_LIST[@]}"; do
     case "$ABI" in
@@ -142,7 +159,11 @@ for ABI in "${ABI_LIST[@]}"; do
 
     echo
     echo "==> Building: android $ABI ($CONFIG)"
-    "$BUILD_SCRIPT" ninja android "$ABI" "$CONFIG" --with-libs-only
+    BUILD_ARGS=(ninja android "$ABI" "$CONFIG" --with-libs-only)
+    if (( ${#EXTRA_BUILD_ARGS[@]} > 0 )); then
+        BUILD_ARGS+=("${EXTRA_BUILD_ARGS[@]}")
+    fi
+    "$BUILD_SCRIPT" "${BUILD_ARGS[@]}"
 
     OUT_DIR="$BUILD_DIR/out/android_${ABI}_${CONFIG}"
 

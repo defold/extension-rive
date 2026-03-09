@@ -135,7 +135,7 @@ case $PLATFORM in
         fi
 
         # expects ANDROID_NDK to be set
-        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_android.sh --prefix ${PREFIX} --abis ${ARCH} --config ${CONFIGURATION})
+        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_android.sh --with-pic --prefix ${PREFIX} --abis ${ARCH} --config ${CONFIGURATION})
         ;;
 
     wasm-web|wasm_pthread-web|js-web)
@@ -192,7 +192,7 @@ case $PLATFORM in
             ARCH=x64
         fi
 
-        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_linux.sh --prefix ${PREFIX} --archs ${ARCH} --config ${CONFIGURATION})
+        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_linux.sh --with-pic --prefix ${PREFIX} --archs ${ARCH} --config ${CONFIGURATION})
         ;;
 
     x86_64-win32|x86-win32)

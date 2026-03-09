@@ -26,6 +26,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 PREFIX=""
 ARCHS=""
 CONFIG="release"
+WITH_PIC=false
 
 print_help() {
     cat <<EOF
@@ -35,6 +36,7 @@ Options:
   -p, --prefix PATH    Install prefix directory (required)
   -a, --archs LIST     Comma/space-separated: x64, arm64, arm (default: host arch)
   -c, --config NAME    Build config: release|debug (default: release)
+      --with-pic       Pass --with-pic to build_rive.sh when supported
   -h, --help           Show this help
 
 Examples:
@@ -56,6 +58,10 @@ while [[ $# -gt 0 ]]; do
         -c|--config)
             CONFIG="${2:-}"
             shift 2
+            ;;
+        --with-pic)
+            WITH_PIC=true
+            shift
             ;;
         -h|--help)
             print_help
@@ -132,6 +138,17 @@ BUILD_DIR="$ROOT_DIR/renderer"
 echo "Changing directory to: $BUILD_DIR"
 cd "$BUILD_DIR"
 
+EXTRA_BUILD_ARGS=()
+if [[ "$WITH_PIC" == "true" ]]; then
+    BUILD_HELP="$("$BUILD_SCRIPT" --help 2>&1 || true)"
+    if echo "$BUILD_HELP" | grep -q -- "--with-pic"; then
+        EXTRA_BUILD_ARGS+=(--with-pic)
+        echo "Using --with-pic for Linux builds."
+    else
+        echo "Warning: $BUILD_SCRIPT does not support --with-pic. Continuing without it."
+    fi
+fi
+
 for ARCH in "${ARCH_LIST[@]}"; do
     echo
     echo "==> Building: linux $ARCH ($CONFIG)"
@@ -139,7 +156,11 @@ for ARCH in "${ARCH_LIST[@]}"; do
     out_dir_rel="out/linux_${ARCH}_${CONFIG}"
     out_dir="$BUILD_DIR/$out_dir_rel"
 
-    RIVE_OUT="$out_dir_rel" "$BUILD_SCRIPT" ninja "$ARCH" "$CONFIG" --no-lto --with-libs-only
+    BUILD_ARGS=(ninja "$ARCH" "$CONFIG" --no-lto --with-libs-only)
+    if (( ${#EXTRA_BUILD_ARGS[@]} > 0 )); then
+        BUILD_ARGS+=("${EXTRA_BUILD_ARGS[@]}")
+    fi
+    RIVE_OUT="$out_dir_rel" "$BUILD_SCRIPT" "${BUILD_ARGS[@]}"
 
     # Collect and install libraries
     install_arch="$ARCH"
