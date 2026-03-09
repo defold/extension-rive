@@ -76,19 +76,27 @@ if [ "$HOST_PLATFORM" = "x86_64-win32" ]; then
     CMAKE_GENERATOR_FLAGS+=("-A" "x64")
 fi
 
+CMAKE_PROTOC_ARGS=()
 
 if [ -n "${PROTOC:-}" ] && [ -x "${PROTOC}" ]; then
     PROTOC_DIR="$(dirname "${PROTOC}")"
     export PATH="${PROTOC_DIR}:${PATH}"
+    CMAKE_PROTOC_ARGS+=("-DPROTOC_EXECUTABLE=${PROTOC}")
 elif command -v protoc >/dev/null 2>&1; then
     PROTOC_PATH="$(command -v protoc)"
     PROTOC_DIR="$(dirname "${PROTOC_PATH}")"
     export PATH="${PROTOC_DIR}:${PATH}"
+    CMAKE_PROTOC_ARGS+=("-DPROTOC_EXECUTABLE=${PROTOC_PATH}")
 else
     #PROTOBUF_BIN="${REPO_ROOT}/build/bin/${HOST_PLATFORM}"
     PROTOBUF_BIN="${DYNAMO_HOME}/ext/bin/${HOST_PLATFORM}"
     if [ -d "${PROTOBUF_BIN}" ]; then
         export PATH="${PROTOBUF_BIN}:${PATH}"
+        if [ -x "${PROTOBUF_BIN}/protoc" ]; then
+            CMAKE_PROTOC_ARGS+=("-DPROTOC_EXECUTABLE=${PROTOBUF_BIN}/protoc")
+        elif [ -x "${PROTOBUF_BIN}/protoc.exe" ]; then
+            CMAKE_PROTOC_ARGS+=("-DPROTOC_EXECUTABLE=${PROTOBUF_BIN}/protoc.exe")
+        fi
     else
         echo "Warning: protobuf bin directory not found at ${PROTOBUF_BIN}" >&2
         echo "build folder: ${REPO_ROOT}/build"
@@ -104,6 +112,7 @@ cmake -S "${SCRIPT_DIR}/plugin" -B "${BUILD_DIR}" \
     -DCMAKE_VERBOSE_MAKEFILE=ON \
     -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" \
     -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
+    "${CMAKE_PROTOC_ARGS[@]:-}" \
     "${CMAKE_GENERATOR_FLAGS[@]:-}"
 
 cmake --build "${BUILD_DIR}" --config "${CONFIG}"

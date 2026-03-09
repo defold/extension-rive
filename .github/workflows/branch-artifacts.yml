@@ -423,20 +423,40 @@ jobs:
           enableCrossOsArchive: true
           fail-on-cache-miss: true
 
-      - name: Setup protoc
-        uses: arduino/setup-protoc@v3
-
-      - name: Verify protoc
+      - name: Download Defold protoc
         shell: bash
         run: |
           set -euo pipefail
-          protoc --version
+          PROTOBUF_VERSION="3.20.1"
+          case "$(uname -m)" in
+            arm64) PROTOBUF_PLATFORM="arm64-macos" ;;
+            x86_64) PROTOBUF_PLATFORM="x86_64-macos" ;;
+            *) echo "Unsupported macOS architecture: $(uname -m)" >&2; exit 1 ;;
+          esac
+          PROTOBUF_ARCHIVE="protobuf-${PROTOBUF_VERSION}-${PROTOBUF_PLATFORM}.tar.gz"
+          PROTOBUF_URL="https://github.com/defold/defold/raw/dev/packages/${PROTOBUF_ARCHIVE}"
+          PROTOBUF_DIR="${RUNNER_TEMP}/defold-protobuf/${PROTOBUF_PLATFORM}"
+          mkdir -p "${PROTOBUF_DIR}"
+          curl -L --fail -o "${RUNNER_TEMP}/${PROTOBUF_ARCHIVE}" "${PROTOBUF_URL}"
+          tar -xzf "${RUNNER_TEMP}/${PROTOBUF_ARCHIVE}" -C "${PROTOBUF_DIR}"
+          PROTOC_BIN="${PROTOBUF_DIR}/bin/protoc"
+          if [ ! -x "${PROTOC_BIN}" ]; then
+            PROTOC_BIN="$(find "${PROTOBUF_DIR}" -type f -name protoc | head -n 1)"
+          fi
+          if [ -z "${PROTOC_BIN}" ] || [ ! -x "${PROTOC_BIN}" ]; then
+            echo "Could not find executable protoc in ${PROTOBUF_DIR}" >&2
+            find "${PROTOBUF_DIR}" -maxdepth 4 -type f | sed -n '1,200p'
+            exit 1
+          fi
+          echo "PROTOC=${PROTOC_BIN}" >> "$GITHUB_ENV"
+          "${PROTOC_BIN}" --version
 
       - name: Build editor plugins
         shell: bash
         env:
           DYNAMO_HOME: ${{ github.workspace }}/build/defoldsdk/defoldsdk
           BOB: ${{ github.workspace }}/bob.jar
+          PROTOC: ${{ env.PROTOC }}
         run: |
           set -euo pipefail
           ./utils/build_plugin.sh arm64-macos
@@ -540,20 +560,36 @@ jobs:
           enableCrossOsArchive: true
           fail-on-cache-miss: true
 
-      - name: Setup protoc
-        uses: arduino/setup-protoc@v3
-
-      - name: Verify protoc
+      - name: Download Defold protoc
         shell: bash
         run: |
           set -euo pipefail
-          protoc --version
+          PROTOBUF_VERSION="3.20.1"
+          PROTOBUF_PLATFORM="x86_64-linux"
+          PROTOBUF_ARCHIVE="protobuf-${PROTOBUF_VERSION}-${PROTOBUF_PLATFORM}.tar.gz"
+          PROTOBUF_URL="https://github.com/defold/defold/raw/dev/packages/${PROTOBUF_ARCHIVE}"
+          PROTOBUF_DIR="${RUNNER_TEMP}/defold-protobuf/${PROTOBUF_PLATFORM}"
+          mkdir -p "${PROTOBUF_DIR}"
+          curl -L --fail -o "${RUNNER_TEMP}/${PROTOBUF_ARCHIVE}" "${PROTOBUF_URL}"
+          tar -xzf "${RUNNER_TEMP}/${PROTOBUF_ARCHIVE}" -C "${PROTOBUF_DIR}"
+          PROTOC_BIN="${PROTOBUF_DIR}/bin/protoc"
+          if [ ! -x "${PROTOC_BIN}" ]; then
+            PROTOC_BIN="$(find "${PROTOBUF_DIR}" -type f -name protoc | head -n 1)"
+          fi
+          if [ -z "${PROTOC_BIN}" ] || [ ! -x "${PROTOC_BIN}" ]; then
+            echo "Could not find executable protoc in ${PROTOBUF_DIR}" >&2
+            find "${PROTOBUF_DIR}" -maxdepth 4 -type f | sed -n '1,200p'
+            exit 1
+          fi
+          echo "PROTOC=${PROTOC_BIN}" >> "$GITHUB_ENV"
+          "${PROTOC_BIN}" --version
 
       - name: Build linux plugin
         shell: bash
         env:
           DYNAMO_HOME: ${{ github.workspace }}/build/defoldsdk/defoldsdk
           BOB: ${{ github.workspace }}/bob.jar
+          PROTOC: ${{ env.PROTOC }}
         run: |
           set -euo pipefail
           ./utils/build_plugin.sh x86_64-linux
@@ -639,20 +675,36 @@ jobs:
           enableCrossOsArchive: true
           fail-on-cache-miss: true
 
-      - name: Setup protoc
-        uses: arduino/setup-protoc@v3
-
-      - name: Verify protoc
+      - name: Download Defold protoc
         shell: bash
         run: |
           set -euo pipefail
-          protoc --version
+          PROTOBUF_VERSION="3.20.1"
+          PROTOBUF_PLATFORM="x86_64-win32"
+          PROTOBUF_ARCHIVE="protobuf-${PROTOBUF_VERSION}-${PROTOBUF_PLATFORM}.tar.gz"
+          PROTOBUF_URL="https://github.com/defold/defold/raw/dev/packages/${PROTOBUF_ARCHIVE}"
+          PROTOBUF_DIR="${RUNNER_TEMP}/defold-protobuf/${PROTOBUF_PLATFORM}"
+          mkdir -p "${PROTOBUF_DIR}"
+          curl -L --fail -o "${RUNNER_TEMP}/${PROTOBUF_ARCHIVE}" "${PROTOBUF_URL}"
+          tar -xzf "${RUNNER_TEMP}/${PROTOBUF_ARCHIVE}" -C "${PROTOBUF_DIR}"
+          PROTOC_BIN="${PROTOBUF_DIR}/bin/protoc.exe"
+          if [ ! -x "${PROTOC_BIN}" ]; then
+            PROTOC_BIN="$(find "${PROTOBUF_DIR}" -type f -name protoc.exe | head -n 1)"
+          fi
+          if [ -z "${PROTOC_BIN}" ] || [ ! -x "${PROTOC_BIN}" ]; then
+            echo "Could not find executable protoc.exe in ${PROTOBUF_DIR}" >&2
+            find "${PROTOBUF_DIR}" -maxdepth 4 -type f | sed -n '1,200p'
+            exit 1
+          fi
+          echo "PROTOC=${PROTOC_BIN}" >> "$GITHUB_ENV"
+          "${PROTOC_BIN}" --version
 
       - name: Build windows plugin
         shell: bash
         env:
           DYNAMO_HOME: ${{ github.workspace }}/build/defoldsdk/defoldsdk
           BOB: ${{ github.workspace }}/bob.jar
+          PROTOC: ${{ env.PROTOC }}
         run: |
           set -euo pipefail
           ./utils/build_plugin.sh x86_64-win32
