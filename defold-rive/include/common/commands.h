@@ -33,11 +33,13 @@ namespace dmRiveCommands
     {
         dmRive::HRenderContext  m_RenderContext;
         rive::Factory*          m_Factory;
+        dmMutex::HMutex         m_Mutex;
         bool                    m_UseThreads;
 
         InitParams()
         : m_RenderContext(0)
         , m_Factory(0)
+        , m_Mutex(0)
         , m_UseThreads(false)
         {}
     };
@@ -46,7 +48,6 @@ namespace dmRiveCommands
     Result Finalize();   // Once per session
 
     Result ProcessMessages();
-    bool Wait(uint64_t timeout);
     bool WaitUntil(bool (*condition)(void*), void* user_data, uint64_t timeout);
 
     // Getters

@@ -19,6 +19,7 @@
 #include <dmsdk/resource/resource.h>
 #include <dmsdk/graphics/graphics.h>
 #include <dmsdk/render/render.h>
+#include <dmsdk/dlib/mutex.h>
 
 #include <rive/refcnt.hpp>
 #include <rive/math/mat2d.hpp>
@@ -50,6 +51,7 @@ namespace dmRive
     rive::Renderer*              GetRiveRenderer(HRenderContext context);
     rive::Mat2D                  GetViewProjectionTransform(HRenderContext context, dmRender::HRenderContext render_context);
     void                         GetDimensions(HRenderContext context, uint32_t* width, uint32_t* height);
+    void                         SetRenderMutex(HRenderContext context, dmMutex::HMutex mutex);
     void                         RenderBegin(HRenderContext context, dmResource::HFactory factory, const RenderBeginParams& params);
     void                         RenderEnd(HRenderContext context);
 

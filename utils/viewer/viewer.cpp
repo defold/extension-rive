@@ -21,21 +21,13 @@
 
 #include <dmsdk/dlib/log.h>
 #include <dmsdk/dlib/jobsystem.h>
+#include <dmsdk/dlib/mutex.h>
 #include <dmsdk/dlib/time.h>
 #include <dmsdk/graphics/graphics.h>
 #include <dmsdk/platform/window.h>
 #include <dmsdk/render/render.h>
 
 #include <dmsdk/dlib/log.h> // LogParams
-
-// until Defold 1.12.3
-namespace dmLog
-{
-    struct LogParams;
-
-    extern void LogInitialize(const LogParams* params);
-    extern void LogFinalize();
-}
 
 #include <defold/rive.h>
 #include "common/file.h"
@@ -219,6 +211,7 @@ struct EngineCtx
 
     // Rive related
     dmRive::HRenderContext          m_RenderContext;
+    dmMutex::HMutex                 m_RenderMutex;
     dmRive::RiveFile*               m_FileMeta;
 
     rive::FileHandle                m_File;
@@ -444,10 +437,13 @@ static void* EngineCreate(int argc, char** argv)
 
     // Rive
     engine->m_RenderContext = dmRive::NewRenderContext();
+    engine->m_RenderMutex = dmMutex::New();
+    dmRive::SetRenderMutex(engine->m_RenderContext, engine->m_RenderMutex);
 
     dmRiveCommands::InitParams cmd_params;
     cmd_params.m_RenderContext = engine->m_RenderContext;
     cmd_params.m_Factory = dmRive::GetRiveFactory(engine->m_RenderContext);
+    cmd_params.m_Mutex = engine->m_RenderMutex;
     dmRiveCommands::Initialize(&cmd_params);
 
     if (s_RiveFilePath)
@@ -504,7 +500,9 @@ static void EngineDestroy(void* _engine)
     }
 
     dmRiveCommands::Finalize();
+    dmRive::SetRenderMutex(engine->m_RenderContext, 0);
     dmRive::DeleteRenderContext(engine->m_RenderContext);
+    dmMutex::Delete(engine->m_RenderMutex);
 
     dmGraphics::DeleteVertexBuffer(engine->m_BlitToBackbufferVertexBuffer);
     dmGraphics::DeleteVertexDeclaration(engine->m_VertexDeclaration);

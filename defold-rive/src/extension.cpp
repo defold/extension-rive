@@ -17,6 +17,7 @@
 #include <dmsdk/sdk.h>
 #include <dmsdk/extension/extension.h>
 #include <dmsdk/resource/resource.h>
+#include <dmsdk/dlib/mutex.h>
 
 #include "script_rive.h"
 #include <defold/rive_version.h>
@@ -25,6 +26,9 @@
 #include <common/commands.h>
 
 dmRive::HRenderContext g_RenderContext = 0;
+dmMutex::HMutex g_RenderMutex = 0;
+
+static const char* PROJECT_PROPERTY_USE_THREADS = "rive.use_threads";
 
 static dmExtension::Result AppInitializeRive(dmExtension::AppParams* params)
 {
@@ -35,11 +39,16 @@ static dmExtension::Result InitializeRive(dmExtension::Params* params)
 {
     g_RenderContext = dmRive::NewRenderContext();
     assert(g_RenderContext != 0);
+    g_RenderMutex = dmMutex::New();
+    assert(g_RenderMutex != 0);
+    dmRive::SetRenderMutex(g_RenderContext, g_RenderMutex);
 
     dmRiveCommands::InitParams cmd_params;
+    cmd_params.m_UseThreads = dmConfigFile::GetInt(params->m_ConfigFile, PROJECT_PROPERTY_USE_THREADS, 0) > 0;
     cmd_params.m_UseThreads = true;
     cmd_params.m_RenderContext = g_RenderContext;
     cmd_params.m_Factory = dmRive::GetRiveFactory(g_RenderContext);
+    cmd_params.m_Mutex = g_RenderMutex;
     dmRiveCommands::Initialize(&cmd_params);
 
     // relies on the command queue for registering listeners
@@ -56,9 +65,12 @@ static dmExtension::Result FinalizeRive(dmExtension::Params* params)
     dmRive::ScriptUnregister(params->m_L, factory);
 
     dmRiveCommands::Finalize();
+    dmRive::SetRenderMutex(g_RenderContext, 0);
 
     dmRive::DeleteRenderContext(g_RenderContext);
     g_RenderContext = 0;
+    dmMutex::Delete(g_RenderMutex);
+    g_RenderMutex = 0;
 
     return dmExtension::RESULT_OK;
 }
