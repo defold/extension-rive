@@ -20,7 +20,7 @@ on:
       rive_sha:
         description: "Rive runtime commit SHA to checkout (overrides rive_ref)"
         required: false
-        default: ""
+        default: "3a5b5058aca009b823154ed7f92c11d599c00ae3"
       upload_artifact:
         description: "Upload tarball artifact (defold-rive/lib + include)"
         required: true

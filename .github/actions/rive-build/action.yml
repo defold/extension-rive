@@ -53,6 +53,7 @@ runs:
         fi
         # Double-check repo config to avoid CRLF breaking patch apply
         (cd "$RIVE_TMP_DIR" && git config core.autocrlf false && git config core.eol lf)
+        echo "Checked out rive-runtime commit: $(cd "$RIVE_TMP_DIR" && git rev-parse HEAD)"
         echo "RIVE_ROOT set to: $RIVE_TMP_DIR"
 
     - name: Ensure clean Rive repo

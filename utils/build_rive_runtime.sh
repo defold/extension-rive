@@ -115,12 +115,25 @@ if [[ "$PLATFORM" == x86_64-win32 || "$PLATFORM" == x86-win32 ]]; then
 
 else
     echo "Applying patch ${RIVEPATCH}"
-    set +e
-    (cd ${RIVECPP} && git apply ${RIVEPATCH})
-    APPLY_RC=$?
-    set -e
-    if [ ${APPLY_RC} -ne 0 ]; then
-        echo "Simple apply failed; attempting 3-way with history..."
+    if (cd ${RIVECPP} && git apply --reverse --check ${RIVEPATCH} >/dev/null 2>&1); then
+        echo "Patch already applied. Skipping."
+    else
+        set +e
+        (cd ${RIVECPP} && git apply ${RIVEPATCH})
+        APPLY_RC=$?
+        set -e
+        if [ ${APPLY_RC} -ne 0 ]; then
+            echo "Simple apply failed; attempting 3-way with history..."
+            set +e
+            (cd ${RIVECPP} && git apply --3way ${RIVEPATCH})
+            APPLY3_RC=$?
+            set -e
+            if [ ${APPLY3_RC} -ne 0 ]; then
+                echo "Failed to apply ${RIVEPATCH} (normal and --3way)." >&2
+                exit 1
+            fi
+            echo "Patch applied using --3way."
+        fi
     fi
 fi
 
