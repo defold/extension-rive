@@ -6,7 +6,7 @@ on:
 jobs:
   prepare-defoldsdk:
     name: defoldsdk
-    uses: ./.github/workflows/defoldsdk.yml
+    uses: defold/github-actions-common/.github/workflows/defoldsdk.yml@defoldsdk-workflow
     with:
       runner: ubuntu-22.04
       defold_channel: alpha
