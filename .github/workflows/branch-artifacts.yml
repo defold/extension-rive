@@ -56,7 +56,7 @@ jobs:
     with:
       runner: ubuntu-22.04
       defold_channel: alpha
-      defold_version: ${{ github.event.inputs.defold_version }}
+      defold_version: ${{ github.event.inputs.defold_version || 'latest' }}
       sdk_output_path: build/defoldsdk
       bob_output_path: bob.jar
 
