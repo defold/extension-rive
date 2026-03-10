@@ -203,6 +203,17 @@ if(${TARGET_PLATFORM} MATCHES "win32")
     )
 endif()
 
+set(GRAPHICS_LIBS)
+if(${TARGET_PLATFORM} MATCHES "macos")
+    # macOS viewer uses the Metal renderer path, backed by Defold's Vulkan bridge.
+    target_compile_definitions(viewer PRIVATE DM_GRAPHICS_USE_VULKAN)
+    list(APPEND GRAPHICS_LIBS
+        graphics_vulkan
+        platform_vulkan
+        glfw3
+    )
+endif()
+
 set(TARGET_LIBS
     ${ENGINE_LIBS}
     ${GRAPHICS_LIBS}
