@@ -184,14 +184,6 @@
 
 (def ^:private unknown-value-text "<n/a>")
 (def ^:private none-value-text "<none>")
-(def ^:private artboard-fit-tooltip
-  (str "Fill: The content scales to completely fill the available area. If the aspect ratio of the container differs from your artboard, the animation will be stretched to fit.\n"
-       "Contain (default): The content scales to be as large as possible within the view while preserving its original aspect ratio. If the ratios differ, there will be empty space (letterboxing) on the sides or top/bottom.\n"
-       "Cover: The content scales to fill the entire area while preserving the aspect ratio. If the container ratio differs, the content will be cropped to ensure no empty space is shown.\n"
-       "Fit Width: The content scales to match the width of the container, potentially causing vertical cropping or empty space.\n"
-       "Fit Height: The content scales to match the height of the container, potentially causing horizontal cropping or empty space.\n"
-       "None: The content remains at its original pixel size, regardless of the container size. This may cause clipping or leave significant empty space.\n"
-       "Scale Down: Similar to Contain, but only scales down if the content is larger than the container. If the container is larger, the content stays at its original size."))
 (def ^:private default-state-machine-tooltip
   "The name of the initial state machine of the selected artboard. If empty, uses the default state machine.")
 (def ^:private auto-bind-tooltip
@@ -1292,7 +1284,6 @@
 
   (property artboard-fit g/Any (default (protobuf/default rive-model-pb-class :artboard-fit))
             (dynamic edit-type (g/constantly (properties/->pb-choicebox artboard-fit-pb-class)))
-            (dynamic tooltip (g/constantly artboard-fit-tooltip))
             (dynamic read-only? (g/fnk [coordinate-system]
                                   (= :coordinate-system-game coordinate-system))))
 
