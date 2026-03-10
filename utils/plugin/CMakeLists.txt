@@ -331,7 +331,13 @@ else()
                     libwebp)
 
     list(REMOVE_DUPLICATES RIVE_PLUGIN_LIBS)
-    target_link_libraries(rive_plugin PRIVATE ${RIVE_PLUGIN_LIBS})
+    if(TARGET_PLATFORM MATCHES "linux")
+        # Linux plugin links many static archives with cross-dependencies.
+        # Use a link group to let the linker resolve symbols across archives.
+        target_link_libraries(rive_plugin PRIVATE "-Wl,--start-group" ${RIVE_PLUGIN_LIBS} "-Wl,--end-group")
+    else()
+        target_link_libraries(rive_plugin PRIVATE ${RIVE_PLUGIN_LIBS})
+    endif()
 
 endif()
 
