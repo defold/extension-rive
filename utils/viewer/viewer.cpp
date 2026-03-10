@@ -355,6 +355,14 @@ static void* EngineCreate(int argc, char** argv)
     window_params.m_GraphicsApi = GetWindowGraphicsApi(s_AdapterFamily);
     window_params.m_CloseCallback = OnWindowClose;
     window_params.m_CloseCallbackUserData = (void*)engine;
+#if defined(__linux__)
+    if (window_params.m_GraphicsApi == WINDOW_GRAPHICS_API_OPENGL)
+    {
+        // Rive's OpenGL renderer requires at least OpenGL 4.2.
+        window_params.m_OpenGLVersionHint = 42;
+        window_params.m_OpenGLUseCoreProfileHint = 1;
+    }
+#endif
 
     WindowOpen(engine->m_Window, &window_params);
     WindowShow(engine->m_Window);
