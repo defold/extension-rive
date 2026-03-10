@@ -12,6 +12,7 @@
 - `arm64-macos`
 - `x86_64-win32`
 - `x86_64-linux`
+- `arm64-linux`
 
 ## Quick Build (wrapper script)
 

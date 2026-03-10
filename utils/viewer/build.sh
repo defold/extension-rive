@@ -48,7 +48,7 @@ if [ -z "${TARGET_PLATFORM}" ]; then
     exit 1
 fi
 
-ALLOWED_PLATFORMS=("arm64-macos" "x86_64-win32" "x86_64-linux")
+ALLOWED_PLATFORMS=("arm64-macos" "x86_64-win32" "x86_64-linux" "arm64-linux")
 if [[ ! " ${ALLOWED_PLATFORMS[*]} " =~ " ${TARGET_PLATFORM} " ]]; then
     echo "Unsupported target platform: ${TARGET_PLATFORM}"
     echo "Supported platforms: ${ALLOWED_PLATFORMS[*]}"

@@ -20,6 +20,29 @@ if(NOT TARGET_PLATFORM)
     message(FATAL_ERROR "TARGET_PLATFORM must be provided (via -DTARGET_PLATFORM=...)")
 endif()
 
+set(SUPPORTED_TARGET_PLATFORMS
+    arm64-macos
+    x86_64-macos
+    arm64-linux
+    x86_64-linux
+    x86_64-win32
+)
+list(FIND SUPPORTED_TARGET_PLATFORMS "${TARGET_PLATFORM}" TARGET_PLATFORM_INDEX)
+if(TARGET_PLATFORM_INDEX EQUAL -1)
+    message(FATAL_ERROR
+        "Unsupported TARGET_PLATFORM='${TARGET_PLATFORM}'. "
+        "Supported platforms: ${SUPPORTED_TARGET_PLATFORMS}")
+endif()
+
+if(CMAKE_BINARY_DIR MATCHES ".*/build/plugin/([^/]+)$")
+    set(BUILD_DIR_PLATFORM "${CMAKE_MATCH_1}")
+    if(NOT BUILD_DIR_PLATFORM STREQUAL TARGET_PLATFORM)
+        message(FATAL_ERROR
+            "Build directory platform '${BUILD_DIR_PLATFORM}' does not match TARGET_PLATFORM='${TARGET_PLATFORM}'. "
+            "Clear the cache or remove '${CMAKE_BINARY_DIR}' and configure again.")
+    endif()
+endif()
+
 set(PLUGIN_BUILD_DIR "${REPO_ROOT}/build/plugin/${TARGET_PLATFORM}")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${PLUGIN_BUILD_DIR}")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PLUGIN_BUILD_DIR}")
@@ -213,11 +236,21 @@ set_target_properties(rive_plugin PROPERTIES
         CXX_EXTENSIONS NO
 )
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    if(TARGET_PLATFORM STREQUAL "arm64-linux")
+        target_compile_options(rive_plugin PRIVATE "--target=aarch64-linux-gnu")
+        target_link_options(rive_plugin PRIVATE "--target=aarch64-linux-gnu")
+    elseif(TARGET_PLATFORM STREQUAL "x86_64-linux")
+        target_compile_options(rive_plugin PRIVATE "--target=x86_64-linux-gnu")
+        target_link_options(rive_plugin PRIVATE "--target=x86_64-linux-gnu")
+    endif()
+endif()
+
 if(TARGET_PLATFORM STREQUAL "arm64-macos" OR TARGET_PLATFORM STREQUAL "x86_64-macos")
     target_compile_definitions(rive_plugin PRIVATE DM_PLATFORM_MACOS)
 elseif(TARGET_PLATFORM STREQUAL "x86_64-win32")
     target_compile_definitions(rive_plugin PRIVATE DM_PLATFORM_WINDOWS DM_RIVE_USE_OPENGL RIVE_WINDOWS RIVE_DESKTOP_GL NOMINMAX WIN32_LEAN_AND_MEAN)
-elseif(TARGET_PLATFORM STREQUAL "x86_64-linux")
+elseif(TARGET_PLATFORM MATCHES "linux")
     target_compile_definitions(rive_plugin PRIVATE DM_PLATFORM_LINUX)
 endif()
 target_compile_definitions(rive_plugin PRIVATE DM_RIVE_PLUGIN)

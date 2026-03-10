@@ -108,23 +108,13 @@ add_executable(viewer
     "${VIEWER_SHADER_SOURCE}"
 )
 
-set(USE_VULKAN_BACKEND TRUE)
-if(${TARGET_PLATFORM} MATCHES "win32")
-    # Vulkan backend in rive_renderer.lib is currently unavailable on win32 in this repo setup.
-    set(USE_VULKAN_BACKEND FALSE)
-endif()
-
 file(GLOB RIVE_COMMON_SRC
     "${EXTENSION_ROOT}/defold-rive/commonsrc/*.cpp"
     "${EXTENSION_ROOT}/defold-rive/commonsrc/renderer/renderer_private.cpp"
 )
 
-if (USE_VULKAN_BACKEND)
-    if(${TARGET_PLATFORM} MATCHES "macos")
-        list(APPEND RIVE_COMMON_SRC "${EXTENSION_ROOT}/defold-rive/commonsrc/renderer/renderer_context_metal.mm")
-    else()
-        list(APPEND RIVE_COMMON_SRC "${EXTENSION_ROOT}/defold-rive/commonsrc/renderer/renderer_context_vulkan.cpp")
-    endif()
+if(${TARGET_PLATFORM} MATCHES "macos")
+    list(APPEND RIVE_COMMON_SRC "${EXTENSION_ROOT}/defold-rive/commonsrc/renderer/renderer_context_metal.mm")
 else()
     list(APPEND RIVE_COMMON_SRC "${EXTENSION_ROOT}/defold-rive/commonsrc/renderer/renderer_context_opengl.cpp")
 endif()
@@ -213,30 +203,6 @@ if(${TARGET_PLATFORM} MATCHES "win32")
     )
 endif()
 
-set(USE_VULKAN_BACKEND FALSE)
-if(${TARGET_PLATFORM} MATCHES "macos")
-    set(USE_VULKAN_BACKEND TRUE)
-endif()
-
-if(USE_VULKAN_BACKEND)
-    target_compile_definitions(viewer PRIVATE DM_GRAPHICS_USE_VULKAN)
-
-    set(GRAPHICS_LIBS
-        graphics_vulkan
-        platform_vulkan
-        glfw3
-    )
-
-    if(${TARGET_PLATFORM} MATCHES "win32")
-        set(GRAPHICS_LIBS
-            libgraphics_vulkan
-            platform_vulkan
-            libglfw3
-        )
-    endif()
-else()
-endif()
-
 set(TARGET_LIBS
     ${ENGINE_LIBS}
     ${GRAPHICS_LIBS}
@@ -264,27 +230,16 @@ if(${TARGET_PLATFORM} MATCHES "macos")
 endif()
 
 if(${TARGET_PLATFORM} MATCHES "win32")
-    if(USE_VULKAN_BACKEND)
-        target_compile_definitions(viewer PRIVATE
-            DM_PLATFORM_WINDOWS
-            DM_RIVE_USE_VULKAN
-            RIVE_WINDOWS
-        )
-    else()
-        target_compile_definitions(viewer PRIVATE
-            DM_PLATFORM_WINDOWS
-            DM_RIVE_USE_OPENGL
-            RIVE_WINDOWS
-            RIVE_DESKTOP_GL
-        )
-    endif()
+    target_compile_definitions(viewer PRIVATE
+        DM_PLATFORM_WINDOWS
+        DM_RIVE_USE_OPENGL
+        RIVE_WINDOWS
+        RIVE_DESKTOP_GL
+    )
+
     # defold-rive Windows libs are built with /MT.
     set_property(TARGET viewer PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
-    if(USE_VULKAN_BACKEND)
-        target_link_libraries(viewer PRIVATE Iphlpapi.lib libglfw3 ws2_32 vulkan-1)
-    else()
-        target_link_libraries(viewer PRIVATE Iphlpapi.lib libglfw3 ws2_32 opengl32)
-    endif()
+    target_link_libraries(viewer PRIVATE Iphlpapi.lib libglfw3 ws2_32 opengl32)
 elseif(${TARGET_PLATFORM} MATCHES "linux")
     list(APPEND TARGET_LIBS glfw3)
     target_compile_definitions(viewer PRIVATE
