@@ -11,7 +11,7 @@ index 45d41876..2b08d4e6 100644
  # Skia dependencies
  skia/dependencies/skia_recorder
 diff --git a/build/rive_build_config.lua b/build/rive_build_config.lua
-index f8172084..79a06f1f 100644
+index 9bde82ad..36a17a4b 100644
 --- a/build/rive_build_config.lua
 +++ b/build/rive_build_config.lua
 @@ -422,7 +422,7 @@ if _OPTIONS['for_android'] then
@@ -62,7 +62,7 @@ index f8172084..79a06f1f 100644
  do
      defines({ 'RIVE_MACOSX' })
 diff --git a/premake5_v2.lua b/premake5_v2.lua
-index a37f3b49..911688a4 100644
+index e182b38b..5f5cbe15 100644
 --- a/premake5_v2.lua
 +++ b/premake5_v2.lua
 @@ -32,6 +32,12 @@ do
@@ -78,16 +78,19 @@ index a37f3b49..911688a4 100644
  dependencies = path.getabsolute('dependencies/')
  dofile(path.join(dependencies, 'premake5_harfbuzz_v2.lua'))
  dofile(path.join(dependencies, 'premake5_sheenbidi_v2.lua'))
-@@ -174,3 +180,9 @@ newoption({
-     trigger = 'with_rive_layout',
+@@ -175,6 +181,12 @@ newoption({
      description = 'Compiles in layout features.',
  })
-+
+ 
 +-- Optional pthread enabling (used e.g. for Emscripten wagyu builds)
 +newoption({
 +    trigger = 'with_pthread',
 +    description = 'Enable pthread compile/link flags (-pthread)',
 +})
++
+ newoption({
+     trigger = 'with_rive_docs',
+     description = 'Indicates building for use with the docs generator.',
 diff --git a/renderer/premake5.lua b/renderer/premake5.lua
 index 57d5a28d..bd629f1a 100644
 --- a/renderer/premake5.lua
@@ -116,7 +119,7 @@ index 57d5a28d..bd629f1a 100644
      do
          kind('ConsoleApp')
 diff --git a/renderer/premake5_pls_renderer.lua b/renderer/premake5_pls_renderer.lua
-index 266b3ed4..f6be56ff 100644
+index 8139c785..ed43f0af 100644
 --- a/renderer/premake5_pls_renderer.lua
 +++ b/renderer/premake5_pls_renderer.lua
 @@ -68,6 +68,11 @@ do
@@ -131,7 +134,7 @@ index 266b3ed4..f6be56ff 100644
  filter({})
  
  newoption({
-@@ -315,6 +320,7 @@ do
+@@ -316,6 +321,7 @@ do
      filter({})
  
      if RIVE_WAGYU_PORT then
