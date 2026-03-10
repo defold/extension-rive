@@ -298,13 +298,15 @@ if(TARGET_PLATFORM STREQUAL "x86_64-win32")
 
 else()
     set(RIVE_PLUGIN_LIBS)
+    set(RIVE_OPENGL_LIB "")
 
     if(TARGET_PLATFORM MATCHES "linux")
         list(APPEND RIVE_PLUGIN_LIBS pthread m dl glfw3)
-        # Defold's libgraphics.a references ARB entry points that are provided
-        # by legacy libGL on Linux.
-        set(OpenGL_GL_PREFERENCE LEGACY)
-        find_package(OpenGL REQUIRED)
+        # Defold's libgraphics.a references OpenGL/ARB entry points from libGL.
+        find_library(RIVE_OPENGL_LIB NAMES GL OpenGL)
+        if(NOT RIVE_OPENGL_LIB)
+            message(FATAL_ERROR "Could not find libGL for Linux. Install OpenGL development libraries (e.g. libgl1-mesa-dev).")
+        endif()
     endif()
 
     if(TARGET_PLATFORM MATCHES "macos")
@@ -337,7 +339,7 @@ else()
     list(REMOVE_DUPLICATES RIVE_PLUGIN_LIBS)
     target_link_libraries(rive_plugin PRIVATE ${RIVE_PLUGIN_LIBS})
     if(TARGET_PLATFORM MATCHES "linux")
-        target_link_libraries(rive_plugin PRIVATE OpenGL::GL)
+        target_link_libraries(rive_plugin PRIVATE "${RIVE_OPENGL_LIB}")
     endif()
 
 endif()
