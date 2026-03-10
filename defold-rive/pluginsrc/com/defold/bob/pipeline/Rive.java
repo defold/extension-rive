@@ -186,8 +186,15 @@ public class Rive {
         public String           instance;
     }
 
+    private static boolean isValidRiveFile(RiveFile rive_file) {
+        return rive_file != null && rive_file.pointer != 0L;
+    }
+
     public static void UpdateInternal(RiveFile rive_file, float dt)
     {
+        if (!isValidRiveFile(rive_file)) {
+            return;
+        }
         runOnNativeThreadVoid(new Runnable() {
             @Override
             public void run() {
@@ -199,6 +206,9 @@ public class Rive {
 
     public static void DestroyInternal(RiveFile rive_file)
     {
+        if (!isValidRiveFile(rive_file)) {
+            return;
+        }
         runOnNativeThreadVoid(new Runnable() {
             @Override
             public void run() {
@@ -210,6 +220,9 @@ public class Rive {
 
     public static void SetArtboardInternal(RiveFile rive_file, String artboard)
     {
+        if (!isValidRiveFile(rive_file)) {
+            return;
+        }
         runOnNativeThreadVoid(new Runnable() {
             @Override
             public void run() {
@@ -221,6 +234,9 @@ public class Rive {
 
     public static void SetStateMachineInternal(RiveFile rive_file, String stateMachine)
     {
+        if (!isValidRiveFile(rive_file)) {
+            return;
+        }
         runOnNativeThreadVoid(new Runnable() {
             @Override
             public void run() {
@@ -232,6 +248,9 @@ public class Rive {
 
     public static void SetFitAlignmentInternal(RiveFile rive_file, int fit, int alignment)
     {
+        if (!isValidRiveFile(rive_file)) {
+            return;
+        }
         runOnNativeThreadVoid(new Runnable() {
             @Override
             public void run() {
@@ -243,6 +262,9 @@ public class Rive {
 
     public static void SetViewModelInternal(RiveFile rive_file, String viewModel)
     {
+        if (!isValidRiveFile(rive_file)) {
+            return;
+        }
         runOnNativeThreadVoid(new Runnable() {
             @Override
             public void run() {
@@ -254,6 +276,9 @@ public class Rive {
 
     public static Texture GetTextureInternal(RiveFile rive_file)
     {
+        if (!isValidRiveFile(rive_file)) {
+            return null;
+        }
         return runOnNativeThread(new Callable<Texture>() {
             @Override
             public Texture call() {

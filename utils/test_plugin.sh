@@ -12,11 +12,12 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 set -e
 
 UNAME_S="$(uname -s)"
+UNAME_M="$(uname -m)"
 IS_WINDOWS=0
 PLUGIN_PLATFORM="x86_64-linux"
 case "${UNAME_S}" in
     Darwin)
-        if [ "arm64" == "$(uname -m)" ]; then
+        if [ "arm64" == "${UNAME_M}" ]; then
             PLUGIN_PLATFORM="arm64-osx"
         else
             PLUGIN_PLATFORM="x86_64-osx"
@@ -27,7 +28,11 @@ case "${UNAME_S}" in
         IS_WINDOWS=1
         ;;
     *)
-        PLUGIN_PLATFORM="x86_64-linux"
+        if [ "arm64" == "${UNAME_M}" ] || [ "aarch64" == "${UNAME_M}" ]; then
+            PLUGIN_PLATFORM="arm64-linux"
+        else
+            PLUGIN_PLATFORM="x86_64-linux"
+        fi
         ;;
 esac
 PLUGIN_PLATFORM_DIR=$(realpath "${SCRIPT_DIR}/../defold-rive/plugins/lib/${PLUGIN_PLATFORM}")
@@ -64,6 +69,8 @@ if [ -n "${JAVA_HOME:-}" ]; then
     else
         if [ -f "${JAVA_HOME}/lib/libjsig.so" ]; then
             JSIG_PATH="${JAVA_HOME}/lib/libjsig.so"
+        elif [ -f "${JAVA_HOME}/jre/lib/aarch64/libjsig.so" ]; then
+            JSIG_PATH="${JAVA_HOME}/jre/lib/aarch64/libjsig.so"
         elif [ -f "${JAVA_HOME}/jre/lib/amd64/libjsig.so" ]; then
             JSIG_PATH="${JAVA_HOME}/jre/lib/amd64/libjsig.so"
         elif [ -f "${JAVA_HOME}/jre/lib/x86_64/libjsig.so" ]; then

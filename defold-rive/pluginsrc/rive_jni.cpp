@@ -395,6 +395,10 @@ static dmRive::RiveFile* FromLong(jlong x)
 
 static dmRive::RiveFile* FromObject(JNIEnv* env, jobject rive_file_obj)
 {
+    if (!rive_file_obj)
+    {
+        return 0;
+    }
     jlong pointer = env->GetLongField(rive_file_obj, g_RiveFileJNI.pointer);
     return FromLong(pointer);
 }

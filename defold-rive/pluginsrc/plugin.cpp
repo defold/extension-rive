@@ -390,7 +390,7 @@ static bool InstallGraphicsAdapter()
 
 #if defined(__APPLE__)
     GraphicsAdapterVulkan();  // register the dapter
-#elif defined(_WIN32)
+#else
     GraphicsAdapterOpenGL(); // register the dapter
 #endif
     s_AdapterInstallSuccess = dmGraphics::InstallAdapter(dmGraphics::ADAPTER_FAMILY_NONE);

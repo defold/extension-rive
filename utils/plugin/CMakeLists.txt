@@ -251,7 +251,7 @@ if(TARGET_PLATFORM STREQUAL "arm64-macos" OR TARGET_PLATFORM STREQUAL "x86_64-ma
 elseif(TARGET_PLATFORM STREQUAL "x86_64-win32")
     target_compile_definitions(rive_plugin PRIVATE DM_PLATFORM_WINDOWS DM_RIVE_USE_OPENGL RIVE_WINDOWS RIVE_DESKTOP_GL NOMINMAX WIN32_LEAN_AND_MEAN)
 elseif(TARGET_PLATFORM MATCHES "linux")
-    target_compile_definitions(rive_plugin PRIVATE DM_PLATFORM_LINUX)
+    target_compile_definitions(rive_plugin PRIVATE DM_PLATFORM_LINUX DM_RIVE_USE_OPENGL RIVE_LINUX RIVE_DESKTOP_GL)
 endif()
 target_compile_definitions(rive_plugin PRIVATE DM_RIVE_PLUGIN)
 
@@ -300,8 +300,11 @@ else()
     set(RIVE_PLUGIN_LIBS)
 
     if(TARGET_PLATFORM MATCHES "linux")
-        target_link_options(rive_plugin PRIVATE "-fuse-ld=lld")
-        list(APPEND RIVE_PLUGIN_LIBS pthread m dl)
+        list(APPEND RIVE_PLUGIN_LIBS pthread m dl glfw3)
+        # Defold's libgraphics.a references ARB entry points that are provided
+        # by legacy libGL on Linux.
+        set(OpenGL_GL_PREFERENCE LEGACY)
+        find_package(OpenGL REQUIRED)
     endif()
 
     if(TARGET_PLATFORM MATCHES "macos")
@@ -333,6 +336,9 @@ else()
 
     list(REMOVE_DUPLICATES RIVE_PLUGIN_LIBS)
     target_link_libraries(rive_plugin PRIVATE ${RIVE_PLUGIN_LIBS})
+    if(TARGET_PLATFORM MATCHES "linux")
+        target_link_libraries(rive_plugin PRIVATE OpenGL::GL)
+    endif()
 
 endif()
 
