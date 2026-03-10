@@ -54,7 +54,7 @@ jobs:
     name: defoldsdk
     uses: defold/github-actions-common/.github/workflows/defoldsdk.yml@master
     with:
-      runner: ubuntu-22.04
+      runner: ${{ github.event.inputs.platform == 'arm64-linux' && 'ubuntu-22.04-arm' || 'ubuntu-22.04' }}
       defold_channel: alpha
       defold_version: ${{ github.event.inputs.defold_version || 'latest' }}
       sdk_output_path: build/defoldsdk
@@ -62,7 +62,7 @@ jobs:
 
   build-linux:
     if: ${{ github.event.inputs.platform == 'x86_64-linux' || github.event.inputs.platform == 'arm64-linux' || github.event.inputs.platform == 'all' }}
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.platform == 'arm64-linux' && 'ubuntu-22.04-arm' || 'ubuntu-22.04' }}
     strategy:
       matrix:
         platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["x86_64-linux","arm64-linux"]' || format('["{0}"]', github.event.inputs.platform)) }}
