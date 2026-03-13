@@ -91,7 +91,8 @@ jobs:
           sudo apt-get install -y cmake ninja-build
 
           TMP_DIR="$(mktemp -d)"
-          git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com/KhronosGroup/SPIRV-Tools.git "${TMP_DIR}/SPIRV-Tools"
+          git clone --depth 1 https://github.com/KhronosGroup/SPIRV-Tools.git "${TMP_DIR}/SPIRV-Tools"
+          python3 "${TMP_DIR}/SPIRV-Tools/utils/git-sync-deps"
           cmake -S "${TMP_DIR}/SPIRV-Tools" -B "${TMP_DIR}/build" -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DSPIRV_SKIP_TESTS=ON
