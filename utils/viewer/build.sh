@@ -4,14 +4,65 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 
 WITH_ASAN=OFF
+WITH_VULKAN=OFF
 BUILD_CONFIG=RelWithDebInfo
 RIVE_LIB_DIR=""
 ARGS=()
+
+parse_on_off_flag() {
+    local value="$1"
+    case "${value}" in
+        1|ON|on|TRUE|true|YES|yes)
+            echo "ON"
+            ;;
+        0|OFF|off|FALSE|false|NO|no)
+            echo "OFF"
+            ;;
+        *)
+            echo "Invalid boolean value '${value}'. Expected one of: ON/OFF, true/false, yes/no, 1/0" >&2
+            exit 1
+            ;;
+    esac
+}
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --with-asan)
             WITH_ASAN=ON
+            if [[ $# -ge 2 ]]; then
+                case "$2" in
+                    1|0|ON|on|OFF|off|TRUE|true|FALSE|false|YES|yes|NO|no)
+                        WITH_ASAN="$(parse_on_off_flag "$2")"
+                        shift 2
+                        continue
+                        ;;
+                esac
+            fi
+            shift
+            ;;
+        --with-asan=*)
+            WITH_ASAN="$(parse_on_off_flag "${1#*=}")"
+            shift
+            ;;
+        --with_vulkan|--with-vulkan)
+            WITH_VULKAN=ON
+            if [[ $# -ge 2 ]]; then
+                case "$2" in
+                    1|0|ON|on|OFF|off|TRUE|true|FALSE|false|YES|yes|NO|no)
+                        WITH_VULKAN="$(parse_on_off_flag "$2")"
+                        shift 2
+                        continue
+                        ;;
+                esac
+            fi
+            shift
+            ;;
+        --with_vulkan=*|--with-vulkan=*)
+            WITH_VULKAN="$(parse_on_off_flag "${1#*=}")"
+            shift
+            ;;
+        --without_vulkan|--without-vulkan|--no-with_vulkan|--no-with-vulkan)
+            WITH_VULKAN=OFF
             shift
             ;;
         --config)
@@ -35,16 +86,29 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         *)
+            if [[ "$1" == --* ]]; then
+                echo "Unknown option: $1"
+                echo "Use --with_vulkan / --with-vulkan (optionally =ON|OFF)"
+                exit 1
+            fi
             ARGS+=("$1")
             shift
             ;;
     esac
 done
 
+if [[ ${#ARGS[@]} -gt 1 ]]; then
+    echo "Too many positional arguments: ${ARGS[*]}"
+    echo "Usage: $0 [options] <target_platform>"
+    exit 1
+fi
+
 TARGET_PLATFORM="${ARGS[0]:-${TARGET_PLATFORM:-}}"
 
 if [ -z "${TARGET_PLATFORM}" ]; then
-    echo "Usage: $0 [--with-asan] [--config <Debug|Release|RelWithDebInfo|MinSizeRel>] [--rive-lib-dir <path>] [--use-utils-libs-win64] <target_platform>"
+    echo "Missing required <target_platform> (or set TARGET_PLATFORM in env)."
+    echo "Usage: $0 [--with-asan] [--with-vulkan|--with_vulkan] [--config <Debug|Release|RelWithDebInfo|MinSizeRel>] [--rive-lib-dir <path>] [--use-utils-libs-win64] <target_platform>"
+    echo "Example: $0 --with-vulkan x86_64-linux"
     exit 1
 fi
 
@@ -92,6 +156,7 @@ CM_ARGS=(
     -DCMAKE_BUILD_TYPE="${BUILD_CONFIG}"
     -DTARGET_PLATFORM="${TARGET_PLATFORM}"
     -DWITH_ASAN=${WITH_ASAN}
+    -DWITH_VULKAN=${WITH_VULKAN}
 )
 if [[ -n "${RIVE_LIB_DIR}" ]]; then
     CM_ARGS+=("-DVIEWER_WIN32_RIVE_LIB_DIR=${RIVE_LIB_DIR}")

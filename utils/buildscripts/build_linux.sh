@@ -27,6 +27,7 @@ PREFIX=""
 ARCHS=""
 CONFIG="release"
 WITH_PIC=false
+WITH_VULKAN=false
 
 print_help() {
     cat <<EOF
@@ -37,6 +38,7 @@ Options:
   -a, --archs LIST     Comma/space-separated: x64, arm64, arm (default: host arch)
   -c, --config NAME    Build config: release|debug (default: release)
       --with-pic       Pass --with-pic to build_rive.sh when supported
+      --with-vulkan    Forward --with_vulkan to build_rive.sh
   -h, --help           Show this help
 
 Examples:
@@ -61,6 +63,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --with-pic)
             WITH_PIC=true
+            shift
+            ;;
+        --with-vulkan|--with_vulkan)
+            WITH_VULKAN=true
             shift
             ;;
         -h|--help)
@@ -157,6 +163,9 @@ for ARCH in "${ARCH_LIST[@]}"; do
     out_dir="$BUILD_DIR/$out_dir_rel"
 
     BUILD_ARGS=(ninja "$ARCH" "$CONFIG" --no-lto --with-libs-only)
+    if [[ "$WITH_VULKAN" == "true" ]]; then
+        BUILD_ARGS+=(--with_vulkan)
+    fi
     if (( ${#EXTRA_BUILD_ARGS[@]} > 0 )); then
         BUILD_ARGS+=("${EXTRA_BUILD_ARGS[@]}")
     fi

@@ -27,6 +27,7 @@ if(${TARGET_PLATFORM} MATCHES "win32" AND NOT MSVC)
 endif()
 
 option(WITH_ASAN "Build viewer with Address Sanitizer" OFF)
+option(WITH_VULKAN "Build viewer with Vulkan graphics backend" OFF)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
@@ -108,6 +109,12 @@ add_executable(viewer
     "${VIEWER_SHADER_SOURCE}"
 )
 
+if(WITH_VULKAN)
+    target_compile_definitions(viewer PRIVATE DM_GRAPHICS_USE_VULKAN)
+else()
+    target_compile_definitions(viewer PRIVATE DM_GRAPHICS_USE_OPENGL)
+endif()
+
 file(GLOB RIVE_COMMON_SRC
     "${EXTENSION_ROOT}/defold-rive/commonsrc/*.cpp"
     "${EXTENSION_ROOT}/defold-rive/commonsrc/renderer/renderer_private.cpp"
@@ -115,6 +122,8 @@ file(GLOB RIVE_COMMON_SRC
 
 if(${TARGET_PLATFORM} MATCHES "macos")
     list(APPEND RIVE_COMMON_SRC "${EXTENSION_ROOT}/defold-rive/commonsrc/renderer/renderer_context_metal.mm")
+elseif(WITH_VULKAN)
+    list(APPEND RIVE_COMMON_SRC "${EXTENSION_ROOT}/defold-rive/commonsrc/renderer/renderer_context_vulkan.cpp")
 else()
     list(APPEND RIVE_COMMON_SRC "${EXTENSION_ROOT}/defold-rive/commonsrc/renderer/renderer_context_opengl.cpp")
 endif()
@@ -148,6 +157,14 @@ set(RIVE_LINK_DIR "${EXTENSION_ROOT}/defold-rive/lib/${RIVE_TARGET_PLATFORM}")
 
 if(NOT EXISTS "${RIVE_LINK_DIR}")
     message(FATAL_ERROR "Rive library directory does not exist: ${RIVE_LINK_DIR}")
+endif()
+
+if(WITH_VULKAN AND ${TARGET_PLATFORM} MATCHES "win32")
+    set(RIVE_RENDERER_LIB "${RIVE_LINK_DIR}/rive_pls_renderer.lib")
+    if(NOT EXISTS "${RIVE_RENDERER_LIB}")
+        message(FATAL_ERROR
+            "WITH_VULKAN=ON requires a Vulkan-capable Rive renderer library, but '${RIVE_RENDERER_LIB}' was not found.")
+    endif()
 endif()
 
 target_link_directories(viewer PRIVATE "${RIVE_LINK_DIR}")
@@ -206,7 +223,6 @@ endif()
 set(GRAPHICS_LIBS)
 if(${TARGET_PLATFORM} MATCHES "macos")
     # macOS viewer uses the Metal renderer path, backed by Defold's Vulkan bridge.
-    target_compile_definitions(viewer PRIVATE DM_GRAPHICS_USE_VULKAN)
     list(APPEND GRAPHICS_LIBS
         graphics_vulkan
         platform_vulkan
@@ -241,34 +257,69 @@ if(${TARGET_PLATFORM} MATCHES "macos")
 endif()
 
 if(${TARGET_PLATFORM} MATCHES "win32")
-    target_compile_definitions(viewer PRIVATE
-        DM_PLATFORM_WINDOWS
-        DM_RIVE_USE_OPENGL
-        RIVE_WINDOWS
-        RIVE_DESKTOP_GL
-    )
+    if(WITH_VULKAN)
+        list(APPEND TARGET_LIBS
+            libgraphics_vulkan
+            platform_vulkan
+        )
+        target_compile_definitions(viewer PRIVATE
+            DM_PLATFORM_WINDOWS
+            DM_RIVE_USE_VULKAN
+            RIVE_WINDOWS
+            RIVE_VULKAN
+        )
+    else()
+        target_compile_definitions(viewer PRIVATE
+            DM_PLATFORM_WINDOWS
+            DM_RIVE_USE_OPENGL
+            RIVE_WINDOWS
+            RIVE_DESKTOP_GL
+        )
+    endif()
 
     # defold-rive Windows libs are built with /MT.
     set_property(TARGET viewer PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
-    target_link_libraries(viewer PRIVATE Iphlpapi.lib libglfw3 ws2_32 opengl32)
+    if(WITH_VULKAN)
+        target_link_libraries(viewer PRIVATE Iphlpapi.lib libglfw3 ws2_32 vulkan-1)
+    else()
+        target_link_libraries(viewer PRIVATE Iphlpapi.lib libglfw3 ws2_32 opengl32)
+    endif()
 elseif(${TARGET_PLATFORM} MATCHES "linux")
     list(APPEND TARGET_LIBS glfw3)
-    target_compile_definitions(viewer PRIVATE
-        DM_PLATFORM_LINUX
-        DM_RIVE_USE_OPENGL
-        RIVE_LINUX
-        RIVE_DESKTOP_GL
-    )
-    # Defold's libgraphics.a references ARB entry points (e.g. glBindBufferARB)
-    # that are provided by legacy libGL, not GLVND's libOpenGL.
-    set(OpenGL_GL_PREFERENCE LEGACY)
-    find_package(OpenGL REQUIRED)
+    if(WITH_VULKAN)
+        list(APPEND TARGET_LIBS
+            graphics_vulkan
+            platform_vulkan
+        )
+        target_compile_definitions(viewer PRIVATE
+            DM_PLATFORM_LINUX
+            DM_RIVE_USE_VULKAN
+            RIVE_LINUX
+            RIVE_VULKAN
+        )
+        find_package(Vulkan REQUIRED)
+    else()
+        target_compile_definitions(viewer PRIVATE
+            DM_PLATFORM_LINUX
+            DM_RIVE_USE_OPENGL
+            RIVE_LINUX
+            RIVE_DESKTOP_GL
+        )
+        # Defold's libgraphics.a references ARB entry points (e.g. glBindBufferARB)
+        # that are provided by legacy libGL, not GLVND's libOpenGL.
+        set(OpenGL_GL_PREFERENCE LEGACY)
+        find_package(OpenGL REQUIRED)
+    endif()
 endif()
 
 if(${TARGET_PLATFORM} MATCHES "linux")
     target_link_libraries(viewer PRIVATE "-Wl,--start-group" ${TARGET_LIBS} "-Wl,--end-group")
-    # Keep system GL libs after static engine archives to satisfy --as-needed linkers.
-    target_link_libraries(viewer PRIVATE OpenGL::GL pthread dl m)
+    if(WITH_VULKAN)
+        target_link_libraries(viewer PRIVATE Vulkan::Vulkan pthread dl m)
+    else()
+        # Keep system GL libs after static engine archives to satisfy --as-needed linkers.
+        target_link_libraries(viewer PRIVATE OpenGL::GL pthread dl m)
+    endif()
 else()
     target_link_libraries(viewer PRIVATE ${TARGET_LIBS})
 endif()

@@ -32,6 +32,7 @@ PREFIX=""
 TARGETS="macos"
 ARCHS=""
 CONFIG="release"
+WITH_VULKAN=false
 
 print_help() {
     cat <<EOF
@@ -44,6 +45,7 @@ Options:
                          - macos: if omitted, uses host default
                          - ios: defaults to arm64 if omitted
   -c, --config NAME      Build config: release|debug (default: release)
+      --with-vulkan      Forward --with_vulkan to build_rive.sh
   -h, --help             Show this help
 
 Examples:
@@ -69,6 +71,10 @@ while [[ $# -gt 0 ]]; do
         -c|--config)
             CONFIG="${2:-}"
             shift 2
+            ;;
+        --with-vulkan|--with_vulkan)
+            WITH_VULKAN=true
+            shift
             ;;
         -h|--help)
             print_help
@@ -213,14 +219,22 @@ build_for_target_arch() {
 
     # Force the out directory naming to include target and architecture consistently.
     if [[ "$target" == "macos" ]]; then
-        RIVE_OUT="$out_dir_rel" "$BUILD_SCRIPT" ninja "$rive_os" "$arch" "$CONFIG" --with-libs-only
+        BUILD_ARGS=(ninja "$rive_os" "$arch" "$CONFIG" --with-libs-only)
+        if [[ "$WITH_VULKAN" == "true" ]]; then
+            BUILD_ARGS+=(--with_vulkan)
+        fi
+        RIVE_OUT="$out_dir_rel" "$BUILD_SCRIPT" "${BUILD_ARGS[@]}"
     else
         # For iOS, use iossim when arch is x64 (variant emulator), otherwise ios.
         if [[ "$arch" == "x64" ]]; then
-            RIVE_OUT="$out_dir_rel" "$BUILD_SCRIPT" ninja iossim "$arch" "$CONFIG" --with-libs-only
+            BUILD_ARGS=(ninja iossim "$arch" "$CONFIG" --with-libs-only)
         else
-            RIVE_OUT="$out_dir_rel" "$BUILD_SCRIPT" ninja "$rive_os" "$arch" "$CONFIG" --with-libs-only
+            BUILD_ARGS=(ninja "$rive_os" "$arch" "$CONFIG" --with-libs-only)
         fi
+        if [[ "$WITH_VULKAN" == "true" ]]; then
+            BUILD_ARGS+=(--with_vulkan)
+        fi
+        RIVE_OUT="$out_dir_rel" "$BUILD_SCRIPT" "${BUILD_ARGS[@]}"
     fi
 
     # Collect and install libraries

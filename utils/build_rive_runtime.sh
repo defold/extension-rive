@@ -12,7 +12,7 @@ RIVECPP=$1
 shift
 
 function Usage {
-    echo "Usage: ./utils/build_rive_runtime.sh <platform> <rive_runtime_repo>"
+    echo "Usage: ./utils/build_rive_runtime.sh <platform> <rive_runtime_repo> [--with-vulkan]"
     echo "platforms:"
     echo "  * arm64-android"
     echo "  * armv7-android"
@@ -29,6 +29,24 @@ function Usage {
     echo "  * x86-win32"
     exit 1
 }
+
+WITH_VULKAN=0
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --with-vulkan|--with_vulkan)
+            WITH_VULKAN=1
+            shift
+            ;;
+        --without-vulkan|--without_vulkan|--no-with-vulkan|--no-with_vulkan)
+            WITH_VULKAN=0
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1"
+            Usage
+            ;;
+    esac
+done
 
 if [ "" == "$RIVECPP" ]; then
     echo "You must specify a runtime path"
@@ -66,6 +84,7 @@ LIBDIR=${PREFIX}/lib/${PLATFORM}
 echo "Using PLATFORM:${PLATFORM}"
 echo "Using RIVECPP:${RIVECPP}"
 echo "Using PREFIX:${PREFIX}"
+echo "Using WITH_VULKAN:${WITH_VULKAN}"
 
 echo "Removing old headers"
 rm -rf ${PREFIX}/include/rive
@@ -78,6 +97,12 @@ function CleanLibraries {
 
     echo "Removing old libraries from ${folder}"
     set +e
+    rm ${folder}/harfbuzz.lib
+    rm ${folder}/sheenbidi.lib
+    rm ${folder}/yoga.lib
+    rm ${folder}/rive_renderer.lib
+    rm ${folder}/glfw3.lib
+    rm ${folder}/path_fiddle.lib
     rm ${folder}/liblibjpeg.a
     rm ${folder}/liblibpng.a
     rm ${folder}/liblibwebp.a
@@ -89,6 +114,17 @@ function CleanLibraries {
     rm ${folder}/librive_sheenbidi.a
     rm ${folder}/librive_yoga.a
     rm ${folder}/libzlib.a
+    rm ${folder}/libjpeg.lib
+    rm ${folder}/libpng.lib
+    rm ${folder}/libwebp.lib
+    rm ${folder}/miniaudio.lib
+    rm ${folder}/rive.lib
+    rm ${folder}/rive_decoders.lib
+    rm ${folder}/rive_harfbuzz.lib
+    rm ${folder}/rive_pls_renderer.lib
+    rm ${folder}/rive_sheenbidi.lib
+    rm ${folder}/rive_yoga.lib
+    rm ${folder}/zlib.lib
     set -e
 }
 
@@ -187,7 +223,11 @@ case $PLATFORM in
             ARCH=x64
         fi
 
-        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_darwin.sh --prefix ${PREFIX} --targets macos --archs ${ARCH} --config ${CONFIGURATION})
+        DARWIN_ARGS=(--prefix ${PREFIX} --targets macos --archs ${ARCH} --config ${CONFIGURATION})
+        if [ ${WITH_VULKAN} -eq 1 ]; then
+            DARWIN_ARGS+=(--with-vulkan)
+        fi
+        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_darwin.sh "${DARWIN_ARGS[@]}")
         ;;
 
     arm64-ios|x86_64-ios)
@@ -196,7 +236,11 @@ case $PLATFORM in
             ARCH=x64
         fi
 
-        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_darwin.sh --prefix ${PREFIX} --targets ios --archs ${ARCH} --config ${CONFIGURATION})
+        DARWIN_ARGS=(--prefix ${PREFIX} --targets ios --archs ${ARCH} --config ${CONFIGURATION})
+        if [ ${WITH_VULKAN} -eq 1 ]; then
+            DARWIN_ARGS+=(--with-vulkan)
+        fi
+        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_darwin.sh "${DARWIN_ARGS[@]}")
         ;;
 
     arm64-linux|x86_64-linux)
@@ -205,7 +249,11 @@ case $PLATFORM in
             ARCH=x64
         fi
 
-        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_linux.sh --with-pic --prefix ${PREFIX} --archs ${ARCH} --config ${CONFIGURATION})
+        LINUX_ARGS=(--with-pic --prefix ${PREFIX} --archs ${ARCH} --config ${CONFIGURATION})
+        if [ ${WITH_VULKAN} -eq 1 ]; then
+            LINUX_ARGS+=(--with-vulkan)
+        fi
+        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_linux.sh "${LINUX_ARGS[@]}")
         ;;
 
     x86_64-win32|x86-win32)
@@ -214,7 +262,11 @@ case $PLATFORM in
             ARCH=x86
         fi
 
-        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_windows.sh --prefix ${PREFIX} --archs ${ARCH} --config ${CONFIGURATION})
+        WINDOWS_ARGS=(--prefix ${PREFIX} --archs ${ARCH} --config ${CONFIGURATION})
+        if [ ${WITH_VULKAN} -eq 1 ]; then
+            WINDOWS_ARGS+=(--with-vulkan)
+        fi
+        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_windows.sh "${WINDOWS_ARGS[@]}")
         ;;
 
     *)

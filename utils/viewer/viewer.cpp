@@ -30,6 +30,7 @@
 #include <dmsdk/dlib/log.h> // LogParams
 
 #include <defold/rive.h>
+#include <rive/shapes/paint/color.hpp>
 #include "common/file.h"
 #include "texture.h"
 #include <common/commands.h>
@@ -636,13 +637,22 @@ static UpdateResult EngineUpdate(void* _engine)
 
     UpdateRiveScene(engine);
 
+    bool use_final_blit = true;
+#if defined(DM_PLATFORM_LINUX) || defined(DM_GRAPHICS_USE_VULKAN)
+    // Linux OpenGL can fail creating the intermediate render target.
+    // Render directly to the default framebuffer in that case.
+
+    use_final_blit = false;
+#endif
+
     {
         rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
 
         // engine->m_Factory
         dmRive::RenderBeginParams render_params;
-        render_params.m_DoFinalBlit = true;
+        render_params.m_DoFinalBlit = use_final_blit;
         render_params.m_BackbufferSamples = 0;
+        render_params.m_ClearColor = rive::colorARGB(255, 0, 0, 0);
         dmRive::RenderBegin(engine->m_RenderContext, 0, render_params);
 
         DrawRiveScene(engine);
@@ -651,11 +661,11 @@ static UpdateResult EngineUpdate(void* _engine)
         dmRive::RenderEnd(engine->m_RenderContext);
     }
 
-    dmGraphics::Clear(engine->m_GraphicsContext, dmGraphics::BUFFER_TYPE_COLOR0_BIT, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0);
-
-    DrawFullscreenQuad(engine, dmRive::GetBackingTexture(engine->m_RenderContext));
-
-    dmGraphics::Flip(engine->m_GraphicsContext);
+    if (use_final_blit)
+    {
+        dmGraphics::Clear(engine->m_GraphicsContext, dmGraphics::BUFFER_TYPE_COLOR0_BIT, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0);
+        DrawFullscreenQuad(engine, dmRive::GetBackingTexture(engine->m_RenderContext));
+    }
 
     if (!s_ScreenshotCaptured)
     {
@@ -681,6 +691,13 @@ static UpdateResult EngineUpdate(void* _engine)
         }
         s_ScreenshotCaptured = true;
     }
+    else if (!s_ScreenshotCaptured)
+    {
+        printf("Skipping screenshot capture (no intermediate render target in this backend mode)\n");
+        s_ScreenshotCaptured = true;
+    }
+
+    dmGraphics::Flip(engine->m_GraphicsContext);
 
     return RESULT_OK;
 }

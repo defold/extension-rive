@@ -41,6 +41,7 @@ namespace dmRive
         uint8_t  m_BackbufferSamples = 0;
         uint32_t m_Width = 0;
         uint32_t m_Height = 0;
+        uint32_t m_ClearColor = 0;
     };
 
     HRenderContext               NewRenderContext();
