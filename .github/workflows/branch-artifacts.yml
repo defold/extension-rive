@@ -72,12 +72,12 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Install Linux build dependencies (uuid, X11, Xcursor, Xrandr, Xi, Xinerama, Xf86VidMode)
+      - name: Install Linux build dependencies (uuid, X11, Xcursor, Xrandr, Xi, Xinerama, Xf86VidMode, glslang, spirv-tools)
         shell: bash
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y uuid-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libxinerama-dev libxxf86vm-dev
+          sudo apt-get install -y uuid-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libxinerama-dev libxxf86vm-dev glslang-tools spirv-tools
 
       - name: Setup LLVM/Clang 17
         uses: KyleMayes/install-llvm-action@v2
