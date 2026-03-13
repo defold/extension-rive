@@ -72,6 +72,33 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Resolve spirv-tools commit
+        id: spirv-tools-ref
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha="$(git ls-remote https://github.com/KhronosGroup/SPIRV-Tools.git HEAD | awk '{print $1}')"
+          if [ -z "${sha}" ]; then
+            echo "error: failed to resolve SPIRV-Tools HEAD" >&2
+            exit 1
+          fi
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore cached spirv-opt
+        uses: actions/cache@v4
+        with:
+          path: build/toolcache/spirv-opt/${{ runner.os }}-${{ runner.arch }}
+          key: spirv-opt-${{ runner.os }}-${{ runner.arch }}-${{ steps.spirv-tools-ref.outputs.sha }}
+
+      - name: Add cached spirv-opt to PATH
+        shell: bash
+        run: |
+          set -euo pipefail
+          cache_dir="${GITHUB_WORKSPACE}/build/toolcache/spirv-opt/${{ runner.os }}-${{ runner.arch }}"
+          if [ -x "${cache_dir}/spirv-opt" ]; then
+            echo "${cache_dir}" >> "$GITHUB_PATH"
+          fi
+
       - name: Install Linux build dependencies (uuid, X11, Xcursor, Xrandr, Xi, Xinerama, Xf86VidMode, glslang, spirv-tools)
         shell: bash
         run: |
@@ -83,6 +110,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          cache_dir="${GITHUB_WORKSPACE}/build/toolcache/spirv-opt/${{ runner.os }}-${{ runner.arch }}"
+          mkdir -p "${cache_dir}"
+
           if spirv-opt --help 2>&1 | grep -q -- '--preserve-interface'; then
             spirv-opt --version || true
             exit 0
@@ -92,6 +122,8 @@ jobs:
 
           TMP_DIR="$(mktemp -d)"
           git clone --depth 1 https://github.com/KhronosGroup/SPIRV-Tools.git "${TMP_DIR}/SPIRV-Tools"
+          git -C "${TMP_DIR}/SPIRV-Tools" fetch --depth 1 origin "${{ steps.spirv-tools-ref.outputs.sha }}"
+          git -C "${TMP_DIR}/SPIRV-Tools" checkout --detach "${{ steps.spirv-tools-ref.outputs.sha }}"
           python3 "${TMP_DIR}/SPIRV-Tools/utils/git-sync-deps"
           cmake -S "${TMP_DIR}/SPIRV-Tools" -B "${TMP_DIR}/build" -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
@@ -104,7 +136,9 @@ jobs:
             exit 1
           fi
 
-          sudo install -m 0755 "${SPIRV_OPT_BIN}" /usr/local/bin/spirv-opt
+          install -m 0755 "${SPIRV_OPT_BIN}" "${cache_dir}/spirv-opt"
+          echo "${cache_dir}" >> "$GITHUB_PATH"
+          export PATH="${cache_dir}:${PATH}"
           spirv-opt --version
           spirv-opt --help | grep -- '--preserve-interface'
 
