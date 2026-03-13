@@ -29,6 +29,10 @@ inputs:
     description: Push changes back to the same branch
     required: true
     default: "true"
+  with_vulkan:
+    description: Pass --with-vulkan to the runtime build script
+    required: false
+    default: "false"
 
 runs:
   using: composite
@@ -83,11 +87,16 @@ runs:
       shell: bash
       env:
         INPUT_PLATFORM: ${{ inputs.platform }}
+        INPUT_WITH_VULKAN: ${{ inputs.with_vulkan }}
       run: |
         set -euo pipefail
         platform="$INPUT_PLATFORM"
-        echo "Running: ./utils/build_rive_runtime.sh ${platform} ${RIVE_ROOT}"
-        bash utils/build_rive_runtime.sh "${platform}" "${RIVE_ROOT}"
+        args=("${platform}" "${RIVE_ROOT}")
+        if [ "$INPUT_WITH_VULKAN" = "true" ]; then
+          args+=(--with-vulkan)
+        fi
+        echo "Running: ./utils/build_rive_runtime.sh ${args[*]}"
+        bash utils/build_rive_runtime.sh "${args[@]}"
 
     - name: Pack artifacts (optional)
       if: ${{ inputs.upload_artifact == 'true' }}
