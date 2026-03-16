@@ -29,6 +29,10 @@ inputs:
     description: Push changes back to the same branch
     required: true
     default: "true"
+  build_mode:
+    description: Build mode (`patched` uses utils/build_rive_runtime.sh, `vanilla` uses build/build_rive.sh directly when supported)
+    required: false
+    default: "patched"
   with_vulkan:
     description: Pass --with-vulkan to the runtime build script
     required: false
@@ -84,6 +88,7 @@ runs:
         git status
 
     - name: Build Rive runtime
+      if: ${{ inputs.build_mode != 'vanilla' }}
       shell: bash
       env:
         INPUT_PLATFORM: ${{ inputs.platform }}
@@ -97,6 +102,82 @@ runs:
         fi
         echo "Running: ./utils/build_rive_runtime.sh ${args[*]}"
         bash utils/build_rive_runtime.sh "${args[@]}"
+
+    - name: Build Rive Runtime (vanilla)
+      if: ${{ inputs.build_mode == 'vanilla' }}
+      shell: bash
+      env:
+        INPUT_PLATFORM: ${{ inputs.platform }}
+        INPUT_WITH_VULKAN: ${{ inputs.with_vulkan }}
+      run: |
+        set -euo pipefail
+
+        if [[ "$INPUT_PLATFORM" != "x86_64-win32" && "$INPUT_PLATFORM" != "x86-win32" ]]; then
+          echo "error: build_mode=vanilla is currently only supported for win32 platforms" >&2
+          exit 1
+        fi
+
+        build_args=(release clean)
+        if [ "$INPUT_WITH_VULKAN" = "true" ]; then
+          build_args+=(--with_vulkan)
+        fi
+        build_args+=(
+          --
+          rive
+          rive_pls_renderer
+          rive_decoders
+          rive_harfbuzz
+          rive_sheenbidi
+          rive_yoga
+          miniaudio
+          zlib
+          libpng
+          libjpeg
+          libwebp
+        )
+
+        echo "Running (in ${RIVE_ROOT}/renderer): ../build/build_rive.sh ${build_args[*]}"
+        (
+          cd "${RIVE_ROOT}/renderer"
+          ../build/build_rive.sh "${build_args[@]}"
+        )
+
+    - name: Install Rive Runtime (vanilla)
+      if: ${{ inputs.build_mode == 'vanilla' }}
+      shell: bash
+      env:
+        INPUT_PLATFORM: ${{ inputs.platform }}
+      run: |
+        set -euo pipefail
+
+        repo_root="$(pwd -P)"
+        prefix="${repo_root}/defold-rive"
+        install_dir="${prefix}/lib/${INPUT_PLATFORM}"
+        version_header="${prefix}/include/defold/rive_version.h"
+        runtime_out_dir="${RIVE_ROOT}/renderer/out/release"
+
+        rm -rf "${prefix}/include/rive"
+        mkdir -p "${install_dir}"
+        rm -f "${install_dir}"/*.lib "${install_dir}"/*.a "${install_dir}"/*.dll
+
+        "${repo_root}/utils/buildscripts/build_headers.sh" --prefix "${prefix}" --root "${RIVE_ROOT}"
+        "${repo_root}/utils/buildscripts/build_version_header.sh" "${version_header}" "${RIVE_ROOT}"
+
+        found_libs=0
+        for ext in lib a; do
+          for src in "${runtime_out_dir}"/*.${ext}; do
+            if [[ ! -f "${src}" ]]; then
+              continue
+            fi
+            cp -f "${src}" "${install_dir}/"
+            found_libs=1
+          done
+        done
+
+        if [[ "${found_libs}" -eq 0 ]]; then
+          echo "error: no .lib or .a files found in ${runtime_out_dir}" >&2
+          exit 1
+        fi
 
     - name: Pack artifacts (optional)
       if: ${{ inputs.upload_artifact == 'true' }}

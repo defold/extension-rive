@@ -351,6 +351,7 @@ jobs:
           upload_artifact: ${{ github.event.inputs.upload_artifact }}
           commit_message: ${{ github.event.inputs.commit_message }}
           push_changes: ${{ github.event.inputs.push_changes }}
+          build_mode: vanilla
           with_vulkan: true
 
   build-plugin-macos:
