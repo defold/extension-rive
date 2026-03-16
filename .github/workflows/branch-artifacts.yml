@@ -343,8 +343,7 @@ jobs:
 
   build-windows:
     if: ${{ github.event.inputs.platform == 'x86-win32' || github.event.inputs.platform == 'x86_64-win32' || github.event.inputs.platform == 'all' }}
-    needs: prepare-defoldsdk
-    runs-on: ubuntu-22.04
+    runs-on: windows-2022
     strategy:
       matrix:
         platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["x86_64-win32"]' || format('["{0}"]', github.event.inputs.platform)) }}
@@ -354,12 +353,10 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Install Linux build tools
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y wget python3-ply
+      - name: Setup Python 3
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
 
       - name: Clone Rive runtime
         shell: bash
@@ -373,39 +370,46 @@ jobs:
             (cd "$RIVE_TMP_DIR" && git fetch --depth 1 origin "${{ github.event.inputs.rive_ref }}" && git checkout --force "${{ github.event.inputs.rive_ref }}")
           fi
           echo "RIVE_TMP_DIR=$RIVE_TMP_DIR" >> "$GITHUB_ENV"
-      - name: Setup Temurin Java 21
-        uses: actions/setup-java@v4
+
+      - name: Setup VS DevCmd (x64)
+        if: ${{ matrix.platform == 'x86_64-win32' }}
+        uses: ilammy/msvc-dev-cmd@v1
         with:
-          distribution: 'temurin'
-          java-version: '25'
+          arch: x64
+          vsversion: 2022
+          toolset: 14.20
+          sdk: 10.0.22621.0
 
-      - name: Verify Java
-        shell: bash
-        run: |
-          set -euo pipefail
-          java --version
-
-      - name: Restore Defold SDK and bob.jar from cache
-        uses: actions/cache/restore@v4
+      - name: Setup VS DevCmd (x86)
+        if: ${{ matrix.platform == 'x86-win32' }}
+        uses: ilammy/msvc-dev-cmd@v1
         with:
-          path: |
-            bob.jar
-            build/defoldsdk
-          key: ${{ needs.prepare-defoldsdk.outputs.defoldsdk_cache_key }}
-          enableCrossOsArchive: true
-          fail-on-cache-miss: true
+          arch: x86
+          vsversion: 2022
+          toolset: 14.20
+          sdk: 10.0.22621.0
 
-      - name: Verify Bob
+      - name: Setup CMake 4.1
+        uses: lukka/get-cmake@v4.1.1
+
+      - name: MSBuild sanity check
+        shell: pwsh
+        run: |
+          msbuild -version
+          Get-Command msbuild.exe | Format-List -Property Source
+
+      - name: Install DirectX Shader Compiler (DXC)
         shell: bash
         run: |
           set -euo pipefail
-          java -jar ./bob.jar -version
+          choco install directxshadercompiler -y || true
+          dxc.exe -version 2> /dev/null || true
 
-      - name: Build libraries
+      - name: Build libraries with Vulkan
         shell: bash
         run: |
           set -euo pipefail
-          BOB=./bob.jar ./utils/build_pls.sh --rive "$RIVE_TMP_DIR" "${{ matrix.platform }}"
+          ./utils/build_rive_runtime.sh "${{ matrix.platform }}" "$RIVE_TMP_DIR" --with-vulkan
 
       - name: Commit native libs
         if: ${{ github.event.inputs.push_changes == 'true' }}
