@@ -285,65 +285,8 @@ jobs:
           commit_message: ${{ github.event.inputs.commit_message }}
           push_changes: ${{ github.event.inputs.push_changes }}
 
-  # build-windows:
-  #   if: ${{ github.event.inputs.platform == 'x86-win32' || github.event.inputs.platform == 'x86_64-win32' || github.event.inputs.platform == 'all' }}
-  #   runs-on: windows-2022
-  #   strategy:
-  #     matrix:
-  #       platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["x86_64-win32"]' || format('["{0}"]', github.event.inputs.platform)) }}
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@v5
-  #       with:
-  #         fetch-depth: 1
-
-  #     - name: Setup VS DevCmd (x64)
-  #       if: ${{ matrix.platform == 'x86_64-win32' }}
-  #       uses: ilammy/msvc-dev-cmd@v1
-  #       with:
-  #         arch: x64
-  #         vsversion: 2022
-  #         toolset: 14.20
-  #         sdk: 10.0.22621.0
-
-  #     - name: Setup VS DevCmd (x86)
-  #       if: ${{ matrix.platform == 'x86-win32' }}
-  #       uses: ilammy/msvc-dev-cmd@v1
-  #       with:
-  #         arch: x86
-  #         vsversion: 2022
-  #         toolset: 14.20
-  #         sdk: 10.0.22621.0
-
-  #     - name: MSBuild sanity check
-  #       shell: pwsh
-  #       run: |
-  #         msbuild -version
-  #         Get-Command msbuild.exe | Format-List -Property Source
-
-  #     - name: Install DirectX Shader Compiler (DXC)
-  #       shell: bash
-  #       run: |
-  #         set -euo pipefail
-  #         choco install directxshadercompiler -y || true
-  #         # Verify availability if installed
-  #         dxc.exe -version 2> NUL || true
-
-  #     - name: Build, (optionally) upload, and commit
-  #       uses: ./.github/actions/rive-build
-  #       with:
-  #         platform: ${{ matrix.platform }}
-  #         rive_repo_url: ${{ github.event.inputs.rive_repo_url }}
-  #         rive_ref: ${{ github.event.inputs.rive_ref }}
-  #         rive_sha: ${{ github.event.inputs.rive_sha }}
-  #         upload_artifact: ${{ github.event.inputs.upload_artifact }}
-  #         commit_message: ${{ github.event.inputs.commit_message }}
-  #         push_changes: ${{ github.event.inputs.push_changes }}
-
-
   build-windows:
     if: ${{ github.event.inputs.platform == 'x86-win32' || github.event.inputs.platform == 'x86_64-win32' || github.event.inputs.platform == 'all' }}
-    needs: prepare-defoldsdk
     runs-on: windows-2022
     strategy:
       matrix:
@@ -359,37 +302,12 @@ jobs:
         with:
           python-version: "3.x"
 
-      - name: Restore Defold SDK and bob.jar from cache
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            bob.jar
-            build/defoldsdk
-          key: ${{ needs.prepare-defoldsdk.outputs.defoldsdk_cache_key }}
-          enableCrossOsArchive: true
-          fail-on-cache-miss: true
-
-      - name: Clone Rive runtime
-        shell: bash
-        run: |
-          set -euo pipefail
-          RIVE_TMP_DIR=$(mktemp -d)
-          git clone --depth 1 "${{ github.event.inputs.rive_repo_url }}" "$RIVE_TMP_DIR"
-          if [ -n "${{ github.event.inputs.rive_sha }}" ]; then
-            (cd "$RIVE_TMP_DIR" && git fetch --depth 1 origin "${{ github.event.inputs.rive_sha }}" && git checkout --force "${{ github.event.inputs.rive_sha }}")
-          elif [ -n "${{ github.event.inputs.rive_ref }}" ]; then
-            (cd "$RIVE_TMP_DIR" && git fetch --depth 1 origin "${{ github.event.inputs.rive_ref }}" && git checkout --force "${{ github.event.inputs.rive_ref }}")
-          fi
-          echo "RIVE_TMP_DIR=$RIVE_TMP_DIR" >> "$GITHUB_ENV"
-
       - name: Setup VS DevCmd (x64)
         if: ${{ matrix.platform == 'x86_64-win32' }}
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
           vsversion: 2022
-          toolset: 14.20
-          sdk: 10.0.22621.0
 
       - name: Setup VS DevCmd (x86)
         if: ${{ matrix.platform == 'x86-win32' }}
@@ -397,11 +315,6 @@ jobs:
         with:
           arch: x86
           vsversion: 2022
-          toolset: 14.20
-          sdk: 10.0.22621.0
-
-      - name: Setup CMake 4.1
-        uses: lukka/get-cmake@v4.1.1
 
       - name: Install Vulkan SDK
         uses: humbletim/install-vulkan-sdk@v1.2
@@ -419,6 +332,7 @@ jobs:
         run: |
           set -euo pipefail
           glslangValidator --version
+          spirv-opt --version
 
       - name: Install DirectX Shader Compiler (DXC)
         shell: bash
@@ -427,52 +341,17 @@ jobs:
           choco install directxshadercompiler -y || true
           dxc.exe -version 2> /dev/null || true
 
-      - name: Build libraries with Vulkan
-        shell: bash
-        env:
-          DYNAMO_HOME: ${{ github.workspace }}/build/defoldsdk/defoldsdk
-        run: |
-          set -euo pipefail
-          ./utils/build_rive_runtime.sh "${{ matrix.platform }}" "$RIVE_TMP_DIR" --with-vulkan
-
-      - name: Commit native libs
-        if: ${{ github.event.inputs.push_changes == 'true' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          PLATFORM_DIR="defold-rive/lib/${{ matrix.platform }}"
-          git add -v "$PLATFORM_DIR" || true
-          if git diff --cached --quiet; then
-            echo "No native lib changes to commit."
-            exit 0
-          fi
-          msg="ci: update native libs (${{ matrix.platform }}) on ${{ github.ref_name }} [skip ci]"
-          if [ -n "${{ github.event.inputs.commit_message }}" ]; then
-            msg="$msg - ${{ github.event.inputs.commit_message }}"
-          fi
-          git commit -m "$msg"
-          max_attempts=3
-          attempt=1
-          until [ $attempt -gt $max_attempts ]; do
-            echo "Attempt $attempt: rebase + push"
-            if git pull --rebase origin "${{ github.ref_name }}"; then
-              if git push origin HEAD:"${{ github.ref_name }}"; then
-                echo "Push succeeded"
-                break
-              fi
-            else
-              echo "Rebase failed; aborting and retrying"
-              git rebase --abort || true
-            fi
-            attempt=$((attempt+1))
-            sleep $((attempt*2))
-          done
-          if [ $attempt -gt $max_attempts ]; then
-            echo "Push failed after $max_attempts attempts"
-            exit 1
-          fi
+      - name: Build, (optionally) upload, and commit
+        uses: ./.github/actions/rive-build
+        with:
+          platform: ${{ matrix.platform }}
+          rive_repo_url: ${{ github.event.inputs.rive_repo_url }}
+          rive_ref: ${{ github.event.inputs.rive_ref }}
+          rive_sha: ${{ github.event.inputs.rive_sha }}
+          upload_artifact: ${{ github.event.inputs.upload_artifact }}
+          commit_message: ${{ github.event.inputs.commit_message }}
+          push_changes: ${{ github.event.inputs.push_changes }}
+          with_vulkan: true
 
   build-plugin-macos:
     if: ${{ github.event.inputs.platform == 'arm64-macos' || github.event.inputs.platform == 'x86_64-macos' || github.event.inputs.platform == 'all' }}

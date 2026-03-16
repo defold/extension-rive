@@ -134,7 +134,7 @@ runs:
         [ -d defold-rive/lib ] && add_paths+=(defold-rive/lib)
         [ -d defold-rive/include ] && add_paths+=(defold-rive/include)
         if [ ${#add_paths[@]} -gt 0 ]; then
-          git add -v "${add_paths[@]}" || true
+          git add -A -v "${add_paths[@]}" || true
         fi
         if git diff --cached --quiet; then
           echo "No changes to commit."
