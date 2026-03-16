@@ -454,13 +454,20 @@ jobs:
             msg="$msg - ${{ github.event.inputs.commit_message }}"
           fi
           git commit -m "$msg"
+          git config http.version HTTP/1.1
           max_attempts=3
           attempt=1
           until [ $attempt -gt $max_attempts ]; do
             echo "Attempt $attempt: rebase + push"
             if git pull --rebase origin "${{ github.ref_name }}"; then
+              local_sha="$(git rev-parse HEAD)"
               if git push origin HEAD:"${{ github.ref_name }}"; then
                 echo "Push succeeded"
+                break
+              fi
+              remote_sha="$(git ls-remote origin "refs/heads/${{ github.ref_name }}" | awk '{print $1}' || true)"
+              if [ -n "${remote_sha}" ] && [ "${remote_sha}" = "${local_sha}" ]; then
+                echo "Remote branch already points at ${local_sha}; treating push as successful."
                 break
               fi
             else
@@ -593,13 +600,20 @@ jobs:
             msg="$msg - ${{ github.event.inputs.commit_message }}"
           fi
           git commit -m "$msg"
+          git config http.version HTTP/1.1
           max_attempts=3
           attempt=1
           until [ $attempt -gt $max_attempts ]; do
             echo "Attempt $attempt: rebase + push"
             if git pull --rebase origin "${{ github.ref_name }}"; then
+              local_sha="$(git rev-parse HEAD)"
               if git push origin HEAD:"${{ github.ref_name }}"; then
                 echo "Push succeeded"
+                break
+              fi
+              remote_sha="$(git ls-remote origin "refs/heads/${{ github.ref_name }}" | awk '{print $1}' || true)"
+              if [ -n "${remote_sha}" ] && [ "${remote_sha}" = "${local_sha}" ]; then
+                echo "Remote branch already points at ${local_sha}; treating push as successful."
                 break
               fi
             else
@@ -710,13 +724,20 @@ jobs:
             msg="$msg - ${{ github.event.inputs.commit_message }}"
           fi
           git commit -m "$msg"
+          git config http.version HTTP/1.1
           max_attempts=3
           attempt=1
           until [ $attempt -gt $max_attempts ]; do
             echo "Attempt $attempt: rebase + push"
             if git pull --rebase origin "${{ github.ref_name }}"; then
+              local_sha="$(git rev-parse HEAD)"
               if git push origin HEAD:"${{ github.ref_name }}"; then
                 echo "Push succeeded"
+                break
+              fi
+              remote_sha="$(git ls-remote origin "refs/heads/${{ github.ref_name }}" | awk '{print $1}' || true)"
+              if [ -n "${remote_sha}" ] && [ "${remote_sha}" = "${local_sha}" ]; then
+                echo "Remote branch already points at ${local_sha}; treating push as successful."
                 break
               fi
             else

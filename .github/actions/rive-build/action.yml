@@ -145,13 +145,20 @@ runs:
           msg="$msg - ${COMMIT_SUFFIX}"
         fi
         git commit -m "$msg"
+        git config http.version HTTP/1.1
         max_attempts=3
         attempt=1
         until [ $attempt -gt $max_attempts ]; do
           echo "Attempt $attempt: rebase + push"
           if git pull --rebase origin "${GITHUB_REF_NAME}"; then
+            local_sha="$(git rev-parse HEAD)"
             if git push origin HEAD:"${GITHUB_REF_NAME}"; then
               echo "Push succeeded"
+              break
+            fi
+            remote_sha="$(git ls-remote origin "refs/heads/${GITHUB_REF_NAME}" | awk '{print $1}' || true)"
+            if [ -n "${remote_sha}" ] && [ "${remote_sha}" = "${local_sha}" ]; then
+              echo "Remote branch already points at ${local_sha}; treating push as successful."
               break
             fi
           else
