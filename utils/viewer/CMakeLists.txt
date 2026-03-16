@@ -203,29 +203,12 @@ set(RIVE_RUNTIME_LIBS
     rive_sheenbidi
     rive_yoga
     rive_decoders
+    zlib
     libjpeg
     libpng
     libwebp
     miniaudio
 )
-
-if(${TARGET_PLATFORM} MATCHES "win32")
-    # Keep win32 viewer aligned with the actual archive names in
-    # defold-rive/lib/x86_64-win32.
-    set(RIVE_RUNTIME_LIBS
-        rive
-        rive_renderer
-        rive_decoders
-        harfbuzz
-        sheenbidi
-        yoga
-        libjpeg
-        libpng
-        libwebp
-        miniaudio
-        zlib
-    )
-endif()
 
 set(GRAPHICS_LIBS)
 if(WITH_METAL)

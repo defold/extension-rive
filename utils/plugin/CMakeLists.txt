@@ -286,11 +286,11 @@ if(TARGET_PLATFORM STREQUAL "x86_64-win32")
     # Keep this aligned with defold-rive/lib/x86_64-win32 runtime outputs.
     target_link_libraries(rive_plugin PRIVATE
             rive
-            rive_renderer
+            rive_pls_renderer
             rive_decoders
-            sheenbidi
-            harfbuzz
-            yoga
+            rive_sheenbidi
+            rive_harfbuzz
+            rive_yoga
             zlib
             libjpeg
             libpng
