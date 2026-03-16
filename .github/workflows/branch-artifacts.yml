@@ -343,6 +343,7 @@ jobs:
 
   build-windows:
     if: ${{ github.event.inputs.platform == 'x86-win32' || github.event.inputs.platform == 'x86_64-win32' || github.event.inputs.platform == 'all' }}
+    needs: prepare-defoldsdk
     runs-on: windows-2022
     strategy:
       matrix:
@@ -357,6 +358,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.x"
+
+      - name: Restore Defold SDK and bob.jar from cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            bob.jar
+            build/defoldsdk
+          key: ${{ needs.prepare-defoldsdk.outputs.defoldsdk_cache_key }}
+          enableCrossOsArchive: true
+          fail-on-cache-miss: true
 
       - name: Clone Rive runtime
         shell: bash
@@ -392,11 +403,22 @@ jobs:
       - name: Setup CMake 4.1
         uses: lukka/get-cmake@v4.1.1
 
+      - name: Install Vulkan SDK
+        uses: humbletim/install-vulkan-sdk@v1.2
+        with:
+          cache: true
+
       - name: MSBuild sanity check
         shell: pwsh
         run: |
           msbuild -version
           Get-Command msbuild.exe | Format-List -Property Source
+
+      - name: Verify Vulkan tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          glslangValidator --version
 
       - name: Install DirectX Shader Compiler (DXC)
         shell: bash
@@ -407,6 +429,8 @@ jobs:
 
       - name: Build libraries with Vulkan
         shell: bash
+        env:
+          DYNAMO_HOME: ${{ github.workspace }}/build/defoldsdk/defoldsdk
         run: |
           set -euo pipefail
           ./utils/build_rive_runtime.sh "${{ matrix.platform }}" "$RIVE_TMP_DIR" --with-vulkan
