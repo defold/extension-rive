@@ -15,7 +15,12 @@ if(NOT TARGET_PLATFORM)
     message(FATAL_ERROR "TARGET_PLATFORM must be supplied as a CMake variable or environment variable")
 endif()
 
-if(${TARGET_PLATFORM} MATCHES "macos")
+set(WITH_METAL FALSE)
+if(TARGET_PLATFORM MATCHES "macos")
+    set(WITH_METAL TRUE)
+endif()
+
+if(WITH_METAL)
     enable_language(OBJCXX)
 endif()
 
@@ -109,8 +114,10 @@ add_executable(viewer
     "${VIEWER_SHADER_SOURCE}"
 )
 
-if(WITH_VULKAN)
+if(WITH_METAL)
     target_compile_definitions(viewer PRIVATE DM_GRAPHICS_USE_VULKAN)
+elseif(WITH_VULKAN)
+    target_compile_definitions(viewer PRIVATE DM_GRAPHICS_USE_METAL)
 else()
     target_compile_definitions(viewer PRIVATE DM_GRAPHICS_USE_OPENGL)
 endif()
@@ -120,7 +127,7 @@ file(GLOB RIVE_COMMON_SRC
     "${EXTENSION_ROOT}/defold-rive/commonsrc/renderer/renderer_private.cpp"
 )
 
-if(${TARGET_PLATFORM} MATCHES "macos")
+if(WITH_METAL)
     list(APPEND RIVE_COMMON_SRC "${EXTENSION_ROOT}/defold-rive/commonsrc/renderer/renderer_context_metal.mm")
 elseif(WITH_VULKAN)
     list(APPEND RIVE_COMMON_SRC "${EXTENSION_ROOT}/defold-rive/commonsrc/renderer/renderer_context_vulkan.cpp")
@@ -221,7 +228,7 @@ if(${TARGET_PLATFORM} MATCHES "win32")
 endif()
 
 set(GRAPHICS_LIBS)
-if(${TARGET_PLATFORM} MATCHES "macos")
+if(WITH_METAL)
     # macOS viewer uses the Metal renderer path, backed by Defold's Vulkan bridge.
     list(APPEND GRAPHICS_LIBS
         graphics_vulkan
@@ -235,7 +242,7 @@ set(TARGET_LIBS
     ${GRAPHICS_LIBS}
     ${RIVE_RUNTIME_LIBS})
 
-if(${TARGET_PLATFORM} MATCHES "macos")
+if(WITH_METAL)
     file(GLOB RIVE_COMMON_OBJCXX_SRC
         "${EXTENSION_ROOT}/defold-rive/commonsrc/renderer/*.mm"
     )
