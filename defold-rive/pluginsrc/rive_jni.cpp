@@ -135,22 +135,16 @@ enum ReadbackSource
 
 static bool ShouldFlipReadbackY(dmGraphics::AdapterFamily adapter_family, ReadbackSource readback_source)
 {
-    switch (adapter_family)
-    {
-        case dmGraphics::ADAPTER_FAMILY_VULKAN:
-            if (readback_source == READBACK_SOURCE_BACKBUFFER)
-            {
-                return false;
-            }
-            return true;
-
-        case dmGraphics::ADAPTER_FAMILY_OPENGL:
-        case dmGraphics::ADAPTER_FAMILY_OPENGLES:
-            return false;
-
-        default:
-            return readback_source == READBACK_SOURCE_TEXTURE;
-    }
+#if defined(DM_GRAPHICS_USE_VULKAN)
+    (void)adapter_family;
+    (void)readback_source;
+    // The editor hot path expects Vulkan snapshots with an additional Y flip.
+    return true;
+#else
+    (void)adapter_family;
+    (void)readback_source;
+    return false;
+#endif
 }
 
 static bool AlignmentEquals(const rive::Alignment& lhs, const rive::Alignment& rhs)

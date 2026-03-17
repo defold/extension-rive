@@ -136,7 +136,7 @@ static bool WriteTgaFile(const char* path, dmRive::TexturePixels* pixels)
         return false;
     }
 
-    // TGA header: image type, width/height, 32 bpp, 8-bit alpha, top-left origin.
+    // TGA header: image type, width/height, 32 bpp, 8-bit alpha.
     uint8_t header[18];
     memset(header, 0, sizeof(header));
     header[2] = 2; // Uncompressed true-color image.
@@ -145,7 +145,14 @@ static bool WriteTgaFile(const char* path, dmRive::TexturePixels* pixels)
     header[14] = (uint8_t)(pixels->m_Height & 0xFF); // Height (low byte).
     header[15] = (uint8_t)((pixels->m_Height >> 8) & 0xFF); // Height (high byte).
     header[16] = 32; // Bits per pixel.
-    header[17] = 8 | 0x20; // 8-bit alpha, top-left origin.
+    // OpenGL texture readback is bottom-left ordered, while the Vulkan
+    // backbuffer path is already top-left ordered in the saved screenshot.
+    header[17] = 8;
+    if (s_AdapterFamily != dmGraphics::ADAPTER_FAMILY_OPENGL &&
+        s_AdapterFamily != dmGraphics::ADAPTER_FAMILY_OPENGLES)
+    {
+        header[17] |= 0x20; // Top-left origin.
+    }
 
     fwrite(header, 1, sizeof(header), f);
     fwrite(pixels->m_Data, 1, pixels->m_DataSize, f);

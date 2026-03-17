@@ -340,7 +340,9 @@ public class Rive {
             header[14] = (byte)(texture.height & 0xFF);
             header[15] = (byte)((texture.height >> 8) & 0xFF);
             header[16] = 32; // Bits per pixel.
-            header[17] = (byte)(8 | 0x20); // 8-bit alpha, top-left origin.
+            // Match the Vulkan-oriented native snapshot path by writing a
+            // bottom-left origin TGA.
+            header[17] = 8;
 
             output.write(header);
             // Native plugin snapshot data is ABGR for editor upload.
