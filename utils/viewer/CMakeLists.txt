@@ -115,7 +115,7 @@ add_executable(viewer
 )
 
 if(WITH_METAL)
-    target_compile_definitions(viewer PRIVATE DM_GRAPHICS_USE_METAL)
+    target_compile_definitions(viewer PRIVATE DM_GRAPHICS_USE_METAL DM_GRAPHICS_USE_VULKAN)
 elseif(WITH_VULKAN)
     target_compile_definitions(viewer PRIVATE DM_GRAPHICS_USE_VULKAN)
 else()
@@ -182,7 +182,6 @@ set(ENGINE_LIBS
     profile_null
     platform
     render
-    graphics
 )
 
 if(${TARGET_PLATFORM} MATCHES "win32")
@@ -217,6 +216,7 @@ if(WITH_METAL)
         graphics_vulkan
         platform_vulkan
         glfw3
+        MoltenVK
     )
 endif()
 
@@ -231,9 +231,6 @@ if(WITH_METAL)
     )
     target_sources(viewer PRIVATE ${RIVE_COMMON_OBJCXX_SRC})
 
-    list(APPEND TARGET_LIBS
-        MoltenVK
-    )
     target_link_libraries(viewer PRIVATE
         "-framework CoreGraphics"
         "-framework CoreFoundation"
