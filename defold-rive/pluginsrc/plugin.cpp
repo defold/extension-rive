@@ -392,7 +392,7 @@ static bool InstallGraphicsAdapter()
     s_AdapterInstallAttempted = true;
 
 #if defined(DM_GRAPHICS_USE_VULKAN)
-    GraphicsAdapterVulkan();  // register the adapter
+    GraphicsAdapterVulkan(); // register the adapter
 #else
     GraphicsAdapterOpenGL(); // register the adapter
 #endif

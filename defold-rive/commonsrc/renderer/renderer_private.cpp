@@ -39,10 +39,10 @@ namespace dmRive
     {
     #if defined(DM_PLATFORM_MACOS) || defined(DM_PLATFORM_IOS)
         IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererMetal();
-    #elif defined(DM_PLATFORM_HTML5) && defined(RIVE_WEBGPU)
-        IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererWebGPU();
     #elif defined(DM_GRAPHICS_USE_VULKAN) && defined(RIVE_VULKAN)
         IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererVulkan();
+    #elif defined(DM_PLATFORM_HTML5) && defined(RIVE_WEBGPU)
+        IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererWebGPU();
     #else
         IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererOpenGL();
     #endif

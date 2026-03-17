@@ -115,8 +115,7 @@ add_executable(viewer
 )
 
 if(WITH_METAL)
-    # macOS uses the Vulkan backend, but still needs Objective-C++ Metal glue.
-    target_compile_definitions(viewer PRIVATE DM_GRAPHICS_USE_VULKAN)
+    target_compile_definitions(viewer PRIVATE DM_GRAPHICS_USE_METAL)
 elseif(WITH_VULKAN)
     target_compile_definitions(viewer PRIVATE DM_GRAPHICS_USE_VULKAN)
 else()

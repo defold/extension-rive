@@ -247,7 +247,10 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 endif()
 
 if(TARGET_PLATFORM STREQUAL "arm64-macos" OR TARGET_PLATFORM STREQUAL "x86_64-macos")
-    target_compile_definitions(rive_plugin PRIVATE DM_PLATFORM_MACOS)
+    target_compile_definitions(rive_plugin PRIVATE
+        DM_PLATFORM_MACOS
+        DM_GRAPHICS_USE_VULKAN
+        DM_GRAPHICS_USE_METAL)
 elseif(TARGET_PLATFORM STREQUAL "x86_64-win32")
     target_compile_definitions(rive_plugin PRIVATE
         DM_PLATFORM_WINDOWS
@@ -315,7 +318,7 @@ else()
         list(APPEND RIVE_PLUGIN_LIBS
                     dlib mbedtls ddf
                     profile_null profilerext_null
-                    platform render graphics
+                    platform render
                     platform_vulkan graphics_vulkan glfw3 MoltenVK
                     resource script gamesys lua)
     else()
