@@ -4,10 +4,10 @@ set -e
 
 LIBNAME=RiveExt
 CLASS_NAME=com.dynamo.bob.pipeline.Rive
-JAR=./defold-rive/plugins/share/plugin${LIBNAME}.jar
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-#pushd $SCRIPT_DIR/..
+REPO_ROOT=$(realpath "${SCRIPT_DIR}/../..")
+JAR="${REPO_ROOT}/defold-rive/plugins/share/plugin${LIBNAME}.jar"
 
 set -e
 
@@ -35,7 +35,7 @@ case "${UNAME_S}" in
         fi
         ;;
 esac
-PLUGIN_PLATFORM_DIR=$(realpath "${SCRIPT_DIR}/../defold-rive/plugins/lib/${PLUGIN_PLATFORM}")
+PLUGIN_PLATFORM_DIR=$(realpath "${REPO_ROOT}/defold-rive/plugins/lib/${PLUGIN_PLATFORM}")
 
 if [ -z "${JAR}" ]; then
     echo "Couldn't find the jar file!"
@@ -91,7 +91,7 @@ else
     echo "libjsig not found; skipping preload"
 fi
 
-DUMP_FILE="${SCRIPT_DIR}/../build/rive_signal_dump.log"
+DUMP_FILE="${REPO_ROOT}/build/rive_signal_dump.log"
 mkdir -p "$(dirname "${DUMP_FILE}")"
 rm -f "${DUMP_FILE}"
 export DM_RIVE_SIGNAL_DUMP_PATH="${DUMP_FILE}"

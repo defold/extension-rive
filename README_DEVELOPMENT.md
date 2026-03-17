@@ -3,11 +3,11 @@
 ## Editor extension
 
 The Editor and Bob pipelines use shared libraries and a .jar file.
-To build these, use the `./utils/build_plugins.sh`.    (TODO: make BOB/BUILDSERVER more generic )
+To build these, use the `./utils/plugin/build.sh <platform>`.    (TODO: make BOB/BUILDSERVER more generic )
 
 ### Testing the plugin
 
-To test the plugin, use the `./utils/test_plugin.sh <.riv file>`
+To test the plugin, use the `./utils/plugin/test.sh <.riv file>`
 This will run the Rive.java main function, using the C++ plugins as implementation.
 
 ## rive-cpp

@@ -30,7 +30,7 @@ inputs:
     required: true
     default: "true"
   build_mode:
-    description: Build mode (`patched` uses utils/build_rive_runtime.sh, `vanilla` uses build/build_rive.sh directly when supported)
+    description: Build mode (`patched` uses utils/rive-runtime/build.sh, `vanilla` uses build/build_rive.sh directly when supported)
     required: false
     default: "patched"
   with_vulkan:
@@ -100,8 +100,8 @@ runs:
         if [ "$INPUT_WITH_VULKAN" = "true" ]; then
           args+=(--with-vulkan)
         fi
-        echo "Running: ./utils/build_rive_runtime.sh ${args[*]}"
-        bash utils/build_rive_runtime.sh "${args[@]}"
+        echo "Running: ./utils/rive-runtime/build.sh ${args[*]}"
+        bash utils/rive-runtime/build.sh "${args[@]}"
 
     - name: Build Rive Runtime (vanilla)
       if: ${{ inputs.build_mode == 'vanilla' }}
@@ -160,8 +160,8 @@ runs:
         mkdir -p "${install_dir}"
         rm -f "${install_dir}"/*.lib "${install_dir}"/*.a "${install_dir}"/*.dll
 
-        "${repo_root}/utils/buildscripts/build_headers.sh" --prefix "${prefix}" --root "${RIVE_ROOT}"
-        "${repo_root}/utils/buildscripts/build_version_header.sh" "${version_header}" "${RIVE_ROOT}"
+        "${repo_root}/utils/rive-runtime/buildscripts/build_headers.sh" --prefix "${prefix}" --root "${RIVE_ROOT}"
+        "${repo_root}/utils/rive-runtime/buildscripts/build_version_header.sh" "${version_header}" "${RIVE_ROOT}"
 
         found_libs=0
         for ext in lib a; do

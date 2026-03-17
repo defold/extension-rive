@@ -12,7 +12,7 @@ RIVECPP=$1
 shift
 
 function Usage {
-    echo "Usage: ./utils/build_rive_runtime.sh <platform> <rive_runtime_repo> [--with-vulkan]"
+    echo "Usage: ./utils/rive-runtime/build.sh <platform> <rive_runtime_repo> [--with-vulkan]"
     echo "platforms:"
     echo "  * arm64-android"
     echo "  * armv7-android"

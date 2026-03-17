@@ -1,5 +1,3 @@
-
-
 // Fix for "error: undefined symbol: __declspec(dllimport) longjmp" from libtess2
 #if defined(_MSC_VER)
 #include <setjmp.h>

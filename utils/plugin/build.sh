@@ -3,7 +3,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-REPO_ROOT=$(realpath ${SCRIPT_DIR}/..)
+REPO_ROOT=$(realpath ${SCRIPT_DIR}/../..)
 
 if [ $# -lt 1 ]; then
     echo "Usage: $0 <platform>"
@@ -12,7 +12,7 @@ fi
 
 PLATFORM="$1"
 CONFIG="${CONFIG:-RelWithDebInfo}"
-BUILD_DIR="${REPO_ROOT}/build/plugin/${PLATFORM}"
+BUILD_DIR="${SCRIPT_DIR}/build/${PLATFORM}"
 
 EXTENDER_PLATFORM="${PLATFORM}"
 case $PLATFORM in
@@ -106,7 +106,7 @@ fi
 
 mkdir -p "${BUILD_DIR}"
 
-cmake -S "${SCRIPT_DIR}/plugin" -B "${BUILD_DIR}" \
+cmake -S "${SCRIPT_DIR}" -B "${BUILD_DIR}" \
     -DTARGET_PLATFORM="${PLATFORM}" \
     -DCMAKE_BUILD_TYPE="${CONFIG}" \
     -DCMAKE_VERBOSE_MAKEFILE=ON \

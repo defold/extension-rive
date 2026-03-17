@@ -363,7 +363,7 @@ public class Rive {
         return true;
     }
 
-    // ./utils/test_plugin.sh <rive scene path>
+    // ./utils/plugin/test.sh <rive scene path>
     public static void main(String[] args) throws IOException {
         Initialize();
         System.setProperty("java.awt.headless", "true");

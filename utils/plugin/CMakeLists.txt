@@ -34,7 +34,7 @@ if(TARGET_PLATFORM_INDEX EQUAL -1)
         "Supported platforms: ${SUPPORTED_TARGET_PLATFORMS}")
 endif()
 
-if(CMAKE_BINARY_DIR MATCHES ".*/build/plugin/([^/]+)$")
+if(CMAKE_BINARY_DIR MATCHES ".*/plugin/build/([^/]+)$")
     set(BUILD_DIR_PLATFORM "${CMAKE_MATCH_1}")
     if(NOT BUILD_DIR_PLATFORM STREQUAL TARGET_PLATFORM)
         message(FATAL_ERROR
@@ -43,7 +43,7 @@ if(CMAKE_BINARY_DIR MATCHES ".*/build/plugin/([^/]+)$")
     endif()
 endif()
 
-set(PLUGIN_BUILD_DIR "${REPO_ROOT}/build/plugin/${TARGET_PLATFORM}")
+set(PLUGIN_BUILD_DIR "${REPO_ROOT}/utils/plugin/build/${TARGET_PLATFORM}")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${PLUGIN_BUILD_DIR}")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PLUGIN_BUILD_DIR}")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PLUGIN_BUILD_DIR}")
@@ -192,6 +192,10 @@ set(JAVA_SOURCES ${GLOB_JAVA_SOURCES} "${GENERATED_PROTO_JAVA}")
 
 file(GLOB_RECURSE PLUGIN_SOURCES
         CONFIGURE_DEPENDS
+        "${REPO_ROOT}/utils/plugin/src/*.c"
+        "${REPO_ROOT}/utils/plugin/src/*.cpp"
+        "${REPO_ROOT}/utils/plugin/src/*.cc"
+        "${REPO_ROOT}/utils/plugin/src/*.cxx"
         "${REPO_ROOT}/defold-rive/pluginsrc/*.c"
         "${REPO_ROOT}/defold-rive/pluginsrc/*.cpp"
         "${REPO_ROOT}/defold-rive/pluginsrc/*.cc"
@@ -205,7 +209,7 @@ endif()
 list(REMOVE_DUPLICATES ALL_SOURCES)
 
 if(NOT ALL_SOURCES)
-    message(FATAL_ERROR "No C/C++ sources found under defold-rive/commonsrc or defold-rive/pluginsrc")
+    message(FATAL_ERROR "No C/C++ sources found under defold-rive/commonsrc, defold-rive/pluginsrc, or utils/plugin/src")
 endif()
 
 add_compile_definitions(DLIB_LOG_DOMAIN="RIVE")
