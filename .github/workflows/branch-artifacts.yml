@@ -431,8 +431,8 @@ jobs:
           PROTOC: ${{ env.PROTOC }}
         run: |
           set -euo pipefail
-          ./utils/build_plugin.sh arm64-macos
-          ./utils/build_plugin.sh x86_64-macos
+          ./utils/plugin/build.sh arm64-macos
+          ./utils/plugin/build.sh x86_64-macos
 
       - name: Commit plugin outputs
         if: ${{ github.event.inputs.push_changes == 'true' }}
@@ -578,7 +578,7 @@ jobs:
           PROTOC: ${{ env.PROTOC }}
         run: |
           set -euo pipefail
-          ./utils/build_plugin.sh x86_64-linux
+          ./utils/plugin/build.sh x86_64-linux
 
       - name: Commit linux plugin outputs
         if: ${{ github.event.inputs.push_changes == 'true' }}
@@ -702,7 +702,7 @@ jobs:
           PROTOC: ${{ env.PROTOC }}
         run: |
           set -euo pipefail
-          ./utils/build_plugin.sh x86_64-win32
+          ./utils/plugin/build.sh x86_64-win32
 
       - name: Commit windows plugin outputs
         if: ${{ github.event.inputs.push_changes == 'true' }}
