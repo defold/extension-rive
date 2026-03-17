@@ -3,6 +3,7 @@
 set -e
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+REPO_ROOT="$(realpath "${SCRIPT_DIR}/../..")"
 SCRIPT_DIR_UTILS=${SCRIPT_DIR}/buildscripts
 
 PLATFORM=$1
@@ -78,7 +79,7 @@ case $PLATFORM in
 esac
 
 
-PREFIX=$(realpath ${SCRIPT_DIR}/../defold-rive)
+PREFIX="${REPO_ROOT}/defold-rive"
 LIBDIR=${PREFIX}/lib/${PLATFORM}
 
 echo "Using PLATFORM:${PLATFORM}"
@@ -278,7 +279,7 @@ esac
 
 echo "Removing unwanted files:"
 # Be resilient if nothing matches; remove quietly if present
-find "${SCRIPT_DIR}/../defold-rive/lib" -type f -iname "*glfw3.*" -exec rm -f -v {} + 2>/dev/null || true
-find "${SCRIPT_DIR}/../defold-rive/lib" -type f -iname "*path_fiddle.*" -exec rm -f -v {} + 2>/dev/null || true
+find "${REPO_ROOT}/defold-rive/lib" -type f -iname "*glfw3.*" -exec rm -f -v {} + 2>/dev/null || true
+find "${REPO_ROOT}/defold-rive/lib" -type f -iname "*path_fiddle.*" -exec rm -f -v {} + 2>/dev/null || true
 
 echo "Done!"
