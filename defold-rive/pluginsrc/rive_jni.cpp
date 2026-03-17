@@ -792,7 +792,9 @@ static bool GetTextureInternal(dmRive::RiveFile* rive_file,
     {
         if (render_to_backbuffer)
         {
-            return dmRive::ReadPixelsBackBuffer(pixels);
+            bool read_ok = dmRive::ReadPixelsBackBuffer(pixels);
+            dmGraphics::Flip(graphics_context);
+            return read_ok;
         }
 
         dmGraphics::HTexture backing_texture = dmRive::GetBackingTexture(render_context);
