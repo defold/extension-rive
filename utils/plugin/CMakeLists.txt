@@ -249,7 +249,14 @@ endif()
 if(TARGET_PLATFORM STREQUAL "arm64-macos" OR TARGET_PLATFORM STREQUAL "x86_64-macos")
     target_compile_definitions(rive_plugin PRIVATE DM_PLATFORM_MACOS)
 elseif(TARGET_PLATFORM STREQUAL "x86_64-win32")
-    target_compile_definitions(rive_plugin PRIVATE DM_PLATFORM_WINDOWS DM_RIVE_USE_OPENGL RIVE_WINDOWS RIVE_DESKTOP_GL NOMINMAX WIN32_LEAN_AND_MEAN)
+    target_compile_definitions(rive_plugin PRIVATE
+        DM_PLATFORM_WINDOWS
+        DM_GRAPHICS_USE_VULKAN
+        DM_RIVE_USE_VULKAN
+        RIVE_WINDOWS
+        RIVE_VULKAN
+        NOMINMAX
+        WIN32_LEAN_AND_MEAN)
 elseif(TARGET_PLATFORM MATCHES "linux")
     target_compile_definitions(rive_plugin PRIVATE DM_PLATFORM_LINUX DM_RIVE_USE_OPENGL RIVE_LINUX RIVE_DESKTOP_GL)
 endif()
@@ -279,9 +286,10 @@ if(TARGET_PLATFORM STREQUAL "x86_64-win32")
             libdlib libmbedtls libddf
             libprofile_null libprofilerext_null
             platform librender libgraphics
+            platform_vulkan libgraphics_vulkan
             librender_font_default libfont
             libresource libscript libgamesys libluajit-5.1)
-    target_link_libraries(rive_plugin PRIVATE Iphlpapi.lib libglfw3 opengl32)
+    target_link_libraries(rive_plugin PRIVATE Iphlpapi.lib libglfw3 vulkan-1)
 
     # Keep this aligned with defold-rive/lib/x86_64-win32 runtime outputs.
     target_link_libraries(rive_plugin PRIVATE

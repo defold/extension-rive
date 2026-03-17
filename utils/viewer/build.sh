@@ -4,7 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 
 WITH_ASAN=OFF
-WITH_VULKAN=OFF
+WITH_VULKAN=""
+WITH_OPENGL=""
 BUILD_CONFIG=RelWithDebInfo
 RIVE_LIB_DIR=""
 ARGS=()
@@ -46,23 +47,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --with_vulkan|--with-vulkan)
             WITH_VULKAN=ON
-            if [[ $# -ge 2 ]]; then
-                case "$2" in
-                    1|0|ON|on|OFF|off|TRUE|true|FALSE|false|YES|yes|NO|no)
-                        WITH_VULKAN="$(parse_on_off_flag "$2")"
-                        shift 2
-                        continue
-                        ;;
-                esac
-            fi
             shift
             ;;
-        --with_vulkan=*|--with-vulkan=*)
-            WITH_VULKAN="$(parse_on_off_flag "${1#*=}")"
-            shift
-            ;;
-        --without_vulkan|--without-vulkan|--no-with_vulkan|--no-with-vulkan)
-            WITH_VULKAN=OFF
+        --with_opengl|--with-opengl)
+            WITH_OPENGL=ON
             shift
             ;;
         --config)
@@ -88,7 +76,7 @@ while [[ $# -gt 0 ]]; do
         *)
             if [[ "$1" == --* ]]; then
                 echo "Unknown option: $1"
-                echo "Use --with_vulkan / --with-vulkan (optionally =ON|OFF)"
+                echo "Use --with-vulkan or --with-opengl"
                 exit 1
             fi
             ARGS+=("$1")
@@ -107,7 +95,7 @@ TARGET_PLATFORM="${ARGS[0]:-${TARGET_PLATFORM:-}}"
 
 if [ -z "${TARGET_PLATFORM}" ]; then
     echo "Missing required <target_platform> (or set TARGET_PLATFORM in env)."
-    echo "Usage: $0 [--with-asan] [--with-vulkan|--with_vulkan] [--config <Debug|Release|RelWithDebInfo|MinSizeRel>] [--rive-lib-dir <path>] [--use-utils-libs-win64] <target_platform>"
+    echo "Usage: $0 [--with-asan] [--with-vulkan|--with-opengl] [--config <Debug|Release|RelWithDebInfo|MinSizeRel>] [--rive-lib-dir <path>] [--use-utils-libs-win64] <target_platform>"
     echo "Example: $0 --with-vulkan x86_64-linux"
     exit 1
 fi
@@ -117,6 +105,18 @@ if [[ ! " ${ALLOWED_PLATFORMS[*]} " =~ " ${TARGET_PLATFORM} " ]]; then
     echo "Unsupported target platform: ${TARGET_PLATFORM}"
     echo "Supported platforms: ${ALLOWED_PLATFORMS[*]}"
     exit 1
+fi
+
+# Both cannot be set
+if [[ "${WITH_VULKAN}" == "ON" && "${WITH_OPENGL}" == "ON" ]]; then
+    echo "Conflicting backend options: both Vulkan and OpenGL were requested."
+    exit 1
+fi
+
+if [[ "${WITH_OPENGL}" == "ON" ]]; then
+    WITH_VULKAN=OFF
+elif [[ "${WITH_VULKAN}" != "ON" ]]; then
+    WITH_VULKAN=ON
 fi
 
 BUILD_DIR="${SCRIPT_DIR}/build/${TARGET_PLATFORM}"

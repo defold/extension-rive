@@ -56,6 +56,21 @@ namespace dmRive
         uint32_t             m_LastHeight;
         uint8_t              m_LastDoFinalBlit : 1;
         uint8_t              m_FrameBegin : 1;
+
+        ~DefoldRiveRenderer()
+        {
+            if (m_RiveRenderer)
+            {
+                delete m_RiveRenderer;
+                m_RiveRenderer = 0;
+            }
+
+            if (m_RenderContext)
+            {
+                delete m_RenderContext;
+                m_RenderContext = 0;
+            }
+        }
     };
 
     static DefoldRiveRenderer* g_RiveRenderer = 0;

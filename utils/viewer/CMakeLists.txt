@@ -115,9 +115,9 @@ add_executable(viewer
 )
 
 if(WITH_METAL)
-    target_compile_definitions(viewer PRIVATE DM_GRAPHICS_USE_VULKAN)
-elseif(WITH_VULKAN)
     target_compile_definitions(viewer PRIVATE DM_GRAPHICS_USE_METAL)
+elseif(WITH_VULKAN)
+    target_compile_definitions(viewer PRIVATE DM_GRAPHICS_USE_VULKAN)
 else()
     target_compile_definitions(viewer PRIVATE DM_GRAPHICS_USE_OPENGL)
 endif()

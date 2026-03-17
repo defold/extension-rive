@@ -27,6 +27,10 @@
 #include <dmsdk/platform/window.h>
 #include <dmsdk/render/render.h>
 
+#if defined(DM_GRAPHICS_USE_VULKAN)
+#include <dmsdk/graphics/graphics_vulkan.h>
+#endif
+
 #include <dmsdk/dlib/log.h> // LogParams
 
 #include <defold/rive.h>
@@ -53,9 +57,10 @@ typedef UpdateResult (*EngineUpdateFn)(void* engine);
 typedef void (*EngineGetResultFn)(void* engine, int* run_action, int* exit_code, int* argc, char*** argv);
 
 
-static const char* s_RiveFilePath = 0;
-static bool               s_ScreenshotCaptured = false;
-static dmGraphics::AdapterFamily      s_AdapterFamily = dmGraphics::ADAPTER_FAMILY_NONE;
+static const char*                  s_RiveFilePath = 0;
+static bool                         s_ScreenshotCaptured = false;
+static uint32_t                     s_ScreenshotDelayFrames = 5;
+static dmGraphics::AdapterFamily    s_AdapterFamily = dmGraphics::ADAPTER_FAMILY_NONE;
 
 class ViewerRenderImageListener : public rive::CommandQueue::RenderImageListener
 {
@@ -495,6 +500,17 @@ static void EngineDestroy(void* _engine)
 {
     EngineCtx* engine = (EngineCtx*)_engine;
 
+#if defined(DM_GRAPHICS_USE_VULKAN)
+    if (engine->m_GraphicsContext)
+    {
+        VkDevice device = dmGraphics::VulkanGetDevice(engine->m_GraphicsContext);
+        if (device != VK_NULL_HANDLE)
+        {
+            vkDeviceWaitIdle(device);
+        }
+    }
+#endif
+
     if (engine->m_FileMeta)
     {
         dmRive::DestroyFile(engine->m_FileMeta);
@@ -667,12 +683,25 @@ static UpdateResult EngineUpdate(void* _engine)
         DrawFullscreenQuad(engine, dmRive::GetBackingTexture(engine->m_RenderContext));
     }
 
-    if (!s_ScreenshotCaptured)
+    if (!s_ScreenshotCaptured && s_ScreenshotDelayFrames > 0)
+    {
+        --s_ScreenshotDelayFrames;
+    }
+
+    if (!s_ScreenshotCaptured && s_ScreenshotDelayFrames == 0)
     {
         printf("Capturing screenshot...\n");
-        dmGraphics::HTexture backing_texture = dmRive::GetBackingTexture(engine->m_RenderContext);
         dmRive::TexturePixels pixels = {};
-        if (dmRive::ReadPixels(backing_texture, &pixels))
+        bool read_ok = false;
+
+#if defined(DM_GRAPHICS_USE_VULKAN)
+        read_ok = dmRive::ReadPixelsBackBuffer(&pixels);
+#else
+        dmGraphics::HTexture backing_texture = dmRive::GetBackingTexture(engine->m_RenderContext);
+        read_ok = dmRive::ReadPixels(backing_texture, &pixels);
+#endif
+
+        if (read_ok)
         {
             const char* screenshot_path = "./screenshot.tga";
             if (WriteTgaFile(screenshot_path, &pixels))
@@ -689,11 +718,6 @@ static UpdateResult EngineUpdate(void* _engine)
         {
             printf("Failed to capture screenshot!\n");
         }
-        s_ScreenshotCaptured = true;
-    }
-    else if (!s_ScreenshotCaptured)
-    {
-        printf("Skipping screenshot capture (no intermediate render target in this backend mode)\n");
         s_ScreenshotCaptured = true;
     }
 

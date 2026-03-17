@@ -25,6 +25,9 @@ __declspec(dllexport) int dummyFunc()
 #include <dmsdk/dlib/shared_library.h>
 #include <dmsdk/dlib/static_assert.h>
 #include <dmsdk/graphics/graphics.h>
+#if defined(DM_GRAPHICS_USE_VULKAN)
+#include <dmsdk/graphics/graphics_vulkan.h>
+#endif
 #include <dmsdk/platform/window.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -374,7 +377,7 @@ static void RiveDebugLog(const char* fmt, ...)
     va_end(args);
 }
 
-#if defined(__APPLE__)
+#if defined(DM_GRAPHICS_USE_VULKAN)
 extern "C" void GraphicsAdapterVulkan();
 #else
 extern "C" void GraphicsAdapterOpenGL();
@@ -388,10 +391,10 @@ static bool InstallGraphicsAdapter()
     }
     s_AdapterInstallAttempted = true;
 
-#if defined(__APPLE__)
-    GraphicsAdapterVulkan();  // register the dapter
+#if defined(DM_GRAPHICS_USE_VULKAN)
+    GraphicsAdapterVulkan();  // register the adapter
 #else
-    GraphicsAdapterOpenGL(); // register the dapter
+    GraphicsAdapterOpenGL(); // register the adapter
 #endif
     s_AdapterInstallSuccess = dmGraphics::InstallAdapter(dmGraphics::ADAPTER_FAMILY_NONE);
     return s_AdapterInstallSuccess;
@@ -436,7 +439,7 @@ static bool CreateGraphicsContextInternal()
     window_params.m_Width = 512;
     window_params.m_Height = 512;
     window_params.m_Title = "Rive Plugin";
-#if defined(__APPLE__)
+#if defined(DM_GRAPHICS_USE_VULKAN)
     window_params.m_GraphicsApi = WINDOW_GRAPHICS_API_VULKAN;
 #else
     window_params.m_GraphicsApi = WINDOW_GRAPHICS_API_OPENGL;
@@ -563,6 +566,17 @@ static bool PluginRiveInitialize()
 
 static void PluginRiveFinalize()
 {
+#if defined(DM_GRAPHICS_USE_VULKAN)
+    if (g_GraphicsContext)
+    {
+        VkDevice device = dmGraphics::VulkanGetDevice(g_GraphicsContext);
+        if (device != VK_NULL_HANDLE)
+        {
+            vkDeviceWaitIdle(device);
+        }
+    }
+#endif
+
     if (g_RenderContext)
     {
         dmRiveCommands::Finalize();

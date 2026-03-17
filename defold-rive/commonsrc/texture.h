@@ -28,6 +28,7 @@ namespace dmRive
         dmGraphics::TextureFormat m_Format;
     };
 
+    bool ReadPixelsBackBuffer(TexturePixels* out);
     bool ReadPixels(dmGraphics::HTexture texture, TexturePixels* out);
     void FreePixels(TexturePixels* pixels);
 }
