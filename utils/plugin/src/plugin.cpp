@@ -471,6 +471,12 @@ static bool CreateGraphicsContextInternal()
     graphics_context_params.m_Height = 512;
     graphics_context_params.m_JobContext = g_JobContext;
 
+    if (window_params.m_GraphicsApi == WINDOW_GRAPHICS_API_VULKAN)
+    {
+        graphics_context_params.m_GraphicsApiVersionMajorHint = 1;
+        graphics_context_params.m_GraphicsApiVersionMinorHint = 3;
+    }
+
     RiveDebugLog("Rive: creating graphics context");
     g_GraphicsContext = dmGraphics::NewContext(graphics_context_params);
     if (!g_GraphicsContext)

@@ -247,7 +247,7 @@ set(RIVE_RUNTIME_LIBS
 )
 
 set(SYSTEM_LIBS "")
-set(GRAPHICS_LIBS glfw3)
+set(GRAPHICS_LIBS "")
 if(WITH_METAL)
     # macOS viewer uses the Metal renderer path, backed by Defold's Vulkan bridge.
     list(APPEND GRAPHICS_LIBS MoltenVK)
@@ -293,9 +293,9 @@ else()
     endif()
 
     if(WITH_VULKAN)
-        list(APPEND GRAPHICS_LIBS platform_vulkan graphics_vulkan)
+        list(APPEND GRAPHICS_LIBS platform_vulkan graphics_vulkan glfw3)
     else()
-        list(APPEND GRAPHICS_LIBS platform graphics)
+        list(APPEND GRAPHICS_LIBS platform graphics glfw3)
     endif()
 
     if(TARGET_PLATFORM MATCHES "macos" AND WITH_VULKAN)

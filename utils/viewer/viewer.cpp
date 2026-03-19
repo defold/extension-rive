@@ -391,6 +391,12 @@ static void* EngineCreate(int argc, char** argv)
     graphics_context_params.m_JobContext = engine->m_JobContext;
     graphics_context_params.m_PrintDeviceInfo = 1;
 
+    if (window_params.m_GraphicsApi == WINDOW_GRAPHICS_API_VULKAN)
+    {
+        graphics_context_params.m_GraphicsApiVersionMajorHint = 1;
+        graphics_context_params.m_GraphicsApiVersionMinorHint = 3;
+    }
+
     engine->m_GraphicsContext = dmGraphics::NewContext(graphics_context_params);
 
     engine->m_WasCreated++;
