@@ -389,25 +389,12 @@ static void* EngineCreate(int argc, char** argv)
     graphics_context_params.m_Width = 512;
     graphics_context_params.m_Height = 512;
     graphics_context_params.m_JobContext = engine->m_JobContext;
+    graphics_context_params.m_PrintDeviceInfo = 1;
 
     engine->m_GraphicsContext = dmGraphics::NewContext(graphics_context_params);
 
     engine->m_WasCreated++;
     engine->m_Running = 1;
-
-    // dmRender::RenderContextParams render_params;
-    // render_params.m_ScriptContext = 0;
-    // render_params.m_SystemFontMap = 0;
-    // render_params.m_ShaderProgramDesc = 0;
-    // render_params.m_MaxRenderTypes = 16;
-    // render_params.m_MaxInstances = 2048;
-    // render_params.m_MaxRenderTargets = 32;
-    // render_params.m_ShaderProgramDescSize = 0;
-    // render_params.m_MaxCharacters = 2048 * 4;
-    // render_params.m_MaxBatches = 128;
-    // render_params.m_CommandBufferSize = 1024;
-    // render_params.m_MaxDebugVertexCount = 0;
-    // engine->m_RenderListContext = dmRender::NewRenderContext(engine->m_GraphicsContext, render_params);
 
     // Graphics
 
@@ -436,6 +423,7 @@ static void* EngineCreate(int argc, char** argv)
     dmGraphics::AddVertexStream(stream_declaration_vertex, "position",  2, dmGraphics::TYPE_FLOAT, false);
     dmGraphics::AddVertexStream(stream_declaration_vertex, "texcoord0", 2, dmGraphics::TYPE_FLOAT, false);
     engine->m_VertexDeclaration = dmGraphics::NewVertexDeclaration(engine->m_GraphicsContext, stream_declaration_vertex);
+    dmGraphics::DeleteVertexStreamDeclaration(stream_declaration_vertex);
 
     dmGraphics::ShaderDesc* shader_desc = dmGraphics::CreateRiveModelBlitShaderDesc();
     char program_error[512] = {};
@@ -536,14 +524,24 @@ static void EngineDestroy(void* _engine)
 
     dmGraphics::DeleteVertexBuffer(engine->m_BlitToBackbufferVertexBuffer);
     dmGraphics::DeleteVertexDeclaration(engine->m_VertexDeclaration);
-    if (engine->m_BlitProgram != 0 && engine->m_BlitProgram != dmGraphics::INVALID_PROGRAM_HANDLE)
+    if (engine->m_BlitProgram != dmGraphics::INVALID_PROGRAM_HANDLE)
     {
         dmGraphics::DeleteProgram(engine->m_GraphicsContext, engine->m_BlitProgram);
     }
 
-    dmGraphics::CloseWindow(engine->m_GraphicsContext);
-    dmGraphics::DeleteContext(engine->m_GraphicsContext);
-    dmGraphics::Finalize();
+    if (engine->m_GraphicsContext)
+    {
+        dmGraphics::CloseWindow(engine->m_GraphicsContext);
+        dmGraphics::DeleteContext(engine->m_GraphicsContext);
+        dmGraphics::Finalize();
+        engine->m_GraphicsContext = 0;
+    }
+
+    if (engine->m_Window)
+    {
+        WindowDelete(engine->m_Window);
+        engine->m_Window = 0;
+    }
 
     JobSystemDestroy(engine->m_JobContext);
 

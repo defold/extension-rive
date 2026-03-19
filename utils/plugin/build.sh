@@ -5,12 +5,44 @@ set -euo pipefail
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 REPO_ROOT=$(realpath ${SCRIPT_DIR}/../..)
 
-if [ $# -lt 1 ]; then
-    echo "Usage: $0 <platform>"
+WITH_VULKAN=""
+ARGS=()
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --with-vulkan|--with_vulkan)
+            if [[ "${WITH_VULKAN}" == "OFF" ]]; then
+                echo "Conflicting backend options: both Vulkan and OpenGL were requested." >&2
+                exit 1
+            fi
+            WITH_VULKAN=ON
+            shift
+            ;;
+        --with-opengl|--with_opengl)
+            if [[ "${WITH_VULKAN}" == "ON" ]]; then
+                echo "Conflicting backend options: both Vulkan and OpenGL were requested." >&2
+                exit 1
+            fi
+            WITH_VULKAN=OFF
+            shift
+            ;;
+        *)
+            ARGS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+if [[ ${#ARGS[@]} -ne 1 ]]; then
+    echo "Usage: $0 [--with-vulkan|--with-opengl] <platform>"
     exit 1
 fi
 
-PLATFORM="$1"
+if [[ -z "${WITH_VULKAN}" ]]; then
+    WITH_VULKAN=ON
+fi
+
+PLATFORM="${ARGS[0]}"
 CONFIG="${CONFIG:-RelWithDebInfo}"
 BUILD_DIR="${SCRIPT_DIR}/build/${PLATFORM}"
 
@@ -112,6 +144,7 @@ cmake -S "${SCRIPT_DIR}" -B "${BUILD_DIR}" \
     -DCMAKE_VERBOSE_MAKEFILE=ON \
     -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}" \
     -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}" \
+    -DWITH_VULKAN="${WITH_VULKAN}" \
     "${CMAKE_PROTOC_ARGS[@]:-}" \
     "${CMAKE_GENERATOR_FLAGS[@]:-}"
 
