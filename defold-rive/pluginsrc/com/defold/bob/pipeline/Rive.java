@@ -381,7 +381,7 @@ public class Rive {
 
         long timeEnd = System.currentTimeMillis();
 
-        System.out.printf("%s: %s  (hashCode: %d)\n", rive_file!=null ? "Loaded ok":"Loading failed", path, rive_file.hashCode());
+        System.out.printf("%s: %s  (hashCode: %d)\n", rive_file!=null ? "Loaded ok":"Loading failed", path, rive_file!=null?rive_file.hashCode():0);
 
         if (rive_file == null) {
             System.exit(2);
@@ -475,23 +475,21 @@ public class Rive {
 
         int propertyCount = rive_file.viewModelProperties != null ? rive_file.viewModelProperties.length : 0;
         System.out.printf("View model properties: %d\n", propertyCount);
-        if (rive_file.viewModels != null && rive_file.viewModelProperties != null) {
-            for (String viewModel : rive_file.viewModels) {
-                PrintIndent(1);
-                System.out.printf("ViewModel '%s'\n", viewModel);
-                for (ViewModelProperty property : rive_file.viewModelProperties) {
-                    if (property == null || property.viewModel == null || !property.viewModel.equals(viewModel)) {
-                        continue;
-                    }
-                    PrintIndent(2);
-                    String typeName = property.typeName != null && property.typeName.length() > 0 ? property.typeName : "unknown";
-                    String valueText = property.value != null && property.value.length() > 0 ? property.value : "<n/a>";
-                    System.out.printf("'%s' type=%s value=%s", property.name, typeName, valueText);
-                    if (property.metaData != null && property.metaData.length() > 0) {
-                        System.out.printf(" meta='%s'", property.metaData);
-                    }
-                    System.out.printf("\n");
+        for (String viewModel : rive_file.viewModels) {
+            PrintIndent(1);
+            System.out.printf("ViewModel '%s'\n", viewModel);
+            for (ViewModelProperty property : rive_file.viewModelProperties) {
+                if (property == null || property.viewModel == null || !property.viewModel.equals(viewModel)) {
+                    continue;
                 }
+                PrintIndent(2);
+                String typeName = property.typeName != null && property.typeName.length() > 0 ? property.typeName : "unknown";
+                String valueText = property.value != null && property.value.length() > 0 ? property.value : "<n/a>";
+                System.out.printf("'%s' type=%s value=%s", property.name, typeName, valueText);
+                if (property.metaData != null && property.metaData.length() > 0) {
+                    System.out.printf(" meta='%s'", property.metaData);
+                }
+                System.out.printf("\n");
             }
         }
 
