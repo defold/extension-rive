@@ -127,6 +127,26 @@ static bool ConvertPixelsToABGR(dmRive::TexturePixels* pixels,
     return true;
 }
 
+enum ReadbackSource
+{
+    READBACK_SOURCE_TEXTURE,
+    READBACK_SOURCE_BACKBUFFER,
+};
+
+static bool ShouldFlipReadbackY(dmGraphics::AdapterFamily adapter_family, ReadbackSource readback_source)
+{
+#if defined(DM_GRAPHICS_USE_VULKAN)
+    (void)adapter_family;
+    (void)readback_source;
+    // The editor hot path expects Vulkan snapshots with an additional Y flip.
+    return true;
+#else
+    (void)adapter_family;
+    (void)readback_source;
+    return false;
+#endif
+}
+
 static bool AlignmentEquals(const rive::Alignment& lhs, const rive::Alignment& rhs)
 {
     return lhs.x() == rhs.x() && lhs.y() == rhs.y();
@@ -685,6 +705,109 @@ void SetViewModel(JNIEnv* env, jclass cls, jobject rive_file_obj, const char* vi
     dmRive::SetViewModel(rive_file, view_model);
 }
 
+
+static bool GetTextureInternal(dmRive::RiveFile* rive_file,
+                               dmRive::HRenderContext render_context,
+                               rive::rcp<rive::CommandQueue> queue,
+                               dmGraphics::HContext graphics_context,
+                               dmGraphics::AdapterFamily adapter_family,
+                               bool render_to_backbuffer,
+                               bool capture_pixels,
+                               uint32_t render_width,
+                               uint32_t render_height,
+                               dmRive::TexturePixels* pixels)
+{
+    if (!rive_file || !render_context || !queue || !graphics_context || !pixels)
+    {
+        return false;
+    }
+
+    dmRive::RenderBeginParams render_params;
+    render_params.m_DoFinalBlit = !render_to_backbuffer;
+    render_params.m_BackbufferSamples = 0;
+    render_params.m_Width = render_width;
+    render_params.m_Height = render_height;
+
+    const float artboard_display_factor = 1.0f;
+    const rive::ArtboardHandle artboard_handle = rive_file->m_Artboard;
+
+    if (render_to_backbuffer)
+    {
+        dmGraphics::BeginFrame(graphics_context);
+    }
+
+    dmRive::RenderBegin(render_context, 0, render_params);
+
+    rive::Renderer* renderer = dmRive::GetRiveRenderer(render_context);
+    if (!renderer)
+    {
+        dmRive::RenderEnd(render_context);
+        if (render_to_backbuffer)
+        {
+            dmGraphics::Flip(graphics_context);
+        }
+        return false;
+    }
+
+    if (rive_file->m_StateMachine != RIVE_NULL_HANDLE)
+    {
+        queue->advanceStateMachine(rive_file->m_StateMachine, 0.0f);
+    }
+
+    auto drawLoop = [artboard_handle,
+                     renderer,
+                     rive_file,
+                     render_width,
+                     render_height,
+                     artboard_display_factor](rive::DrawKey, rive::CommandServer* server)
+    {
+        rive::ArtboardInstance* artboard = server->getArtboardInstance(artboard_handle);
+        if (artboard == nullptr)
+        {
+            return;
+        }
+
+        rive::Mat2D renderer_transform = dmRive::CalcTransformRive(artboard,
+                                                                   rive_file->m_Fit,
+                                                                   rive_file->m_Alignment,
+                                                                   render_width,
+                                                                   render_height,
+                                                                   artboard_display_factor);
+        dmRive::DrawArtboard(artboard, renderer, renderer_transform);
+    };
+
+    rive::DrawKey draw_key = queue->createDrawKey();
+    queue->draw(draw_key, drawLoop);
+
+    dmRiveCommands::ProcessMessages();
+    dmRive::RenderEnd(render_context);
+
+    if (capture_pixels)
+    {
+        if (render_to_backbuffer)
+        {
+            bool read_ok = dmRive::ReadPixelsBackBuffer(pixels);
+            dmGraphics::Flip(graphics_context);
+            return read_ok;
+        }
+
+        dmGraphics::HTexture backing_texture = dmRive::GetBackingTexture(render_context);
+        if (backing_texture == 0)
+        {
+            dmLogError("Rive: no readback texture available (adapter=%d, backbuffer=%d)", (int)adapter_family, (int)render_to_backbuffer);
+            return false;
+        }
+        return dmRive::ReadPixels(backing_texture, pixels);
+    }
+
+    if (render_to_backbuffer)
+    {
+        dmGraphics::Flip(graphics_context);
+    }
+
+    return true;
+}
+
 jobject GetTexture(JNIEnv* env, jclass cls, jobject rive_file_obj)
 {
     dmRive::RiveFile* rive_file = FromObject(env, rive_file_obj);
@@ -721,6 +844,8 @@ jobject GetTexture(JNIEnv* env, jclass cls, jobject rive_file_obj)
 
     dmGraphics::AdapterFamily adapter_family = dmGraphics::GetInstalledAdapterFamily();
     bool render_to_backbuffer = adapter_family == dmGraphics::ADAPTER_FAMILY_VULKAN;
+    ReadbackSource readback_source = render_to_backbuffer ? READBACK_SOURCE_BACKBUFFER
+                                                          : READBACK_SOURCE_TEXTURE;
     uint32_t window_width = dmGraphics::GetWindowWidth(graphics_context);
     uint32_t window_height = dmGraphics::GetWindowHeight(graphics_context);
 
@@ -769,71 +894,28 @@ jobject GetTexture(JNIEnv* env, jclass cls, jobject rive_file_obj)
         render_height = window_height;
     }
 
-    if (render_to_backbuffer)
-    {
-        dmGraphics::BeginFrame(graphics_context);
-    }
-
-    dmRive::RenderBeginParams render_params;
-    render_params.m_DoFinalBlit = !render_to_backbuffer;
-    render_params.m_BackbufferSamples = 0;
-    render_params.m_Width = render_width;
-    render_params.m_Height = render_height;
-
-    dmRive::RenderBegin(render_context, 0, render_params);
-
-    rive::Renderer* renderer = dmRive::GetRiveRenderer(render_context);
-    if (!renderer)
-    {
-        dmRive::RenderEnd(render_context);
-        return 0;
-    }
-
-    const float artboard_display_factor = 1.0f;
-
-    if (rive_file->m_StateMachine != RIVE_NULL_HANDLE)
-    {
-        queue->advanceStateMachine(rive_file->m_StateMachine, 0.0f);
-    }
-
-    const rive::ArtboardHandle artboard_handle = rive_file->m_Artboard;
-
-    auto drawLoop = [artboard_handle,
-                     renderer,
-                     rive_file,
-                     render_width,
-                     render_height,
-                     artboard_display_factor](rive::DrawKey, rive::CommandServer* server)
-    {
-        rive::ArtboardInstance* artboard = server->getArtboardInstance(artboard_handle);
-        if (artboard == nullptr)
-        {
-            return;
-        }
-
-        rive::Mat2D renderer_transform = dmRive::CalcTransformRive(artboard,
-                                                                   rive_file->m_Fit,
-                                                                   rive_file->m_Alignment,
-                                                                   render_width,
-                                                                   render_height,
-                                                                   artboard_display_factor);
-        dmRive::DrawArtboard(artboard, renderer, renderer_transform);
-    };
-
-    rive::DrawKey draw_key = queue->createDrawKey();
-    queue->draw(draw_key, drawLoop);
-
-    dmRiveCommands::ProcessMessages();
-    dmRive::RenderEnd(render_context);
-
-    if (render_to_backbuffer)
-    {
-        dmGraphics::Flip(graphics_context);
-    }
-
-    dmGraphics::HTexture backing_texture = dmRive::GetBackingTexture(render_context);
     dmRive::TexturePixels pixels = {};
-    if (!dmRive::ReadPixels(backing_texture, &pixels))
+    bool read_ok = false;
+    const uint32_t render_frame_count = render_to_backbuffer ? 5 : 1;
+    for (uint32_t frame_idx = 0; frame_idx < render_frame_count; ++frame_idx)
+    {
+        read_ok = GetTextureInternal(rive_file,
+                                     render_context,
+                                     queue,
+                                     graphics_context,
+                                     adapter_family,
+                                     render_to_backbuffer,
+                                     frame_idx + 1 == render_frame_count, // Actual shapshot frame?
+                                     render_width,
+                                     render_height,
+                                     &pixels);
+        if (!read_ok)
+        {
+            break;
+        }
+    }
+
+    if (!read_ok)
     {
         dmLogError("Rive: ReadPixels failed (adapter=%d, backbuffer=%d)", (int)adapter_family, (int)render_to_backbuffer);
         return 0;
@@ -843,12 +925,7 @@ jobject GetTexture(JNIEnv* env, jclass cls, jobject rive_file_obj)
     uint32_t crop_y = 0;
     AlignmentToCropOffset(rive_file->m_Alignment, (uint32_t)pixels.m_Width, (uint32_t)pixels.m_Height, target_width, target_height, &crop_x, &crop_y);
 
-    bool flip_y = true;
-    if (adapter_family == dmGraphics::ADAPTER_FAMILY_OPENGL ||
-        adapter_family == dmGraphics::ADAPTER_FAMILY_OPENGLES)
-    {
-        flip_y = false;
-    }
+    bool flip_y = ShouldFlipReadbackY(adapter_family, readback_source);
 
     if (!ConvertPixelsToABGR(&pixels, flip_y, target_width, target_height, crop_x, crop_y))
     {

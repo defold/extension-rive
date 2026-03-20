@@ -39,21 +39,12 @@ namespace dmRive
     {
     #if defined(DM_PLATFORM_MACOS) || defined(DM_PLATFORM_IOS)
         IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererMetal();
-    #elif defined(DM_PLATFORM_WINDOWS)
-        IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererOpenGL();
-    #elif defined(DM_PLATFORM_LINUX)
-        IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererOpenGL();
-    #elif defined(DM_PLATFORM_ANDROID)
-        IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererOpenGL();
-    #elif defined(DM_PLATFORM_HTML5)
-        #ifdef RIVE_WEBGPU
-            IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererWebGPU();
-        #else
-            IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererOpenGL();
-        #endif
+    #elif defined(DM_GRAPHICS_USE_VULKAN) && defined(RIVE_VULKAN)
+        IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererVulkan();
+    #elif defined(DM_PLATFORM_HTML5) && defined(RIVE_WEBGPU)
+        IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererWebGPU();
     #else
-        #error "Platform not supported"
-        assert(0 && "Platform not supported");
+        IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererOpenGL();
     #endif
 
         dmResource::HFactory m_Factory;
@@ -65,6 +56,21 @@ namespace dmRive
         uint32_t             m_LastHeight;
         uint8_t              m_LastDoFinalBlit : 1;
         uint8_t              m_FrameBegin : 1;
+
+        ~DefoldRiveRenderer()
+        {
+            if (m_RiveRenderer)
+            {
+                delete m_RiveRenderer;
+                m_RiveRenderer = 0;
+            }
+
+            if (m_RenderContext)
+            {
+                delete m_RenderContext;
+                m_RenderContext = 0;
+            }
+        }
     };
 
     static DefoldRiveRenderer* g_RiveRenderer = 0;
@@ -97,6 +103,14 @@ namespace dmRive
     rive::Factory* GetRiveFactory(HRenderContext context)
     {
         DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
+        if (renderer->m_GraphicsContext == 0)
+        {
+            renderer->m_GraphicsContext = dmGraphics::GetInstalledContext();
+            if (renderer->m_GraphicsContext != 0)
+            {
+                renderer->m_RenderContext->SetGraphicsContext(renderer->m_GraphicsContext);
+            }
+        }
         return renderer->m_RenderContext->Factory();
     }
 
@@ -142,7 +156,7 @@ namespace dmRive
             int samples = (int) params.m_DoFinalBlit ? 0 : params.m_BackbufferSamples;
             (void)samples;
 
-        #if defined(DM_PLATFORM_MACOS) || defined(DM_PLATFORM_IOS)
+        #if defined(DM_GRAPHICS_USE_VULKAN)
             if (!params.m_DoFinalBlit)
             {
                 dmGraphics::HTexture swap_chain_texture = dmGraphics::VulkanGetActiveSwapChainTexture(renderer->m_GraphicsContext);
@@ -155,7 +169,7 @@ namespace dmRive
             renderer->m_RenderContext->BeginFrame({
                 .renderTargetWidth      = width,
                 .renderTargetHeight     = height,
-                .clearColor             = 0x00000000,
+                .clearColor             = params.m_ClearColor,
                 .msaaSampleCount        = 0,
                 // .msaaSampleCount        = samples,
                 // .disableRasterOrdering  = s_forceAtomicMode,

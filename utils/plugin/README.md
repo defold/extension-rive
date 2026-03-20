@@ -7,7 +7,7 @@
 
 ```
 $ cd path-to-extension-rive
-extension-rive$ PROTOC=${DYNAMO_HOME}/ext/bin/arm64-macos/protoc BOB=${DYNAMO_HOME}/share/java/bob.jar ./utils/build_plugin.sh arm64-macos
+extension-rive$ PROTOC=${DYNAMO_HOME}/ext/bin/arm64-macos/protoc BOB=${DYNAMO_HOME}/share/java/bob.jar ./utils/plugin/build.sh arm64-macos
 ```
 
 ## Test offline
@@ -15,7 +15,7 @@ extension-rive$ PROTOC=${DYNAMO_HOME}/ext/bin/arm64-macos/protoc BOB=${DYNAMO_HO
 To test offline, you can use:
 
 ```bash
-./utils/test_plugin.sh ./main/grimley/4951-10031-grimley.riv
+./utils/plugin/test.sh ./main/grimley/4951-10031-grimley.riv
 ```
 
 ## Test in editor

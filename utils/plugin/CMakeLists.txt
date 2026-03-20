@@ -15,10 +15,28 @@ endif()
 
 set(REPO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../..")
 
+option(WITH_VULKAN "Build plugin with Vulkan graphics backend" ON)
+
+if(NOT WITH_VULKAN)
+    set(WITH_OPENGL ON)
+endif()
+
+set(WITH_METAL FALSE)
+if(TARGET_PLATFORM MATCHES "macos" AND WITH_VULKAN)
+    set(WITH_METAL TRUE)
+endif()
+
+if(WITH_METAL)
+    enable_language(OBJCXX)
+endif()
+
 option(TARGET_PLATFORM "" "Target platform identifier, e.g. x86_64-linux, x86_64-win32, x86_64-macos, arm64-macos")
 if(NOT TARGET_PLATFORM)
     message(FATAL_ERROR "TARGET_PLATFORM must be provided (via -DTARGET_PLATFORM=...)")
 endif()
+
+message(STATUS "WITH_VULKAN=${WITH_VULKAN}")
+message(STATUS "WITH_OPENGL=${WITH_OPENGL}")
 
 set(SUPPORTED_TARGET_PLATFORMS
     arm64-macos
@@ -34,7 +52,7 @@ if(TARGET_PLATFORM_INDEX EQUAL -1)
         "Supported platforms: ${SUPPORTED_TARGET_PLATFORMS}")
 endif()
 
-if(CMAKE_BINARY_DIR MATCHES ".*/build/plugin/([^/]+)$")
+if(CMAKE_BINARY_DIR MATCHES ".*/plugin/build/([^/]+)$")
     set(BUILD_DIR_PLATFORM "${CMAKE_MATCH_1}")
     if(NOT BUILD_DIR_PLATFORM STREQUAL TARGET_PLATFORM)
         message(FATAL_ERROR
@@ -43,7 +61,7 @@ if(CMAKE_BINARY_DIR MATCHES ".*/build/plugin/([^/]+)$")
     endif()
 endif()
 
-set(PLUGIN_BUILD_DIR "${REPO_ROOT}/build/plugin/${TARGET_PLATFORM}")
+set(PLUGIN_BUILD_DIR "${REPO_ROOT}/utils/plugin/build/${TARGET_PLATFORM}")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${PLUGIN_BUILD_DIR}")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PLUGIN_BUILD_DIR}")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PLUGIN_BUILD_DIR}")
@@ -162,6 +180,22 @@ file(GLOB_RECURSE COMMON_SOURCES
         "${REPO_ROOT}/defold-rive/commonsrc/*.cxx"
 )
 
+file(GLOB COMMON_SOURCES
+    "${REPO_ROOT}/defold-rive/commonsrc/*.cpp"
+    "${REPO_ROOT}/defold-rive/commonsrc/renderer/renderer_private.cpp"
+)
+
+if(WITH_METAL)
+    list(APPEND COMMON_SOURCES "${REPO_ROOT}/defold-rive/commonsrc/renderer/renderer_context_metal.mm")
+elseif(WITH_VULKAN)
+    list(APPEND COMMON_SOURCES "${REPO_ROOT}/defold-rive/commonsrc/renderer/renderer_context_vulkan.cpp")
+elseif(WITH_OPENGL)
+    list(APPEND COMMON_SOURCES "${REPO_ROOT}/defold-rive/commonsrc/renderer/renderer_context_opengl.cpp")
+else()
+    message(FATAL_ERROR "No renderer context selected for viewer")
+endif()
+
+
 # Rust file?
 file(GLOB_RECURSE GLOB_JAVA_SOURCES
     CONFIGURE_DEPENDS
@@ -192,6 +226,10 @@ set(JAVA_SOURCES ${GLOB_JAVA_SOURCES} "${GENERATED_PROTO_JAVA}")
 
 file(GLOB_RECURSE PLUGIN_SOURCES
         CONFIGURE_DEPENDS
+        "${REPO_ROOT}/utils/plugin/src/*.c"
+        "${REPO_ROOT}/utils/plugin/src/*.cpp"
+        "${REPO_ROOT}/utils/plugin/src/*.cc"
+        "${REPO_ROOT}/utils/plugin/src/*.cxx"
         "${REPO_ROOT}/defold-rive/pluginsrc/*.c"
         "${REPO_ROOT}/defold-rive/pluginsrc/*.cpp"
         "${REPO_ROOT}/defold-rive/pluginsrc/*.cc"
@@ -199,13 +237,10 @@ file(GLOB_RECURSE PLUGIN_SOURCES
 )
 
 set(ALL_SOURCES ${COMMON_SOURCES} ${PLUGIN_SOURCES})
-if(TARGET_PLATFORM STREQUAL "arm64-macos" OR TARGET_PLATFORM STREQUAL "x86_64-macos")
-    list(APPEND ALL_SOURCES "${REPO_ROOT}/defold-rive/commonsrc/renderer/renderer_context_metal.mm")
-endif()
 list(REMOVE_DUPLICATES ALL_SOURCES)
 
 if(NOT ALL_SOURCES)
-    message(FATAL_ERROR "No C/C++ sources found under defold-rive/commonsrc or defold-rive/pluginsrc")
+    message(FATAL_ERROR "No C/C++ sources found under defold-rive/commonsrc, defold-rive/pluginsrc, or utils/plugin/src")
 endif()
 
 add_compile_definitions(DLIB_LOG_DOMAIN="RIVE")
@@ -246,13 +281,37 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     endif()
 endif()
 
-if(TARGET_PLATFORM STREQUAL "arm64-macos" OR TARGET_PLATFORM STREQUAL "x86_64-macos")
-    target_compile_definitions(rive_plugin PRIVATE DM_PLATFORM_MACOS)
-elseif(TARGET_PLATFORM STREQUAL "x86_64-win32")
-    target_compile_definitions(rive_plugin PRIVATE DM_PLATFORM_WINDOWS DM_RIVE_USE_OPENGL RIVE_WINDOWS RIVE_DESKTOP_GL NOMINMAX WIN32_LEAN_AND_MEAN)
-elseif(TARGET_PLATFORM MATCHES "linux")
-    target_compile_definitions(rive_plugin PRIVATE DM_PLATFORM_LINUX DM_RIVE_USE_OPENGL RIVE_LINUX RIVE_DESKTOP_GL)
+
+if(WITH_VULKAN)
+    target_compile_definitions(rive_plugin PRIVATE
+        DM_GRAPHICS_USE_VULKAN
+        DM_RIVE_USE_VULKAN
+        RIVE_VULKAN)
+else()
+    target_compile_definitions(rive_plugin PRIVATE
+        DM_GRAPHICS_USE_OPENGL
+        DM_RIVE_USE_OPENGL
+        RIVE_DESKTOP_GL)
 endif()
+
+if(TARGET_PLATFORM MATCHES "macos")
+    target_compile_definitions(rive_plugin PRIVATE
+        DM_PLATFORM_MACOS
+        DM_GRAPHICS_USE_METAL)
+
+elseif(TARGET_PLATFORM STREQUAL "x86_64-win32")
+    target_compile_definitions(rive_plugin PRIVATE
+            DM_PLATFORM_WINDOWS
+            RIVE_WINDOWS
+            NOMINMAX
+            WIN32_LEAN_AND_MEAN)
+
+elseif(TARGET_PLATFORM MATCHES "linux")
+    target_compile_definitions(rive_plugin PRIVATE
+        DM_PLATFORM_LINUX
+        RIVE_LINUX)
+endif()
+
 target_compile_definitions(rive_plugin PRIVATE DM_RIVE_PLUGIN)
 
 target_compile_options(rive_plugin PRIVATE
@@ -274,71 +333,97 @@ target_include_directories(rive_plugin PRIVATE
         "${JAVA_HOME}/include"
 )
 
-if(TARGET_PLATFORM STREQUAL "x86_64-win32")
-    target_link_libraries(rive_plugin PRIVATE
-            libdlib libmbedtls libddf
-            libprofile_null libprofilerext_null
-            platform librender libgraphics
-            librender_font_default libfont
-            libresource libscript libgamesys libluajit-5.1)
-    target_link_libraries(rive_plugin PRIVATE Iphlpapi.lib libglfw3 opengl32)
+# ******************************************************************************************************
+# Libraries
 
-    # Keep this aligned with defold-rive/lib/x86_64-win32 runtime outputs.
-    target_link_libraries(rive_plugin PRIVATE
-            rive
-            rive_renderer
-            rive_decoders
-            sheenbidi
-            harfbuzz
-            yoga
-            zlib
-            libjpeg
-            libpng
-            libwebp)
-
+if(TARGET_PLATFORM MATCHES "win32")
+    set(ENGINE_LIBS
+        libdlib
+        libmbedtls
+        libddf
+        libprofile_null
+        libprofilerext_null
+        librender
+        libglfw3
+        librender_font_default
+        libfont
+        libresource
+        libscript
+        libgamesys
+        libluajit-5.1
+    )
 else()
-    set(RIVE_PLUGIN_LIBS)
+    set(ENGINE_LIBS
+        dlib
+        mbedtls
+        ddf
+        profile_null
+        render
+        glfw3
+        resource
+        script
+        gamesys
+        lua
+        profilerext_null
+    )
+endif()
 
-    if(TARGET_PLATFORM MATCHES "linux")
-        list(APPEND RIVE_PLUGIN_LIBS pthread m dl glfw3 GL)
-    endif()
+set(RIVE_RUNTIME_LIBS
+    rive
+    rive_decoders
+    rive_sheenbidi
+    rive_harfbuzz
+    rive_yoga
+    rive_pls_renderer
+    zlib
+    libjpeg
+    libpng
+    libwebp)
 
-    if(TARGET_PLATFORM MATCHES "macos")
-        list(APPEND RIVE_PLUGIN_LIBS
-                    dlib mbedtls ddf
-                    profile_null profilerext_null
-                    platform render graphics
-                    platform_vulkan graphics_vulkan glfw3 MoltenVK
-                    resource script gamesys lua)
+set(SYSTEM_LIBS "")
+set(GRAPHICS_LIBS "")
+
+if(TARGET_PLATFORM MATCHES "win32")
+    if(WITH_VULKAN)
+        list(APPEND GRAPHICS_LIBS platform_vulkan libgraphics_vulkan)
+        set(SYSTEM_LIBS Iphlpapi.lib ws2_32 vulkan-1)
     else()
-        list(APPEND RIVE_PLUGIN_LIBS
-                    dlib mbedtls ddf
-                    profile_null profilerext_null
-                    platform render graphics
-                    resource script gamesys lua)
+        list(APPEND GRAPHICS_LIBS platform libgraphics)
+        set(SYSTEM_LIBS Iphlpapi.lib ws2_32 opengl32)
     endif()
-
-    list(APPEND RIVE_PLUGIN_LIBS
-                    rive
-                    rive_decoders
-                    rive_sheenbidi
-                    rive_harfbuzz
-                    rive_yoga
-                    rive_pls_renderer
-                    zlib
-                    libjpeg
-                    libpng
-                    libwebp)
-
-    list(REMOVE_DUPLICATES RIVE_PLUGIN_LIBS)
+else()
     if(TARGET_PLATFORM MATCHES "linux")
-        # Linux plugin links many static archives with cross-dependencies.
-        # Use a link group to let the linker resolve symbols across archives.
-        target_link_libraries(rive_plugin PRIVATE "-Wl,--start-group" ${RIVE_PLUGIN_LIBS} "-Wl,--end-group")
-    else()
-        target_link_libraries(rive_plugin PRIVATE ${RIVE_PLUGIN_LIBS})
+        if(WITH_VULKAN)
+            find_package(Vulkan REQUIRED)
+            set(SYSTEM_LIBS Vulkan::Vulkan pthread m dl)
+        else()
+            set(OpenGL_GL_PREFERENCE LEGACY)
+            find_package(OpenGL REQUIRED)
+            set(SYSTEM_LIBS OpenGL::GL pthread m dl)
+        endif()
     endif()
 
+    if(WITH_VULKAN)
+        list(APPEND GRAPHICS_LIBS platform_vulkan graphics_vulkan)
+    else()
+        list(APPEND GRAPHICS_LIBS platform graphics)
+    endif()
+
+    if(TARGET_PLATFORM MATCHES "macos" AND WITH_VULKAN)
+        list(APPEND GRAPHICS_LIBS MoltenVK)
+    endif()
+endif()
+
+set(TARGET_LIBS
+    ${ENGINE_LIBS}
+    ${GRAPHICS_LIBS}
+    ${RIVE_RUNTIME_LIBS}
+    ${SYSTEM_LIBS})
+
+if(TARGET_PLATFORM MATCHES "linux")
+    target_link_libraries(rive_plugin PRIVATE "-Wl,--start-group" ${TARGET_LIBS} "-Wl,--end-group")
+else()
+    target_link_libraries(rive_plugin PRIVATE ${TARGET_LIBS})
 endif()
 
 set(EXTENDER_PLATFORM "${TARGET_PLATFORM}")
@@ -369,15 +454,10 @@ set_target_properties(rive_plugin PROPERTIES
         OUTPUT_NAME "RiveExt"
 )
 
-if(WIN32)
-    set_target_properties(rive_plugin PROPERTIES PREFIX "lib")
-else()
-    set_target_properties(rive_plugin PROPERTIES PREFIX "lib")
-endif()
+set_target_properties(rive_plugin PROPERTIES PREFIX "lib")
 
 if(TARGET_PLATFORM MATCHES "macos")
     target_compile_options(rive_plugin PRIVATE "-mmacosx-version-min=10.15")
-    target_compile_definitions(rive_plugin PRIVATE DM_PLATFORM_MACOS)
     target_include_directories(rive_plugin PRIVATE
         "${REPO_ROOT}/defold-rive/include/osx"
     )
@@ -395,13 +475,11 @@ elseif(TARGET_PLATFORM MATCHES "win32")
     target_include_directories(rive_plugin PRIVATE
         "${REPO_ROOT}/defold-rive/include/win32"
     )
-    target_compile_definitions(rive_plugin PRIVATE DM_PLATFORM_WINDOWS)
     set(JAVA_PLATFORM "win32")
 elseif(TARGET_PLATFORM MATCHES "linux")
     target_include_directories(rive_plugin PRIVATE
         "${REPO_ROOT}/defold-rive/include/linux"
     )
-    target_compile_definitions(rive_plugin PRIVATE DM_PLATFORM_LINUX)
     target_compile_options(rive_plugin PRIVATE "-fno-exceptions" "-fno-rtti")
     set(JAVA_PLATFORM "linux")
 endif()

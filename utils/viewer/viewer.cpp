@@ -27,9 +27,14 @@
 #include <dmsdk/platform/window.h>
 #include <dmsdk/render/render.h>
 
+#if defined(DM_GRAPHICS_USE_VULKAN)
+#include <dmsdk/graphics/graphics_vulkan.h>
+#endif
+
 #include <dmsdk/dlib/log.h> // LogParams
 
 #include <defold/rive.h>
+#include <rive/shapes/paint/color.hpp>
 #include "common/file.h"
 #include "texture.h"
 #include <common/commands.h>
@@ -52,9 +57,10 @@ typedef UpdateResult (*EngineUpdateFn)(void* engine);
 typedef void (*EngineGetResultFn)(void* engine, int* run_action, int* exit_code, int* argc, char*** argv);
 
 
-static const char* s_RiveFilePath = 0;
-static bool               s_ScreenshotCaptured = false;
-static dmGraphics::AdapterFamily      s_AdapterFamily = dmGraphics::ADAPTER_FAMILY_NONE;
+static const char*                  s_RiveFilePath = 0;
+static bool                         s_ScreenshotCaptured = false;
+static uint32_t                     s_ScreenshotDelayFrames = 5;
+static dmGraphics::AdapterFamily    s_AdapterFamily = dmGraphics::ADAPTER_FAMILY_NONE;
 
 class ViewerRenderImageListener : public rive::CommandQueue::RenderImageListener
 {
@@ -130,7 +136,7 @@ static bool WriteTgaFile(const char* path, dmRive::TexturePixels* pixels)
         return false;
     }
 
-    // TGA header: image type, width/height, 32 bpp, 8-bit alpha, top-left origin.
+    // TGA header: image type, width/height, 32 bpp, 8-bit alpha.
     uint8_t header[18];
     memset(header, 0, sizeof(header));
     header[2] = 2; // Uncompressed true-color image.
@@ -139,7 +145,14 @@ static bool WriteTgaFile(const char* path, dmRive::TexturePixels* pixels)
     header[14] = (uint8_t)(pixels->m_Height & 0xFF); // Height (low byte).
     header[15] = (uint8_t)((pixels->m_Height >> 8) & 0xFF); // Height (high byte).
     header[16] = 32; // Bits per pixel.
-    header[17] = 8 | 0x20; // 8-bit alpha, top-left origin.
+    // OpenGL texture readback is bottom-left ordered, while the Vulkan
+    // backbuffer path is already top-left ordered in the saved screenshot.
+    header[17] = 8;
+    if (s_AdapterFamily != dmGraphics::ADAPTER_FAMILY_OPENGL &&
+        s_AdapterFamily != dmGraphics::ADAPTER_FAMILY_OPENGLES)
+    {
+        header[17] |= 0x20; // Top-left origin.
+    }
 
     fwrite(header, 1, sizeof(header), f);
     fwrite(pixels->m_Data, 1, pixels->m_DataSize, f);
@@ -376,25 +389,18 @@ static void* EngineCreate(int argc, char** argv)
     graphics_context_params.m_Width = 512;
     graphics_context_params.m_Height = 512;
     graphics_context_params.m_JobContext = engine->m_JobContext;
+    graphics_context_params.m_PrintDeviceInfo = 1;
+
+    if (window_params.m_GraphicsApi == WINDOW_GRAPHICS_API_VULKAN)
+    {
+        graphics_context_params.m_GraphicsApiVersionMajorHint = 1;
+        graphics_context_params.m_GraphicsApiVersionMinorHint = 3;
+    }
 
     engine->m_GraphicsContext = dmGraphics::NewContext(graphics_context_params);
 
     engine->m_WasCreated++;
     engine->m_Running = 1;
-
-    // dmRender::RenderContextParams render_params;
-    // render_params.m_ScriptContext = 0;
-    // render_params.m_SystemFontMap = 0;
-    // render_params.m_ShaderProgramDesc = 0;
-    // render_params.m_MaxRenderTypes = 16;
-    // render_params.m_MaxInstances = 2048;
-    // render_params.m_MaxRenderTargets = 32;
-    // render_params.m_ShaderProgramDescSize = 0;
-    // render_params.m_MaxCharacters = 2048 * 4;
-    // render_params.m_MaxBatches = 128;
-    // render_params.m_CommandBufferSize = 1024;
-    // render_params.m_MaxDebugVertexCount = 0;
-    // engine->m_RenderListContext = dmRender::NewRenderContext(engine->m_GraphicsContext, render_params);
 
     // Graphics
 
@@ -423,6 +429,7 @@ static void* EngineCreate(int argc, char** argv)
     dmGraphics::AddVertexStream(stream_declaration_vertex, "position",  2, dmGraphics::TYPE_FLOAT, false);
     dmGraphics::AddVertexStream(stream_declaration_vertex, "texcoord0", 2, dmGraphics::TYPE_FLOAT, false);
     engine->m_VertexDeclaration = dmGraphics::NewVertexDeclaration(engine->m_GraphicsContext, stream_declaration_vertex);
+    dmGraphics::DeleteVertexStreamDeclaration(stream_declaration_vertex);
 
     dmGraphics::ShaderDesc* shader_desc = dmGraphics::CreateRiveModelBlitShaderDesc();
     char program_error[512] = {};
@@ -494,6 +501,17 @@ static void EngineDestroy(void* _engine)
 {
     EngineCtx* engine = (EngineCtx*)_engine;
 
+#if defined(DM_GRAPHICS_USE_VULKAN)
+    if (engine->m_GraphicsContext)
+    {
+        VkDevice device = dmGraphics::VulkanGetDevice(engine->m_GraphicsContext);
+        if (device != VK_NULL_HANDLE)
+        {
+            vkDeviceWaitIdle(device);
+        }
+    }
+#endif
+
     if (engine->m_FileMeta)
     {
         dmRive::DestroyFile(engine->m_FileMeta);
@@ -512,14 +530,24 @@ static void EngineDestroy(void* _engine)
 
     dmGraphics::DeleteVertexBuffer(engine->m_BlitToBackbufferVertexBuffer);
     dmGraphics::DeleteVertexDeclaration(engine->m_VertexDeclaration);
-    if (engine->m_BlitProgram != 0 && engine->m_BlitProgram != dmGraphics::INVALID_PROGRAM_HANDLE)
+    if (engine->m_BlitProgram != dmGraphics::INVALID_PROGRAM_HANDLE)
     {
         dmGraphics::DeleteProgram(engine->m_GraphicsContext, engine->m_BlitProgram);
     }
 
-    dmGraphics::CloseWindow(engine->m_GraphicsContext);
-    dmGraphics::DeleteContext(engine->m_GraphicsContext);
-    dmGraphics::Finalize();
+    if (engine->m_GraphicsContext)
+    {
+        dmGraphics::CloseWindow(engine->m_GraphicsContext);
+        dmGraphics::DeleteContext(engine->m_GraphicsContext);
+        dmGraphics::Finalize();
+        engine->m_GraphicsContext = 0;
+    }
+
+    if (engine->m_Window)
+    {
+        WindowDelete(engine->m_Window);
+        engine->m_Window = 0;
+    }
 
     JobSystemDestroy(engine->m_JobContext);
 
@@ -636,13 +664,22 @@ static UpdateResult EngineUpdate(void* _engine)
 
     UpdateRiveScene(engine);
 
+    bool use_final_blit = true;
+#if defined(DM_PLATFORM_LINUX) || defined(DM_GRAPHICS_USE_VULKAN)
+    // Linux OpenGL can fail creating the intermediate render target.
+    // Render directly to the default framebuffer in that case.
+
+    use_final_blit = false;
+#endif
+
     {
         rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
 
         // engine->m_Factory
         dmRive::RenderBeginParams render_params;
-        render_params.m_DoFinalBlit = true;
+        render_params.m_DoFinalBlit = use_final_blit;
         render_params.m_BackbufferSamples = 0;
+        render_params.m_ClearColor = rive::colorARGB(255, 0, 0, 0);
         dmRive::RenderBegin(engine->m_RenderContext, 0, render_params);
 
         DrawRiveScene(engine);
@@ -651,18 +688,31 @@ static UpdateResult EngineUpdate(void* _engine)
         dmRive::RenderEnd(engine->m_RenderContext);
     }
 
-    dmGraphics::Clear(engine->m_GraphicsContext, dmGraphics::BUFFER_TYPE_COLOR0_BIT, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0);
+    if (use_final_blit)
+    {
+        dmGraphics::Clear(engine->m_GraphicsContext, dmGraphics::BUFFER_TYPE_COLOR0_BIT, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0);
+        DrawFullscreenQuad(engine, dmRive::GetBackingTexture(engine->m_RenderContext));
+    }
 
-    DrawFullscreenQuad(engine, dmRive::GetBackingTexture(engine->m_RenderContext));
+    if (!s_ScreenshotCaptured && s_ScreenshotDelayFrames > 0)
+    {
+        --s_ScreenshotDelayFrames;
+    }
 
-    dmGraphics::Flip(engine->m_GraphicsContext);
-
-    if (!s_ScreenshotCaptured)
+    if (!s_ScreenshotCaptured && s_ScreenshotDelayFrames == 0)
     {
         printf("Capturing screenshot...\n");
-        dmGraphics::HTexture backing_texture = dmRive::GetBackingTexture(engine->m_RenderContext);
         dmRive::TexturePixels pixels = {};
-        if (dmRive::ReadPixels(backing_texture, &pixels))
+        bool read_ok = false;
+
+#if defined(DM_GRAPHICS_USE_VULKAN)
+        read_ok = dmRive::ReadPixelsBackBuffer(&pixels);
+#else
+        dmGraphics::HTexture backing_texture = dmRive::GetBackingTexture(engine->m_RenderContext);
+        read_ok = dmRive::ReadPixels(backing_texture, &pixels);
+#endif
+
+        if (read_ok)
         {
             const char* screenshot_path = "./screenshot.tga";
             if (WriteTgaFile(screenshot_path, &pixels))
@@ -681,6 +731,8 @@ static UpdateResult EngineUpdate(void* _engine)
         }
         s_ScreenshotCaptured = true;
     }
+
+    dmGraphics::Flip(engine->m_GraphicsContext);
 
     return RESULT_OK;
 }

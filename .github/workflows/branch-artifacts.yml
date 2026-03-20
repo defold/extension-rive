@@ -72,12 +72,75 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Install Linux build dependencies (uuid, X11, Xcursor, Xrandr, Xi, Xinerama, Xf86VidMode)
+      - name: Resolve spirv-tools commit
+        id: spirv-tools-ref
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha="$(git ls-remote https://github.com/KhronosGroup/SPIRV-Tools.git HEAD | awk '{print $1}')"
+          if [ -z "${sha}" ]; then
+            echo "error: failed to resolve SPIRV-Tools HEAD" >&2
+            exit 1
+          fi
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore cached spirv-opt
+        uses: actions/cache@v4
+        with:
+          path: build/toolcache/spirv-opt/${{ runner.os }}-${{ runner.arch }}
+          key: spirv-opt-${{ runner.os }}-${{ runner.arch }}-${{ steps.spirv-tools-ref.outputs.sha }}
+
+      - name: Add cached spirv-opt to PATH
+        shell: bash
+        run: |
+          set -euo pipefail
+          cache_dir="${GITHUB_WORKSPACE}/build/toolcache/spirv-opt/${{ runner.os }}-${{ runner.arch }}"
+          if [ -x "${cache_dir}/spirv-opt" ]; then
+            echo "${cache_dir}" >> "$GITHUB_PATH"
+          fi
+
+      - name: Install Linux build dependencies (uuid, X11, Xcursor, Xrandr, Xi, Xinerama, Xf86VidMode, glslang, spirv-tools)
         shell: bash
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y uuid-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libxinerama-dev libxxf86vm-dev
+          sudo apt-get install -y uuid-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libxinerama-dev libxxf86vm-dev glslang-tools spirv-tools
+
+      - name: Ensure spirv-opt supports --preserve-interface
+        shell: bash
+        run: |
+          set -euo pipefail
+          cache_dir="${GITHUB_WORKSPACE}/build/toolcache/spirv-opt/${{ runner.os }}-${{ runner.arch }}"
+          mkdir -p "${cache_dir}"
+
+          if spirv-opt --help 2>&1 | grep -q -- '--preserve-interface'; then
+            spirv-opt --version || true
+            exit 0
+          fi
+
+          sudo apt-get install -y cmake ninja-build
+
+          TMP_DIR="$(mktemp -d)"
+          git clone --depth 1 https://github.com/KhronosGroup/SPIRV-Tools.git "${TMP_DIR}/SPIRV-Tools"
+          git -C "${TMP_DIR}/SPIRV-Tools" fetch --depth 1 origin "${{ steps.spirv-tools-ref.outputs.sha }}"
+          git -C "${TMP_DIR}/SPIRV-Tools" checkout --detach "${{ steps.spirv-tools-ref.outputs.sha }}"
+          python3 "${TMP_DIR}/SPIRV-Tools/utils/git-sync-deps"
+          cmake -S "${TMP_DIR}/SPIRV-Tools" -B "${TMP_DIR}/build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSPIRV_SKIP_TESTS=ON
+          cmake --build "${TMP_DIR}/build" --target spirv-opt
+
+          SPIRV_OPT_BIN="$(find "${TMP_DIR}/build" -type f -name spirv-opt | head -n 1)"
+          if [ -z "${SPIRV_OPT_BIN}" ]; then
+            echo "error: failed to build spirv-opt" >&2
+            exit 1
+          fi
+
+          install -m 0755 "${SPIRV_OPT_BIN}" "${cache_dir}/spirv-opt"
+          echo "${cache_dir}" >> "$GITHUB_PATH"
+          export PATH="${cache_dir}:${PATH}"
+          spirv-opt --version
+          spirv-opt --help | grep -- '--preserve-interface'
 
       - name: Setup LLVM/Clang 17
         uses: KyleMayes/install-llvm-action@v2
@@ -104,6 +167,7 @@ jobs:
           upload_artifact: ${{ github.event.inputs.upload_artifact }}
           commit_message: ${{ github.event.inputs.commit_message }}
           push_changes: ${{ github.event.inputs.push_changes }}
+          with_vulkan: true
 
   build-macos:
     if: ${{ github.event.inputs.platform == 'arm64-macos' || github.event.inputs.platform == 'x86_64-macos' || github.event.inputs.platform == 'arm64-ios' || github.event.inputs.platform == 'x86_64-ios' || github.event.inputs.platform == 'all' }}
@@ -221,66 +285,9 @@ jobs:
           commit_message: ${{ github.event.inputs.commit_message }}
           push_changes: ${{ github.event.inputs.push_changes }}
 
-  # build-windows:
-  #   if: ${{ github.event.inputs.platform == 'x86-win32' || github.event.inputs.platform == 'x86_64-win32' || github.event.inputs.platform == 'all' }}
-  #   runs-on: windows-2022
-  #   strategy:
-  #     matrix:
-  #       platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["x86_64-win32"]' || format('["{0}"]', github.event.inputs.platform)) }}
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@v5
-  #       with:
-  #         fetch-depth: 1
-
-  #     - name: Setup VS DevCmd (x64)
-  #       if: ${{ matrix.platform == 'x86_64-win32' }}
-  #       uses: ilammy/msvc-dev-cmd@v1
-  #       with:
-  #         arch: x64
-  #         vsversion: 2022
-  #         toolset: 14.20
-  #         sdk: 10.0.22621.0
-
-  #     - name: Setup VS DevCmd (x86)
-  #       if: ${{ matrix.platform == 'x86-win32' }}
-  #       uses: ilammy/msvc-dev-cmd@v1
-  #       with:
-  #         arch: x86
-  #         vsversion: 2022
-  #         toolset: 14.20
-  #         sdk: 10.0.22621.0
-
-  #     - name: MSBuild sanity check
-  #       shell: pwsh
-  #       run: |
-  #         msbuild -version
-  #         Get-Command msbuild.exe | Format-List -Property Source
-
-  #     - name: Install DirectX Shader Compiler (DXC)
-  #       shell: bash
-  #       run: |
-  #         set -euo pipefail
-  #         choco install directxshadercompiler -y || true
-  #         # Verify availability if installed
-  #         dxc.exe -version 2> NUL || true
-
-  #     - name: Build, (optionally) upload, and commit
-  #       uses: ./.github/actions/rive-build
-  #       with:
-  #         platform: ${{ matrix.platform }}
-  #         rive_repo_url: ${{ github.event.inputs.rive_repo_url }}
-  #         rive_ref: ${{ github.event.inputs.rive_ref }}
-  #         rive_sha: ${{ github.event.inputs.rive_sha }}
-  #         upload_artifact: ${{ github.event.inputs.upload_artifact }}
-  #         commit_message: ${{ github.event.inputs.commit_message }}
-  #         push_changes: ${{ github.event.inputs.push_changes }}
-
-
   build-windows:
     if: ${{ github.event.inputs.platform == 'x86-win32' || github.event.inputs.platform == 'x86_64-win32' || github.event.inputs.platform == 'all' }}
-    needs: prepare-defoldsdk
-    runs-on: ubuntu-22.04
+    runs-on: windows-2022
     strategy:
       matrix:
         platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["x86_64-win32"]' || format('["{0}"]', github.event.inputs.platform)) }}
@@ -290,97 +297,62 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Install Linux build tools
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y wget python3-ply
-
-      - name: Clone Rive runtime
-        shell: bash
-        run: |
-          set -euo pipefail
-          RIVE_TMP_DIR=$(mktemp -d)
-          git clone --depth 1 "${{ github.event.inputs.rive_repo_url }}" "$RIVE_TMP_DIR"
-          if [ -n "${{ github.event.inputs.rive_sha }}" ]; then
-            (cd "$RIVE_TMP_DIR" && git fetch --depth 1 origin "${{ github.event.inputs.rive_sha }}" && git checkout --force "${{ github.event.inputs.rive_sha }}")
-          elif [ -n "${{ github.event.inputs.rive_ref }}" ]; then
-            (cd "$RIVE_TMP_DIR" && git fetch --depth 1 origin "${{ github.event.inputs.rive_ref }}" && git checkout --force "${{ github.event.inputs.rive_ref }}")
-          fi
-          echo "RIVE_TMP_DIR=$RIVE_TMP_DIR" >> "$GITHUB_ENV"
-      - name: Setup Temurin Java 21
-        uses: actions/setup-java@v4
+      - name: Setup Python 3
+        uses: actions/setup-python@v5
         with:
-          distribution: 'temurin'
-          java-version: '25'
+          python-version: "3.x"
 
-      - name: Verify Java
-        shell: bash
-        run: |
-          set -euo pipefail
-          java --version
-
-      - name: Restore Defold SDK and bob.jar from cache
-        uses: actions/cache/restore@v4
+      - name: Setup VS DevCmd (x64)
+        if: ${{ matrix.platform == 'x86_64-win32' }}
+        uses: ilammy/msvc-dev-cmd@v1
         with:
-          path: |
-            bob.jar
-            build/defoldsdk
-          key: ${{ needs.prepare-defoldsdk.outputs.defoldsdk_cache_key }}
-          enableCrossOsArchive: true
-          fail-on-cache-miss: true
+          arch: x64
+          vsversion: 2022
 
-      - name: Verify Bob
+      - name: Setup VS DevCmd (x86)
+        if: ${{ matrix.platform == 'x86-win32' }}
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86
+          vsversion: 2022
+
+      - name: Install Vulkan SDK
+        uses: humbletim/install-vulkan-sdk@v1.2
+        with:
+          cache: true
+
+      - name: MSBuild sanity check
+        shell: pwsh
+        run: |
+          msbuild -version
+          Get-Command msbuild.exe | Format-List -Property Source
+
+      - name: Verify Vulkan tools
         shell: bash
         run: |
           set -euo pipefail
-          java -jar ./bob.jar -version
+          glslangValidator --version
+          spirv-opt --version
 
-      - name: Build libraries
+      - name: Install DirectX Shader Compiler (DXC)
         shell: bash
         run: |
           set -euo pipefail
-          BOB=./bob.jar ./utils/build_pls.sh --rive "$RIVE_TMP_DIR" "${{ matrix.platform }}"
+          choco install directxshadercompiler -y || true
+          dxc.exe -version 2> /dev/null || true
 
-      - name: Commit native libs
-        if: ${{ github.event.inputs.push_changes == 'true' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          PLATFORM_DIR="defold-rive/lib/${{ matrix.platform }}"
-          git add -v "$PLATFORM_DIR" || true
-          if git diff --cached --quiet; then
-            echo "No native lib changes to commit."
-            exit 0
-          fi
-          msg="ci: update native libs (${{ matrix.platform }}) on ${{ github.ref_name }} [skip ci]"
-          if [ -n "${{ github.event.inputs.commit_message }}" ]; then
-            msg="$msg - ${{ github.event.inputs.commit_message }}"
-          fi
-          git commit -m "$msg"
-          max_attempts=3
-          attempt=1
-          until [ $attempt -gt $max_attempts ]; do
-            echo "Attempt $attempt: rebase + push"
-            if git pull --rebase origin "${{ github.ref_name }}"; then
-              if git push origin HEAD:"${{ github.ref_name }}"; then
-                echo "Push succeeded"
-                break
-              fi
-            else
-              echo "Rebase failed; aborting and retrying"
-              git rebase --abort || true
-            fi
-            attempt=$((attempt+1))
-            sleep $((attempt*2))
-          done
-          if [ $attempt -gt $max_attempts ]; then
-            echo "Push failed after $max_attempts attempts"
-            exit 1
-          fi
+      - name: Build, (optionally) upload, and commit
+        uses: ./.github/actions/rive-build
+        with:
+          platform: ${{ matrix.platform }}
+          rive_repo_url: ${{ github.event.inputs.rive_repo_url }}
+          rive_ref: ${{ github.event.inputs.rive_ref }}
+          rive_sha: ${{ github.event.inputs.rive_sha }}
+          upload_artifact: ${{ github.event.inputs.upload_artifact }}
+          commit_message: ${{ github.event.inputs.commit_message }}
+          push_changes: ${{ github.event.inputs.push_changes }}
+          build_mode: vanilla
+          with_vulkan: true
 
   build-plugin-macos:
     if: ${{ github.event.inputs.platform == 'arm64-macos' || github.event.inputs.platform == 'x86_64-macos' || github.event.inputs.platform == 'all' }}
@@ -459,8 +431,8 @@ jobs:
           PROTOC: ${{ env.PROTOC }}
         run: |
           set -euo pipefail
-          ./utils/build_plugin.sh arm64-macos
-          ./utils/build_plugin.sh x86_64-macos
+          ./utils/plugin/build.sh arm64-macos
+          ./utils/plugin/build.sh x86_64-macos
 
       - name: Commit plugin outputs
         if: ${{ github.event.inputs.push_changes == 'true' }}
@@ -483,13 +455,20 @@ jobs:
             msg="$msg - ${{ github.event.inputs.commit_message }}"
           fi
           git commit -m "$msg"
+          git config http.version HTTP/1.1
           max_attempts=3
           attempt=1
           until [ $attempt -gt $max_attempts ]; do
             echo "Attempt $attempt: rebase + push"
             if git pull --rebase origin "${{ github.ref_name }}"; then
+              local_sha="$(git rev-parse HEAD)"
               if git push origin HEAD:"${{ github.ref_name }}"; then
                 echo "Push succeeded"
+                break
+              fi
+              remote_sha="$(git ls-remote origin "refs/heads/${{ github.ref_name }}" | awk '{print $1}' || true)"
+              if [ -n "${remote_sha}" ] && [ "${remote_sha}" = "${local_sha}" ]; then
+                echo "Remote branch already points at ${local_sha}; treating push as successful."
                 break
               fi
             else
@@ -550,12 +529,12 @@ jobs:
           clang --version
           clang++ --version
 
-      - name: Install Linux OpenGL dependencies
+      - name: Install Linux graphics dependencies
         shell: bash
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y libgl1-mesa-dev libglx-dev
+          sudo apt-get install -y libvulkan-dev libgl1-mesa-dev libglx-dev
 
       - name: Restore Defold SDK and bob.jar from cache
         uses: actions/cache/restore@v4
@@ -599,7 +578,7 @@ jobs:
           PROTOC: ${{ env.PROTOC }}
         run: |
           set -euo pipefail
-          ./utils/build_plugin.sh x86_64-linux
+          ./utils/plugin/build.sh x86_64-linux
 
       - name: Commit linux plugin outputs
         if: ${{ github.event.inputs.push_changes == 'true' }}
@@ -622,13 +601,20 @@ jobs:
             msg="$msg - ${{ github.event.inputs.commit_message }}"
           fi
           git commit -m "$msg"
+          git config http.version HTTP/1.1
           max_attempts=3
           attempt=1
           until [ $attempt -gt $max_attempts ]; do
             echo "Attempt $attempt: rebase + push"
             if git pull --rebase origin "${{ github.ref_name }}"; then
+              local_sha="$(git rev-parse HEAD)"
               if git push origin HEAD:"${{ github.ref_name }}"; then
                 echo "Push succeeded"
+                break
+              fi
+              remote_sha="$(git ls-remote origin "refs/heads/${{ github.ref_name }}" | awk '{print $1}' || true)"
+              if [ -n "${remote_sha}" ] && [ "${remote_sha}" = "${local_sha}" ]; then
+                echo "Remote branch already points at ${local_sha}; treating push as successful."
                 break
               fi
             else
@@ -716,7 +702,7 @@ jobs:
           PROTOC: ${{ env.PROTOC }}
         run: |
           set -euo pipefail
-          ./utils/build_plugin.sh x86_64-win32
+          ./utils/plugin/build.sh x86_64-win32
 
       - name: Commit windows plugin outputs
         if: ${{ github.event.inputs.push_changes == 'true' }}
@@ -739,13 +725,20 @@ jobs:
             msg="$msg - ${{ github.event.inputs.commit_message }}"
           fi
           git commit -m "$msg"
+          git config http.version HTTP/1.1
           max_attempts=3
           attempt=1
           until [ $attempt -gt $max_attempts ]; do
             echo "Attempt $attempt: rebase + push"
             if git pull --rebase origin "${{ github.ref_name }}"; then
+              local_sha="$(git rev-parse HEAD)"
               if git push origin HEAD:"${{ github.ref_name }}"; then
                 echo "Push succeeded"
+                break
+              fi
+              remote_sha="$(git ls-remote origin "refs/heads/${{ github.ref_name }}" | awk '{print $1}' || true)"
+              if [ -n "${remote_sha}" ] && [ "${remote_sha}" = "${local_sha}" ]; then
+                echo "Remote branch already points at ${local_sha}; treating push as successful."
                 break
               fi
             else

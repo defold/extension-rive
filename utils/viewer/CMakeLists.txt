@@ -15,10 +15,6 @@ if(NOT TARGET_PLATFORM)
     message(FATAL_ERROR "TARGET_PLATFORM must be supplied as a CMake variable or environment variable")
 endif()
 
-if(${TARGET_PLATFORM} MATCHES "macos")
-    enable_language(OBJCXX)
-endif()
-
 if(${TARGET_PLATFORM} MATCHES "win32" AND NOT MSVC)
     message(FATAL_ERROR
         "TARGET_PLATFORM=${TARGET_PLATFORM} must be built with MSVC on Windows. "
@@ -27,6 +23,25 @@ if(${TARGET_PLATFORM} MATCHES "win32" AND NOT MSVC)
 endif()
 
 option(WITH_ASAN "Build viewer with Address Sanitizer" OFF)
+option(WITH_VULKAN "Build viewer with Vulkan graphics backend" ON)
+option(WITH_OPENGL "Build viewer with OpenGL graphics backend" OFF)
+
+if(WITH_VULKAN AND WITH_OPENGL)
+    message(FATAL_ERROR "WITH_VULKAN and WITH_OPENGL cannot both be ON")
+endif()
+
+if(NOT WITH_VULKAN AND NOT WITH_OPENGL)
+    set(WITH_VULKAN ON)
+endif()
+
+set(WITH_METAL FALSE)
+if(TARGET_PLATFORM MATCHES "macos" AND WITH_VULKAN)
+    set(WITH_METAL TRUE)
+endif()
+
+if(WITH_METAL)
+    enable_language(OBJCXX)
+endif()
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
@@ -108,15 +123,28 @@ add_executable(viewer
     "${VIEWER_SHADER_SOURCE}"
 )
 
+# ****************************************************************************************************************
+# Sources
+
 file(GLOB RIVE_COMMON_SRC
     "${EXTENSION_ROOT}/defold-rive/commonsrc/*.cpp"
     "${EXTENSION_ROOT}/defold-rive/commonsrc/renderer/renderer_private.cpp"
 )
 
-if(${TARGET_PLATFORM} MATCHES "macos")
+if(WITH_METAL)
     list(APPEND RIVE_COMMON_SRC "${EXTENSION_ROOT}/defold-rive/commonsrc/renderer/renderer_context_metal.mm")
-else()
+
+    file(GLOB RIVE_COMMON_OBJCXX_SRC
+        "${EXTENSION_ROOT}/defold-rive/commonsrc/renderer/*.mm"
+    )
+    target_sources(viewer PRIVATE ${RIVE_COMMON_OBJCXX_SRC})
+
+elseif(WITH_VULKAN)
+    list(APPEND RIVE_COMMON_SRC "${EXTENSION_ROOT}/defold-rive/commonsrc/renderer/renderer_context_vulkan.cpp")
+elseif(WITH_OPENGL)
     list(APPEND RIVE_COMMON_SRC "${EXTENSION_ROOT}/defold-rive/commonsrc/renderer/renderer_context_opengl.cpp")
+else()
+    message(FATAL_ERROR "No renderer context selected for viewer")
 endif()
 
 target_sources(viewer PRIVATE ${RIVE_COMMON_SRC})
@@ -152,23 +180,55 @@ endif()
 
 target_link_directories(viewer PRIVATE "${RIVE_LINK_DIR}")
 
-set(ENGINE_LIBS
-    ddf
-    dlib
-    profile_null
-    platform
-    render
-    graphics
-)
+
+# ******************************************************************************************************
+# Defines
+
+if(TARGET_PLATFORM MATCHES "macos")
+    target_compile_definitions(viewer PRIVATE
+        DM_PLATFORM_MACOS
+        DM_GRAPHICS_USE_METAL)
+
+elseif(TARGET_PLATFORM MATCHES "win32")
+    target_compile_definitions(viewer PRIVATE
+            DM_PLATFORM_WINDOWS
+            RIVE_WINDOWS
+            NOMINMAX
+            WIN32_LEAN_AND_MEAN)
+
+elseif(TARGET_PLATFORM MATCHES "linux")
+    target_compile_definitions(viewer PRIVATE
+        DM_PLATFORM_LINUX
+        RIVE_LINUX)
+endif()
+
+if(WITH_VULKAN)
+    target_compile_definitions(viewer PRIVATE DM_GRAPHICS_USE_VULKAN DM_RIVE_USE_VULKAN RIVE_VULKAN)
+    if(WITH_METAL)
+        target_compile_definitions(viewer PRIVATE DM_GRAPHICS_USE_METAL VIEWER_USE_SPIRV=1)
+    endif()
+elseif(WITH_OPENGL)
+    target_compile_definitions(viewer PRIVATE DM_GRAPHICS_USE_OPENGL DM_RIVE_USE_OPENGL RIVE_DESKTOP_GL)
+else()
+    message(FATAL_ERROR "No Windows viewer backend selected")
+endif()
+
+# ******************************************************************************************************
+# Libraries
 
 if(${TARGET_PLATFORM} MATCHES "win32")
     set(ENGINE_LIBS
         libddf
         libdlib
         libprofile_null
-        platform
         librender
-        libgraphics
+    )
+else()
+    set(ENGINE_LIBS
+        ddf
+        dlib
+        profile_null
+        render
     )
 endif()
 
@@ -179,99 +239,83 @@ set(RIVE_RUNTIME_LIBS
     rive_sheenbidi
     rive_yoga
     rive_decoders
+    zlib
     libjpeg
     libpng
     libwebp
     miniaudio
 )
 
-if(${TARGET_PLATFORM} MATCHES "win32")
-    # Keep win32 viewer aligned with the actual archive names in
-    # defold-rive/lib/x86_64-win32.
-    set(RIVE_RUNTIME_LIBS
-        rive
-        rive_renderer
-        rive_decoders
-        harfbuzz
-        sheenbidi
-        yoga
-        libjpeg
-        libpng
-        libwebp
-        miniaudio
-        zlib
-    )
+set(SYSTEM_LIBS "")
+set(GRAPHICS_LIBS "")
+if(WITH_METAL)
+    # macOS viewer uses the Metal renderer path, backed by Defold's Vulkan bridge.
+    list(APPEND GRAPHICS_LIBS MoltenVK)
 endif()
 
-set(GRAPHICS_LIBS)
-if(${TARGET_PLATFORM} MATCHES "macos")
-    # macOS viewer uses the Metal renderer path, backed by Defold's Vulkan bridge.
-    target_compile_definitions(viewer PRIVATE DM_GRAPHICS_USE_VULKAN)
-    list(APPEND GRAPHICS_LIBS
-        graphics_vulkan
-        platform_vulkan
-        glfw3
-    )
+if(${TARGET_PLATFORM} MATCHES "win32")
+    target_compile_definitions(viewer PRIVATE DM_PLATFORM_WINDOWS RIVE_WINDOWS)
+
+    if(WITH_VULKAN)
+        list(APPEND GRAPHICS_LIBS libgraphics_vulkan platform_vulkan)
+        target_link_libraries(viewer PRIVATE Iphlpapi.lib libglfw3 ws2_32 vulkan-1)
+    elseif(WITH_OPENGL)
+        list(APPEND GRAPHICS_LIBS libgraphics platform)
+        target_link_libraries(viewer PRIVATE Iphlpapi.lib libglfw3 ws2_32 opengl32)
+    else()
+        message(FATAL_ERROR "No Windows viewer backend selected")
+    endif()
+
+    # defold-rive Windows libs are built with /MT.
+    set_property(TARGET viewer PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
+
+else()
+    if(${TARGET_PLATFORM} MATCHES "linux")
+        if(WITH_VULKAN)
+            find_package(Vulkan REQUIRED)
+            set(SYSTEM_LIBS Vulkan::Vulkan pthread m dl)
+        else()
+            set(OpenGL_GL_PREFERENCE LEGACY)
+            find_package(OpenGL REQUIRED)
+            set(SYSTEM_LIBS OpenGL::GL pthread m dl)
+        endif()
+    endif()
+
+    if (WITH_METAL)
+        target_link_libraries(viewer PRIVATE
+            "-framework CoreGraphics"
+            "-framework CoreFoundation"
+            "-framework IOKit"
+            "-framework IOSurface"
+            "-framework AppKit"
+            "-framework Metal"
+            "-framework QuartzCore")
+    endif()
+
+    if(WITH_VULKAN)
+        list(APPEND GRAPHICS_LIBS platform_vulkan graphics_vulkan glfw3)
+    else()
+        list(APPEND GRAPHICS_LIBS platform graphics glfw3)
+    endif()
+
+    if(TARGET_PLATFORM MATCHES "macos" AND WITH_VULKAN)
+        list(APPEND GRAPHICS_LIBS MoltenVK)
+    endif()
 endif()
 
 set(TARGET_LIBS
     ${ENGINE_LIBS}
     ${GRAPHICS_LIBS}
-    ${RIVE_RUNTIME_LIBS})
+    ${RIVE_RUNTIME_LIBS}
+    ${SYSTEM_LIBS})
 
-if(${TARGET_PLATFORM} MATCHES "macos")
-    file(GLOB RIVE_COMMON_OBJCXX_SRC
-        "${EXTENSION_ROOT}/defold-rive/commonsrc/renderer/*.mm"
-    )
-    target_sources(viewer PRIVATE ${RIVE_COMMON_OBJCXX_SRC})
-
-    list(APPEND TARGET_LIBS
-        MoltenVK
-    )
-    target_link_libraries(viewer PRIVATE
-        "-framework CoreGraphics"
-        "-framework CoreFoundation"
-        "-framework IOKit"
-        "-framework IOSurface"
-        "-framework AppKit"
-        "-framework Metal"
-        "-framework QuartzCore")
-
-    target_compile_definitions(viewer PRIVATE DM_PLATFORM_MACOS VIEWER_USE_SPIRV=1)
-endif()
-
-if(${TARGET_PLATFORM} MATCHES "win32")
-    target_compile_definitions(viewer PRIVATE
-        DM_PLATFORM_WINDOWS
-        DM_RIVE_USE_OPENGL
-        RIVE_WINDOWS
-        RIVE_DESKTOP_GL
-    )
-
-    # defold-rive Windows libs are built with /MT.
-    set_property(TARGET viewer PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
-    target_link_libraries(viewer PRIVATE Iphlpapi.lib libglfw3 ws2_32 opengl32)
-elseif(${TARGET_PLATFORM} MATCHES "linux")
-    list(APPEND TARGET_LIBS glfw3)
-    target_compile_definitions(viewer PRIVATE
-        DM_PLATFORM_LINUX
-        DM_RIVE_USE_OPENGL
-        RIVE_LINUX
-        RIVE_DESKTOP_GL
-    )
-    # Defold's libgraphics.a references ARB entry points (e.g. glBindBufferARB)
-    # that are provided by legacy libGL, not GLVND's libOpenGL.
-    set(OpenGL_GL_PREFERENCE LEGACY)
-    find_package(OpenGL REQUIRED)
-endif()
-
-if(${TARGET_PLATFORM} MATCHES "linux")
+if(TARGET_PLATFORM MATCHES "linux")
     target_link_libraries(viewer PRIVATE "-Wl,--start-group" ${TARGET_LIBS} "-Wl,--end-group")
-    # Keep system GL libs after static engine archives to satisfy --as-needed linkers.
-    target_link_libraries(viewer PRIVATE OpenGL::GL pthread dl m)
 else()
     target_link_libraries(viewer PRIVATE ${TARGET_LIBS})
 endif()
+
+# **************************************************************************************************
 
 target_compile_options(viewer PRIVATE
     $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:Release>>:/O2>

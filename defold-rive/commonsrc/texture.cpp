@@ -54,6 +54,44 @@ namespace dmRive
         return adapter == dmGraphics::ADAPTER_FAMILY_VULKAN;
     }
 
+    bool ReadPixelsBackBuffer(TexturePixels* out)
+    {
+        ResetOutput(out);
+        if (!out)
+        {
+            return false;
+        }
+
+        dmGraphics::HContext context = dmGraphics::GetInstalledContext();
+        if (!context)
+        {
+            return false;
+        }
+
+        uint32_t width = dmGraphics::GetWindowWidth(context);
+        uint32_t height = dmGraphics::GetWindowHeight(context);
+        if (width == 0 || height == 0 || width > UINT16_MAX || height > UINT16_MAX)
+        {
+            return false;
+        }
+
+        uint32_t data_size = width * height * 4;
+        uint8_t* data = (uint8_t*)malloc(data_size);
+        if (!data)
+        {
+            return false;
+        }
+
+        dmGraphics::ReadPixels(context, 0, 0, width, height, data, data_size);
+
+        out->m_Data = data;
+        out->m_DataSize = data_size;
+        out->m_Width = (uint16_t)width;
+        out->m_Height = (uint16_t)height;
+        out->m_Format = dmGraphics::TEXTURE_FORMAT_BGRA8U;
+        return true;
+    }
+
 #if defined(DM_RIVE_USE_OPENGL) && !defined(DM_HEADLESS)
     static bool ReadPixelsOpenGL(uint16_t width, uint16_t height, void* native_handle, TexturePixels* out)
     {
@@ -142,29 +180,8 @@ namespace dmRive
 
         if (IsVulkanAdapter(adapter))
         {
-            uint16_t width = (uint16_t)dmGraphics::GetWindowWidth(context);
-            uint16_t height = (uint16_t)dmGraphics::GetWindowHeight(context);
-            if (width == 0 || height == 0)
-            {
-                return false;
-            }
-
-            uint32_t data_size = (uint32_t)width * (uint32_t)height * 4;
-            uint8_t* data = (uint8_t*)malloc(data_size);
-            if (!data)
-            {
-                return false;
-            }
-
             (void)texture;
-            dmGraphics::ReadPixels(context, 0, 0, width, height, data, data_size);
-
-            out->m_Data = data;
-            out->m_DataSize = data_size;
-            out->m_Width = width;
-            out->m_Height = height;
-            out->m_Format = dmGraphics::TEXTURE_FORMAT_BGRA8U;
-            return true;
+            return ReadPixelsBackBuffer(out);
         }
 
         if (!IsOpenGLAdapter(adapter))
