@@ -21,6 +21,15 @@ if(NOT WITH_VULKAN)
     set(WITH_OPENGL ON)
 endif()
 
+set(WITH_METAL FALSE)
+if(TARGET_PLATFORM MATCHES "macos" AND WITH_VULKAN)
+    set(WITH_METAL TRUE)
+endif()
+
+if(WITH_METAL)
+    enable_language(OBJCXX)
+endif()
+
 option(TARGET_PLATFORM "" "Target platform identifier, e.g. x86_64-linux, x86_64-win32, x86_64-macos, arm64-macos")
 if(NOT TARGET_PLATFORM)
     message(FATAL_ERROR "TARGET_PLATFORM must be provided (via -DTARGET_PLATFORM=...)")
@@ -171,6 +180,22 @@ file(GLOB_RECURSE COMMON_SOURCES
         "${REPO_ROOT}/defold-rive/commonsrc/*.cxx"
 )
 
+file(GLOB COMMON_SOURCES
+    "${REPO_ROOT}/defold-rive/commonsrc/*.cpp"
+    "${REPO_ROOT}/defold-rive/commonsrc/renderer/renderer_private.cpp"
+)
+
+if(WITH_METAL)
+    list(APPEND COMMON_SOURCES "${REPO_ROOT}/defold-rive/commonsrc/renderer/renderer_context_metal.mm")
+elseif(WITH_VULKAN)
+    list(APPEND COMMON_SOURCES "${REPO_ROOT}/defold-rive/commonsrc/renderer/renderer_context_vulkan.cpp")
+elseif(WITH_OPENGL)
+    list(APPEND COMMON_SOURCES "${REPO_ROOT}/defold-rive/commonsrc/renderer/renderer_context_opengl.cpp")
+else()
+    message(FATAL_ERROR "No renderer context selected for viewer")
+endif()
+
+
 # Rust file?
 file(GLOB_RECURSE GLOB_JAVA_SOURCES
     CONFIGURE_DEPENDS
@@ -212,9 +237,6 @@ file(GLOB_RECURSE PLUGIN_SOURCES
 )
 
 set(ALL_SOURCES ${COMMON_SOURCES} ${PLUGIN_SOURCES})
-if(TARGET_PLATFORM STREQUAL "arm64-macos" OR TARGET_PLATFORM STREQUAL "x86_64-macos")
-    list(APPEND ALL_SOURCES "${REPO_ROOT}/defold-rive/commonsrc/renderer/renderer_context_metal.mm")
-endif()
 list(REMOVE_DUPLICATES ALL_SOURCES)
 
 if(NOT ALL_SOURCES)
