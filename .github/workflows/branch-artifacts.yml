@@ -529,12 +529,12 @@ jobs:
           clang --version
           clang++ --version
 
-      - name: Install Linux OpenGL dependencies
+      - name: Install Linux graphics dependencies
         shell: bash
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y libgl1-mesa-dev libglx-dev
+          sudo apt-get install -y libvulkan-dev libgl1-mesa-dev libglx-dev
 
       - name: Restore Defold SDK and bob.jar from cache
         uses: actions/cache/restore@v4
