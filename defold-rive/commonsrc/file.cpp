@@ -424,7 +424,42 @@ void SetFitAlignment(RiveFile* file, rive::Fit fit, rive::Alignment alignment)
 
 void SetViewModel(RiveFile* file, const char* view_model)
 {
+    if (!file)
+    {
+        return;
+    }
 
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    if (!queue)
+    {
+        return;
+    }
+
+    if (file->m_ViewModelInstance != RIVE_NULL_HANDLE)
+    {
+        queue->deleteViewModelInstance(file->m_ViewModelInstance);
+        file->m_ViewModelInstance = RIVE_NULL_HANDLE;
+    }
+
+    if (view_model && view_model[0] != 0)
+    {
+        file->m_ViewModelInstance = queue->instantiateDefaultViewModelInstance(file->m_File, view_model);
+        if (file->m_ViewModelInstance == RIVE_NULL_HANDLE)
+        {
+            dmLogWarning("Could not find view model '%s'", view_model);
+        }
+    }
+
+    if (file->m_ViewModelInstance == RIVE_NULL_HANDLE &&
+        file->m_File != RIVE_NULL_HANDLE &&
+        file->m_Artboard != RIVE_NULL_HANDLE &&
+        ShouldInstantiateDefaultViewModelInstance(file))
+    {
+        file->m_ViewModelInstance = queue->instantiateDefaultViewModelInstance(file->m_File, file->m_Artboard);
+    }
+
+    BindViewModelInstance(file, queue);
+    dmRiveCommands::ProcessMessages();
 }
 
 void Update(RiveFile* file, float dt)
