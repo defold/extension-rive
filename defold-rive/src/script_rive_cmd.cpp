@@ -87,20 +87,20 @@ static int Script_deleteArtboard(lua_State* L)
 }
 
 /**
- * Returns the artboard handle created for the named view model.
- * @name cmd.instantiateArtboardNamed(file_handle, viewmodel_name)
+ * Returns the artboard handle created for the named artboard.
+ * @name cmd.instantiateArtboardNamed(file_handle, artboard_name)
  * @param file_handle [type: FileHandle] Handle to a previously loaded Rive file.
- * @param viewmodel_name [type: string] Name of the view model to instantiate.
- * @return artboard_handle [type: ArtboardHandle] Artboard handle created for the named view model.
+ * @param artboard_name [type: string] Name of the artboard to instantiate.
+ * @return artboard_handle [type: ArtboardHandle] Artboard handle created for the named artboard.
  */
 static int Script_instantiateArtboardNamed(lua_State* L)
 {
     DM_LUA_STACK_CHECK(L, 1);
     rive::FileHandle file = CheckFileHandle(L, 1);
-    const char* viewmodel_name = luaL_checkstring(L, 2);
+    const char* artboard_name = luaL_checkstring(L, 2);
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
-    rive::ArtboardHandle handle = queue->instantiateArtboardNamed(file, viewmodel_name);
+    rive::ArtboardHandle handle = queue->instantiateArtboardNamed(file, artboard_name);
 
     dmRive::PushArtboardHandle(L, handle);
     return 1;

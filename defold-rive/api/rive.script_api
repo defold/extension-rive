@@ -235,18 +235,18 @@
 
   - name: instantiateArtboardNamed
     type: function
-    desc: Returns the artboard handle created for the named view model.
+    desc: Returns the artboard handle created for the named artboard.
     parameters:
       - name: file_handle
         type: FileHandle
         desc: Handle to a previously loaded Rive file.
-      - name: viewmodel_name
+      - name: artboard_name
         type: string
-        desc: Name of the view model to instantiate.
+        desc: Name of the artboard to instantiate.
     return:
       - name: artboard_handle
         type: ArtboardHandle
-        desc: Artboard handle created for the named view model.
+        desc: Artboard handle created for the named artboard.
 
 #*****************************************************************************************************
 

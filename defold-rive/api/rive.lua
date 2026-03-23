@@ -107,11 +107,11 @@ function rive.get_view_model_instance(url) end
 --- @class rive.cmd
 rive.cmd = {}
 
---- Returns the artboard handle created for the named view model.
+--- Returns the artboard handle created for the named artboard.
 ---@param file_handle FileHandle Handle to a previously loaded Rive file.
----@param viewmodel_name string Name of the view model to instantiate.
----@return ArtboardHandle artboard_handle Artboard handle created for the named view model.
-function rive.cmd.instantiateArtboardNamed(file_handle, viewmodel_name) end
+---@param artboard_name string Name of the artboard to instantiate.
+---@return ArtboardHandle artboard_handle Artboard handle created for the named artboard.
+function rive.cmd.instantiateArtboardNamed(file_handle, artboard_name) end
 
 --- Returns the default artboard handle for the file.
 ---@param file_handle FileHandle Handle to a previously loaded Rive file.
