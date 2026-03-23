@@ -682,7 +682,7 @@
       (when (and data (> width 0) (> height 0))
         (let [pixel-count (* width height)
               data-size (* pixel-count 4)]
-          (when (>= (alength data) data-size)
+          (when (>= (alength ^byte/1 data) data-size)
             (try
               (let [data-buffer (buffers/wrap-byte-array data :byte-order/native)
                     texture-request-data (texture/make-texture-request-data data-buffer texture-version :abgr width height false)
@@ -890,7 +890,7 @@
         vb (if quad-vertices
              (vtx/wrap-vertex-buffer vtx-textured :static (FloatBuffer/wrap ^floats quad-vertices))
              @fullscreen-quad-vertex-buffer)
-        renderable-transform (Matrix4d. (:world-transform renderable))
+        renderable-transform (Matrix4d. ^Matrix4d (:world-transform renderable))
         render-args (if quad-vertices
                       (merge render-args (math/derive-render-transforms renderable-transform
                                                                        (:view render-args)
