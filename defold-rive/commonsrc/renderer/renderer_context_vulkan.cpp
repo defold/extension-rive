@@ -3,9 +3,6 @@
 
 #include "renderer_context.h"
 
-#include <cstring>
-#include <vector>
-
 #include <dmsdk/dlib/log.h>
 #include <dmsdk/graphics/graphics_vulkan.h>
 #include <dmsdk/graphics/graphics.h>
@@ -18,36 +15,6 @@
 
 namespace dmRive
 {
-    static bool HasDeviceExtension(VkPhysicalDevice physical_device, const char* extension_name)
-    {
-        if (physical_device == VK_NULL_HANDLE || extension_name == 0)
-        {
-            return false;
-        }
-
-        uint32_t extension_count = 0;
-        if (vkEnumerateDeviceExtensionProperties(physical_device, 0, &extension_count, 0) != VK_SUCCESS ||
-            extension_count == 0)
-        {
-            return false;
-        }
-
-        std::vector<VkExtensionProperties> extensions(extension_count);
-        if (vkEnumerateDeviceExtensionProperties(physical_device, 0, &extension_count, extensions.data()) != VK_SUCCESS)
-        {
-            return false;
-        }
-
-        for (uint32_t i = 0; i < extension_count; ++i)
-        {
-            if (strcmp(extensions[i].extensionName, extension_name) == 0)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
     class DefoldRiveRendererVulkan : public IDefoldRiveRenderer
     {
     public:
@@ -281,11 +248,11 @@ namespace dmRive
             vulkan_features.apiVersion = properties.apiVersion;
 
             vulkan_features.rasterizationOrderColorAttachmentAccess =
-                HasDeviceExtension(physical_device, "VK_EXT_rasterization_order_attachment_access");
+                dmGraphics::IsExtensionSupported(m_GraphicsContext, "VK_EXT_rasterization_order_attachment_access");
             vulkan_features.fragmentShaderPixelInterlock =
-                HasDeviceExtension(physical_device, "VK_EXT_fragment_shader_interlock");
+                dmGraphics::IsExtensionSupported(m_GraphicsContext, "VK_EXT_fragment_shader_interlock");
             vulkan_features.VK_KHR_portability_subset =
-                HasDeviceExtension(physical_device, "VK_KHR_portability_subset");
+                dmGraphics::IsExtensionSupported(m_GraphicsContext, "VK_KHR_portability_subset");
 
             rive::gpu::RenderContextVulkanImpl::ContextOptions options;
             options.shaderCompilationMode = rive::gpu::ShaderCompilationMode::standard;

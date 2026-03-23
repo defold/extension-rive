@@ -42,10 +42,10 @@
 #endif
 
 #if defined(RIVE_DESKTOP_GL) && defined(DM_PLATFORM_WINDOWS)
-    #ifndef WIN32_LEAN_AND_MEAN
-        #define WIN32_LEAN_AND_MEAN
-    #endif
-    #include <windows.h>
+#ifndef WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
 
 static GLADapiproc Win32GetGLProcAddress(const char* name)
 {
