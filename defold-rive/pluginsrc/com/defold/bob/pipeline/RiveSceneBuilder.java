@@ -35,6 +35,7 @@ public class RiveSceneBuilder extends ProtoBuilder<RiveSceneDesc.Builder> {
         RiveSceneDesc.Builder builder = getSrcBuilder(task.firstInput());
 
         builder.setScene(BuilderUtil.replaceExt(builder.getScene(), ".riv", ".rivc"));
+        builder.setAtlas(BuilderUtil.replaceExt(builder.getAtlas(), ".atlas", ".a.texturesetc"));
 
         Message msg = builder.build();
         ByteArrayOutputStream out = new ByteArrayOutputStream(64 * 1024);
