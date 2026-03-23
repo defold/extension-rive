@@ -91,10 +91,10 @@
             desc: The calling script instance.
           - name: event
             type: string
-            desc: "One of: onFileLoaded, onFileDeleted, onFileError, onArtboardsListed, onViewModelsListed, onViewModelInstanceNamesListed, onViewModelPropertiesListed, onViewModelEnumsListed"
+            desc: One of: onFileLoaded, onFileDeleted, onFileError, onArtboardsListed, onViewModelsListed, onViewModelInstanceNamesListed, onViewModelPropertiesListed, onViewModelEnumsListed
           - name: data
             type: table
-            desc: Additional fields vary by event. Common keys include
+            desc: Additional fields vary by event. Common keys include:
             parameters:
               - name: file
                 type: FileHandle
@@ -117,183 +117,6 @@
               - name: error
                 type: string
                 desc: Error message when a failure occurs.
-
-#*****************************************************************************************************
-
-  - name: set_artboard_listener
-    type: function
-    desc: Sets or clears the artboard listener callback.
-    parameters:
-      - name: callback
-        type: function(self, event, data)|nil
-        desc: Callback invoked for artboard-related events; pass nil to disable.
-        parameters:
-          - name: self
-            type: object
-            desc: The calling script instance.
-          - name: event
-            type: string
-            desc: "One of: onArtboardError, onDefaultViewModelInfoReceived, onArtboardDeleted, onStateMachinesListed"
-          - name: data
-            type: table
-            desc: Additional data per event, typically
-            parameters:
-              - name: artboard
-                type: ArtboardHandle
-                desc: Artboard handle involved.
-              - name: viewModelName
-                type: string
-                desc: View model name for defaults (received event).
-              - name: instanceName
-                type: string
-                desc: Instance name for defaults.
-              - name: stateMachineNames
-                type: table
-                desc: Array of state machine name strings.
-              - name: error
-                type: string
-                desc: Error message when an error event fires.
-
-#*****************************************************************************************************
-
-  - name: set_state_machine_listener
-    type: function
-    desc: Sets or clears the state machine listener callback.
-    parameters:
-      - name: callback
-        type: function(self, event, data)|nil
-        desc: Callback invoked for state machine events; pass nil to disable.
-        parameters:
-          - name: self
-            type: object
-            desc: The calling script instance.
-          - name: event
-            type: string
-            desc: "One of: onStateMachineError, onStateMachineDeleted, onStateMachineSettled"
-          - name: data
-            type: table
-            desc: Event-specific details
-            parameters:
-              - name: stateMachine
-                type: StateMachineHandle
-                desc: Active state machine handle.
-              - name: error
-                type: string
-                desc: Error message when an error occurs.
-
-#*****************************************************************************************************
-
-  - name: set_view_model_instance_listener
-    type: function
-    desc: Sets or clears the view model instance listener callback.
-    parameters:
-      - name: callback
-        type: function(self, event, data)|nil
-        desc: Callback invoked for view model instance events; pass nil to disable.
-        parameters:
-          - name: self
-            type: object
-            desc: The calling script instance.
-          - name: event
-            type: string
-            desc: "One of: onViewModelInstanceError, onViewModelDeleted, onViewModelDataReceived, onViewModelListSizeReceived"
-          - name: data
-            type: table
-            desc: Additional payload per event
-            parameters:
-              - name: viewModel
-                type: ViewModelInstanceHandle
-                desc: Handle of the affected view model instance.
-              - name: error
-                type: string
-                desc: Error description when an error fires.
-              - name: path
-                type: string
-                desc: Path being inspected when list size arrives.
-              - name: size
-                type: number
-                desc: List size value for list-size events.
-
-#*****************************************************************************************************
-
-  - name: set_render_image_listener
-    type: function
-    desc: Sets or clears the render image listener callback.
-    parameters:
-      - name: callback
-        type: function(self, event, data)|nil
-        desc: Callback invoked for render image events; pass nil to disable.
-        parameters:
-          - name: self
-            type: object
-            desc: The calling script instance.
-          - name: event
-            type: string
-            desc: "One of: onRenderImageDecoded, onRenderImageError, onRenderImageDeleted"
-          - name: data
-            type: table
-            desc: Additional fields
-            parameters:
-              - name: renderImage
-                type: RenderImageHandle
-                desc: Handle of the render image.
-              - name: error
-                type: string
-                desc: Error message for the failure event.
-
-#*****************************************************************************************************
-
-  - name: set_audio_source_listener
-    type: function
-    desc: Sets or clears the audio source listener callback.
-    parameters:
-      - name: callback
-        type: function(self, event, data)|nil
-        desc: Callback invoked for audio source events; pass nil to disable.
-        parameters:
-          - name: self
-            type: object
-            desc: The calling script instance.
-          - name: event
-            type: string
-            desc: "One of: onAudioSourceDecoded, onAudioSourceError, onAudioSourceDeleted"
-          - name: data
-            type: table
-            desc: Additional fields
-            parameters:
-              - name: audioSource
-                type: AudioSourceHandle
-                desc: Audio source handle for the event.
-              - name: error
-                type: string
-                desc: Error message when provided.
-
-#*****************************************************************************************************
-
-  - name: set_font_listener
-    type: function
-    desc: Sets or clears the font listener callback.
-    parameters:
-      - name: callback
-        type: function(self, event, data)|nil
-        desc: Callback invoked for font events; pass nil to disable.
-        parameters:
-          - name: self
-            type: object
-            desc: The calling script instance.
-          - name: event
-            type: string
-            desc: "One of: onFontDecoded, onFontError, onFontDeleted"
-          - name: data
-            type: table
-            desc: Additional fields
-            parameters:
-              - name: font
-                type: FontHandle
-                desc: Font handle for the associated event.
-              - name: error
-                type: string
-                desc: Error message for failure events.
 
 #*****************************************************************************************************
 
@@ -375,7 +198,7 @@
 
   - name: set_view_model_instance
     type: function
-    desc: Selects a view model instance by name.
+    desc: Selects a default view model instance by name.
     parameters:
       - name: url
         type: url
@@ -387,6 +210,9 @@
       - name: success
         type: boolean
         desc: True if the view model instance was activated.
+      - name: view_model_instance_handle
+        type: ViewModelInstanceHandle
+        desc: Handle to the old view model instance.
 
 #*****************************************************************************************************
 
@@ -438,6 +264,83 @@
       - name: artboard_handle
         type: ArtboardHandle
         desc: Default artboard handle for the file.
+
+#*****************************************************************************************************
+
+  - name: deleteArtboard
+    type: function
+    desc: Deletes an instantiated artboard.
+    parameters:
+      - name: artboard_handle
+        type: ArtboardHandle
+        desc: Handle to the artboard that should be removed.
+
+#*****************************************************************************************************
+
+  - name: instantiateStateMachineNamed
+    type: function
+    desc: Creates a named state machine for the provided artboard.
+    parameters:
+      - name: artboard_handle
+        type: ArtboardHandle
+        desc: Artboard where the state machine resides.
+      - name: name
+        type: string
+        desc: Name to assign to the new state machine.
+    return:
+      - name: state_machine_handle
+        type: StateMachineHandle
+        desc: Handle referencing the created state machine.
+
+#*****************************************************************************************************
+
+  - name: instantiateDefaultStateMachine
+    type: function
+    desc: Creates the default state machine for an artboard.
+    parameters:
+      - name: artboard_handle
+        type: ArtboardHandle
+        desc: Artboard used as the source for the state machine.
+    return:
+      - name: state_machine_handle
+        type: StateMachineHandle
+        desc: Handle referencing the created state machine.
+
+#*****************************************************************************************************
+
+  - name: advanceStateMachine
+    type: function
+    desc: Advances the state machine by the requested delta time.
+    parameters:
+      - name: state_machine_handle
+        type: StateMachineHandle
+        desc: State machine to advance.
+      - name: delta
+        type: number
+        desc: Time in seconds to advance the state machine.
+
+#*****************************************************************************************************
+
+  - name: bindViewModelInstance
+    type: function
+    desc: Binds the state machine to the provided view model instance.
+    parameters:
+      - name: state_machine_handle
+        type: StateMachineHandle
+        desc: State machine handle.
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance handle.
+
+#*****************************************************************************************************
+
+  - name: deleteStateMachine
+    type: function
+    desc: Deletes a created state machine.
+    parameters:
+      - name: state_machine_handle
+        type: StateMachineHandle
+        desc: Handle to the state machine to delete.
 
 #*****************************************************************************************************
 
@@ -529,70 +432,6 @@
       - name: view_model_handle
         type: ViewModelInstanceHandle
         desc: Handle to the referenced list entry.
-
-#*****************************************************************************************************
-
-  - name: deleteArtboard
-    type: function
-    desc: Deletes an instantiated artboard.
-    parameters:
-      - name: artboard_handle
-        type: ArtboardHandle
-        desc: Handle to the artboard that should be removed.
-
-#*****************************************************************************************************
-
-  - name: instantiateStateMachineNamed
-    type: function
-    desc: Creates a named state machine for the provided artboard.
-    parameters:
-      - name: artboard_handle
-        type: ArtboardHandle
-        desc: Artboard where the state machine resides.
-      - name: name
-        type: string
-        desc: Name to assign to the new state machine.
-    return:
-      - name: state_machine_handle
-        type: StateMachineHandle
-        desc: Handle referencing the created state machine.
-
-#*****************************************************************************************************
-
-  - name: instantiateDefaultStateMachine
-    type: function
-    desc: Creates the default state machine for an artboard.
-    parameters:
-      - name: artboard_handle
-        type: ArtboardHandle
-        desc: Artboard used as the source for the state machine.
-    return:
-      - name: state_machine_handle
-        type: StateMachineHandle
-        desc: Handle referencing the created state machine.
-
-#*****************************************************************************************************
-
-  - name: advanceStateMachine
-    type: function
-    desc: Advances the state machine by the requested delta time.
-    parameters:
-      - name: state_machine_handle
-        type: StateMachineHandle
-        desc: State machine to advance.
-      - name: delta
-        type: number
-        desc: Time in seconds to advance the state machine.
-
-#*****************************************************************************************************
-
-  - name: deleteStateMachine
-    type: function
-    desc: Deletes a created state machine.
-    parameters:
-      - name: state_machine_handle
-        type: StateMachineHandle
-        desc: Handle to the state machine to delete.
 
 #*****************************************************************************************************
 
@@ -695,19 +534,6 @@
       - name: nested_handle
         type: ViewModelInstanceHandle
         desc: Handle of the view model to remove.
-
-#*****************************************************************************************************
-
-  - name: bindViewModelInstance
-    type: function
-    desc: Binds the state machine to the provided view model instance.
-    parameters:
-      - name: state_machine_handle
-        type: StateMachineHandle
-        desc: State machine handle.
-      - name: view_model_handle
-        type: ViewModelInstanceHandle
-        desc: View model instance handle.
 
 #*****************************************************************************************************
 
@@ -843,6 +669,108 @@
       - name: artboard_handle
         type: ArtboardHandle
         desc: Artboard handle to assign.
+
+#*****************************************************************************************************
+
+  - name: getViewModelInstanceBool
+    type: function
+    desc: Returns the cached boolean property at the path.
+    parameters:
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance handle.
+      - name: path
+        type: string
+        desc: Path to the boolean property.
+    return:
+      - name: value
+        type: boolean
+        desc: Cached value. Raises error if unavailable.
+
+#*****************************************************************************************************
+
+  - name: getViewModelInstanceNumber
+    type: function
+    desc: Returns the cached numeric property at the path.
+    parameters:
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance handle.
+      - name: path
+        type: string
+        desc: Path to the numeric property.
+    return:
+      - name: value
+        type: number
+        desc: Cached value. Raises error if unavailable.
+
+#*****************************************************************************************************
+
+  - name: getViewModelInstanceColor
+    type: function
+    desc: Returns the cached color property at the path.
+    parameters:
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance handle.
+      - name: path
+        type: string
+        desc: Path to the color property.
+    return:
+      - name: value
+        type: vector4
+        desc: Cached color. Raises error if unavailable.
+
+#*****************************************************************************************************
+
+  - name: getViewModelInstanceEnum
+    type: function
+    desc: Returns the cached enum property at the path.
+    parameters:
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance handle.
+      - name: path
+        type: string
+        desc: Path to the enum property.
+    return:
+      - name: value
+        type: string
+        desc: Cached enum name. Raises error if unavailable.
+
+#*****************************************************************************************************
+
+  - name: getViewModelInstanceString
+    type: function
+    desc: Returns the cached string property at the path.
+    parameters:
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance handle.
+      - name: path
+        type: string
+        desc: Path to the string property.
+    return:
+      - name: value
+        type: string
+        desc: Cached value. Raises error if unavailable.
+
+#*****************************************************************************************************
+
+  - name: getViewModelInstanceListSize
+    type: function
+    desc: Returns the cached list size for the path.
+    parameters:
+      - name: view_model_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance handle.
+      - name: path
+        type: string
+        desc: Path to the list property.
+    return:
+      - name: value
+        type: number
+        desc: Cached list size. Raises error if unavailable.
 
 #*****************************************************************************************************
 

@@ -66,65 +66,6 @@ function rive.get_projection_matrix() end
 ---@param callback_data_error string Error message when a failure occurs.
 function rive.set_file_listener(callback) end
 
---- Sets or clears the artboard listener callback.
----@param callback? fun(self, event, data) Callback invoked for artboard-related events; pass nil to disable.
----@param callback_self object The calling script instance.
----@param callback_event string One of: onArtboardError, onDefaultViewModelInfoReceived, onArtboardDeleted, onStateMachinesListed
----@param callback_data table Additional data per event, typically:
----@param callback_data_artboard ArtboardHandle Artboard handle involved.
----@param callback_data_viewModelName string View model name for defaults (received event).
----@param callback_data_instanceName string Instance name for defaults.
----@param callback_data_stateMachineNames table Array of state machine name strings.
----@param callback_data_error string Error message when an error event fires.
-function rive.set_artboard_listener(callback) end
-
---- Sets or clears the state machine listener callback.
----@param callback? fun(self, event, data) Callback invoked for state machine events; pass nil to disable.
----@param callback_self object The calling script instance.
----@param callback_event string One of: onStateMachineError, onStateMachineDeleted, onStateMachineSettled
----@param callback_data table Event-specific details:
----@param callback_data_stateMachine StateMachineHandle Active state machine handle.
----@param callback_data_error string Error message when an error occurs.
-function rive.set_state_machine_listener(callback) end
-
---- Sets or clears the view model instance listener callback.
----@param callback? fun(self, event, data) Callback invoked for view model instance events; pass nil to disable.
----@param callback_self object The calling script instance.
----@param callback_event string One of: onViewModelInstanceError, onViewModelDeleted, onViewModelDataReceived, onViewModelListSizeReceived
----@param callback_data table Additional payload per event:
----@param callback_data_viewModel ViewModelInstanceHandle Handle of the affected view model instance.
----@param callback_data_error string Error description when an error fires.
----@param callback_data_path string Path being inspected when list size arrives.
----@param callback_data_size number List size value for list-size events.
-function rive.set_view_model_instance_listener(callback) end
-
---- Sets or clears the render image listener callback.
----@param callback? fun(self, event, data) Callback invoked for render image events; pass nil to disable.
----@param callback_self object The calling script instance.
----@param callback_event string One of: onRenderImageDecoded, onRenderImageError, onRenderImageDeleted
----@param callback_data table Additional fields:
----@param callback_data_renderImage RenderImageHandle Handle of the render image.
----@param callback_data_error string Error message for the failure event.
-function rive.set_render_image_listener(callback) end
-
---- Sets or clears the audio source listener callback.
----@param callback? fun(self, event, data) Callback invoked for audio source events; pass nil to disable.
----@param callback_self object The calling script instance.
----@param callback_event string One of: onAudioSourceDecoded, onAudioSourceError, onAudioSourceDeleted
----@param callback_data table Additional fields:
----@param callback_data_audioSource AudioSourceHandle Audio source handle for the event.
----@param callback_data_error string Error message when provided.
-function rive.set_audio_source_listener(callback) end
-
---- Sets or clears the font listener callback.
----@param callback? fun(self, event, data) Callback invoked for font events; pass nil to disable.
----@param callback_self object The calling script instance.
----@param callback_event string One of: onFontDecoded, onFontError, onFontDeleted
----@param callback_data table Additional fields:
----@param callback_data_font FontHandle Font handle for the associated event.
----@param callback_data_error string Error message for failure events.
-function rive.set_font_listener(callback) end
-
 --- Returns the Rive file handle tied to the component.
 ---@param url url Component whose file handle to query.
 ---@return FileHandle file_handle Handle identifying the loaded Rive file.
@@ -152,10 +93,11 @@ function rive.set_state_machine(url, name) end
 ---@return StateMachineHandle state_machine Current state machine handle.
 function rive.get_state_machine(url) end
 
---- Selects a view model instance by name.
+--- Selects a default view model instance by name.
 ---@param url url Component owning the view model instance.
 ---@param name string View model instance name to activate.
 ---@return boolean success True if the view model instance was activated.
+---@return ViewModelInstanceHandle view_model_instance_handle Handle to the old view model instance.
 function rive.set_view_model_instance(url, name) end
 
 --- Returns the handle of the currently bound view model instance.
@@ -176,6 +118,35 @@ function rive.cmd.instantiateArtboardNamed(file_handle, viewmodel_name) end
 ---@param file_handle FileHandle Handle to a previously loaded Rive file.
 ---@return ArtboardHandle artboard_handle Default artboard handle for the file.
 function rive.cmd.instantiateDefaultArtboard(file_handle) end
+
+--- Deletes an instantiated artboard.
+---@param artboard_handle ArtboardHandle Handle to the artboard that should be removed.
+function rive.cmd.deleteArtboard(artboard_handle) end
+
+--- Creates a named state machine for the provided artboard.
+---@param artboard_handle ArtboardHandle Artboard where the state machine resides.
+---@param name string Name to assign to the new state machine.
+---@return StateMachineHandle state_machine_handle Handle referencing the created state machine.
+function rive.cmd.instantiateStateMachineNamed(artboard_handle, name) end
+
+--- Creates the default state machine for an artboard.
+---@param artboard_handle ArtboardHandle Artboard used as the source for the state machine.
+---@return StateMachineHandle state_machine_handle Handle referencing the created state machine.
+function rive.cmd.instantiateDefaultStateMachine(artboard_handle) end
+
+--- Advances the state machine by the requested delta time.
+---@param state_machine_handle StateMachineHandle State machine to advance.
+---@param delta number Time in seconds to advance the state machine.
+function rive.cmd.advanceStateMachine(state_machine_handle, delta) end
+
+--- Binds the state machine to the provided view model instance.
+---@param state_machine_handle StateMachineHandle State machine handle.
+---@param view_model_handle ViewModelInstanceHandle View model instance handle.
+function rive.cmd.bindViewModelInstance(state_machine_handle, view_model_handle) end
+
+--- Deletes a created state machine.
+---@param state_machine_handle StateMachineHandle Handle to the state machine to delete.
+function rive.cmd.deleteStateMachine(state_machine_handle) end
 
 --- Returns a blank view model instance handle for the given artboard or view model.
 ---@param file_handle FileHandle Handle to a previously loaded Rive file.
@@ -208,30 +179,6 @@ function rive.cmd.referenceNestedViewModelInstance(view_model_handle, path) end
 ---@param index number Index within the list entry to reference.
 ---@return ViewModelInstanceHandle view_model_handle Handle to the referenced list entry.
 function rive.cmd.referenceListViewModelInstance(view_model_handle, path, index) end
-
---- Deletes an instantiated artboard.
----@param artboard_handle ArtboardHandle Handle to the artboard that should be removed.
-function rive.cmd.deleteArtboard(artboard_handle) end
-
---- Creates a named state machine for the provided artboard.
----@param artboard_handle ArtboardHandle Artboard where the state machine resides.
----@param name string Name to assign to the new state machine.
----@return StateMachineHandle state_machine_handle Handle referencing the created state machine.
-function rive.cmd.instantiateStateMachineNamed(artboard_handle, name) end
-
---- Creates the default state machine for an artboard.
----@param artboard_handle ArtboardHandle Artboard used as the source for the state machine.
----@return StateMachineHandle state_machine_handle Handle referencing the created state machine.
-function rive.cmd.instantiateDefaultStateMachine(artboard_handle) end
-
---- Advances the state machine by the requested delta time.
----@param state_machine_handle StateMachineHandle State machine to advance.
----@param delta number Time in seconds to advance the state machine.
-function rive.cmd.advanceStateMachine(state_machine_handle, delta) end
-
---- Deletes a created state machine.
----@param state_machine_handle StateMachineHandle Handle to the state machine to delete.
-function rive.cmd.deleteStateMachine(state_machine_handle) end
 
 --- Replaces the nested view model at the given path with the supplied handle.
 ---@param view_model_handle ViewModelInstanceHandle View model instance whose nested child is updated.
@@ -270,11 +217,6 @@ function rive.cmd.removeViewModelInstanceListViewModelIndex(view_model_handle, p
 ---@param path string Path to the target list.
 ---@param nested_handle ViewModelInstanceHandle Handle of the view model to remove.
 function rive.cmd.removeViewModelInstanceListViewModel(view_model_handle, path, nested_handle) end
-
---- Binds the state machine to the provided view model instance.
----@param state_machine_handle StateMachineHandle State machine handle.
----@param view_model_handle ViewModelInstanceHandle View model instance handle.
-function rive.cmd.bindViewModelInstance(state_machine_handle, view_model_handle) end
 
 --- Deletes the view model instance handle.
 ---@param view_model_handle ViewModelInstanceHandle View model instance to delete.
@@ -326,6 +268,42 @@ function rive.cmd.setViewModelInstanceImage(view_model_handle, path, render_imag
 ---@param path string Path to the artboard reference.
 ---@param artboard_handle ArtboardHandle Artboard handle to assign.
 function rive.cmd.setViewModelInstanceArtboard(view_model_handle, path, artboard_handle) end
+
+--- Returns the cached boolean property at the path.
+---@param view_model_handle ViewModelInstanceHandle View model instance handle.
+---@param path string Path to the boolean property.
+---@return boolean value Cached value. Raises error if unavailable.
+function rive.cmd.getViewModelInstanceBool(view_model_handle, path) end
+
+--- Returns the cached numeric property at the path.
+---@param view_model_handle ViewModelInstanceHandle View model instance handle.
+---@param path string Path to the numeric property.
+---@return number value Cached value. Raises error if unavailable.
+function rive.cmd.getViewModelInstanceNumber(view_model_handle, path) end
+
+--- Returns the cached color property at the path.
+---@param view_model_handle ViewModelInstanceHandle View model instance handle.
+---@param path string Path to the color property.
+---@return vector4 value Cached color. Raises error if unavailable.
+function rive.cmd.getViewModelInstanceColor(view_model_handle, path) end
+
+--- Returns the cached enum property at the path.
+---@param view_model_handle ViewModelInstanceHandle View model instance handle.
+---@param path string Path to the enum property.
+---@return string value Cached enum name. Raises error if unavailable.
+function rive.cmd.getViewModelInstanceEnum(view_model_handle, path) end
+
+--- Returns the cached string property at the path.
+---@param view_model_handle ViewModelInstanceHandle View model instance handle.
+---@param path string Path to the string property.
+---@return string value Cached value. Raises error if unavailable.
+function rive.cmd.getViewModelInstanceString(view_model_handle, path) end
+
+--- Returns the cached list size for the path.
+---@param view_model_handle ViewModelInstanceHandle View model instance handle.
+---@param path string Path to the list property.
+---@return number value Cached list size. Raises error if unavailable.
+function rive.cmd.getViewModelInstanceListSize(view_model_handle, path) end
 
 --- Subscribes for updates to the named property.
 ---@param view_model_handle ViewModelInstanceHandle View model instance handle.

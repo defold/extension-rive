@@ -454,7 +454,7 @@ static int Script_GetStateMachine(lua_State* L)
 }
 
 /**
- * Selects a view model instance by name.
+ * Selects a default view model instance by name.
  * @name rive.set_view_model_instance(component, name)
  * @param url [type: url] Component owning the view model instance.
  * @param name [type: string] View model instance name to activate.

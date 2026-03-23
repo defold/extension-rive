@@ -13,6 +13,15 @@ INPUT_RIVE = Path("defold-rive/src/script_rive.cpp")
 INPUT_CMD = Path("defold-rive/src/script_rive_cmd.cpp")
 OUTPUT_API = Path("defold-rive/api/rive.script_api")
 
+EXCLUDED_RIVE_FUNCTIONS = {
+    "set_artboard_listener",
+    "set_state_machine_listener",
+    "set_view_model_instance_listener",
+    "set_render_image_listener",
+    "set_audio_source_listener",
+    "set_font_listener",
+}
+
 
 TYPE_ALIAS_BY_NAME = {
     "file_handle": "FileHandle",
@@ -255,6 +264,8 @@ def build_api():
 
     rive_members = []
     for lua_name, script_name in rive_order:
+        if lua_name in EXCLUDED_RIVE_FUNCTIONS:
+            continue
         doc = rive_docs.get(f"Script_{script_name}")
         if not doc:
             continue
