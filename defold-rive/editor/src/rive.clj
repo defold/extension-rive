@@ -393,6 +393,15 @@
   (with-open [in (io/input-stream resource)]
     (IOUtils/toByteArray in)))
 
+(defn- handle-read-error [^Throwable error node-id resource]
+  (let [^Throwable error (if (instance? java.lang.reflect.InvocationTargetException error) (.getCause error) error)
+        msg (.getMessage error)
+        path (resource/resource->proj-path resource)]
+    (g/->error node-id :resource :fatal resource
+               (if (str/blank? msg)
+                 (format "Failed to load Rive File: %s" path)
+                 (format "Failed to load Rive File: %s (%s)" path msg)))))
+
 (defn- build-rive-file
   [resource dep-resources user-data]
   {:resource resource :content (resource->bytes (:resource resource))})
@@ -513,48 +522,55 @@
 ; Loads the .riv file
 (defn- load-rive-file
   [project node-id resource]
-  (let [content (resource->bytes resource)
-        rive-handle (plugin-load-file content (resource/resource->proj-path resource))
-        ; .rivescene preview has no fit/alignment properties of its own.
-        ; Use contain+center defaults to avoid FIT_NONE behavior.
-        default-fit-int (pb-enum-keyword->int artboard-fit-pb-class :fit-contain)
-        default-alignment-int (pb-enum-keyword->int artboard-alignment-pb-class :alignment-center)
-        artboards (or (get-public-field rive-handle "artboards") [])
-        view-models (or (get-public-field rive-handle "viewModels") [])
-        view-model-properties (or (get-public-field rive-handle "viewModelProperties") [])
-        view-model-properties-info (to-view-model-properties view-model-properties)
-        view-model-instance-names (or (get-public-field rive-handle "viewModelInstanceNames") [])
-        view-model-instances (to-view-model-instances view-model-instance-names)
-        default-view-model-info (to-default-view-model-info (get-public-field rive-handle "defaultViewModelInfo"))
-        state-machines (to-state-machines-map (get-public-field rive-handle "stateMachines"))
+  (try
+    (let [content (resource->bytes resource)
+          path (resource/resource->proj-path resource)
+          rive-handle (plugin-load-file content path)
+          _ (when-not rive-handle
+              (throw (RuntimeException. "LoadFromBuffer returned null")))
+          ; .rivescene preview has no fit/alignment properties of its own.
+          ; Use contain+center defaults to avoid FIT_NONE behavior.
+          default-fit-int (pb-enum-keyword->int artboard-fit-pb-class :fit-contain)
+          default-alignment-int (pb-enum-keyword->int artboard-alignment-pb-class :alignment-center)
+          artboards (or (get-public-field rive-handle "artboards") [])
+          view-models (or (get-public-field rive-handle "viewModels") [])
+          view-model-properties (or (get-public-field rive-handle "viewModelProperties") [])
+          view-model-properties-info (to-view-model-properties view-model-properties)
+          view-model-instance-names (or (get-public-field rive-handle "viewModelInstanceNames") [])
+          view-model-instances (to-view-model-instances view-model-instance-names)
+          default-view-model-info (to-default-view-model-info (get-public-field rive-handle "defaultViewModelInfo"))
+          state-machines (to-state-machines-map (get-public-field rive-handle "stateMachines"))
 
-        _ (plugin-set-fit-alignment rive-handle default-fit-int default-alignment-int)
-        _ (.Update rive-handle 0.0)
-        bounds-obj (or (get-public-field rive-handle "bounds")
-                       (get-public-field rive-handle "aabb"))
-        bounds-text (if bounds-obj
-                      (bounds->string bounds-obj)
-                      none-value-text)
-        aabb (if bounds-obj
-               (convert-aabb bounds-obj)
-               geom/null-aabb)
+          _ (plugin-set-fit-alignment rive-handle default-fit-int default-alignment-int)
+          _ (plugin-update-file rive-handle 0.0)
+          bounds-obj (or (get-public-field rive-handle "bounds")
+                         (get-public-field rive-handle "aabb"))
+          bounds-text (if bounds-obj
+                        (bounds->string bounds-obj)
+                        none-value-text)
+          aabb (if bounds-obj
+                 (convert-aabb bounds-obj)
+                 geom/null-aabb)
 
-        tx-data (concat
-                 (g/set-property node-id :content content)
-                 (g/set-property node-id :rive-handle rive-handle)
-                 (g/set-property node-id :artboards artboards)
-                 (g/set-property node-id :view-models view-models)
-                 (g/set-property node-id :view-model-properties view-model-properties)
-                 (g/set-property node-id :bounds bounds-text)
-                 (g/set-property node-id :state-machines state-machines)
-                 (g/set-property node-id :aabb aabb))
+          tx-data (concat
+                   (g/set-property node-id :content content)
+                   (g/set-property node-id :rive-handle rive-handle)
+                   (g/set-property node-id :artboards artboards)
+                   (g/set-property node-id :view-models view-models)
+                   (g/set-property node-id :view-model-properties view-model-properties)
+                   (g/set-property node-id :bounds bounds-text)
+                   (g/set-property node-id :state-machines state-machines)
+                   (g/set-property node-id :aabb aabb))
 
-        artboard-outline-tx-data (create-artboard-nodes node-id artboards state-machines)
-        view-model-outline-tx-data (create-view-model-nodes node-id view-models view-model-properties-info view-model-instances default-view-model-info)
-        all-tx-data (concat tx-data
-                            artboard-outline-tx-data
-                            view-model-outline-tx-data)]
-    all-tx-data))
+          artboard-outline-tx-data (create-artboard-nodes node-id artboards state-machines)
+          view-model-outline-tx-data (create-view-model-nodes node-id view-models view-model-properties-info view-model-instances default-view-model-info)
+          all-tx-data (concat tx-data
+                              artboard-outline-tx-data
+                              view-model-outline-tx-data)]
+      all-tx-data)
+    (catch Exception error
+      (let [error-value (handle-read-error error node-id resource)]
+        (throw (ex-info (:message error-value) error-value error))))))
 
 (set! *warn-on-reflection* true)
 
