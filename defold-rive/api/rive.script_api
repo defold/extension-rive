@@ -91,10 +91,10 @@
             desc: The calling script instance.
           - name: event
             type: string
-            desc: One of: onFileLoaded, onFileDeleted, onFileError, onArtboardsListed, onViewModelsListed, onViewModelInstanceNamesListed, onViewModelPropertiesListed, onViewModelEnumsListed
+            desc: One of onFileLoaded, onFileDeleted, onFileError, onArtboardsListed, onViewModelsListed, onViewModelInstanceNamesListed, onViewModelPropertiesListed, onViewModelEnumsListed
           - name: data
             type: table
-            desc: Additional fields vary by event. Common keys include:
+            desc: Additional fields vary by event. Common keys include
             parameters:
               - name: file
                 type: FileHandle
