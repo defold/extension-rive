@@ -117,6 +117,21 @@ static bool ShouldInstantiateDefaultViewModelInstance(const RiveFile* file)
 #endif
 }
 
+static void BindViewModelInstance(RiveFile* file, rive::rcp<rive::CommandQueue> queue)
+{
+    if (!file || !queue)
+    {
+        return;
+    }
+
+    if (file->m_StateMachine == RIVE_NULL_HANDLE || file->m_ViewModelInstance == RIVE_NULL_HANDLE)
+    {
+        return;
+    }
+
+    queue->bindViewModelInstance(file->m_StateMachine, file->m_ViewModelInstance);
+}
+
 RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char* path)
 {
     if (!buffer || buffer_size == 0)
@@ -188,6 +203,7 @@ RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char*
         {
             out->m_ViewModelInstance = queue->instantiateDefaultViewModelInstance(out->m_File, out->m_Artboard);
         }
+        BindViewModelInstance(out, queue);
     }
 
     dmRiveCommands::ProcessMessages();
@@ -338,6 +354,7 @@ void SetArtboard(RiveFile* file, const char* artboard)
         {
             file->m_ViewModelInstance = queue->instantiateDefaultViewModelInstance(file->m_File, file->m_Artboard);
         }
+        BindViewModelInstance(file, queue);
     }
 
     dmRiveCommands::ProcessMessages();
@@ -390,6 +407,7 @@ void SetStatemachine(RiveFile* file, const char* state_machine)
         }
     }
 
+    BindViewModelInstance(file, queue);
     dmRiveCommands::ProcessMessages();
 }
 
