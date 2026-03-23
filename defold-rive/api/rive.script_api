@@ -205,11 +205,8 @@
         desc: Component owning the view model instance.
       - name: name
         type: string
-        desc: View model instance name to activate.
+        desc: View model name whose default instance should be activated.
     return:
-      - name: success
-        type: boolean
-        desc: True if the view model instance was activated.
       - name: view_model_instance_handle
         type: ViewModelInstanceHandle
         desc: Handle to the old view model instance.

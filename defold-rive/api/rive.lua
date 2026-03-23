@@ -95,8 +95,7 @@ function rive.get_state_machine(url) end
 
 --- Selects a default view model instance by name.
 ---@param url url Component owning the view model instance.
----@param name string View model instance name to activate.
----@return boolean success True if the view model instance was activated.
+---@param name string View model name whose default instance should be activated.
 ---@return ViewModelInstanceHandle view_model_instance_handle Handle to the old view model instance.
 function rive.set_view_model_instance(url, name) end
 
