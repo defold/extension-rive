@@ -10,7 +10,7 @@ option java_outer_classname = "Rive";
 message RiveSceneDesc
 {
     required string scene = 1 [(resource)=true];
-    optional string atlas = 2 [(resource)=true];
+    optional string atlas = 2 [(resource)=true]; // Deprecated
 }
 
 message RiveModelDesc
