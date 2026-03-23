@@ -39,7 +39,7 @@
            [editor.gl.shader ShaderLifecycle]
            [java.io IOException]
            [java.nio FloatBuffer IntBuffer]
-           [javax.vecmath Matrix4d Vector3d Vector4d]
+           [javax.vecmath Matrix4d Vector4d]
            [org.apache.commons.io IOUtils]))
 
 (set! *warn-on-reflection* true)
@@ -53,7 +53,6 @@
 (def rive-file-icon "/defold-rive/editor/resources/icons/32/Icons_17-Rive-file.png")
 (def rive-scene-icon "/defold-rive/editor/resources/icons/32/Icons_16-Rive-scene.png")
 (def rive-model-icon "/defold-rive/editor/resources/icons/32/Icons_15-Rive-model.png")
-(def rive-bone-icon "/defold-rive/editor/resources/icons/32/Icons_18-Rive-bone.png")
 (def rive-artboard-icon "/defold-rive/editor/resources/icons/32/Icons_19-Rive-artboard.png")
 (def rive-state-machine-icon "/defold-rive/editor/resources/icons/32/Icons_20-Rive-statemachine.png")
 (def rive-view-model-icon "/defold-rive/editor/resources/icons/32/Icons_21-Rive-viewmodel.png")
@@ -277,11 +276,6 @@
         artboard-fit :artboard-fit
         artboard-alignment :artboard-alignment))))
 
-(g/defnk produce-transform [position rotation scale]
-  (math/->mat4-non-uniform (Vector3d. (double-array position))
-                           (math/euler-z->quat rotation)
-                           (Vector3d. (double-array scale))))
-
 ;; Outline nodes for artboards, state machines, and view models.
 (g/defnode RiveArtboardNode
   (inherits outline/OutlineNode)
@@ -395,37 +389,6 @@
              :icon rive-view-model-property-icon
              :read-only true})))
 
-;; Represents a single bone inside a .riv file, a proprietary file format.
-(g/defnode RiveBone
-  (inherits outline/OutlineNode)
-  (property name g/Str (dynamic read-only? (g/constantly true)))
-  (property position types/Vec3
-            (dynamic edit-type (g/constantly {:type types/Vec2}))
-            (dynamic read-only? (g/constantly true)))
-  (property rotation g/Num (dynamic read-only? (g/constantly true)))
-  (property scale types/Vec3
-            (dynamic edit-type (g/constantly {:type types/Vec2}))
-            (dynamic read-only? (g/constantly true)))
-  (property length g/Num
-            (dynamic read-only? (g/constantly true)))
-
-  (input nodes g/Any :array)
-  (input child-bones g/Any :array)
-  (input child-outlines g/Any :array)
-
-  (output transform Matrix4d :cached produce-transform)
-  (output bone g/Any (g/fnk [name transform child-bones]
-                            {:name name
-                             :local-transform transform
-                             :children child-bones}))
-  (output node-outline outline/OutlineData (g/fnk [_node-id name child-outlines]
-                                                  {:node-id _node-id
-                                                   :node-outline-key name
-                                                   :label name
-                                                   :icon rive-bone-icon
-                                                   :children child-outlines
-                                                   :read-only true})))
-
 (defn- resource->bytes [resource]
   (with-open [in (io/input-stream resource)]
     (IOUtils/toByteArray in)))
@@ -457,14 +420,11 @@
   (property state-machines g/Any)
   (property aabb g/Any)
   (property vertices g/Any)
-  (property bones g/Any)
   (property artboards g/Any)
   (property view-models g/Any)
   (property view-model-properties g/Any)
   (property bounds g/Str
             (dynamic visible (g/constantly false)))
-
-  (input child-bones g/Any :array)
 
   (output build-targets g/Any :cached produce-rive-file-build-targets)
   (output node-outline outline/OutlineData :cached produce-rive-file-outline))
@@ -483,35 +443,8 @@
         aabb (geom/coords->aabb [(- min-x center-x) (- min-y center-y) 0] [(- max-x center-x) (- max-y center-y) 0])]
     aabb))
 
-(defn- create-bone [parent-id rive-bone]
-  ; rive-bone is of type Rive$Bone (Rive.java)
-  (let [name (.-name rive-bone)
-        x (.-posX rive-bone)
-        y (.-posY rive-bone)
-        rotation (.-rotation rive-bone)
-        scale-x (.-scaleX rive-bone)
-        scale-y (.-scaleY rive-bone)
-        length (.-length rive-bone)
-        parent-graph-id (g/node-id->graph-id parent-id)
-        bone-tx-data (g/make-nodes parent-graph-id [bone [RiveBone :name name :position [x y protobuf/float-zero] :rotation rotation :scale [scale-x scale-y protobuf/float-one] :length length]]
-                                   ; Hook this node into the parent's lists
-                                   (g/connect bone :_node-id parent-id :nodes)
-                                   (g/connect bone :bone parent-id :child-bones))]
-    bone-tx-data))
-
 (defn- tx-first-created [tx-data]
   (first (g/tx-data-added-node-ids tx-data)))
-
-(defn- create-bone-hierarchy [parent-id bone]
-  (let [bone-tx-data (create-bone parent-id bone)
-        bone-id (first (g/tx-data-added-node-ids bone-tx-data))
-        child-bones (.-children bone)
-        children-tx-data (mapcat (fn [child] (create-bone-hierarchy bone-id child)) child-bones)]
-    (concat bone-tx-data children-tx-data)))
-
-(defn- create-bones [parent-id bones]
-  ; bones is a list of root Rive$Bone (Rive.java)
-  (mapcat (fn [bone] (create-bone-hierarchy parent-id bone)) bones))
 
 (defn- create-state-machine-node [parent-id artboard state-machine]
   (when parent-id
@@ -605,7 +538,6 @@
         aabb (if bounds-obj
                (convert-aabb bounds-obj)
                geom/null-aabb)
-        bones (or (get-public-field rive-handle "bones") [])
 
         tx-data (concat
                  (g/set-property node-id :content content)
@@ -615,15 +547,13 @@
                  (g/set-property node-id :view-model-properties view-model-properties)
                  (g/set-property node-id :bounds bounds-text)
                  (g/set-property node-id :state-machines state-machines)
-                 (g/set-property node-id :aabb aabb)
-                 (g/set-property node-id :bones bones))
+                 (g/set-property node-id :aabb aabb))
 
         artboard-outline-tx-data (create-artboard-nodes node-id artboards state-machines)
         view-model-outline-tx-data (create-view-model-nodes node-id view-models view-model-properties-info view-model-instances default-view-model-info)
         all-tx-data (concat tx-data
                             artboard-outline-tx-data
-                            view-model-outline-tx-data
-                            (create-bones node-id bones))]
+                            view-model-outline-tx-data)]
     all-tx-data))
 
 (set! *warn-on-reflection* true)
