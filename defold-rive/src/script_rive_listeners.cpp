@@ -294,7 +294,7 @@ void FileListener::onFileError(const rive::FileHandle, uint64_t requestId, std::
         lua_State* L = dmScript::GetCallbackLuaContext(m_Callback);
 
         lua_pushstring(L, error.c_str());
-        lua_setfield(L, -2, "artboardNames");
+        lua_setfield(L, -2, "error");
 
         InvokeCallback(L, m_Callback);
     }
