@@ -35,6 +35,20 @@ static dmExtension::Result AppInitializeRive(dmExtension::AppParams* params)
     return dmExtension::RESULT_OK;
 }
 
+// Until we have dmThread::PlatformHasThreadSupport() in dmsdk
+static bool PlatformHasThreadSupport()
+{
+#if defined(DM_PLATFORM_HTML5)
+    #if defined(__EMSCRIPTEN_PTHREADS__)
+        return true;
+    #else
+        return false;
+    #endif
+#else
+    return true;
+#endif
+}
+
 static dmExtension::Result InitializeRive(dmExtension::Params* params)
 {
     g_RenderContext = dmRive::NewRenderContext();
@@ -43,9 +57,11 @@ static dmExtension::Result InitializeRive(dmExtension::Params* params)
     assert(g_RenderMutex != 0);
     dmRive::SetRenderMutex(g_RenderContext, g_RenderMutex);
 
+    bool use_threads = PlatformHasThreadSupport() &&
+                        dmConfigFile::GetInt(params->m_ConfigFile, PROJECT_PROPERTY_USE_THREADS, 0) > 0;
+
     dmRiveCommands::InitParams cmd_params;
-    cmd_params.m_UseThreads = dmConfigFile::GetInt(params->m_ConfigFile, PROJECT_PROPERTY_USE_THREADS, 0) > 0;
-    cmd_params.m_UseThreads = true;
+    cmd_params.m_UseThreads = use_threads;
     cmd_params.m_RenderContext = g_RenderContext;
     cmd_params.m_Factory = dmRive::GetRiveFactory(g_RenderContext);
     cmd_params.m_Mutex = g_RenderMutex;
