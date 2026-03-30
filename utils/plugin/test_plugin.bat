@@ -45,6 +45,7 @@ echo BOB=%BOB%
 echo JAR=%JAR%
 echo CLASS_NAME=%CLASS_NAME%
 echo LIBNAME=%LIBNAME%
+for /f "tokens=1,* delims==" %%A in ('java.exe -XshowSettings:properties -version 2^>^&1 ^| findstr /C:"java.home ="') do for /f "tokens=* delims= " %%I in ("%%B") do echo JAVA_HOME=%%I
 
 set "JNI_DEBUG_FLAGS=-Xcheck:jni"
 
