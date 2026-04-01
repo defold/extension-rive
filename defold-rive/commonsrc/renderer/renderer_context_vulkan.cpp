@@ -1,4 +1,3 @@
-
 #if defined(DM_GRAPHICS_USE_VULKAN) && defined(RIVE_VULKAN) && !defined(DM_HEADLESS)
 
 #include "renderer_context.h"
@@ -24,6 +23,12 @@ namespace dmRive
             m_BackingRenderTarget = 0;
             m_BackingTexture = 0;
             m_TargetTexture = 0;
+            m_Device = VK_NULL_HANDLE;
+            m_GraphicsQueue = VK_NULL_HANDLE;
+            m_GraphicsQueueFamily = 0;
+            m_CommandPool = VK_NULL_HANDLE;
+            m_FlushCommandBuffer = VK_NULL_HANDLE;
+            m_FlushFence = VK_NULL_HANDLE;
             m_FrameNumber = 0;
             m_Width = 0;
             m_Height = 0;
@@ -32,6 +37,8 @@ namespace dmRive
 
         ~DefoldRiveRendererVulkan() override
         {
+            DestroySubmitResources();
+
             if (m_BackingRenderTarget)
             {
                 dmGraphics::DeleteRenderTarget(m_GraphicsContext, m_BackingRenderTarget);
@@ -73,16 +80,45 @@ namespace dmRive
                 return;
             }
 
-            VkCommandBuffer command_buffer = dmGraphics::VulkanGetCurrentFrameCommandBuffer(m_GraphicsContext);
-            if (command_buffer == VK_NULL_HANDLE)
+            if (!EnsureSubmitResources())
             {
-                dmLogError("VulkanGetCurrentFrameCommandBuffer returned null");
+                return;
+            }
+
+            VkResult vk_result = vkWaitForFences(m_Device, 1, &m_FlushFence, VK_TRUE, UINT64_MAX);
+            if (vk_result != VK_SUCCESS)
+            {
+                dmLogError("vkWaitForFences failed: %d", (int)vk_result);
+                return;
+            }
+
+            vk_result = vkResetFences(m_Device, 1, &m_FlushFence);
+            if (vk_result != VK_SUCCESS)
+            {
+                dmLogError("vkResetFences failed: %d", (int)vk_result);
+                return;
+            }
+
+            vk_result = vkResetCommandPool(m_Device, m_CommandPool, 0);
+            if (vk_result != VK_SUCCESS)
+            {
+                dmLogError("vkResetCommandPool failed: %d", (int)vk_result);
+                return;
+            }
+
+            VkCommandBufferBeginInfo begin_info = {};
+            begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+            begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+            vk_result = vkBeginCommandBuffer(m_FlushCommandBuffer, &begin_info);
+            if (vk_result != VK_SUCCESS)
+            {
+                dmLogError("vkBeginCommandBuffer failed: %d", (int)vk_result);
                 return;
             }
 
             rive::gpu::RenderContext::FlushResources flush_resources;
             flush_resources.renderTarget = m_RenderTarget.get();
-            flush_resources.externalCommandBuffer = (void*)command_buffer;
+            flush_resources.externalCommandBuffer = (void*)m_FlushCommandBuffer;
             flush_resources.currentFrameNumber = ++m_FrameNumber;
             // Defold does not expose Vulkan fence-safe frame numbers through the
             // public SDK, so keep a conservative two-frame delay before Rive
@@ -98,7 +134,7 @@ namespace dmRive
                     .accessMask = VK_ACCESS_SHADER_READ_BIT,
                     .layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                 };
-                m_RenderTarget->accessTargetImageView(command_buffer, shader_read_access);
+                m_RenderTarget->accessTargetImageView(m_FlushCommandBuffer, shader_read_access);
             }
             else
             {
@@ -107,7 +143,24 @@ namespace dmRive
                     .accessMask = 0,
                     .layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
                 };
-                m_RenderTarget->accessTargetImageView(command_buffer, present_access);
+                m_RenderTarget->accessTargetImageView(m_FlushCommandBuffer, present_access);
+            }
+
+            vk_result = vkEndCommandBuffer(m_FlushCommandBuffer);
+            if (vk_result != VK_SUCCESS)
+            {
+                dmLogError("vkEndCommandBuffer failed: %d", (int)vk_result);
+                return;
+            }
+
+            VkSubmitInfo submit_info = {};
+            submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+            submit_info.commandBufferCount = 1;
+            submit_info.pCommandBuffers = &m_FlushCommandBuffer;
+            vk_result = vkQueueSubmit(m_GraphicsQueue, 1, &submit_info, m_FlushFence);
+            if (vk_result != VK_SUCCESS)
+            {
+                dmLogError("vkQueueSubmit failed: %d", (int)vk_result);
             }
         }
 
@@ -215,11 +268,6 @@ namespace dmRive
     private:
         bool EnsureRenderContext()
         {
-            if (m_RenderContext)
-            {
-                return true;
-            }
-
             if (!m_GraphicsContext)
             {
                 return false;
@@ -228,11 +276,22 @@ namespace dmRive
             VkInstance instance = dmGraphics::VulkanGetInstance(m_GraphicsContext);
             VkPhysicalDevice physical_device = dmGraphics::VulkanGetPhysicalDevice(m_GraphicsContext);
             VkDevice device = dmGraphics::VulkanGetDevice(m_GraphicsContext);
+            VkQueue graphics_queue = dmGraphics::VulkanGetGraphicsQueue(m_GraphicsContext);
+            uint32_t graphics_queue_family = (uint32_t)dmGraphics::VulkanGetGraphicsQueueFamily(m_GraphicsContext);
 
-            if (instance == VK_NULL_HANDLE || physical_device == VK_NULL_HANDLE || device == VK_NULL_HANDLE)
+            if (instance == VK_NULL_HANDLE || physical_device == VK_NULL_HANDLE || device == VK_NULL_HANDLE || graphics_queue == VK_NULL_HANDLE)
             {
                 dmLogError("Vulkan graphics context missing required handles");
                 return false;
+            }
+
+            m_Device = device;
+            m_GraphicsQueue = graphics_queue;
+            m_GraphicsQueueFamily = graphics_queue_family;
+
+            if (m_RenderContext)
+            {
+                return true;
             }
 
             rive::gpu::VulkanFeatures vulkan_features = {};
@@ -258,11 +317,11 @@ namespace dmRive
             options.shaderCompilationMode = rive::gpu::ShaderCompilationMode::standard;
 
             m_RenderContext = rive::gpu::RenderContextVulkanImpl::MakeContext(instance,
-                                                                               physical_device,
-                                                                               device,
-                                                                               vulkan_features,
-                                                                               vkGetInstanceProcAddr,
-                                                                               options);
+                                                                              physical_device,
+                                                                              device,
+                                                                              vulkan_features,
+                                                                              vkGetInstanceProcAddr,
+                                                                              options);
             if (!m_RenderContext)
             {
                 dmLogError("Failed to create Rive Vulkan render context");
@@ -270,6 +329,89 @@ namespace dmRive
             }
 
             return true;
+        }
+
+        bool EnsureSubmitResources()
+        {
+            if (!EnsureRenderContext())
+            {
+                return false;
+            }
+
+            if (m_CommandPool != VK_NULL_HANDLE && m_FlushCommandBuffer != VK_NULL_HANDLE && m_FlushFence != VK_NULL_HANDLE)
+            {
+                return true;
+            }
+
+            VkCommandPoolCreateInfo pool_info = {};
+            pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+            pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+            pool_info.queueFamilyIndex = m_GraphicsQueueFamily;
+            VkResult vk_result = vkCreateCommandPool(m_Device, &pool_info, 0, &m_CommandPool);
+            if (vk_result != VK_SUCCESS)
+            {
+                dmLogError("vkCreateCommandPool failed: %d", (int)vk_result);
+                DestroySubmitResources();
+                return false;
+            }
+
+            VkCommandBufferAllocateInfo alloc_info = {};
+            alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+            alloc_info.commandPool = m_CommandPool;
+            alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+            alloc_info.commandBufferCount = 1;
+            vk_result = vkAllocateCommandBuffers(m_Device, &alloc_info, &m_FlushCommandBuffer);
+            if (vk_result != VK_SUCCESS)
+            {
+                dmLogError("vkAllocateCommandBuffers failed: %d", (int)vk_result);
+                DestroySubmitResources();
+                return false;
+            }
+
+            VkFenceCreateInfo fence_info = {};
+            fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+            fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+            vk_result = vkCreateFence(m_Device, &fence_info, 0, &m_FlushFence);
+            if (vk_result != VK_SUCCESS)
+            {
+                dmLogError("vkCreateFence failed: %d", (int)vk_result);
+                DestroySubmitResources();
+                return false;
+            }
+
+            return true;
+        }
+
+        void DestroySubmitResources()
+        {
+            if (m_Device == VK_NULL_HANDLE)
+            {
+                return;
+            }
+
+            if (m_FlushFence != VK_NULL_HANDLE)
+            {
+                vkWaitForFences(m_Device, 1, &m_FlushFence, VK_TRUE, UINT64_MAX);
+            }
+
+            if (m_GraphicsQueue != VK_NULL_HANDLE)
+            {
+                vkQueueWaitIdle(m_GraphicsQueue);
+            }
+
+            if (m_FlushFence != VK_NULL_HANDLE)
+            {
+                vkDestroyFence(m_Device, m_FlushFence, 0);
+                m_FlushFence = VK_NULL_HANDLE;
+            }
+
+            if (m_CommandPool != VK_NULL_HANDLE)
+            {
+                vkDestroyCommandPool(m_Device, m_CommandPool, 0);
+                m_CommandPool = VK_NULL_HANDLE;
+            }
+
+            m_FlushCommandBuffer = VK_NULL_HANDLE;
         }
 
         bool EnsureBackingRenderTarget(uint32_t width, uint32_t height)
@@ -348,6 +490,12 @@ namespace dmRive
         dmGraphics::HRenderTarget                       m_BackingRenderTarget;
         dmGraphics::HTexture                            m_BackingTexture;
         dmGraphics::HTexture                            m_TargetTexture;
+        VkDevice                                        m_Device;
+        VkQueue                                         m_GraphicsQueue;
+        uint32_t                                        m_GraphicsQueueFamily;
+        VkCommandPool                                   m_CommandPool;
+        VkCommandBuffer                                 m_FlushCommandBuffer;
+        VkFence                                         m_FlushFence;
         uint64_t                                        m_FrameNumber;
         uint32_t                                        m_Width;
         uint32_t                                        m_Height;

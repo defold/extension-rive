@@ -108,6 +108,12 @@ namespace dmRive
             m_RenderContext = rive::gpu::RenderContextGLImpl::MakeContext({
                 .disableFragmentShaderInterlock = false // options.disableRasterOrdering,
             });
+
+            int glerr = (int)glGetError();
+            if (glerr != 0)
+            {
+                dmLogError("Rive OpenGL context produced a gl error: %d", glerr);
+            }
         }
 
         rive::Factory* Factory() override

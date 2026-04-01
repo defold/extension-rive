@@ -500,7 +500,9 @@ namespace dmRive
     {
         if (world->m_RiveRenderContext)
         {
-            dmRiveCommands::ProcessMessages(); // Wait until it's done
+            // Current-frame draw callbacks are executed by the command server
+            // after it drains commands, so this fence must stay on the render path.
+            dmRiveCommands::ProcessMessages();
             RenderEnd(world->m_RiveRenderContext);
 
             if (g_RenderBeginParams.m_DoFinalBlit)
@@ -698,6 +700,8 @@ namespace dmRive
         {
             case dmRender::RENDER_LIST_OPERATION_BEGIN:
             {
+                // Drain any queued non-draw work before the render batch starts.
+                dmRiveCommands::ProcessMessages();
                 world->m_RenderObjects.SetSize(0);
                 world->m_DidWork = false;
                 break;
@@ -925,6 +929,7 @@ namespace dmRive
 
         g_RenderBeginParams.m_DoFinalBlit       = dmConfigFile::GetInt(ctx->m_Config, "rive.render_to_texture", 1);
         g_RenderBeginParams.m_BackbufferSamples = dmConfigFile::GetInt(ctx->m_Config, "display.samples", 0);
+
 
         if (g_RenderBeginParams.m_DoFinalBlit)
         {
