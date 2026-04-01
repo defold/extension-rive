@@ -339,6 +339,7 @@ target_include_directories(rive_plugin PRIVATE
 if(TARGET_PLATFORM MATCHES "win32")
     set(ENGINE_LIBS
         libdlib
+        libzip
         libmbedtls
         libddf
         libprofile_null
