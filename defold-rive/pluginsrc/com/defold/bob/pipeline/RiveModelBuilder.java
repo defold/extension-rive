@@ -27,21 +27,23 @@ public class RiveModelBuilder extends ProtoBuilder<RiveModelDesc.Builder> {
 
     @Override
     protected RiveModelDesc.Builder transform(Task task, IResource resource, RiveModelDesc.Builder builder) throws CompileExceptionError {
+        if (builder.hasCoordinateSystem()
+                && builder.getCoordinateSystem() == RiveModelDesc.CoordinateSystem.COORDINATE_SYSTEM_FULLSCREEN) {
+            builder.setCoordinateSystem(RiveModelDesc.CoordinateSystem.COORDINATE_SYSTEM_GAME);
+        }
+        builder.clearBlendMode();
+        builder.clearMaterial();
+        builder.clearCreateGoBones();
 
         if (!builder.getScene().equals("")) {
             BuilderUtil.checkResource(this.project, resource, "scene", builder.getScene());
         }
         builder.setScene(BuilderUtil.replaceExt(builder.getScene(), ".rivescene", ".rivescenec"));
 
-        if (!builder.getMaterial().equals("")) {
-            BuilderUtil.checkResource(this.project, resource, "material", builder.getMaterial());
-        }
-
         if (!builder.getBlitMaterial().equals("")) {
             BuilderUtil.checkResource(this.project, resource, "material", builder.getBlitMaterial());
         }
 
-        builder.setMaterial(BuilderUtil.replaceExt(builder.getMaterial(), ".material", ".materialc"));
         builder.setBlitMaterial(BuilderUtil.replaceExt(builder.getBlitMaterial(), ".material", ".materialc"));
         return builder;
     }

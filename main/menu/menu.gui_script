@@ -2,32 +2,110 @@ local dirtylarry = require "dirtylarry/dirtylarry"
 
 
 local BUTTONS = {
-	{ id = "car", text = "Car" },
-	{ id = "lights", text = "Lights" },
-	--{ id = "bones", text = "Bones" },
-	--{ id = "cursor", text = "Cursor" },
-	--{ id = "state", text = "State" },
 	{ id = "sophiahud", text = "Sophia" },
 	{ id = "scifihud", text = "Sci-fi" },
-	--{ id = "circleui", text = "Circle UI" },
 	{ id = "takethis", text = "Take This!" },
 	{ id = "ac2", text = "Assassin" },
 	{ id = "grimley", text = "Grimley" },
-	{ id = "fighting-game", text = "Fight!" },
 	{ id = "ghost", text = "Ghost UI" },
 	{ id = "layout", text = "Layouts" },
 	{ id = "egg", text = "Feathering" },
 	{ id = "outofband", text = "Out-of-band" },
 	{ id = "databind", text = "Data Bindings" },
 	{ id = "scrollist", text = "Scroll List" },
-	{ id = "fontfallback", text = "Font Fallback" },
+	--{ id = "fontfallback", text = "Font Fallback" },
  }
 local COLUMNS = 3
 local WIDTH = 220
 local HEIGHT = 70
+local ACTION_LEFT = hash("left")
+local ACTION_RIGHT = hash("right")
+local ACTION_UP = hash("up")
+local ACTION_DOWN = hash("down")
+local ACTION_ENTER = hash("enter")
+local ACTION_TOUCH = hash("touch")
+local BUTTON_COLOR_BASE = vmath.vector4(1, 1, 1, 1)
+local BUTTON_COLOR_HIGHLIGHT = vmath.vector4(0.85, 0.85, 0.85, 1)
+local HIGHLIGHT_SPEED = 6
+
+local function clamp(value, min_value, max_value)
+	return math.max(min_value, math.min(max_value, value))
+end
+
+local function lerp(a, b, t)
+	return a + (b - a) * t
+end
+
+local function row_length(row)
+	local start_index = row * COLUMNS + 1
+	local remaining = #BUTTONS - start_index + 1
+	if remaining <= 0 then
+		return 0
+	end
+	return math.min(COLUMNS, remaining)
+end
+
+local function index_to_row_col(index)
+	local zero_based = index - 1
+	return math.floor(zero_based / COLUMNS), zero_based % COLUMNS
+end
+
+local function row_col_to_index(row, col)
+	return row * COLUMNS + col + 1
+end
+
+local function get_selected_button(self)
+	return self.buttons[self.selected_index]
+end
+
+local function set_selected_index(self, index)
+	self.selected_index = clamp(index, 1, #self.buttons)
+end
+
+local function move_selection(self, row_delta, col_delta)
+	local row, col = index_to_row_col(self.selected_index)
+	row = clamp(row + row_delta, 0, math.floor((#self.buttons - 1) / COLUMNS))
+	col = col + col_delta
+
+	local target_row_length = row_length(row)
+	col = clamp(col, 0, target_row_length - 1)
+
+	set_selected_index(self, row_col_to_index(row, col))
+end
+
+local function update_button_highlight(self)
+	local pulse = 0.5 + 0.5 * math.sin(self.highlight_time * HIGHLIGHT_SPEED)
+
+	for index, button in ipairs(self.buttons) do
+		local color = BUTTON_COLOR_BASE
+		if index == self.selected_index then
+			color = vmath.vector4(
+				lerp(BUTTON_COLOR_BASE.x, BUTTON_COLOR_HIGHLIGHT.x, pulse),
+				lerp(BUTTON_COLOR_BASE.y, BUTTON_COLOR_HIGHLIGHT.y, pulse),
+				lerp(BUTTON_COLOR_BASE.z, BUTTON_COLOR_HIGHLIGHT.z, pulse),
+				1
+			)
+		end
+
+		gui.set_color(button.node, color)
+	end
+end
+
+local function select_button_from_pointer(self, action)
+	for index, button in ipairs(self.buttons) do
+		if gui.pick_node(button.node, action.x, action.y) then
+			set_selected_index(self, index)
+			return
+		end
+	end
+end
 
 function init(self)
 	msg.post(".", "acquire_input_focus")
+	self.buttons = {}
+	self.selected_index = 1
+	self.highlight_time = 0
+
 	local node = gui.get_node("template/larrybutton")
 	for i,btn in ipairs(BUTTONS) do
 		local clone = gui.clone_tree(node)
@@ -40,18 +118,54 @@ function init(self)
 		local x = 280 + ((i - 1) % COLUMNS) * WIDTH
 		local y = 400 - math.floor((i - 1) / COLUMNS) * HEIGHT
 		gui.set_position(larrybutton, vmath.vector3(x, y, 0))
+		self.buttons[i] = { id = btn.id, node = larrybutton }
 	end
 	gui.delete_node(node)
+	update_button_highlight(self)
 end
 
 local function show_screen(id)
 	msg.post("loader:/loader", "show_screen", { id = id })
 end
 
+function update(self, dt)
+	self.highlight_time = self.highlight_time + dt
+	update_button_highlight(self)
+end
+
 function on_input(self, action_id, action)
-	for _,btn in ipairs(BUTTONS) do
-		dirtylarry:button(btn.id, action_id, action, function ()
-			show_screen(btn.id)
-		end)
+	if action.x and action.y then
+		select_button_from_pointer(self, action)
+	end
+
+	if action.pressed or action.repeated then
+		if action_id == ACTION_LEFT then
+			move_selection(self, 0, -1)
+			return true
+		elseif action_id == ACTION_RIGHT then
+			move_selection(self, 0, 1)
+			return true
+		elseif action_id == ACTION_UP then
+			move_selection(self, -1, 0)
+			return true
+		elseif action_id == ACTION_DOWN then
+			move_selection(self, 1, 0)
+			return true
+		elseif action_id == ACTION_ENTER then
+			local button = get_selected_button(self)
+			if button then
+				show_screen(button.id)
+				return true
+			end
+		end
+	end
+
+	if action_id == ACTION_TOUCH then
+		for index, btn in ipairs(BUTTONS) do
+			dirtylarry:button(btn.id, action_id, action, function ()
+				set_selected_index(self, index)
+				show_screen(btn.id)
+			end)
+		end
 	end
 end

@@ -1,0 +1,10 @@
+name: "outofband_assets"
+scale_along_z: 0
+embedded_instances {
+  id: "assets"
+  data: "components {\n"
+  "  id: \"outofband_assets\"\n"
+  "  component: \"/main/outofband/outofband_assets.script\"\n"
+  "}\n"
+  ""
+}

@@ -1,0 +1,77 @@
+-- There are multiple ways to load an image file.
+-- When loading assets via the rive command queue api feature, it's necessary to provide the raw data as-is.
+--   * Load it via our resource system:
+--     * Path needs to be mounted (archive file, zip file, loose file)
+--     * Included as "custom resource"
+--     * Download using http, to a specific path available to the resource system
+--   * Pass the payload directly to the rive.riv_swap_asset() function
+
+-- Example from: https://codesandbox.io/p/sandbox/objective-cohen-sqwh9q
+-- See static fonts from https://gist.github.com/dotJoel/7326331
+local URL_IMAGE = "https://defold.com/images/logo/defold/logo/logo-ver-classic-white-320.png"
+local URL_FONT = "http://themes.googleusercontent.com/static/fonts/abeezee/v1/JYPhMn-3Xw-JGuyB-fEdNA.ttf"
+
+-- path to your dlc files. For simplicity, this is at the root of the project
+local DLC_FILES = "."
+
+local function maybe_ready(self)
+	if self.host_url and self.image_done and self.font_done and not self.ready_sent then
+		self.ready_sent = true
+		msg.post(self.host_url, "assets_initialized")
+	end
+end
+
+function init(self)
+	self.ready_sent = false
+	self.image_done = false
+	self.font_done = false
+	local mount_name = "files"
+	local mount_found = false
+
+	if mount_found then
+		self.image_done = true
+		maybe_ready(self)
+	else
+		liveupdate.add_mount(mount_name, DLC_FILES, 10, function ()
+			-- Note that there is also the option to save the file to a specific path
+			-- If no path is specified, it will be stored in the http cache
+			http.request(URL_IMAGE, "GET", function (self, _id, response)
+				--print("  response.status:", response.status)
+				self.image_done = true
+				if response.status == 200 or response.status == 206 or response.status == 304 then
+					local image = rive.cmd.decodeImage(response.response)
+					local image_filename = "logo-ver-outline-white-320-5143474"
+
+					rive.cmd.addGlobalImageAsset(image_filename, image)
+					print("ADDED IMAGE", image_filename, "from", response.url)
+				else
+					print("Failed to load", response.url)
+					print("STATUS:", response.status)
+				end
+				maybe_ready(self)
+			end)
+		end)
+	end
+
+	http.request(URL_FONT, "GET", function (self, _id, response)
+		--print("  response.status:", response.status)
+		self.font_done = true
+		if response.status == 200 or response.status == 206 or response.status == 304 then
+			local font = rive.cmd.decodeFont(response.response)
+			local font_filename = "MyFont-4228759"
+			rive.cmd.addGlobalFontAsset(font_filename, font)
+			print("ADDED FONT", font_filename, "from", response.url)
+		else
+			print("Failed to load", response.url)
+			print("STATUS:", response.status)
+		end
+		maybe_ready(self)
+	end)
+end
+
+function on_message(self, message_id, message)
+	if message_id == hash("set_host") then
+		self.host_url = message.host
+		maybe_ready(self)
+	end
+end

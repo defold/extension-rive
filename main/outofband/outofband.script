@@ -1,114 +1,35 @@
--- There are multiple ways to load an image file.
--- Note however that, for the "Runtime Asset Swap" feature, it's necessary to provide the raw data as-is.
---   * Load it via our resource system:
---     * Path needs to be mounted (archive file, zip file, loose file)
---     * Included as "custom resource"
---     * Download using http, to a specific path available to the resource system
---   * Pass the payload directly to the rive.riv_swap_asset() function
-
-local URL = "https://defold.com/images/logo/defold/logo_with_text/logo-ver-classic-white-160.png"
-local URL_FONT = "http://themes.googleusercontent.com/static/fonts/abeezee/v1/JYPhMn-3Xw-JGuyB-fEdNA.ttf"
-
--- path to your dlc files. For simplicity, this is at the root of the project
-local DLC_FILES = "."
-
-
-local RIVE_MODEL = "go_rive#rivemodel"
-local RIVE_MODEL_2 = "go_rive2#referencedfontassets"
-
-local function swap_assets(self)
-	local rivc = go.get(RIVE_MODEL, "rive_file")
-	rive.riv_swap_asset(rivc, "eve.png", { path = "/main/outofband/walle/eve.png" })
-	-- no idea why they named it jpg
-	rive.riv_swap_asset(rivc, "walle.jpg", { path = "/main/outofband/walle/walle.png" })
-end
-
+local ASSETS_PROXY = "#outofband_assets"
+local SCENE_PROXY = "#outofband_scene"
+local ASSETS_SCRIPT = "outofband_assets:/assets#outofband_assets"
 
 function init(self)
-	local mount_name = "files"
-	local mount_found = false
-	for _,mount in pairs(liveupdate.get_mounts()) do
-		if mount.name == mount_name then
-			mount_found = true
-		end
-	end
 
-	if mount_found then
-		swap_assets(self)
-	else
-		liveupdate.add_mount(mount_name, DLC_FILES, 10, function ()
-			print("LU: mounted file provider!")
-			swap_assets(self)
+	self.assets_proxy = msg.url(ASSETS_PROXY)
+	self.scene_proxy = msg.url(SCENE_PROXY)
+	self.scene_loading = false
 
-			-- Note that there is also the option to save the file to a specific path
-			-- If no path is specified, it will be stored in the http cache
-			timer.delay(1.0, false, function()
-				print("HTTP REQUEST", URL)
-				http.request(URL, "GET", function (self, _id, response)
-					print("  response.status:", response.status)
-					if response.status == 200 or response.status == 206 or response.status == 304 then
-						local rivc = go.get(RIVE_MODEL, "rive_file")
-						rive.riv_swap_asset(rivc, "walle.jpg", { payload = response.response })
-					end
-					end)
-				end)
-		end)
-	end
-
-	rive.riv_swap_asset(go.get(RIVE_MODEL_2, "rive_file"), "Inter", { path = "/main/outofband/font/Inter-referenced.ttf" })
-	timer.delay(1.0, false, function()
-		print("HTTP REQUEST", URL_FONT)
-		http.request(URL_FONT, "GET", function (self, _id, response)
-			print("  response.status:", response.status)
-			if response.status == 200 or response.status == 206 or response.status == 304 then
-				local rivc = go.get(RIVE_MODEL_2, "rive_file")
-				rive.riv_swap_asset(rivc, "Inter", { payload = response.response })
-			end
-		end)
-	end)
-end
-
-function final(self)
-	-- Add finalization code here
-	-- Learn more: https://defold.com/manuals/script/
-	-- Remove this function if not needed
-end
-
-function update(self, dt)
-	-- Add update code here
-	-- Learn more: https://defold.com/manuals/script/
-	-- Remove this function if not needed
-end
-
-function fixed_update(self, dt)
-	-- This function is called if 'Fixed Update Frequency' is enabled in the Engine section of game.project
-	-- Can be coupled with fixed updates of the physics simulation if 'Use Fixed Timestep' is enabled in
-	-- Physics section of game.project
-	-- Add update code here
-	-- Learn more: https://defold.com/manuals/script/
-	-- Remove this function if not needed
+	msg.post(ASSETS_PROXY, "async_load")
 end
 
 function on_message(self, message_id, message, sender)
-	-- Add message-handling code here
-	-- Learn more: https://defold.com/manuals/message-passing/
-	-- Remove this function if not needed
-end
-
-function on_input(self, action_id, action)
-	-- Add input-handling code here. The game object this script is attached to
-	-- must have acquired input focus:
-	--
-	--    msg.post(".", "acquire_input_focus")
-	--
-	-- All mapped input bindings will be received. Mouse and touch input will
-	-- be received regardless of where on the screen it happened.
-	-- Learn more: https://defold.com/manuals/input/
-	-- Remove this function if not needed
-end
-
-function on_reload(self)
-	-- Add reload-handling code here
-	-- Learn more: https://defold.com/manuals/hot-reload/
-	-- Remove this function if not needed
+	if message_id == hash("proxy_loaded") then
+		if sender == self.assets_proxy then
+			msg.post(sender, "init")
+			msg.post(sender, "enable")
+			timer.delay(0, false, function()
+				msg.post(ASSETS_SCRIPT, "set_host", { host = msg.url() })
+			end)
+		elseif sender == self.scene_proxy then
+			msg.post(sender, "init")
+			msg.post(sender, "enable")
+		else
+			msg.post(sender, "init")
+			msg.post(sender, "enable")
+		end
+	elseif message_id == hash("assets_initialized") then
+		if not self.scene_loading then
+			self.scene_loading = true
+			msg.post(SCENE_PROXY, "async_load")
+		end
+	end
 end

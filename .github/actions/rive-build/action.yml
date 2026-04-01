@@ -29,6 +29,14 @@ inputs:
     description: Push changes back to the same branch
     required: true
     default: "true"
+  build_mode:
+    description: Build mode (`patched` uses utils/rive-runtime/build.sh, `vanilla` uses build/build_rive.sh directly when supported)
+    required: false
+    default: "patched"
+  with_vulkan:
+    description: Pass --with-vulkan to the runtime build script
+    required: false
+    default: "false"
 
 runs:
   using: composite
@@ -53,6 +61,7 @@ runs:
         fi
         # Double-check repo config to avoid CRLF breaking patch apply
         (cd "$RIVE_TMP_DIR" && git config core.autocrlf false && git config core.eol lf)
+        echo "Checked out rive-runtime commit: $(cd "$RIVE_TMP_DIR" && git rev-parse HEAD)"
         echo "RIVE_ROOT set to: $RIVE_TMP_DIR"
 
     - name: Ensure clean Rive repo
@@ -79,14 +88,96 @@ runs:
         git status
 
     - name: Build Rive runtime
+      if: ${{ inputs.build_mode != 'vanilla' }}
+      shell: bash
+      env:
+        INPUT_PLATFORM: ${{ inputs.platform }}
+        INPUT_WITH_VULKAN: ${{ inputs.with_vulkan }}
+      run: |
+        set -euo pipefail
+        platform="$INPUT_PLATFORM"
+        args=("${platform}" "${RIVE_ROOT}")
+        if [ "$INPUT_WITH_VULKAN" = "true" ]; then
+          args+=(--with-vulkan)
+        fi
+        echo "Running: ./utils/rive-runtime/build.sh ${args[*]}"
+        bash utils/rive-runtime/build.sh "${args[@]}"
+
+    - name: Build Rive Runtime (vanilla)
+      if: ${{ inputs.build_mode == 'vanilla' }}
+      shell: bash
+      env:
+        INPUT_PLATFORM: ${{ inputs.platform }}
+        INPUT_WITH_VULKAN: ${{ inputs.with_vulkan }}
+      run: |
+        set -euo pipefail
+
+        if [[ "$INPUT_PLATFORM" != "x86_64-win32" && "$INPUT_PLATFORM" != "x86-win32" ]]; then
+          echo "error: build_mode=vanilla is currently only supported for win32 platforms" >&2
+          exit 1
+        fi
+
+        build_args=(release clean)
+        if [ "$INPUT_WITH_VULKAN" = "true" ]; then
+          build_args+=(--with_vulkan)
+        fi
+        build_args+=(
+          --
+          rive
+          rive_pls_renderer
+          rive_decoders
+          rive_harfbuzz
+          rive_sheenbidi
+          rive_yoga
+          miniaudio
+          zlib
+          libpng
+          libjpeg
+          libwebp
+        )
+
+        echo "Running (in ${RIVE_ROOT}/renderer): ../build/build_rive.sh ${build_args[*]}"
+        (
+          cd "${RIVE_ROOT}/renderer"
+          ../build/build_rive.sh "${build_args[@]}"
+        )
+
+    - name: Install Rive Runtime (vanilla)
+      if: ${{ inputs.build_mode == 'vanilla' }}
       shell: bash
       env:
         INPUT_PLATFORM: ${{ inputs.platform }}
       run: |
         set -euo pipefail
-        platform="$INPUT_PLATFORM"
-        echo "Running: ./utils/build_rive_runtime.sh ${platform} ${RIVE_ROOT}"
-        bash utils/build_rive_runtime.sh "${platform}" "${RIVE_ROOT}"
+
+        repo_root="$(pwd -P)"
+        prefix="${repo_root}/defold-rive"
+        install_dir="${prefix}/lib/${INPUT_PLATFORM}"
+        version_header="${prefix}/include/defold/rive_version.h"
+        runtime_out_dir="${RIVE_ROOT}/renderer/out/release"
+
+        rm -rf "${prefix}/include/rive"
+        mkdir -p "${install_dir}"
+        rm -f "${install_dir}"/*.lib "${install_dir}"/*.a "${install_dir}"/*.dll
+
+        "${repo_root}/utils/rive-runtime/buildscripts/build_headers.sh" --prefix "${prefix}" --root "${RIVE_ROOT}"
+        "${repo_root}/utils/rive-runtime/buildscripts/build_version_header.sh" "${version_header}" "${RIVE_ROOT}"
+
+        found_libs=0
+        for ext in lib a; do
+          for src in "${runtime_out_dir}"/*.${ext}; do
+            if [[ ! -f "${src}" ]]; then
+              continue
+            fi
+            cp -f "${src}" "${install_dir}/"
+            found_libs=1
+          done
+        done
+
+        if [[ "${found_libs}" -eq 0 ]]; then
+          echo "error: no .lib or .a files found in ${runtime_out_dir}" >&2
+          exit 1
+        fi
 
     - name: Pack artifacts (optional)
       if: ${{ inputs.upload_artifact == 'true' }}
@@ -124,7 +215,7 @@ runs:
         [ -d defold-rive/lib ] && add_paths+=(defold-rive/lib)
         [ -d defold-rive/include ] && add_paths+=(defold-rive/include)
         if [ ${#add_paths[@]} -gt 0 ]; then
-          git add -v "${add_paths[@]}" || true
+          git add -A -v "${add_paths[@]}" || true
         fi
         if git diff --cached --quiet; then
           echo "No changes to commit."
@@ -135,13 +226,20 @@ runs:
           msg="$msg - ${COMMIT_SUFFIX}"
         fi
         git commit -m "$msg"
+        git config http.version HTTP/1.1
         max_attempts=3
         attempt=1
         until [ $attempt -gt $max_attempts ]; do
           echo "Attempt $attempt: rebase + push"
           if git pull --rebase origin "${GITHUB_REF_NAME}"; then
+            local_sha="$(git rev-parse HEAD)"
             if git push origin HEAD:"${GITHUB_REF_NAME}"; then
               echo "Push succeeded"
+              break
+            fi
+            remote_sha="$(git ls-remote origin "refs/heads/${GITHUB_REF_NAME}" | awk '{print $1}' || true)"
+            if [ -n "${remote_sha}" ] && [ "${remote_sha}" = "${local_sha}" ]; then
+              echo "Remote branch already points at ${local_sha}; treating push as successful."
               break
             fi
           else

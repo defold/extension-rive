@@ -11,11 +11,11 @@
 // specific language governing permissions and limitations under the License.
 
 #include <common/font.h>
-#include <common/factory.h>
 
 #include <dmsdk/dlib/dstrings.h>
 #include <dmsdk/dlib/log.h>
 
+#include <rive/factory.hpp>
 #include <rive/text_engine.hpp>
 
 namespace dmRive {

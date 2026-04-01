@@ -1,0 +1,285 @@
+#!/usr/bin/env bash
+
+set -e
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+REPO_ROOT="$(realpath "${SCRIPT_DIR}/../..")"
+SCRIPT_DIR_UTILS=${SCRIPT_DIR}/buildscripts
+
+PLATFORM=$1
+shift
+
+RIVECPP=$1
+shift
+
+function Usage {
+    echo "Usage: ./utils/rive-runtime/build.sh <platform> <rive_runtime_repo> [--with-vulkan]"
+    echo "platforms:"
+    echo "  * arm64-android"
+    echo "  * armv7-android"
+    echo "  * wasm-web"
+    echo "  * wasm_pthread-web"
+    echo "  * js-web"
+    echo "  * arm64-macos"
+    echo "  * x86_64-macos"
+    echo "  * arm64-ios"
+    echo "  * x86_64-ios"
+    echo "  * arm64-linux"
+    echo "  * x86_64-linux"
+    echo "  * x86_64-win32"
+    echo "  * x86-win32"
+    exit 1
+}
+
+WITH_VULKAN=0
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --with-vulkan|--with_vulkan)
+            WITH_VULKAN=1
+            shift
+            ;;
+        --without-vulkan|--without_vulkan|--no-with-vulkan|--no-with_vulkan)
+            WITH_VULKAN=0
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1"
+            Usage
+            ;;
+    esac
+done
+
+if [ "" == "$RIVECPP" ]; then
+    echo "You must specify a runtime path"
+    Usage
+fi
+
+if [ ! -d "$RIVECPP" ]; then
+    echo "Rive folder does not exist: '$RIVECPP'"
+    Usage
+fi
+
+# Check platforms
+case $PLATFORM in
+    arm64-android|armv7-android)
+        ;;
+    wasm-web|js-web|wasm_pthread-web)
+        ;;
+    arm64-macos|x86_64-macos|arm64-ios|x86_64-ios)
+        ;;
+    arm64-linux|x86_64-linux)
+        ;;
+    x86_64-win32|x86-win32)
+        ;;
+
+    *)
+        echo "Platform '${PLATFORM}' is not supported!"
+        Usage
+        ;;
+esac
+
+
+PREFIX="${REPO_ROOT}/defold-rive"
+LIBDIR=${PREFIX}/lib/${PLATFORM}
+
+echo "Using PLATFORM:${PLATFORM}"
+echo "Using RIVECPP:${RIVECPP}"
+echo "Using PREFIX:${PREFIX}"
+echo "Using WITH_VULKAN:${WITH_VULKAN}"
+
+echo "Removing old headers"
+rm -rf ${PREFIX}/include/rive
+
+mkdir -p ${LIBDIR}
+
+
+function CleanLibraries {
+    local folder=$1
+
+    echo "Removing old libraries from ${folder}"
+    set +e
+    rm ${folder}/harfbuzz.lib
+    rm ${folder}/sheenbidi.lib
+    rm ${folder}/yoga.lib
+    rm ${folder}/rive_renderer.lib
+    rm ${folder}/glfw3.lib
+    rm ${folder}/path_fiddle.lib
+    rm ${folder}/liblibjpeg.a
+    rm ${folder}/liblibpng.a
+    rm ${folder}/liblibwebp.a
+    rm ${folder}/libminiaudio.a
+    rm ${folder}/librive.a
+    rm ${folder}/librive_decoders.a
+    rm ${folder}/librive_harfbuzz.a
+    rm ${folder}/librive_pls_renderer.a
+    rm ${folder}/librive_sheenbidi.a
+    rm ${folder}/librive_yoga.a
+    rm ${folder}/libzlib.a
+    rm ${folder}/libjpeg.lib
+    rm ${folder}/libpng.lib
+    rm ${folder}/libwebp.lib
+    rm ${folder}/miniaudio.lib
+    rm ${folder}/rive.lib
+    rm ${folder}/rive_decoders.lib
+    rm ${folder}/rive_harfbuzz.lib
+    rm ${folder}/rive_pls_renderer.lib
+    rm ${folder}/rive_sheenbidi.lib
+    rm ${folder}/rive_yoga.lib
+    rm ${folder}/zlib.lib
+    set -e
+}
+
+CleanLibraries ${LIBDIR}
+
+VERSIONHEADER=${PREFIX}/include/defold/rive_version.h
+
+# temp while developing
+# cp -v ${RIVECPP}/build_version_header.sh ${SCRIPT_DIR}/
+# cp -v ${RIVECPP}/build_android.sh ${SCRIPT_DIR}/
+# cp -v ${RIVECPP}/build_darwin.sh ${SCRIPT_DIR}/
+# cp -v ${RIVECPP}/build_emscripten.sh ${SCRIPT_DIR}/
+# cp -v ${RIVECPP}/build_linux.sh ${SCRIPT_DIR}/
+# cp -v ${RIVECPP}/build_headers.sh ${SCRIPT_DIR}/
+
+echo "Writing version header ${VERSIONHEADER}"
+${SCRIPT_DIR_UTILS}/build_version_header.sh ${VERSIONHEADER} ${RIVECPP}
+
+
+# Apply patch
+RIVEPATCH=${SCRIPT_DIR}/rive.patch
+if [[ "$PLATFORM" == x86_64-win32 || "$PLATFORM" == x86-win32 ]]; then
+    echo "Skipping patch for windows."
+
+else
+    echo "Applying patch ${RIVEPATCH}"
+    if (cd ${RIVECPP} && git apply --reverse --check ${RIVEPATCH} >/dev/null 2>&1); then
+        echo "Patch already applied. Skipping."
+    else
+        set +e
+        (cd ${RIVECPP} && git apply ${RIVEPATCH})
+        APPLY_RC=$?
+        set -e
+        if [ ${APPLY_RC} -ne 0 ]; then
+            echo "Simple apply failed; attempting 3-way with history..."
+            set +e
+            (cd ${RIVECPP} && git apply --3way ${RIVEPATCH})
+            APPLY3_RC=$?
+            set -e
+            if [ ${APPLY3_RC} -ne 0 ]; then
+                echo "Failed to apply ${RIVEPATCH} (normal and --3way)." >&2
+                exit 1
+            fi
+            echo "Patch applied using --3way."
+        fi
+    fi
+fi
+
+CONFIGURATION=release
+
+case $PLATFORM in
+
+    arm64-android|armv7-android)
+        ARCH=arm64
+        if [ "armv7-android" == "${PLATFORM}" ]; then
+            ARCH=arm
+        fi
+
+        # expects ANDROID_NDK to be set
+        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_android.sh --with-pic --prefix ${PREFIX} --abis ${ARCH} --config ${CONFIGURATION})
+        ;;
+
+    wasm-web|wasm_pthread-web|js-web)
+        case $PLATFORM in
+            wasm-web)
+                ARCH=wasm
+                ;;
+            wasm_pthread-web)
+                ARCH=wasm_pthread
+                ;;
+            js-web)
+                ARCH=js
+                ;;
+        esac
+
+        if [ "" != "${EMSDK}" ]; then
+            echo "Using EMSDK=${EMSDK}"
+        else
+            if [ "" == "${RIVE_EMSDK_VERSION}" ]; then
+                export RIVE_EMSDK_VERSION="4.0.6"
+            fi
+            echo "Using RIVE_EMSDK_VERSION=${RIVE_EMSDK_VERSION}"
+        fi
+        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_emscripten.sh --prefix ${PREFIX} --targets ${ARCH} --config ${CONFIGURATION})
+
+        if [ "js-web" != "${PLATFORM}" ]; then
+            echo "Building for Wagyu"
+            (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_emscripten.sh --with-wagyu --prefix ${PREFIX} --targets ${ARCH} --config ${CONFIGURATION})
+        fi
+
+        ;;
+
+    arm64-macos|x86_64-macos)
+        ARCH=arm64
+        if [ "x86_64-macos" == "${PLATFORM}" ]; then
+            ARCH=x64
+        fi
+
+        DARWIN_ARGS=(--prefix ${PREFIX} --targets macos --archs ${ARCH} --config ${CONFIGURATION})
+        if [ ${WITH_VULKAN} -eq 1 ]; then
+            DARWIN_ARGS+=(--with-vulkan)
+        fi
+        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_darwin.sh "${DARWIN_ARGS[@]}")
+        ;;
+
+    arm64-ios|x86_64-ios)
+        ARCH=arm64
+        if [ "x86_64-ios" == "${PLATFORM}" ]; then
+            ARCH=x64
+        fi
+
+        DARWIN_ARGS=(--prefix ${PREFIX} --targets ios --archs ${ARCH} --config ${CONFIGURATION})
+        if [ ${WITH_VULKAN} -eq 1 ]; then
+            DARWIN_ARGS+=(--with-vulkan)
+        fi
+        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_darwin.sh "${DARWIN_ARGS[@]}")
+        ;;
+
+    arm64-linux|x86_64-linux)
+        ARCH=arm64
+        if [ "x86_64-linux" == "${PLATFORM}" ]; then
+            ARCH=x64
+        fi
+
+        LINUX_ARGS=(--with-pic --prefix ${PREFIX} --archs ${ARCH} --config ${CONFIGURATION})
+        if [ ${WITH_VULKAN} -eq 1 ]; then
+            LINUX_ARGS+=(--with-vulkan)
+        fi
+        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_linux.sh "${LINUX_ARGS[@]}")
+        ;;
+
+    x86_64-win32|x86-win32)
+        ARCH=x64
+        if [ "x86-win32" == "${PLATFORM}" ]; then
+            ARCH=x86
+        fi
+
+        WINDOWS_ARGS=(--prefix ${PREFIX} --archs ${ARCH} --config ${CONFIGURATION})
+        if [ ${WITH_VULKAN} -eq 1 ]; then
+            WINDOWS_ARGS+=(--with-vulkan)
+        fi
+        (cd ${RIVECPP} && ${SCRIPT_DIR_UTILS}/build_windows.sh "${WINDOWS_ARGS[@]}")
+        ;;
+
+    *)
+        echo "This script doesn't support platform ${PLATFORM} yet!"
+        exit 1
+        ;;
+
+esac
+
+echo "Removing unwanted files:"
+# Be resilient if nothing matches; remove quietly if present
+find "${REPO_ROOT}/defold-rive/lib" -type f -iname "*glfw3.*" -exec rm -f -v {} + 2>/dev/null || true
+find "${REPO_ROOT}/defold-rive/lib" -type f -iname "*path_fiddle.*" -exec rm -f -v {} + 2>/dev/null || true
+
+echo "Done!"

@@ -1,5 +1,7 @@
 /.internal
 /build
+/utils/plugin/build
+/utils/viewer/build
 .externalToolBuilders
 .DS_Store
 Thumbs.db
@@ -8,8 +10,7 @@ Thumbs.db
 .project
 .cproject
 builtins
-/utils/cmake
-/utils/build
+/utils/**/build
 /bundle*
 bob.jar
 /defold-rive/lib/**/ext.settings
@@ -18,4 +19,6 @@ bob.jar
 manifest.*
 /main/ignore
 .src
+/hs_err_pi*
 liveupdate.mounts
+screenshot.tga

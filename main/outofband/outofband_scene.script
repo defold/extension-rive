@@ -1,0 +1,42 @@
+local RIVE_MODEL = "#rivemodel"
+
+local function setup_scene(self)
+	self.url = RIVE_MODEL
+	self.file = rive.get_file(self.url)
+	self.artboard = rive.get_artboard(self.url)
+	self.state_machine = rive.get_state_machine(self.url)
+	self.view_model = rive.get_view_model_instance(self.url)
+-- 
+-- 	-- debugging
+-- 	rive.cmd.requestViewModelNames(self.file)
+-- 	rive.cmd.requestArtboardNames(self.file)
+-- 	rive.cmd.requestViewModelEnums(self.file)
+-- 	rive.cmd.requestStateMachineNames(self.artboard)
+-- 	rive.cmd.requestDefaultViewModelInfo(self.artboard, self.file)
+-- 
+-- 	rive.cmd.requestViewModelInstanceNames(self.file, "vmMain")
+-- 	rive.cmd.requestViewModelPropertyDefinitions(self.file, "vmMain")
+-- 
+	-- end debugging
+
+	rive.cmd.setViewModelInstanceString(self.view_model, "Text", "DEFOLD GAME ENGINE!")
+	print("SCENE INITIALIZED")
+end
+
+function init(self)
+	msg.post(".", "acquire_input_focus")
+
+	setup_scene(self)
+end
+
+function on_input(self, action_id, action)
+	if not action_id or action_id == hash("touch") then
+		if action.pressed then
+			rive.pointer_down(RIVE_MODEL, action.x, action.y)
+		elseif action.released then
+			rive.pointer_up(RIVE_MODEL, action.x, action.y)
+		else
+			rive.pointer_move(RIVE_MODEL, action.x, action.y)
+		end
+	end
+end

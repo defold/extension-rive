@@ -1,32 +1,34 @@
 function init(self)
 	msg.post(".", "acquire_input_focus")
-	go.set("#hud", "Health", 100)
-	go.set("#hud", "Shield", 100)
-	go.animate("#hud", "Health", go.PLAYBACK_LOOP_PINGPONG, 0, go.EASING_INOUTQUAD, 5)
-	go.animate("#hud", "Shield", go.PLAYBACK_LOOP_PINGPONG, 0, go.EASING_INOUTQUAD, 4, 2)
+
+	self.url = "#hud"
+	self.file = rive.get_file(self.url)
+	self.artboard = rive.get_artboard(self.url)
+	self.state_machine = rive.get_state_machine(self.url)
+	self.view_model = rive.get_view_model_instance(self.url)
 end
 
 function on_input(self, action_id, action)
 	if action_id == hash("touch") then
 		if action.pressed then
-			go.set("#hud", "Fire", true)
+			--rive.cmd.fireViewModelTrigger(self.view_model, "Fire")
 		elseif action.released then
-			go.set("#hud", "Fire", false)
+			--go.set(self.url, "Fire", false)
 		end
 	elseif action_id == hash("1") then
 		if action.pressed then
 			print("weapon 1")
-			go.set("#hud", "Weapon ID", -1)
+			--go.set(self.url, "Weapon ID", -1)
 		end
 	elseif action_id == hash("2") then
 		if action.pressed then
 			print("weapon 2")
-			go.set("#hud", "Weapon ID", 0)
+			--go.set(self.url, "Weapon ID", 0)
 		end
 	elseif action_id == hash("3") then
 		if action.pressed then
 			print("weapon 3")
-			go.set("#hud", "Weapon ID", 1)
+			--go.set(self.url, "Weapon ID", 1)
 		end
 	end
 end

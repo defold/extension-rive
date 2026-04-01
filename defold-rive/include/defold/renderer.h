@@ -19,6 +19,7 @@
 #include <dmsdk/resource/resource.h>
 #include <dmsdk/graphics/graphics.h>
 #include <dmsdk/render/render.h>
+#include <dmsdk/dlib/mutex.h>
 
 #include <rive/refcnt.hpp>
 #include <rive/math/mat2d.hpp>
@@ -36,8 +37,11 @@ namespace dmRive
 
     struct RenderBeginParams
     {
-        bool    m_DoFinalBlit = true;
-        uint8_t m_BackbufferSamples = 0;
+        bool     m_DoFinalBlit = true;
+        uint8_t  m_BackbufferSamples = 0;
+        uint32_t m_Width = 0;
+        uint32_t m_Height = 0;
+        uint32_t m_ClearColor = 0;
     };
 
     HRenderContext               NewRenderContext();
@@ -46,9 +50,9 @@ namespace dmRive
     rive::rcp<rive::RenderImage> CreateRiveRenderImageASTC(HRenderContext context, void* bytes, uint32_t byte_count);
     rive::Factory*               GetRiveFactory(HRenderContext context);
     rive::Renderer*              GetRiveRenderer(HRenderContext context);
-    rive::Mat2D                  GetViewTransform(HRenderContext context, dmRender::HRenderContext render_context);
     rive::Mat2D                  GetViewProjectionTransform(HRenderContext context, dmRender::HRenderContext render_context);
     void                         GetDimensions(HRenderContext context, uint32_t* width, uint32_t* height);
+    void                         SetRenderMutex(HRenderContext context, dmMutex::HMutex mutex);
     void                         RenderBegin(HRenderContext context, dmResource::HFactory factory, const RenderBeginParams& params);
     void                         RenderEnd(HRenderContext context);
 

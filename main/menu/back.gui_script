@@ -1,15 +1,24 @@
 local dirtylarry = require "dirtylarry/dirtylarry"
+local ACTION_BACK = hash("back")
+local ACTION_TOUCH = hash("touch")
+
+local function show_menu()
+	msg.post("loader:/loader", "show_screen", { id = "menu" })
+end
 
 function init(self)
 	msg.post(".", "acquire_input_focus")
 end
 
 function on_input(self, action_id, action)
-	dirtylarry:button("back", action_id, action, function ()
-		msg.post("loader:/loader", "show_screen", { id = "menu" })
-	end)
+	if action_id == ACTION_BACK and action.pressed then
+		show_menu()
+		return true
+	end
 
-	if action_id == hash("back") and action.pressed then
-		msg.post("loader:/loader", "show_screen", { id = "menu" })
+	if action_id == ACTION_TOUCH then
+		dirtylarry:button("back", action_id, action, function ()
+			show_menu()
+		end)
 	end
 end

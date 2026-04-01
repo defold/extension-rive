@@ -22,6 +22,7 @@
 #include <dmsdk/dlib/transform.h>
 #include <dmsdk/render/render.h>
 #include <dmsdk/graphics/graphics.h>
+#include <string.h>
 
 
 static void OutputTransform(const dmTransform::Transform& transform)
@@ -33,6 +34,45 @@ static void OutputTransform(const dmTransform::Transform& transform)
 
 namespace dmRenderJNI
 {
+
+// ******************************************************************************************************************
+
+static void FillFullscreenQuadVertices(float* out_vertices, uint32_t count)
+{
+    if (count < 24)
+    {
+        return;
+    }
+
+    float bottom = 0.0f;
+    float top = 1.0f;
+
+    const float vertex_data[] = {
+        -1.0f, -1.0f, 0.0f, bottom,  // Bottom-left corner
+         1.0f, -1.0f, 1.0f, bottom,  // Bottom-right corner
+        -1.0f,  1.0f, 0.0f, top,     // Top-left corner
+         1.0f, -1.0f, 1.0f, bottom,  // Bottom-right corner
+         1.0f,  1.0f, 1.0f, top,     // Top-right corner
+        -1.0f,  1.0f, 0.0f, top      // Top-left corner
+    };
+
+    memcpy(out_vertices, vertex_data, sizeof(vertex_data));
+}
+
+// ******************************************************************************************************************
+
+    jfloatArray CreateFullscreenQuadVertices(JNIEnv* env)
+    {
+        float vertices[24] = {0.0f};
+        FillFullscreenQuadVertices(vertices, 24);
+
+        jfloatArray arr = env->NewFloatArray(24);
+        if (arr)
+        {
+            env->SetFloatArrayRegion(arr, 0, 24, vertices);
+        }
+        return arr;
+    }
 
 // ******************************************************************************************************************
 
@@ -288,4 +328,3 @@ jobjectArray CreateRenderObjectArray(JNIEnv* env, uint32_t num_values, const dmR
 }
 
 } // namespace
-

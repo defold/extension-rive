@@ -29,7 +29,6 @@ namespace dmRive
         dmRiveDDF::RiveSceneDesc*           m_DDF;
         dmGameSystem::TextureSetResource*   m_TextureSet;   // The atlas
         RiveSceneData*                      m_Scene;
-        Atlas*                              m_Atlas;
     };
 }
 
