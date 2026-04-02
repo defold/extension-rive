@@ -22,8 +22,7 @@ jobs:
       ignored_platforms: '[{"platform": "armv7-android"}, {"platform": "x86-win32"}]'
 
   test_plugin_linux:
-    runs-on: ubuntu-latest
-    uses: defold/github-actions-common/.github/workflows/bob.yml@master
+    needs: build
     steps:
       - name: Test Plugin
         run: |
