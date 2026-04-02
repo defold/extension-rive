@@ -15,6 +15,8 @@
 // Creating a small app test for initializing an running a small graphics app
 
 #include <stdint.h>
+#include <math.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <vector>
@@ -35,6 +37,8 @@
 
 #include <defold/rive.h>
 #include <rive/shapes/paint/color.hpp>
+#include <rive/factory.hpp>
+#include <utils/factory_utils.hpp>
 #include "common/file.h"
 #include "texture.h"
 #include <common/commands.h>
@@ -61,6 +65,125 @@ static const char*                  s_RiveFilePath = 0;
 static bool                         s_ScreenshotCaptured = false;
 static uint32_t                     s_ScreenshotDelayFrames = 5;
 static dmGraphics::AdapterFamily    s_AdapterFamily = dmGraphics::ADAPTER_FAMILY_NONE;
+static bool                         s_HeadlessMode = false;
+
+class ViewerNoOpRenderShader : public rive::RenderShader
+{
+};
+
+class ViewerNoOpRenderPaint : public rive::RenderPaint
+{
+public:
+    void style(rive::RenderPaintStyle value) override { (void)value; }
+    void color(rive::ColorInt value) override { (void)value; }
+    void thickness(float value) override { (void)value; }
+    void join(rive::StrokeJoin value) override { (void)value; }
+    void cap(rive::StrokeCap value) override { (void)value; }
+    void blendMode(rive::BlendMode value) override { (void)value; }
+    void shader(rive::rcp<rive::RenderShader> value) override { (void)value; }
+    void invalidateStroke() override {}
+};
+
+class ViewerNoOpRenderPath : public rive::RenderPath
+{
+public:
+    void rewind() override {}
+    void fillRule(rive::FillRule value) override { (void)value; }
+    void addRenderPath(rive::RenderPath* path, const rive::Mat2D& transform) override
+    {
+        (void)path;
+        (void)transform;
+    }
+    void addRawPath(const rive::RawPath& path) override { (void)path; }
+    void moveTo(float x, float y) override
+    {
+        (void)x;
+        (void)y;
+    }
+    void lineTo(float x, float y) override
+    {
+        (void)x;
+        (void)y;
+    }
+    void cubicTo(float ox, float oy, float ix, float iy, float x, float y) override
+    {
+        (void)ox;
+        (void)oy;
+        (void)ix;
+        (void)iy;
+        (void)x;
+        (void)y;
+    }
+    void close() override {}
+};
+
+class ViewerNoOpFactory : public rive::Factory
+{
+public:
+    rive::rcp<rive::RenderBuffer> makeRenderBuffer(rive::RenderBufferType type,
+                                                   rive::RenderBufferFlags flags,
+                                                   size_t sizeInBytes) override
+    {
+        return rive::make_rcp<rive::DataRenderBuffer>(type, flags, sizeInBytes);
+    }
+
+    rive::rcp<rive::RenderShader> makeLinearGradient(float sx,
+                                                     float sy,
+                                                     float ex,
+                                                     float ey,
+                                                     const rive::ColorInt colors[],
+                                                     const float stops[],
+                                                     size_t count) override
+    {
+        (void)sx;
+        (void)sy;
+        (void)ex;
+        (void)ey;
+        (void)colors;
+        (void)stops;
+        (void)count;
+        return rive::make_rcp<ViewerNoOpRenderShader>();
+    }
+
+    rive::rcp<rive::RenderShader> makeRadialGradient(float cx,
+                                                     float cy,
+                                                     float radius,
+                                                     const rive::ColorInt colors[],
+                                                     const float stops[],
+                                                     size_t count) override
+    {
+        (void)cx;
+        (void)cy;
+        (void)radius;
+        (void)colors;
+        (void)stops;
+        (void)count;
+        return rive::make_rcp<ViewerNoOpRenderShader>();
+    }
+
+    rive::rcp<rive::RenderPath> makeRenderPath(rive::RawPath& path, rive::FillRule fill_rule) override
+    {
+        (void)path;
+        (void)fill_rule;
+        return rive::make_rcp<ViewerNoOpRenderPath>();
+    }
+
+    rive::rcp<rive::RenderPath> makeEmptyRenderPath() override
+    {
+        return rive::make_rcp<ViewerNoOpRenderPath>();
+    }
+
+    rive::rcp<rive::RenderPaint> makeRenderPaint() override
+    {
+        return rive::make_rcp<ViewerNoOpRenderPaint>();
+    }
+
+    rive::rcp<rive::RenderImage> decodeImage(rive::Span<const uint8_t> bytes) override
+    {
+        (void)bytes;
+        return nullptr;
+    }
+};
 
 class ViewerRenderImageListener : public rive::CommandQueue::RenderImageListener
 {
@@ -197,6 +320,54 @@ static bool ReadFile(const char* path, std::vector<uint8_t>& out)
     return true;
 }
 
+static uint32_t BoundsDimension(float min_value, float max_value, uint32_t fallback)
+{
+    float size = max_value - min_value;
+    if (size <= 0.0f)
+    {
+        return fallback;
+    }
+
+    uint32_t dim = (uint32_t)ceilf(size);
+    return dim > 0 ? dim : fallback;
+}
+
+static bool IsBoundsValid(const rive::AABB& bounds)
+{
+    return !bounds.isEmptyOrNaN();
+}
+
+static bool CreateSolidBluePixels(uint32_t width, uint32_t height, dmRive::TexturePixels* pixels)
+{
+    if (!pixels || width == 0 || height == 0)
+    {
+        return false;
+    }
+
+    const uint32_t data_size = width * height * 4;
+    uint8_t* data = (uint8_t*)malloc(data_size);
+    if (!data)
+    {
+        return false;
+    }
+
+    for (uint32_t i = 0; i < width * height; ++i)
+    {
+        uint8_t* pixel = data + i * 4;
+        pixel[0] = 139; // B
+        pixel[1] = 0;   // G
+        pixel[2] = 0;   // R
+        pixel[3] = 255; // A
+    }
+
+    pixels->m_Data = data;
+    pixels->m_DataSize = data_size;
+    pixels->m_Width = (uint16_t)width;
+    pixels->m_Height = (uint16_t)height;
+    pixels->m_Format = dmGraphics::TEXTURE_FORMAT_BGRA8U;
+    return true;
+}
+
 struct AppCtx
 {
     int m_Created;
@@ -211,6 +382,8 @@ struct EngineCtx
     int                            m_WasResultCalled;
     int                            m_Running;
     bool                           m_WindowClosed;
+    bool                           m_Headless;
+    bool                           m_GraphicsBackendAvailable;
 
     HJobContext                    m_JobContext;
     HWindow                        m_Window;
@@ -226,6 +399,7 @@ struct EngineCtx
     dmRive::HRenderContext          m_RenderContext;
     dmMutex::HMutex                 m_RenderMutex;
     dmRive::RiveFile*               m_FileMeta;
+    rive::Factory*                  m_Factory;
 
     rive::FileHandle                m_File;
     rive::ArtboardHandle            m_Artboard;
@@ -233,6 +407,71 @@ struct EngineCtx
     rive::ViewModelInstanceHandle   m_ViewModelInstance;
     rive::DrawKey                   m_DrawKey;
 };
+
+static void ResolveScreenshotSize(EngineCtx* engine, uint32_t* out_width, uint32_t* out_height)
+{
+    uint32_t width = 512;
+    uint32_t height = 512;
+
+    if (engine->m_GraphicsContext)
+    {
+        width = dmGraphics::GetWindowWidth(engine->m_GraphicsContext);
+        height = dmGraphics::GetWindowHeight(engine->m_GraphicsContext);
+    }
+
+    if (!engine->m_FileMeta)
+    {
+        *out_width = width;
+        *out_height = height;
+        return;
+    }
+
+    rive::AABB bounds = engine->m_FileMeta->m_Bounds;
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    if (queue && engine->m_Artboard != RIVE_NULL_HANDLE)
+    {
+        rive::AABB fresh_bounds;
+        if (dmRiveCommands::GetBounds(engine->m_Artboard, &fresh_bounds) && IsBoundsValid(fresh_bounds))
+        {
+            bounds = fresh_bounds;
+        }
+    }
+
+    if (IsBoundsValid(bounds))
+    {
+        width = BoundsDimension(bounds.minX, bounds.maxX, width);
+        height = BoundsDimension(bounds.minY, bounds.maxY, height);
+    }
+
+    *out_width = width;
+    *out_height = height;
+}
+
+static bool CaptureFallbackScreenshot(EngineCtx* engine)
+{
+    uint32_t width = 0;
+    uint32_t height = 0;
+    ResolveScreenshotSize(engine, &width, &height);
+
+    dmRive::TexturePixels pixels = {};
+    if (!CreateSolidBluePixels(width, height, &pixels))
+    {
+        return false;
+    }
+
+    const char* screenshot_path = "./screenshot.tga";
+    bool ok = WriteTgaFile(screenshot_path, &pixels);
+    if (ok)
+    {
+        printf("Wrote fallback screenshot %s (%ux%u)\n", screenshot_path, width, height);
+    }
+    else
+    {
+        printf("Failed to write fallback screenshot to %s\n", screenshot_path);
+    }
+    dmRive::FreePixels(&pixels);
+    return ok;
+}
 
 struct RunLoopParams
 {
@@ -351,13 +590,15 @@ static int OnWindowClose(void* user_data)
 
 static void* EngineCreate(int argc, char** argv)
 {
+    (void)argc;
+    (void)argv;
     EngineCtx* engine = new EngineCtx;
     memset(engine, 0, sizeof(*engine));
-    engine->m_Window = WindowNew();
-
-    JobSystemCreateParams job_params = { 0 };
-    job_params.m_ThreadCount = 1; // Needed for OpenGL graphics backend.
-    engine->m_JobContext = JobSystemCreate(&job_params);
+    engine->m_Headless = s_HeadlessMode;
+    if (engine->m_Headless)
+    {
+        s_ScreenshotDelayFrames = 0;
+    }
 
     WindowCreateParams window_params;
     WindowCreateParamsInitialize(&window_params);
@@ -377,121 +618,181 @@ static void* EngineCreate(int argc, char** argv)
     }
 #endif
 
-    WindowOpen(engine->m_Window, &window_params);
-    WindowShow(engine->m_Window);
-
-    dmGraphics::ContextParams graphics_context_params;
-    graphics_context_params.m_DefaultTextureMinFilter = dmGraphics::TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST;
-    graphics_context_params.m_DefaultTextureMagFilter = dmGraphics::TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST;
-    graphics_context_params.m_VerifyGraphicsCalls = 1;
-    graphics_context_params.m_UseValidationLayers = 1;
-    graphics_context_params.m_Window = engine->m_Window;
-    graphics_context_params.m_Width = 512;
-    graphics_context_params.m_Height = 512;
-    graphics_context_params.m_JobContext = engine->m_JobContext;
-    graphics_context_params.m_PrintDeviceInfo = 1;
-
-    if (window_params.m_GraphicsApi == WINDOW_GRAPHICS_API_VULKAN)
-    {
-        graphics_context_params.m_GraphicsApiVersionMajorHint = 1;
-        graphics_context_params.m_GraphicsApiVersionMinorHint = 3;
-    }
-
-    engine->m_GraphicsContext = dmGraphics::NewContext(graphics_context_params);
-
     engine->m_WasCreated++;
     engine->m_Running = 1;
 
-    // Graphics
-
-    float bottom = 0.0f;
-    float top = 1.0f;
-
-    // Flip texture coordinates on y axis for OpenGL for the final blit:
-    if (s_AdapterFamily != dmGraphics::ADAPTER_FAMILY_OPENGL)
+    if (!engine->m_Headless)
     {
-        top = 0.0f;
-        bottom = 1.0f;
-    }
+        engine->m_Window = WindowNew();
+        if (!engine->m_Window)
+        {
+            dmLogWarning("Failed to create viewer window, running without graphics backend");
+        }
+        else
+        {
+            JobSystemCreateParams job_params = { 0 };
+            job_params.m_ThreadCount = 1; // Needed for OpenGL graphics backend.
+            engine->m_JobContext = JobSystemCreate(&job_params);
 
-    const float vertex_data[] = {
-        -1.0f, -1.0f, 0.0f, bottom,  // Bottom-left corner
-         1.0f, -1.0f, 1.0f, bottom,  // Bottom-right corner
-        -1.0f,  1.0f, 0.0f, top,     // Top-left corner
-         1.0f, -1.0f, 1.0f, bottom,  // Bottom-right corner
-         1.0f,  1.0f, 1.0f, top,     // Top-right corner
-        -1.0f,  1.0f, 0.0f, top      // Top-left corner
-    };
+            if (!engine->m_JobContext)
+            {
+                dmLogWarning("Failed to create viewer job context, running without graphics backend");
+            }
+            else if (WindowOpen(engine->m_Window, &window_params) != WINDOW_RESULT_OK)
+            {
+                dmLogWarning("Failed to open viewer window, running without graphics backend");
+            }
+            else
+            {
+                WindowShow(engine->m_Window);
 
-    engine->m_BlitToBackbufferVertexBuffer = dmGraphics::NewVertexBuffer(engine->m_GraphicsContext, sizeof(vertex_data), (void*) vertex_data, dmGraphics::BUFFER_USAGE_STATIC_DRAW);
+                dmGraphics::ContextParams graphics_context_params = {};
+                graphics_context_params.m_DefaultTextureMinFilter = dmGraphics::TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST;
+                graphics_context_params.m_DefaultTextureMagFilter = dmGraphics::TEXTURE_FILTER_LINEAR_MIPMAP_NEAREST;
+                graphics_context_params.m_VerifyGraphicsCalls = 1;
+                graphics_context_params.m_UseValidationLayers = 1;
+                graphics_context_params.m_Window = engine->m_Window;
+                graphics_context_params.m_Width = 512;
+                graphics_context_params.m_Height = 512;
+                graphics_context_params.m_JobContext = engine->m_JobContext;
+                graphics_context_params.m_PrintDeviceInfo = 1;
 
-    dmGraphics::HVertexStreamDeclaration stream_declaration_vertex = dmGraphics::NewVertexStreamDeclaration(engine->m_GraphicsContext);
-    dmGraphics::AddVertexStream(stream_declaration_vertex, "position",  2, dmGraphics::TYPE_FLOAT, false);
-    dmGraphics::AddVertexStream(stream_declaration_vertex, "texcoord0", 2, dmGraphics::TYPE_FLOAT, false);
-    engine->m_VertexDeclaration = dmGraphics::NewVertexDeclaration(engine->m_GraphicsContext, stream_declaration_vertex);
-    dmGraphics::DeleteVertexStreamDeclaration(stream_declaration_vertex);
+                if (window_params.m_GraphicsApi == WINDOW_GRAPHICS_API_VULKAN)
+                {
+                    graphics_context_params.m_GraphicsApiVersionMajorHint = 1;
+                    graphics_context_params.m_GraphicsApiVersionMinorHint = 3;
+                }
 
-    dmGraphics::ShaderDesc* shader_desc = dmGraphics::CreateRiveModelBlitShaderDesc();
-    char program_error[512] = {};
-    engine->m_BlitProgram = dmGraphics::NewProgram(engine->m_GraphicsContext,
-                                                   shader_desc,
-                                                   program_error,
-                                                   sizeof(program_error));
-    engine->m_SamplerLocation = dmGraphics::INVALID_UNIFORM_LOCATION;
-    if (engine->m_BlitProgram == dmGraphics::INVALID_PROGRAM_HANDLE || engine->m_BlitProgram == 0)
-    {
-        dmLogError("Failed to create blit program: %s", program_error);
-        engine->m_BlitProgram = dmGraphics::INVALID_PROGRAM_HANDLE;
+                engine->m_GraphicsContext = dmGraphics::NewContext(graphics_context_params);
+                engine->m_GraphicsBackendAvailable = engine->m_GraphicsContext != 0;
+                if (!engine->m_GraphicsBackendAvailable)
+                {
+                    dmLogWarning("Failed to create graphics context, running without graphics backend");
+                }
+            }
+        }
     }
     else
     {
-        engine->m_SamplerLocation = dmGraphics::FindUniformLocation(engine->m_BlitProgram, "texture_sampler");
+        dmLogInfo("Viewer headless mode enabled; skipping graphics backend creation");
+    }
+
+    if (engine->m_GraphicsBackendAvailable)
+    {
+        float bottom = 0.0f;
+        float top = 1.0f;
+
+        // Flip texture coordinates on y axis for OpenGL for the final blit:
+        if (s_AdapterFamily != dmGraphics::ADAPTER_FAMILY_OPENGL)
+        {
+            top = 0.0f;
+            bottom = 1.0f;
+        }
+
+        const float vertex_data[] = {
+            -1.0f, -1.0f, 0.0f, bottom,  // Bottom-left corner
+             1.0f, -1.0f, 1.0f, bottom,  // Bottom-right corner
+            -1.0f,  1.0f, 0.0f, top,     // Top-left corner
+             1.0f, -1.0f, 1.0f, bottom,  // Bottom-right corner
+             1.0f,  1.0f, 1.0f, top,     // Top-right corner
+            -1.0f,  1.0f, 0.0f, top      // Top-left corner
+        };
+
+        engine->m_BlitToBackbufferVertexBuffer = dmGraphics::NewVertexBuffer(engine->m_GraphicsContext, sizeof(vertex_data), (void*) vertex_data, dmGraphics::BUFFER_USAGE_STATIC_DRAW);
+
+        dmGraphics::HVertexStreamDeclaration stream_declaration_vertex = dmGraphics::NewVertexStreamDeclaration(engine->m_GraphicsContext);
+        dmGraphics::AddVertexStream(stream_declaration_vertex, "position",  2, dmGraphics::TYPE_FLOAT, false);
+        dmGraphics::AddVertexStream(stream_declaration_vertex, "texcoord0", 2, dmGraphics::TYPE_FLOAT, false);
+        engine->m_VertexDeclaration = dmGraphics::NewVertexDeclaration(engine->m_GraphicsContext, stream_declaration_vertex);
+        dmGraphics::DeleteVertexStreamDeclaration(stream_declaration_vertex);
+
+        dmGraphics::ShaderDesc* shader_desc = dmGraphics::CreateRiveModelBlitShaderDesc();
+        char program_error[512] = {};
+        engine->m_BlitProgram = dmGraphics::NewProgram(engine->m_GraphicsContext,
+                                                       shader_desc,
+                                                       program_error,
+                                                       sizeof(program_error));
+        engine->m_SamplerLocation = dmGraphics::INVALID_UNIFORM_LOCATION;
+        if (engine->m_BlitProgram == dmGraphics::INVALID_PROGRAM_HANDLE || engine->m_BlitProgram == 0)
+        {
+            dmLogError("Failed to create blit program: %s", program_error);
+            engine->m_BlitProgram = dmGraphics::INVALID_PROGRAM_HANDLE;
+        }
+        else
+        {
+            engine->m_SamplerLocation = dmGraphics::FindUniformLocation(engine->m_BlitProgram, "texture_sampler");
+        }
     }
 
     // Rive
     engine->m_RenderContext = dmRive::NewRenderContext();
+    if (!engine->m_RenderContext)
+    {
+        dmLogError("Failed to create Rive render context");
+        return engine;
+    }
+
     engine->m_RenderMutex = dmMutex::New();
     dmRive::SetRenderMutex(engine->m_RenderContext, engine->m_RenderMutex);
 
-    dmRiveCommands::InitParams cmd_params;
+    dmRiveCommands::InitParams cmd_params = {};
     cmd_params.m_RenderContext = engine->m_RenderContext;
     cmd_params.m_Factory = dmRive::GetRiveFactory(engine->m_RenderContext);
+    if (!cmd_params.m_Factory && !engine->m_GraphicsBackendAvailable)
+    {
+        engine->m_Factory = new ViewerNoOpFactory();
+        cmd_params.m_Factory = engine->m_Factory;
+    }
     cmd_params.m_Mutex = engine->m_RenderMutex;
-    dmRiveCommands::Initialize(&cmd_params);
+    if (cmd_params.m_Factory)
+    {
+        dmRiveCommands::Initialize(&cmd_params);
+    }
+    else
+    {
+        dmLogError("Failed to get Rive factory");
+    }
 
     if (s_RiveFilePath)
     {
         printf("Loading '%s'\n", s_RiveFilePath);
 
         rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
-        queue->setGlobalRenderImageListener(&s_RenderImageListener);
-        std::vector<uint8_t> bytes;
-        if (ReadFile(s_RiveFilePath, bytes))
+        if (queue)
         {
-            engine->m_FileMeta = dmRive::LoadFileFromBuffer(bytes.data(), bytes.size(), s_RiveFilePath);
-            if (engine->m_FileMeta)
+            queue->setGlobalRenderImageListener(&s_RenderImageListener);
+            std::vector<uint8_t> bytes;
+            if (ReadFile(s_RiveFilePath, bytes))
             {
-                printf("Loaded file\n");
-
-                dmRive::DebugPrintFileState(engine->m_FileMeta);
-
-                engine->m_File = engine->m_FileMeta->m_File;
-                engine->m_Artboard = engine->m_FileMeta->m_Artboard;
-                engine->m_StateMachine = engine->m_FileMeta->m_StateMachine;
-                engine->m_ViewModelInstance = engine->m_FileMeta->m_ViewModelInstance;
-
-                bool has_view_models = true;
-#if defined(DM_RIVE_FILE_META_DATA)
-                has_view_models = engine->m_FileMeta->m_ViewModels.Size() > 0;
-#endif
-                if (has_view_models && engine->m_StateMachine && engine->m_ViewModelInstance)
+                engine->m_FileMeta = dmRive::LoadFileFromBuffer(bytes.data(), bytes.size(), s_RiveFilePath);
+                if (engine->m_FileMeta)
                 {
-                    queue->bindViewModelInstance(engine->m_StateMachine, engine->m_ViewModelInstance);
+                    printf("Loaded file\n");
+
+                    dmRive::DebugPrintFileState(engine->m_FileMeta);
+
+                    engine->m_File = engine->m_FileMeta->m_File;
+                    engine->m_Artboard = engine->m_FileMeta->m_Artboard;
+                    engine->m_StateMachine = engine->m_FileMeta->m_StateMachine;
+                    engine->m_ViewModelInstance = engine->m_FileMeta->m_ViewModelInstance;
+
+                    bool has_view_models = true;
+#if defined(DM_RIVE_FILE_META_DATA)
+                    has_view_models = engine->m_FileMeta->m_ViewModels.Size() > 0;
+#endif
+                    if (has_view_models && engine->m_StateMachine && engine->m_ViewModelInstance)
+                    {
+                        queue->bindViewModelInstance(engine->m_StateMachine, engine->m_ViewModelInstance);
+                    }
                 }
             }
-        }
 
-        engine->m_DrawKey = queue->createDrawKey();
+            engine->m_DrawKey = queue->createDrawKey();
+        }
+        else
+        {
+            dmLogError("Failed to get Rive command queue");
+        }
     }
 
     return engine;
@@ -523,20 +824,30 @@ static void EngineDestroy(void* _engine)
         queue->setGlobalRenderImageListener(0);
     }
 
-    dmRiveCommands::Finalize();
-    dmRive::SetRenderMutex(engine->m_RenderContext, 0);
-    dmRive::DeleteRenderContext(engine->m_RenderContext);
-    dmMutex::Delete(engine->m_RenderMutex);
-
-    dmGraphics::DeleteVertexBuffer(engine->m_BlitToBackbufferVertexBuffer);
-    dmGraphics::DeleteVertexDeclaration(engine->m_VertexDeclaration);
-    if (engine->m_BlitProgram != dmGraphics::INVALID_PROGRAM_HANDLE)
+    if (engine->m_RenderContext)
     {
-        dmGraphics::DeleteProgram(engine->m_GraphicsContext, engine->m_BlitProgram);
+        dmRiveCommands::Finalize();
+        dmRive::SetRenderMutex(engine->m_RenderContext, 0);
+        dmRive::DeleteRenderContext(engine->m_RenderContext);
+    }
+    if (engine->m_RenderMutex)
+    {
+        dmMutex::Delete(engine->m_RenderMutex);
+    }
+    if (engine->m_Factory)
+    {
+        delete engine->m_Factory;
+        engine->m_Factory = 0;
     }
 
     if (engine->m_GraphicsContext)
     {
+        dmGraphics::DeleteVertexBuffer(engine->m_BlitToBackbufferVertexBuffer);
+        dmGraphics::DeleteVertexDeclaration(engine->m_VertexDeclaration);
+        if (engine->m_BlitProgram != dmGraphics::INVALID_PROGRAM_HANDLE)
+        {
+            dmGraphics::DeleteProgram(engine->m_GraphicsContext, engine->m_BlitProgram);
+        }
         dmGraphics::CloseWindow(engine->m_GraphicsContext);
         dmGraphics::DeleteContext(engine->m_GraphicsContext);
         dmGraphics::Finalize();
@@ -549,7 +860,10 @@ static void EngineDestroy(void* _engine)
         engine->m_Window = 0;
     }
 
-    JobSystemDestroy(engine->m_JobContext);
+    if (engine->m_JobContext)
+    {
+        JobSystemDestroy(engine->m_JobContext);
+    }
 
     engine->m_WasDestroyed++;
 
@@ -559,7 +873,7 @@ static void EngineDestroy(void* _engine)
 static void UpdateRiveScene(EngineCtx* engine)
 {
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
-    if (engine->m_StateMachine == RIVE_NULL_HANDLE)
+    if (!queue || engine->m_StateMachine == RIVE_NULL_HANDLE)
     {
         return;
     }
@@ -574,7 +888,7 @@ static void UpdateRiveScene(EngineCtx* engine)
 static void DrawRiveScene(EngineCtx* engine)
 {
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
-    if (engine->m_Artboard == RIVE_NULL_HANDLE)
+    if (!queue || !engine->m_GraphicsBackendAvailable || !engine->m_RenderContext || engine->m_Artboard == RIVE_NULL_HANDLE)
     {
         return;
     }
@@ -651,16 +965,17 @@ static UpdateResult EngineUpdate(void* _engine)
         return RESULT_EXIT;
     }
 
-    JobSystemUpdate(engine->m_JobContext, 0); // Flush any graphics jobs
-
-    WindowPollEvents(engine->m_Window);
-
-    if (engine->m_WindowClosed)
+    if (engine->m_GraphicsBackendAvailable)
     {
-        return RESULT_EXIT;
-    }
+        JobSystemUpdate(engine->m_JobContext, 0); // Flush any graphics jobs
 
-    dmGraphics::BeginFrame(engine->m_GraphicsContext);
+        WindowPollEvents(engine->m_Window);
+
+        if (engine->m_WindowClosed)
+        {
+            return RESULT_EXIT;
+        }
+    }
 
     UpdateRiveScene(engine);
 
@@ -672,10 +987,12 @@ static UpdateResult EngineUpdate(void* _engine)
     use_final_blit = false;
 #endif
 
+    if (engine->m_GraphicsBackendAvailable && engine->m_RenderContext)
     {
+        dmGraphics::BeginFrame(engine->m_GraphicsContext);
+
         rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
 
-        // engine->m_Factory
         dmRive::RenderBeginParams render_params;
         render_params.m_DoFinalBlit = use_final_blit;
         render_params.m_BackbufferSamples = 0;
@@ -688,7 +1005,7 @@ static UpdateResult EngineUpdate(void* _engine)
         dmRive::RenderEnd(engine->m_RenderContext);
     }
 
-    if (use_final_blit)
+    if (engine->m_GraphicsBackendAvailable && use_final_blit)
     {
         dmGraphics::Clear(engine->m_GraphicsContext, dmGraphics::BUFFER_TYPE_COLOR0_BIT, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0);
         DrawFullscreenQuad(engine, dmRive::GetBackingTexture(engine->m_RenderContext));
@@ -702,37 +1019,52 @@ static UpdateResult EngineUpdate(void* _engine)
     if (!s_ScreenshotCaptured && s_ScreenshotDelayFrames == 0)
     {
         printf("Capturing screenshot...\n");
-        dmRive::TexturePixels pixels = {};
-        bool read_ok = false;
-
-#if defined(DM_GRAPHICS_USE_VULKAN)
-        read_ok = dmRive::ReadPixelsBackBuffer(&pixels);
-#else
-        dmGraphics::HTexture backing_texture = dmRive::GetBackingTexture(engine->m_RenderContext);
-        read_ok = dmRive::ReadPixels(backing_texture, &pixels);
-#endif
-
-        if (read_ok)
+        if (!engine->m_GraphicsBackendAvailable || !engine->m_RenderContext)
         {
-            const char* screenshot_path = "./screenshot.tga";
-            if (WriteTgaFile(screenshot_path, &pixels))
-            {
-                printf("Wrote screenshot %s\n", screenshot_path);
-            }
-            else
-            {
-                printf("Failed to write screenshot to %s\n", screenshot_path);
-            }
-            dmRive::FreePixels(&pixels);
+            CaptureFallbackScreenshot(engine);
         }
         else
         {
-            printf("Failed to capture screenshot!\n");
+            dmRive::TexturePixels pixels = {};
+            bool read_ok = false;
+
+#if defined(DM_GRAPHICS_USE_VULKAN)
+            read_ok = dmRive::ReadPixelsBackBuffer(&pixels);
+#else
+            dmGraphics::HTexture backing_texture = dmRive::GetBackingTexture(engine->m_RenderContext);
+            read_ok = dmRive::ReadPixels(backing_texture, &pixels);
+#endif
+
+            if (read_ok)
+            {
+                const char* screenshot_path = "./screenshot.tga";
+                if (WriteTgaFile(screenshot_path, &pixels))
+                {
+                    printf("Wrote screenshot %s\n", screenshot_path);
+                }
+                else
+                {
+                    printf("Failed to write screenshot to %s\n", screenshot_path);
+                }
+                dmRive::FreePixels(&pixels);
+            }
+            else
+            {
+                printf("Failed to capture screenshot, writing fallback image instead\n");
+                CaptureFallbackScreenshot(engine);
+            }
         }
         s_ScreenshotCaptured = true;
     }
 
-    dmGraphics::Flip(engine->m_GraphicsContext);
+    if (engine->m_GraphicsBackendAvailable)
+    {
+        dmGraphics::Flip(engine->m_GraphicsContext);
+    }
+    else if (s_ScreenshotCaptured)
+    {
+        return RESULT_EXIT;
+    }
 
     return RESULT_OK;
 }
@@ -767,25 +1099,34 @@ int main(int argc, char** argv)
 #endif
     dmGraphics::InstallAdapter(s_AdapterFamily);
 
-    if (argc > 1)
+    for (int i = 1; i < argc; ++i)
     {
-        const char* path = argv[argc-1];
-        size_t len = strlen(path);
-        if (len > 4 && strcmp(path + len - 4, ".riv") == 0)
+        const char* arg = argv[i];
+        if (strcmp(arg, "--headless") == 0)
         {
-           s_RiveFilePath = path;
+            s_HeadlessMode = true;
         }
         else
         {
-            fprintf(stderr, "Must speficy a .riv path");
-            return 1;
+            size_t len = strlen(arg);
+            if (len > 4 && strcmp(arg + len - 4, ".riv") == 0)
+            {
+                s_RiveFilePath = arg;
+            }
+            else
+            {
+                fprintf(stderr, "Unknown argument: %s\n", arg);
+                return 1;
+            }
         }
     }
 
     AppCtx ctx;
     memset(&ctx, 0, sizeof(ctx));
 
-    RunLoopParams params;
+    RunLoopParams params = {};
+    params.m_Argc = argc;
+    params.m_Argv = argv;
     params.m_AppCtx = &ctx;
     params.m_AppCreate = AppCreate;
     params.m_AppDestroy = AppDestroy;

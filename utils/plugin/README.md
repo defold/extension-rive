@@ -18,6 +18,12 @@ To test offline, you can use:
 ./utils/plugin/test.sh ./main/grimley/4951-10031-grimley.riv
 ```
 
+Force the no-graphics fallback path during testing:
+
+```bash
+./utils/plugin/test_plugin.sh --headless ./main/grimley/4951-10031-grimley.riv
+```
+
 ## Test in editor
 
 Assuming you've updated the plugin in the plugins folder, the editor will find them and load them upon next editor start:
