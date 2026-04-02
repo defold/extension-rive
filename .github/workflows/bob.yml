@@ -23,6 +23,7 @@ jobs:
 
   test_plugin_linux:
     needs: build
+    runs-on: ubuntu-latest
     steps:
       - name: Test Plugin
         run: |
