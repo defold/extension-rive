@@ -57,6 +57,12 @@ Output binary:
 - Windows: `utils/viewer/build/x86_64-win32/viewer.exe`
 - Linux/macOS: `utils/viewer/build/<target>/viewer`
 
+Headless fallback test:
+
+```bash
+./utils/viewer/build/x86_64-linux/viewer --headless ./main/grimley/4951-10031-grimley.riv
+```
+
 ## Create Visual Studio Solution (Windows)
 
 Shortcut script:

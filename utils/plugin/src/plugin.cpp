@@ -41,6 +41,8 @@ __declspec(dllexport) int dummyFunc()
 
 #include <defold/renderer.h>
 #include <common/commands.h>
+#include <rive/factory.hpp>
+#include <utils/factory_utils.hpp>
 
 #include "jni/jni.h"
 
@@ -140,7 +142,163 @@ static bool CreateGraphicsContext();
 static bool PluginRiveInitialize();
 extern dmRive::HRenderContext g_RenderContext;
 extern dmGraphics::HContext g_GraphicsContext;
+extern HWindow g_Window;
+extern HJobContext g_JobContext;
 static dmMutex::HMutex g_JNINativeCallMutex = 0;
+static bool g_HeadlessMode = false;
+static bool s_GraphicsContextCreateAttempted = false;
+static bool s_GraphicsContextCreateSuccess = false;
+static rive::Factory* g_Factory = 0;
+
+class PluginNoOpRenderShader : public rive::RenderShader
+{
+};
+
+class PluginNoOpRenderPaint : public rive::RenderPaint
+{
+public:
+    void style(rive::RenderPaintStyle value) override { (void)value; }
+    void color(rive::ColorInt value) override { (void)value; }
+    void thickness(float value) override { (void)value; }
+    void join(rive::StrokeJoin value) override { (void)value; }
+    void cap(rive::StrokeCap value) override { (void)value; }
+    void blendMode(rive::BlendMode value) override { (void)value; }
+    void shader(rive::rcp<rive::RenderShader> value) override { (void)value; }
+    void invalidateStroke() override {}
+};
+
+class PluginNoOpRenderPath : public rive::RenderPath
+{
+public:
+    void rewind() override {}
+    void fillRule(rive::FillRule value) override { (void)value; }
+    void addRenderPath(rive::RenderPath* path, const rive::Mat2D& transform) override
+    {
+        (void)path;
+        (void)transform;
+    }
+    void addRawPath(const rive::RawPath& path) override { (void)path; }
+    void moveTo(float x, float y) override
+    {
+        (void)x;
+        (void)y;
+    }
+    void lineTo(float x, float y) override
+    {
+        (void)x;
+        (void)y;
+    }
+    void cubicTo(float ox, float oy, float ix, float iy, float x, float y) override
+    {
+        (void)ox;
+        (void)oy;
+        (void)ix;
+        (void)iy;
+        (void)x;
+        (void)y;
+    }
+    void close() override {}
+};
+
+class PluginNoOpFactory : public rive::Factory
+{
+public:
+    rive::rcp<rive::RenderBuffer> makeRenderBuffer(rive::RenderBufferType type,
+                                                   rive::RenderBufferFlags flags,
+                                                   size_t sizeInBytes) override
+    {
+        return rive::make_rcp<rive::DataRenderBuffer>(type, flags, sizeInBytes);
+    }
+
+    rive::rcp<rive::RenderShader> makeLinearGradient(float sx,
+                                                     float sy,
+                                                     float ex,
+                                                     float ey,
+                                                     const rive::ColorInt colors[],
+                                                     const float stops[],
+                                                     size_t count) override
+    {
+        (void)sx;
+        (void)sy;
+        (void)ex;
+        (void)ey;
+        (void)colors;
+        (void)stops;
+        (void)count;
+        return rive::make_rcp<PluginNoOpRenderShader>();
+    }
+
+    rive::rcp<rive::RenderShader> makeRadialGradient(float cx,
+                                                     float cy,
+                                                     float radius,
+                                                     const rive::ColorInt colors[],
+                                                     const float stops[],
+                                                     size_t count) override
+    {
+        (void)cx;
+        (void)cy;
+        (void)radius;
+        (void)colors;
+        (void)stops;
+        (void)count;
+        return rive::make_rcp<PluginNoOpRenderShader>();
+    }
+
+    rive::rcp<rive::RenderPath> makeRenderPath(rive::RawPath& path, rive::FillRule fill_rule) override
+    {
+        (void)path;
+        (void)fill_rule;
+        return rive::make_rcp<PluginNoOpRenderPath>();
+    }
+
+    rive::rcp<rive::RenderPath> makeEmptyRenderPath() override
+    {
+        return rive::make_rcp<PluginNoOpRenderPath>();
+    }
+
+    rive::rcp<rive::RenderPaint> makeRenderPaint() override
+    {
+        return rive::make_rcp<PluginNoOpRenderPaint>();
+    }
+
+    rive::rcp<rive::RenderImage> decodeImage(rive::Span<const uint8_t> bytes) override
+    {
+        (void)bytes;
+        return nullptr;
+    }
+};
+
+static void SetHeadlessModeInternal(bool headless)
+{
+    g_HeadlessMode = headless;
+    if (g_HeadlessMode)
+    {
+        if (g_GraphicsContext)
+        {
+            dmGraphics::CloseWindow(g_GraphicsContext);
+            dmGraphics::DeleteContext(g_GraphicsContext);
+            dmGraphics::Finalize();
+            g_GraphicsContext = 0;
+        }
+        if (g_JobContext)
+        {
+            JobSystemDestroy(g_JobContext);
+            g_JobContext = 0;
+        }
+        if (g_Window)
+        {
+            WindowDelete(g_Window);
+            g_Window = 0;
+        }
+        s_GraphicsContextCreateAttempted = true;
+        s_GraphicsContextCreateSuccess = false;
+    }
+    else if (g_GraphicsContext == 0)
+    {
+        s_GraphicsContextCreateAttempted = false;
+        s_GraphicsContextCreateSuccess = false;
+    }
+}
 
 static bool WaitForCommandServer()
 {
@@ -164,12 +322,6 @@ static jobject JNICALL Java_Rive_LoadFromBufferInternal(JNIEnv* env, jclass cls,
     DM_MUTEX_OPTIONAL_SCOPED_LOCK(g_JNINativeCallMutex);
     DM_CHECK_JNI_ERROR();
     dmRiveCrash::ScopedSignalHandler signal_scope;
-
-    if (!CreateGraphicsContext())
-    {
-        dmLogError("Rive: failed to create graphics context");
-        return 0;
-    }
 
     if (!PluginRiveInitialize() || g_RenderContext == 0)
     {
@@ -297,17 +449,12 @@ static jobject JNICALL Java_Rive_GetTexture(JNIEnv* env, jclass cls, jobject riv
     DM_CHECK_JNI_ERROR();
     dmRiveCrash::ScopedSignalHandler signal_scope;
 
-    if (!CreateGraphicsContext())
+    if (!PluginRiveInitialize())
     {
-        dmLogError("Rive: failed to create graphics context");
-        return 0;
+        dmLogWarning("Rive: render context was not initialized, using fallback texture");
     }
 
-    if (!PluginRiveInitialize() || g_RenderContext == 0)
-    {
-        dmLogError("Rive: render context was not initialized");
-        return 0;
-    }
+    (void)CreateGraphicsContext();
 
     TypeRegister register_t(env);
     jobject texture = dmRiveJNI::GetTexture(env, cls, rive_file);
@@ -317,6 +464,14 @@ static jobject JNICALL Java_Rive_GetTexture(JNIEnv* env, jclass cls, jobject riv
         return 0;
     }
     return texture;
+}
+
+static void JNICALL Java_Rive_SetHeadless(JNIEnv* env, jclass cls, jboolean headless)
+{
+    (void)env;
+    (void)cls;
+    DM_MUTEX_OPTIONAL_SCOPED_LOCK(g_JNINativeCallMutex);
+    SetHeadlessModeInternal(headless == JNI_TRUE);
 }
 
 static jfloatArray JNICALL Java_Rive_GetFullscreenQuadVerticesInternal(JNIEnv* env, jclass cls)
@@ -405,9 +560,21 @@ static bool CreateGraphicsContextInternal()
         return true;
     }
 
+    if (g_HeadlessMode)
+    {
+        return false;
+    }
+
+    if (s_GraphicsContextCreateAttempted)
+    {
+        return s_GraphicsContextCreateSuccess;
+    }
+    s_GraphicsContextCreateAttempted = true;
+
     if (!InstallGraphicsAdapter())
     {
-        dmLogError("Rive: failed to install graphics adapter");
+        dmLogWarning("Rive: failed to install graphics adapter, switching to headless mode");
+        SetHeadlessModeInternal(true);
         return false;
     }
 
@@ -429,6 +596,8 @@ static bool CreateGraphicsContextInternal()
     if (!g_JobContext)
     {
         dmLogError("Rive: failed to create job context");
+        WindowDelete(g_Window);
+        g_Window = 0;
         return false;
     }
 
@@ -454,6 +623,8 @@ static bool CreateGraphicsContextInternal()
     if (open_result != WINDOW_RESULT_OK)
     {
         dmLogError("Rive: failed to open window (%d)", (int)open_result);
+        JobSystemDestroy(g_JobContext);
+        g_JobContext = 0;
         WindowDelete(g_Window);
         g_Window = 0;
         return false;
@@ -482,8 +653,13 @@ static bool CreateGraphicsContextInternal()
     if (!g_GraphicsContext)
     {
         dmLogError("Rive: failed to create graphics context");
+        JobSystemDestroy(g_JobContext);
+        g_JobContext = 0;
+        WindowDelete(g_Window);
+        g_Window = 0;
         return false;
     }
+    s_GraphicsContextCreateSuccess = true;
     RiveDebugLog("Rive: graphics context created");
     return true;
 }
@@ -529,8 +705,8 @@ static bool PluginRiveInitialize()
 
     if (!InstallGraphicsAdapter())
     {
-        dmLogError("Rive: failed to install graphics adapter");
-        return false;
+        dmLogWarning("Rive: failed to install graphics adapter, switching to headless mode");
+        SetHeadlessModeInternal(true);
     }
 
     g_RenderContext = dmRive::NewRenderContext();
@@ -553,6 +729,11 @@ static bool PluginRiveInitialize()
     cmd_params.m_UseThreads = false;
     cmd_params.m_RenderContext = g_RenderContext;
     cmd_params.m_Factory = dmRive::GetRiveFactory(g_RenderContext);
+    if (cmd_params.m_Factory == 0 && g_HeadlessMode)
+    {
+        g_Factory = new PluginNoOpFactory();
+        cmd_params.m_Factory = g_Factory;
+    }
     cmd_params.m_Mutex = g_RenderMutex;
     if (cmd_params.m_Factory == 0)
     {
@@ -593,6 +774,11 @@ static void PluginRiveFinalize()
         dmMutex::Delete(g_RenderMutex);
         g_RenderMutex = 0;
     }
+    if (g_Factory)
+    {
+        delete g_Factory;
+        g_Factory = 0;
+    }
 
     if (g_GraphicsContext)
     {
@@ -601,6 +787,8 @@ static void PluginRiveFinalize()
         dmGraphics::Finalize();
         g_GraphicsContext = 0;
     }
+    s_GraphicsContextCreateAttempted = false;
+    s_GraphicsContextCreateSuccess = false;
     g_Window = 0;
 
     if (g_JobContext)
@@ -642,7 +830,8 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
         DM_JNI_FUNCTION(SetFitAlignment, "(Lcom/dynamo/bob/pipeline/Rive$RiveFile;II)V"),
         DM_JNI_FUNCTION(SetViewModel, "(Lcom/dynamo/bob/pipeline/Rive$RiveFile;Ljava/lang/String;)V"),
         DM_JNI_FUNCTION(GetTexture, "(Lcom/dynamo/bob/pipeline/Rive$RiveFile;)Lcom/dynamo/bob/pipeline/Rive$Texture;"),
-        DM_JNI_FUNCTION(GetFullscreenQuadVerticesInternal, "()[F")
+        DM_JNI_FUNCTION(GetFullscreenQuadVerticesInternal, "()[F"),
+        DM_JNI_FUNCTION(SetHeadless, "(Z)V")
         //DM_JNI_FUNCTION(AddressOf, "(Ljava/lang/Object;)J"),
     };
     #undef DM_JNI_FUNCTION
