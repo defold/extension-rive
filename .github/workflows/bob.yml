@@ -23,8 +23,8 @@ jobs:
 
   test_plugin_linux:
     runs-on: ubuntu-latest
+    uses: defold/github-actions-common/.github/workflows/bob.yml@master
     steps:
-      - uses: defold/github-actions-common/.github/workflows/bob.yml@master
       - name: Test Plugin
         run: |
           ./utils/plugin/test_plugin.sh ./main/grimley/4951-10031-grimley.riv
