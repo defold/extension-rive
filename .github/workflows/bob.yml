@@ -20,22 +20,3 @@ jobs:
     uses: defold/github-actions-common/.github/workflows/bob.yml@master
     with:
       ignored_platforms: '[{"platform": "armv7-android"}, {"platform": "x86-win32"}]'
-
-  test_plugin_linux:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 1
-
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '25'
-
-      - name: Test Plugin
-        run: |
-          ./utils/plugin/test_plugin.sh ./main/grimley/4951-10031-grimley.riv

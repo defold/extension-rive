@@ -629,6 +629,10 @@ jobs:
             exit 1
           fi
 
+      - name: Test Plugin
+        run: |
+          ./utils/plugin/test_plugin.sh ./main/grimley/4951-10031-grimley.riv
+
   build-plugin-windows:
     if: ${{ github.event.inputs.platform == 'x86_64-win32' || github.event.inputs.platform == 'all' }}
     needs: [build-windows, prepare-defoldsdk]
@@ -752,3 +756,8 @@ jobs:
             echo "Push failed after $max_attempts attempts"
             exit 1
           fi
+
+      - name: Test Plugin
+        shell: bash
+        run: |
+          ./utils/plugin/test_plugin.sh ./main/grimley/4951-10031-grimley.riv
