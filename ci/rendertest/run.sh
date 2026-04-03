@@ -19,8 +19,9 @@ Options:
   --likeness PERCENT           Minimum likeness percentage required to pass. Default: 95
   --output DIR                  Output directory. Default: build/render-test
   --port PORT                   Local HTTP server port. Default: 18080
-  --settle-ms MS                Delay after load before capture. Default: 1500
-  --timeout-ms MS               Hard timeout for the browser capture. Default: 10000
+  --settle-ms MS                Delay after engine start before capture. Default: 1500
+  --startup-timeout-ms MS       Timeout while waiting for browser + engine startup. Default: 30000
+  --timeout-ms MS               Deprecated alias for --startup-timeout-ms
   --browser chrome|auto         Browser selection hint. Default: chrome
   --headed                      Launch browser headed for local debugging
   -h, --help                    Show this help
@@ -40,7 +41,7 @@ LIKENESS="95"
 OUTPUT_DIR="build/render-test"
 PORT="18080"
 SETTLE_MS="500"
-TIMEOUT_MS="10000"
+STARTUP_TIMEOUT_MS="30000"
 BROWSER="chrome"
 HEADED="0"
 
@@ -86,8 +87,12 @@ while [[ $# -gt 0 ]]; do
             SETTLE_MS="${2:-}"
             shift 2
             ;;
+        --startup-timeout-ms)
+            STARTUP_TIMEOUT_MS="${2:-}"
+            shift 2
+            ;;
         --timeout-ms)
-            TIMEOUT_MS="${2:-}"
+            STARTUP_TIMEOUT_MS="${2:-}"
             shift 2
             ;;
         --browser)
@@ -190,8 +195,8 @@ else
     SCREENSHOT_PATH="${REPORT_DIR}/screenshot.png"
 fi
 
-if ! [[ "${TIMEOUT_MS}" =~ ^[0-9]+$ ]] || [[ "${TIMEOUT_MS}" -le 0 ]]; then
-    echo "--timeout-ms must be a positive integer, got: ${TIMEOUT_MS}" >&2
+if ! [[ "${STARTUP_TIMEOUT_MS}" =~ ^[0-9]+$ ]] || [[ "${STARTUP_TIMEOUT_MS}" -le 0 ]]; then
+    echo "--startup-timeout-ms must be a positive integer, got: ${STARTUP_TIMEOUT_MS}" >&2
     exit 1
 fi
 
@@ -258,7 +263,7 @@ node "${SCRIPT_DIR}/capture.mjs" \
     --expected-screenshot "${EXPECTED_SCREENSHOT_ABS}" \
     --browser "${BROWSER}" \
     --settle-ms "${SETTLE_MS}" \
-    --timeout-ms "${TIMEOUT_MS}" \
+    --startup-timeout-ms "${STARTUP_TIMEOUT_MS}" \
     --likeness "${LIKENESS}" \
     --screenshot "${SCREENSHOT_PATH}" \
     --run-json "${RUN_JSON_PATH}" \

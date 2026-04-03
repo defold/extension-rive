@@ -132,11 +132,37 @@
 		})();
 	</script>
 	<script id='engine-start' type='text/javascript'>
+		window.__rendertest = window.__rendertest || {};
+		window.__rendertest.engineStartRequestedAt = null;
+		window.__rendertest.engineStartSucceededAt = null;
+		window.__rendertest.engineStartError = null;
+		window.__rendertest.engineStartErrorStack = null;
+
+		var previousStartSuccess = CUSTOM_PARAMETERS.start_success;
+		var previousStartError = CUSTOM_PARAMETERS.start_error;
+
+		CUSTOM_PARAMETERS.start_success = function() {
+			window.__rendertest.engineStartSucceededAt = Date.now();
+			if (typeof previousStartSuccess === "function") {
+				previousStartSuccess();
+			}
+		};
+
+		CUSTOM_PARAMETERS.start_error = function(error) {
+			var message = error && error.message ? error.message : String(error);
+			window.__rendertest.engineStartError = message;
+			window.__rendertest.engineStartErrorStack = error && error.stack ? String(error.stack) : null;
+			if (typeof previousStartError === "function") {
+				previousStartError(error);
+			}
+		};
+
 		var runningFromFileWarning = document.getElementById("running-from-file-warning");
 		if (window.location.href.startsWith("file://")) {
 			runningFromFileWarning.style.display = "block";
 		}
 		else {
+			window.__rendertest.engineStartRequestedAt = Date.now();
 			EngineLoader.load("canvas", "{{exe-name}}");
 			runningFromFileWarning.parentNode.removeChild(runningFromFileWarning);
 		}

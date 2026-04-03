@@ -23,6 +23,7 @@ Options:
   --expected-screenshot FILE
   --browser chrome|auto
   --settle-ms MS
+  --startup-timeout-ms MS
   --timeout-ms MS
   --likeness PERCENT
   --headed
@@ -35,7 +36,7 @@ function parseArgs(argv) {
     const args = {
         browser: "chrome",
         settleMs: 1500,
-        timeoutMs: 10000,
+        startupTimeoutMs: 30000,
         likenessThreshold: 95,
         headed: false,
         width: 960,
@@ -63,8 +64,11 @@ function parseArgs(argv) {
             case "--settle-ms":
                 args.settleMs = Number(argv[++i]);
                 break;
+            case "--startup-timeout-ms":
+                args.startupTimeoutMs = Number(argv[++i]);
+                break;
             case "--timeout-ms":
-                args.timeoutMs = Number(argv[++i]);
+                args.startupTimeoutMs = Number(argv[++i]);
                 break;
             case "--likeness":
                 args.likenessThreshold = Number(argv[++i]);
@@ -110,8 +114,8 @@ function parseArgs(argv) {
         throw new Error(`Invalid --settle-ms: ${args.settleMs}`);
     }
 
-    if (!Number.isFinite(args.timeoutMs) || args.timeoutMs <= 0) {
-        throw new Error(`Invalid --timeout-ms: ${args.timeoutMs}`);
+    if (!Number.isFinite(args.startupTimeoutMs) || args.startupTimeoutMs <= 0) {
+        throw new Error(`Invalid --startup-timeout-ms: ${args.startupTimeoutMs}`);
     }
 
     if (!Number.isFinite(args.likenessThreshold) || args.likenessThreshold < 0 || args.likenessThreshold > 100) {
@@ -282,8 +286,8 @@ class CDPSession {
     }
 }
 
-async function waitForBrowserTarget(debugPort) {
-    const deadline = Date.now() + 15000;
+async function waitForBrowserTarget(debugPort, timeoutMs) {
+    const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
         try {
             const targets = await requestJson(`http://127.0.0.1:${debugPort}/json/list`);
@@ -296,39 +300,70 @@ async function waitForBrowserTarget(debugPort) {
         }
         await sleep(200);
     }
-    throw new Error("Timed out waiting for Chrome DevTools target");
+    throw new Error(`Timed out waiting for Chrome DevTools target after ${timeoutMs} ms`);
 }
 
-async function waitForCanvas(session) {
-    const deadline = Date.now() + 30000;
-    while (Date.now() < deadline) {
-        const result = await session.send("Runtime.evaluate", {
-            expression: `(() => {
-                const canvas = document.querySelector("#canvas, canvas");
-                if (!canvas) return null;
-                const rect = canvas.getBoundingClientRect();
-                return {
-                    readyState: document.readyState,
-                    hasModule: typeof window.Module !== "undefined",
+async function getRenderState(session) {
+    const result = await session.send("Runtime.evaluate", {
+        expression: `(() => {
+            const hasRenderTestState = typeof window.__rendertest !== "undefined";
+            const state = window.__rendertest || {};
+            const canvas = document.querySelector("#canvas, canvas");
+            const rect = canvas ? canvas.getBoundingClientRect() : null;
+            return {
+                hasRenderTestState,
+                readyState: document.readyState,
+                hasModule: typeof window.Module !== "undefined",
+                engineStartRequestedAt: state.engineStartRequestedAt || null,
+                engineStartSucceededAt: state.engineStartSucceededAt || null,
+                engineStartError: state.engineStartError || null,
+                engineStartErrorStack: state.engineStartErrorStack || null,
+                canvas: rect ? {
                     x: rect.x,
                     y: rect.y,
                     width: rect.width,
                     height: rect.height,
-                    dpr: window.devicePixelRatio || 1
-                };
-            })()`,
-            returnByValue: true,
-            awaitPromise: true,
-        });
+                    dpr: window.devicePixelRatio || 1,
+                } : null,
+            };
+        })()`,
+        returnByValue: true,
+        awaitPromise: true,
+    });
 
-        const value = result.result?.value;
-        if (value && value.width > 0 && value.height > 0) {
-            return value;
+    return result.result?.value || null;
+}
+
+async function waitForEngineStart(session, timeoutMs) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        const state = await getRenderState(session);
+        if (state?.engineStartError) {
+            const details = state.engineStartErrorStack ? `\n${state.engineStartErrorStack}` : "";
+            throw new Error(`Engine start failed: ${state.engineStartError}${details}`);
+        }
+
+        if (state?.engineStartSucceededAt) {
+            return state;
         }
 
         await sleep(250);
     }
-    throw new Error("Timed out waiting for Defold canvas");
+    throw new Error(`Timed out waiting for Defold engine start after ${timeoutMs} ms`);
+}
+
+async function waitForCanvas(session, timeoutMs) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        const state = await getRenderState(session);
+        const canvas = state?.canvas;
+        if (canvas && canvas.width > 0 && canvas.height > 0) {
+            return canvas;
+        }
+
+        await sleep(250);
+    }
+    throw new Error(`Timed out waiting for Defold canvas after ${timeoutMs} ms`);
 }
 
 function compareImages(resultPath, expectedPath, reportDir) {
@@ -581,9 +616,8 @@ async function main() {
     });
 
     try {
-        await Promise.race([
-            (async () => {
-                const target = await waitForBrowserTarget(debugPort);
+        await (async () => {
+                const target = await waitForBrowserTarget(debugPort, args.startupTimeoutMs);
                 const ws = new WebSocket(target.webSocketDebuggerUrl);
                 await new Promise((resolve, reject) => {
                     ws.addEventListener("open", resolve, { once: true });
@@ -605,8 +639,16 @@ async function main() {
                     await session.send("Page.navigate", { url: args.url });
                     await loadEvent;
 
-                    const canvas = await waitForCanvas(session);
+                    const initialState = await getRenderState(session);
+                    if (!initialState?.hasRenderTestState) {
+                        throw new Error(
+                            "Bundle is missing rendertest startup hooks. Rebuild the HTML5 bundle so it picks up ci/rendertest/engine_template.html.",
+                        );
+                    }
+
+                    const engineState = await waitForEngineStart(session, args.startupTimeoutMs);
                     await sleep(args.settleMs);
+                    const canvas = await waitForCanvas(session, 5000);
 
                     const clip = {
                         x: canvas.x,
@@ -636,8 +678,14 @@ async function main() {
                         expected_screenshot_path: args.expectedScreenshotPath || "",
                         captured_at: new Date().toISOString(),
                         settle_ms: args.settleMs,
-                        timeout_ms: args.timeoutMs,
+                        startup_timeout_ms: args.startupTimeoutMs,
                         likeness_threshold: args.likenessThreshold,
+                        engine_start_requested_at: engineState.engineStartRequestedAt,
+                        engine_start_succeeded_at: engineState.engineStartSucceededAt,
+                        engine_start_duration_ms:
+                            engineState.engineStartRequestedAt && engineState.engineStartSucceededAt
+                                ? engineState.engineStartSucceededAt - engineState.engineStartRequestedAt
+                                : null,
                         canvas: clip,
                     };
 
@@ -656,13 +704,7 @@ async function main() {
                 } finally {
                     await session.close();
                 }
-            })(),
-            new Promise((_, reject) => {
-                setTimeout(() => {
-                    reject(new Error(`Timed out after ${args.timeoutMs} ms`));
-                }, args.timeoutMs);
-            }),
-        ]);
+            })();
     } finally {
         if (!chromeExited) {
             chrome.kill("SIGTERM");
