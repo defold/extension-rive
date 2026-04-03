@@ -7,6 +7,13 @@ import net from "node:net";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 
+class RenderComparisonError extends Error {
+    constructor(message) {
+        super(message);
+        this.name = "RenderComparisonError";
+    }
+}
+
 function usage() {
     console.error(`usage: capture.mjs --url URL --screenshot FILE --run-json FILE --result-json FILE --index FILE [options]
 
@@ -538,6 +545,9 @@ async function writeReport(runJsonPath, resultJsonPath, indexPath, runData, resu
 
 async function main() {
     const args = parseArgs(process.argv.slice(2));
+    if (typeof WebSocket !== "function") {
+        throw new Error("WebSocket is not available in this Node runtime. Use Node.js 22 or newer.");
+    }
     const chromePath = findChromeExecutable();
     const debugPort = await getFreePort();
     const chromeArgs = [
@@ -639,7 +649,7 @@ async function main() {
                     const resultJsonRaw = await fs.readFile(args.resultJsonPath, "utf8");
                     const finalizedResultData = JSON.parse(resultJsonRaw);
                     if (finalizedResultData.status !== "pass") {
-                        throw new Error(
+                        throw new RenderComparisonError(
                             `Render comparison failed: ${finalizedResultData.likeness_percent?.toFixed(2) ?? "n/a"}% likeness, threshold ${args.likenessThreshold.toFixed(2)}%`,
                         );
                     }
@@ -666,5 +676,5 @@ async function main() {
 
 main().catch((error) => {
     console.error(error.stack || String(error));
-    process.exit(1);
+    process.exit(error instanceof RenderComparisonError ? 2 : 1);
 });

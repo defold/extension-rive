@@ -1,5 +1,6 @@
 #! /usr/bin/env bash
 
+set -euo pipefail
 
 BUNDLE_FOLDER=./bundle_web/extension-rive
 REPORT_FOLDER=./build/render-test
@@ -16,11 +17,33 @@ fi
 
 mkdir -p ${REPORT_FOLDER}
 
-echo "******************************************************"
-echo "Grimley"
-echo "******************************************************"
+run_render_test() {
+  local test_name="$1"
+  shift
 
-./ci/rendertest/run.sh \
+  echo "******************************************************"
+  echo "${test_name}"
+  echo "******************************************************"
+
+  set +e
+  ./ci/rendertest/run.sh "$@"
+  local exit_code=$?
+  set -e
+
+  case "${exit_code}" in
+    0)
+      ;;
+    2)
+      echo "${test_name}: render comparison failed, continuing to next test"
+      ;;
+    *)
+      echo "${test_name}: fatal render test error, aborting test run" >&2
+      exit "${exit_code}"
+      ;;
+  esac
+}
+
+run_render_test "Grimley" \
   --mode ${MODE} \
   --bundle-dir ${BUNDLE_FOLDER} \
   --name "Grimley" \
@@ -30,11 +53,7 @@ echo "******************************************************"
   --output build/render-test/grimley \
   --likeness ${DEFAULT_LIKENESS}
 
-echo "******************************************************"
-echo "Egg"
-echo "******************************************************"
-
-./ci/rendertest/run.sh \
+run_render_test "Egg" \
   --mode ${MODE} \
   --bundle-dir ${BUNDLE_FOLDER} \
   --name "Egg" \

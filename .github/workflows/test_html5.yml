@@ -40,6 +40,11 @@ jobs:
           distribution: temurin
           java-version: "25"
 
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       - name: Restore Defold SDK and bob.jar from cache
         uses: actions/cache/restore@v4
         with:
@@ -52,19 +57,21 @@ jobs:
 
       - name: Build wasm-web bundle
         shell: bash
+        env:
+          BOB: ${{ github.workspace }}/bob.jar
         run: |
           set -euo pipefail
-          java -jar ./bob.jar resolve
+          java -jar "${BOB}" resolve
 
-          java -jar ./bob.jar build --archive bundle \
-                                    --bo bundle_web \
-                                    --variant=debug \
-                                    --build-server=https://build-stage.defold.com \
-                                    --platform=wasm-web \
-                                    --architectures=wasm-web \
-                                    --settings=./ci/rendertest/settings_html5.ini \
-                                    --brjson bundle_web/build-report.html \
-                                    --with-symbols
+          java -jar "${BOB}" build --archive bundle \
+                                   --bo bundle_web \
+                                   --variant=debug \
+                                   --build-server=https://build-stage.defold.com \
+                                   --platform=wasm-web \
+                                   --architectures=wasm-web \
+                                   --settings=./ci/rendertest/settings_html5.ini \
+                                   --brjson bundle_web/build-report.html \
+                                   --with-symbols
 
       - name: Pack wasm-web bundle zip
         shell: bash
@@ -130,6 +137,7 @@ jobs:
         if: always()
         shell: bash
         run: |
+          test "${{ steps.run-tests.outcome }}" = "success"
           test "${{ steps.build-summary.outputs.fail_count }}" = "0"
 
   publish-pages:
