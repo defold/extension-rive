@@ -19,6 +19,7 @@ Options:
   --likeness PERCENT           Minimum likeness percentage required to pass. Default: 95
   --output DIR                  Output directory. Default: build/render-test
   --port PORT                   Local HTTP server port. Default: 18080
+  --wait-mode timeout|signal    How to wait for the capture point. Default: timeout
   --settle-ms MS                Delay after engine start before capture. Default: 1500
   --startup-timeout-ms MS       Timeout while waiting for browser + engine startup. Default: 30000
   --timeout-ms MS               Deprecated alias for --startup-timeout-ms
@@ -40,6 +41,7 @@ SCREENSHOT_ARG=""
 LIKENESS="95"
 OUTPUT_DIR="build/render-test"
 PORT="18080"
+WAIT_MODE="timeout"
 SETTLE_MS="500"
 STARTUP_TIMEOUT_MS="30000"
 BROWSER="chrome"
@@ -81,6 +83,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --port)
             PORT="${2:-}"
+            shift 2
+            ;;
+        --wait-mode)
+            WAIT_MODE="${2:-}"
             shift 2
             ;;
         --settle-ms)
@@ -195,6 +201,11 @@ else
     SCREENSHOT_PATH="${REPORT_DIR}/screenshot.png"
 fi
 
+if [[ "${WAIT_MODE}" != "timeout" && "${WAIT_MODE}" != "signal" ]]; then
+    echo "--wait-mode must be either 'timeout' or 'signal', got: ${WAIT_MODE}" >&2
+    exit 1
+fi
+
 if ! [[ "${STARTUP_TIMEOUT_MS}" =~ ^[0-9]+$ ]] || [[ "${STARTUP_TIMEOUT_MS}" -le 0 ]]; then
     echo "--startup-timeout-ms must be a positive integer, got: ${STARTUP_TIMEOUT_MS}" >&2
     exit 1
@@ -262,6 +273,7 @@ node "${SCRIPT_DIR}/capture.mjs" \
     --collection "${RUNTIME_COLLECTION}" \
     --expected-screenshot "${EXPECTED_SCREENSHOT_ABS}" \
     --browser "${BROWSER}" \
+    --wait-mode "${WAIT_MODE}" \
     --settle-ms "${SETTLE_MS}" \
     --startup-timeout-ms "${STARTUP_TIMEOUT_MS}" \
     --likeness "${LIKENESS}" \

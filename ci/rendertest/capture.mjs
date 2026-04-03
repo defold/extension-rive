@@ -170,6 +170,7 @@ Options:
   --collection PATH
   --expected-screenshot FILE
   --browser chrome|auto
+  --wait-mode timeout|signal
   --settle-ms MS
   --startup-timeout-ms MS
   --timeout-ms MS
@@ -183,6 +184,7 @@ Options:
 function parseArgs(argv) {
     const args = {
         browser: "chrome",
+        waitMode: "timeout",
         settleMs: 1500,
         startupTimeoutMs: 30000,
         likenessThreshold: 95,
@@ -208,6 +210,9 @@ function parseArgs(argv) {
                 break;
             case "--browser":
                 args.browser = argv[++i];
+                break;
+            case "--wait-mode":
+                args.waitMode = argv[++i];
                 break;
             case "--settle-ms":
                 args.settleMs = Number(argv[++i]);
@@ -260,6 +265,10 @@ function parseArgs(argv) {
 
     if (!Number.isFinite(args.settleMs) || args.settleMs < 0) {
         throw new Error(`Invalid --settle-ms: ${args.settleMs}`);
+    }
+
+    if (!["timeout", "signal"].includes(args.waitMode)) {
+        throw new Error(`Invalid --wait-mode: ${args.waitMode}`);
     }
 
     if (!Number.isFinite(args.startupTimeoutMs) || args.startupTimeoutMs <= 0) {
@@ -530,7 +539,7 @@ async function waitForEngineStart(session, timeoutMs) {
             throw new Error(`Engine start failed: ${state.engineStartError}${details}`);
         }
 
-        if (state?.engineTakeScreenshotAt) {
+        if (state?.engineStartSucceededAt) {
             return state;
         }
 
@@ -539,18 +548,37 @@ async function waitForEngineStart(session, timeoutMs) {
     throw new Error(`Timed out waiting for Defold engine start after ${timeoutMs} ms`);
 }
 
-async function waitForCanvas(session, timeoutMs) {
+async function waitForScreenshotSignal(session, timeoutMs) {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
         const state = await getRenderState(session);
-        const canvas = state?.canvas;
-        if (canvas && canvas.width > 0 && canvas.height > 0) {
-            return canvas;
+        if (state?.engineStartError) {
+            const details = state.engineStartErrorStack ? `\n${state.engineStartErrorStack}` : "";
+            throw new Error(`Engine start failed: ${state.engineStartError}${details}`);
+        }
+
+        if (state?.engineTakeScreenshotAt) {
+            return state;
         }
 
         await sleep(250);
     }
-    throw new Error(`Timed out waiting for Defold canvas after ${timeoutMs} ms`);
+    throw new Error(`Timed out waiting for Defold screenshot signal after ${timeoutMs} ms`);
+}
+
+async function waitForSettledCapture(session, timeoutMs, settleMs) {
+    const engineState = await waitForEngineStart(session, timeoutMs);
+    if (settleMs > 0) {
+        await sleep(settleMs);
+    }
+
+    const renderState = await getRenderState(session);
+    const canvas = renderState?.canvas;
+    if (!canvas || canvas.width <= 0 || canvas.height <= 0) {
+        throw new Error("Defold canvas was not ready after engine start");
+    }
+
+    return { engineState, canvas };
 }
 
 function compareImages(resultPath, expectedPath, reportDir) {
@@ -837,9 +865,20 @@ async function main() {
                     await session.send("Page.navigate", { url: args.url });
                     await loadEvent;
 
-                    const engineState = await waitForEngineStart(session, args.startupTimeoutMs);
-                    await sleep(args.settleMs);
-                    const canvas = await waitForCanvas(session, 5000);
+                    let engineState;
+                    let canvas;
+                    if (args.waitMode === "signal") {
+                        engineState = await waitForScreenshotSignal(session, args.startupTimeoutMs);
+                        const renderState = await getRenderState(session);
+                        canvas = renderState?.canvas;
+                        if (!canvas || canvas.width <= 0 || canvas.height <= 0) {
+                            throw new Error("Defold canvas was not ready when takeScreenshot() fired");
+                        }
+                    } else {
+                        const settledCapture = await waitForSettledCapture(session, args.startupTimeoutMs, args.settleMs);
+                        engineState = settledCapture.engineState;
+                        canvas = settledCapture.canvas;
+                    }
 
                     const clip = {
                         x: canvas.x,
@@ -865,6 +904,7 @@ async function main() {
                         browser: "chrome",
                         browser_executable: chromePath,
                         url: args.url,
+                        wait_mode: args.waitMode,
                         screenshot_path: args.screenshotPath,
                         expected_screenshot_path: args.expectedScreenshotPath || "",
                         captured_at: new Date().toISOString(),

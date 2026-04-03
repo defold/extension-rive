@@ -48,6 +48,7 @@ run_render_test "Grimley" \
   --bundle-dir ${BUNDLE_FOLDER} \
   --name "Grimley" \
   --collection /main/grimley/grimley.collectionc \
+  --wait-mode signal \
   --expected-screenshot ./ci/tests/html5/expected/grimley.png \
   --screenshot grimley.png \
   --output build/render-test/grimley \
@@ -58,6 +59,7 @@ run_render_test "Egg" \
   --bundle-dir ${BUNDLE_FOLDER} \
   --name "Egg" \
   --collection /main/egg/egg.collection \
+  --wait-mode timeout \
   --expected-screenshot ./ci/tests/html5/expected/egg.png \
   --screenshot egg.png \
   --output build/render-test/egg \
