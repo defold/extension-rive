@@ -9,8 +9,19 @@ permissions:
   pull-requests: write
 
 jobs:
+  prepare-defoldsdk:
+    name: defoldsdk
+    uses: defold/github-actions-common/.github/workflows/defoldsdk.yml@master
+    with:
+      runner: ${{ github.event.inputs.platform == 'arm64-linux' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+      defold_channel: alpha
+      defold_version: ${{ github.event.inputs.defold_version || 'latest' }}
+      sdk_output_path: build/defoldsdk
+      bob_output_path: bob.jar
+
   test-html5:
     runs-on: ubuntu-latest
+    needs: [prepare-defoldsdk]
     outputs:
       pass_count: ${{ steps.build-summary.outputs.pass_count }}
       fail_count: ${{ steps.build-summary.outputs.fail_count }}
@@ -28,6 +39,15 @@ jobs:
         with:
           distribution: temurin
           java-version: "25"
+
+      - name: Restore Defold SDK and bob.jar from cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            bob.jar
+          key: ${{ needs.prepare-defoldsdk.outputs.defoldsdk_cache_key }}
+          enableCrossOsArchive: true
+          fail-on-cache-miss: true
 
       - name: Build wasm-web bundle
         shell: bash
