@@ -28,6 +28,27 @@ const RENDERTEST_BOOTSTRAP_SCRIPT = `(() => {
             return params;
         }
 
+        const queryParams = new URLSearchParams(window.location.search);
+        const keys = queryParams.getAll("key");
+        const values = queryParams.getAll("value");
+        if (keys.length > 0) {
+            if (!params.engine_arguments) {
+                params.engine_arguments = [];
+            }
+
+            for (let i = 0; i < keys.length; i += 1) {
+                const key = keys[i];
+                const value = values[i];
+                if (!key || value === null) {
+                    continue;
+                }
+
+                const prefix = "--config=" + key + "=";
+                params.engine_arguments = params.engine_arguments.filter((arg) => !arg.startsWith(prefix));
+                params.engine_arguments.push(prefix + value);
+            }
+        }
+
         const previousStartSuccess = params.start_success;
         const previousStartError = params.start_error;
 

@@ -266,7 +266,6 @@ jobs:
           REPORTS_ROOT: build/render-test
           REPORT_ARTIFACT_URL: ${{ needs.test-html5.outputs.report_artifact_url }}
           PAGE_URL: ${{ needs.publish-pages.outputs.page_url }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           RUN_TESTS_OUTCOME: ${{ needs.test-html5.outputs.run_tests_outcome }}
           PASS_COUNT: ${{ needs.test-html5.outputs.pass_count }}
           FAIL_COUNT: ${{ needs.test-html5.outputs.fail_count }}
@@ -278,7 +277,6 @@ jobs:
 
             const reportsRoot = process.env.REPORTS_ROOT;
             const pageUrl = process.env.PAGE_URL;
-            const runUrl = process.env.RUN_URL;
             const reportArtifactUrl = process.env.REPORT_ARTIFACT_URL;
             const runTestsOutcome = process.env.RUN_TESTS_OUTCOME;
             const passCount = process.env.PASS_COUNT;
@@ -320,14 +318,13 @@ jobs:
               '',
               `Status: **${overallStatus}**`,
               `Summary: ✅ ${passCount} passed, ❌ ${failCount} failed${totalCount ? `, ${totalCount} total` : ''}`,
-              `Run: [workflow run](${runUrl})`,
             ];
 
             if (pageUrl) {
-              lines.push(`Pages report: [open report](${pageUrl})`);
+              lines.push(`[Report](${pageUrl})`);
             }
             if (reportArtifactUrl) {
-              lines.push(`Artifact zip: [download report](${reportArtifactUrl})`);
+              lines.push(`[Artifact Zip](${reportArtifactUrl})`);
             }
 
             lines.push('');
