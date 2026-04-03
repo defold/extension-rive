@@ -117,6 +117,7 @@ public class Rive {
     public static native void SetFitAlignment(RiveFile rive_file, int fit, int alignment);
     public static native void SetViewModel(RiveFile rive_file, String name);
     public static native Texture GetTexture(RiveFile rive_file);
+    public static native void SetHeadless(boolean headless);
     private static native float[] GetFullscreenQuadVerticesInternal();
     public static native void DebugPrint();
 
@@ -288,6 +289,17 @@ public class Rive {
         });
     }
 
+    public static void SetHeadlessInternal(final boolean headless)
+    {
+        runOnNativeThreadVoid(new Runnable() {
+            @Override
+            public void run() {
+                Initialize();
+                Rive.SetHeadless(headless);
+            }
+        });
+    }
+
     public static RiveFile LoadFromBuffer(String path, byte[] bytes)
     {
         return runOnNativeThread(new Callable<RiveFile>() {
@@ -317,7 +329,7 @@ public class Rive {
     // ////////////////////////////////////////////////////////////////////////////////
 
     private static void Usage() {
-        System.out.printf("Usage: Rive.class file.riv\n");
+        System.out.printf("Usage: Rive.class [--headless] file.riv\n");
         System.out.printf("\n");
     }
 
@@ -363,7 +375,39 @@ public class Rive {
         return true;
     }
 
-    // ./utils/plugin/test.sh <rive scene path>
+    private static int BoundsDimension(float minValue, float maxValue, int fallback) {
+        float size = maxValue - minValue;
+        if (size <= 0.0f) {
+            return fallback;
+        }
+
+        int dim = (int)Math.ceil(size);
+        return dim > 0 ? dim : fallback;
+    }
+
+    private static Texture CreateFallbackTexture(RiveFile riveFile) {
+        int width = 512;
+        int height = 512;
+        if (riveFile != null && riveFile.bounds != null && riveFile.bounds.min != null && riveFile.bounds.max != null) {
+            width = BoundsDimension(riveFile.bounds.min.x, riveFile.bounds.max.x, width);
+            height = BoundsDimension(riveFile.bounds.min.y, riveFile.bounds.max.y, height);
+        }
+
+        Texture texture = new Texture();
+        texture.width = width;
+        texture.height = height;
+        texture.format = 0;
+        texture.data = new byte[width * height * 4];
+        for (int i = 0; i < texture.data.length; i += 4) {
+            texture.data[i + 0] = (byte)255; // A
+            texture.data[i + 1] = (byte)139; // B
+            texture.data[i + 2] = 0;         // G
+            texture.data[i + 3] = 0;         // R
+        }
+        return texture;
+    }
+
+    // ./utils/plugin/test_plugin.sh [--headless] <rive scene path>
     public static void main(String[] args) throws IOException {
         Initialize();
         System.setProperty("java.awt.headless", "true");
@@ -373,7 +417,26 @@ public class Rive {
             return;
         }
 
-        String path = args[0];       // .riv
+        boolean headless = false;
+        String path = null;
+        for (String arg : args) {
+            if ("--headless".equals(arg)) {
+                headless = true;
+            } else if (arg.startsWith("--")) {
+                System.out.printf("Unknown argument: %s\n", arg);
+                Usage();
+                return;
+            } else {
+                path = arg;
+            }
+        }
+
+        if (path == null) {
+            Usage();
+            return;
+        }
+
+        SetHeadlessInternal(headless);
 
         long timeStart = System.currentTimeMillis();
 
@@ -397,6 +460,11 @@ public class Rive {
         rive_file.Update(0.0f);
 
         Texture texture = Rive.GetTextureInternal(rive_file);
+        if (texture == null) {
+            texture = CreateFallbackTexture(rive_file);
+            System.out.printf("Using fallback screenshot (%dx%d)\n", texture.width, texture.height);
+        }
+
         if (texture != null) {
             String screenshotPath = "screenshot.tga";
             if (WriteTgaFile(screenshotPath, texture)) {

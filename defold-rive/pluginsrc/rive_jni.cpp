@@ -32,6 +32,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <vector>
 
 
 namespace dmRiveJNI
@@ -278,6 +279,35 @@ static bool IsBoundsValid(const rive::AABB& bounds)
     return !bounds.isEmptyOrNaN();
 }
 
+static void ResolveRenderBounds(dmRive::RiveFile* rive_file,
+                                rive::rcp<rive::CommandQueue> queue,
+                                uint32_t fallback_width,
+                                uint32_t fallback_height,
+                                rive::AABB* out_bounds)
+{
+    rive::AABB render_bounds;
+    if (rive_file)
+    {
+        render_bounds = rive_file->m_Bounds;
+    }
+
+    if (queue && rive_file && rive_file->m_Artboard != RIVE_NULL_HANDLE)
+    {
+        rive::AABB fresh_bounds;
+        if (dmRiveCommands::GetBounds(rive_file->m_Artboard, &fresh_bounds) && IsBoundsValid(fresh_bounds))
+        {
+            render_bounds = fresh_bounds;
+        }
+    }
+
+    if (!IsBoundsValid(render_bounds))
+    {
+        render_bounds = rive::AABB(0.0f, 0.0f, (float)fallback_width, (float)fallback_height);
+    }
+
+    *out_bounds = render_bounds;
+}
+
 
 struct RiveFileJNI
 {
@@ -334,6 +364,61 @@ struct DefaultViewModelInfoJNI
     jfieldID    viewModel;
     jfieldID    instance;
 } g_DefaultViewModelInfoJNI;
+
+static jobject CreateTextureObject(JNIEnv* env,
+                                   uint32_t width,
+                                   uint32_t height,
+                                   dmGraphics::TextureFormat format,
+                                   const uint8_t* data,
+                                   size_t data_size)
+{
+    if (!env || !data || width == 0 || height == 0)
+    {
+        return 0;
+    }
+
+    jbyteArray data_arr = env->NewByteArray((jsize)data_size);
+    if (!data_arr)
+    {
+        return 0;
+    }
+    env->SetByteArrayRegion(data_arr, 0, (jsize)data_size, (const jbyte*)data);
+
+    jobject texture_obj = env->AllocObject(g_RiveTextureJNI.cls);
+    if (!texture_obj)
+    {
+        env->DeleteLocalRef(data_arr);
+        return 0;
+    }
+
+    env->SetIntField(texture_obj, g_RiveTextureJNI.width, (int)width);
+    env->SetIntField(texture_obj, g_RiveTextureJNI.height, (int)height);
+    env->SetIntField(texture_obj, g_RiveTextureJNI.format, (int)format);
+    env->SetObjectField(texture_obj, g_RiveTextureJNI.data, data_arr);
+    env->DeleteLocalRef(data_arr);
+    return texture_obj;
+}
+
+static jobject CreateFallbackTexture(JNIEnv* env, uint32_t width, uint32_t height)
+{
+    if (width == 0 || height == 0)
+    {
+        width = 512;
+        height = 512;
+    }
+
+    const size_t data_size = (size_t)width * (size_t)height * 4u;
+    std::vector<uint8_t> data(data_size);
+    for (size_t i = 0; i < data_size; i += 4)
+    {
+        data[i + 0] = 255; // A
+        data[i + 1] = 139; // B
+        data[i + 2] = 0;   // G
+        data[i + 3] = 0;   // R
+    }
+
+    return CreateTextureObject(env, width, height, dmGraphics::TEXTURE_FORMAT_BGRA8U, data.data(), data.size());
+}
 
 
 void InitializeJNITypes(JNIEnv* env)
@@ -810,36 +895,53 @@ static bool GetTextureInternal(dmRive::RiveFile* rive_file,
 
 jobject GetTexture(JNIEnv* env, jclass cls, jobject rive_file_obj)
 {
+    (void)cls;
     dmRive::RiveFile* rive_file = FromObject(env, rive_file_obj);
     if (!rive_file)
     {
         return 0;
     }
 
-    if (rive_file->m_Artboard == RIVE_NULL_HANDLE)
+    dmGraphics::HContext graphics_context = dmGraphics::GetInstalledContext();
+    uint32_t fallback_width = graphics_context ? dmGraphics::GetWindowWidth(graphics_context) : 512;
+    uint32_t fallback_height = graphics_context ? dmGraphics::GetWindowHeight(graphics_context) : 512;
+
+    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    rive::AABB render_bounds;
+    ResolveRenderBounds(rive_file, queue, fallback_width, fallback_height, &render_bounds);
+
+    uint32_t target_width = BoundsDimension(render_bounds.minX, render_bounds.maxX, fallback_width);
+    uint32_t target_height = BoundsDimension(render_bounds.minY, render_bounds.maxY, fallback_height);
+    if (target_width == 0 || target_height == 0)
     {
-        return 0;
+        dmLogWarning("Rive: invalid render size %u x %u, using fallback texture size", target_width, target_height);
+        target_width = fallback_width;
+        target_height = fallback_height;
     }
 
     dmRive::HRenderContext render_context = dmRiveCommands::GetDefoldRenderContext();
     if (!render_context)
     {
-        dmLogError("Rive: missing render context");
-        return 0;
+        dmLogWarning("Rive: missing render context, returning fallback texture");
+        return CreateFallbackTexture(env, target_width, target_height);
     }
 
-    rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     if (!queue)
     {
-        dmLogError("Rive: missing command queue");
-        return 0;
+        dmLogWarning("Rive: missing command queue, returning fallback texture");
+        return CreateFallbackTexture(env, target_width, target_height);
     }
 
-    dmGraphics::HContext graphics_context = dmGraphics::GetInstalledContext();
     if (!graphics_context)
     {
-        dmLogError("Rive: missing graphics context");
-        return 0;
+        dmLogWarning("Rive: missing graphics context, returning fallback texture");
+        return CreateFallbackTexture(env, target_width, target_height);
+    }
+
+    if (rive_file->m_Artboard == RIVE_NULL_HANDLE)
+    {
+        dmLogWarning("Rive: missing artboard, returning fallback texture");
+        return CreateFallbackTexture(env, target_width, target_height);
     }
 
     dmGraphics::AdapterFamily adapter_family = dmGraphics::GetInstalledAdapterFamily();
@@ -848,26 +950,6 @@ jobject GetTexture(JNIEnv* env, jclass cls, jobject rive_file_obj)
                                                           : READBACK_SOURCE_TEXTURE;
     uint32_t window_width = dmGraphics::GetWindowWidth(graphics_context);
     uint32_t window_height = dmGraphics::GetWindowHeight(graphics_context);
-
-    rive::AABB render_bounds = rive_file->m_Bounds;
-    if (!IsBoundsValid(render_bounds))
-    {
-        render_bounds = rive::AABB(0.0f, 0.0f, (float)window_width, (float)window_height);
-    }
-
-    rive::AABB fresh_bounds;
-    if (dmRiveCommands::GetBounds(rive_file->m_Artboard, &fresh_bounds) && IsBoundsValid(fresh_bounds))
-    {
-        render_bounds = fresh_bounds;
-    }
-
-    uint32_t target_width = BoundsDimension(render_bounds.minX, render_bounds.maxX, window_width);
-    uint32_t target_height = BoundsDimension(render_bounds.minY, render_bounds.maxY, window_height);
-    if (target_width == 0 || target_height == 0)
-    {
-        dmLogError("Rive: invalid render size %u x %u (adapter=%d)", target_width, target_height, (int)adapter_family);
-        return 0;
-    }
 
     // Keep editor/plugin thumbnail rendering bounded to avoid oversized render
     // targets on drivers that are unstable with large offscreen FBOs.
@@ -917,8 +999,8 @@ jobject GetTexture(JNIEnv* env, jclass cls, jobject rive_file_obj)
 
     if (!read_ok)
     {
-        dmLogError("Rive: ReadPixels failed (adapter=%d, backbuffer=%d)", (int)adapter_family, (int)render_to_backbuffer);
-        return 0;
+        dmLogWarning("Rive: ReadPixels failed (adapter=%d, backbuffer=%d), returning fallback texture", (int)adapter_family, (int)render_to_backbuffer);
+        return CreateFallbackTexture(env, target_width, target_height);
     }
 
     uint32_t crop_x = 0;
@@ -930,18 +1012,15 @@ jobject GetTexture(JNIEnv* env, jclass cls, jobject rive_file_obj)
     if (!ConvertPixelsToABGR(&pixels, flip_y, target_width, target_height, crop_x, crop_y))
     {
         dmRive::FreePixels(&pixels);
-        return 0;
+        return CreateFallbackTexture(env, target_width, target_height);
     }
 
-    jbyteArray data_arr = env->NewByteArray((jsize)pixels.m_DataSize);
-    env->SetByteArrayRegion(data_arr, 0, (jsize)pixels.m_DataSize, (const jbyte*)pixels.m_Data);
-
-    jobject texture_obj = env->AllocObject(g_RiveTextureJNI.cls);
-    env->SetIntField(texture_obj, g_RiveTextureJNI.width, (int)pixels.m_Width);
-    env->SetIntField(texture_obj, g_RiveTextureJNI.height, (int)pixels.m_Height);
-    env->SetIntField(texture_obj, g_RiveTextureJNI.format, (int)pixels.m_Format);
-    env->SetObjectField(texture_obj, g_RiveTextureJNI.data, data_arr);
-    env->DeleteLocalRef(data_arr);
+    jobject texture_obj = CreateTextureObject(env,
+                                              pixels.m_Width,
+                                              pixels.m_Height,
+                                              pixels.m_Format,
+                                              pixels.m_Data,
+                                              pixels.m_DataSize);
 
     dmRive::FreePixels(&pixels);
 
