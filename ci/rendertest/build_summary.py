@@ -8,6 +8,7 @@ from html import escape
 from pathlib import Path
 
 
+
 PASS_ICON = "✅"
 FAIL_ICON = "❌"
 
