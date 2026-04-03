@@ -18,6 +18,7 @@ const RENDERTEST_BOOTSTRAP_SCRIPT = `(() => {
     const state = window.__rendertest = window.__rendertest || {};
     if (typeof state.engineStartRequestedAt === "undefined") state.engineStartRequestedAt = null;
     if (typeof state.engineFirstUpdateAt === "undefined") state.engineFirstUpdateAt = null;
+    if (typeof state.engineTakeScreenshotAt === "undefined") state.engineTakeScreenshotAt = null;
     if (typeof state.engineStartSucceededAt === "undefined") state.engineStartSucceededAt = null;
     if (typeof state.engineStartError === "undefined") state.engineStartError = null;
     if (typeof state.engineStartErrorStack === "undefined") state.engineStartErrorStack = null;
@@ -84,14 +85,20 @@ const RENDERTEST_BOOTSTRAP_SCRIPT = `(() => {
             return moduleValue;
         }
 
-        moduleValue.firstEngineUpdate = function() {
+        const markTimingSignal = function() {
             if (state.engineFirstUpdateAt === null) {
                 state.engineFirstUpdateAt = Date.now();
             }
+            if (state.engineTakeScreenshotAt === null) {
+                state.engineTakeScreenshotAt = state.engineFirstUpdateAt;
+            }
             if (state.engineStartRequestedAt === null) {
-                state.engineStartRequestedAt = state.engineFirstUpdateAt;
+                state.engineStartRequestedAt = state.engineTakeScreenshotAt;
             }
         };
+
+        moduleValue.firstEngineUpdate = markTimingSignal;
+        moduleValue.takeScreenshot = markTimingSignal;
 
         Object.defineProperty(moduleValue, "__rendertestWrapped", {
             value: true,
@@ -494,6 +501,7 @@ async function getRenderState(session) {
                 hasModule: typeof window.Module !== "undefined",
                 engineStartRequestedAt: state.engineStartRequestedAt || null,
                 engineFirstUpdateAt: state.engineFirstUpdateAt || null,
+                engineTakeScreenshotAt: state.engineTakeScreenshotAt || null,
                 engineStartSucceededAt: state.engineStartSucceededAt || null,
                 engineStartError: state.engineStartError || null,
                 engineStartErrorStack: state.engineStartErrorStack || null,
@@ -522,7 +530,7 @@ async function waitForEngineStart(session, timeoutMs) {
             throw new Error(`Engine start failed: ${state.engineStartError}${details}`);
         }
 
-        if (state?.engineStartSucceededAt) {
+        if (state?.engineTakeScreenshotAt) {
             return state;
         }
 
@@ -865,11 +873,12 @@ async function main() {
                         likeness_threshold: args.likenessThreshold,
                         engine_start_requested_at: engineState.engineStartRequestedAt,
                         engine_first_update_at: engineState.engineFirstUpdateAt,
+                        engine_take_screenshot_at: engineState.engineTakeScreenshotAt,
                         engine_start_succeeded_at: engineState.engineStartSucceededAt,
                         engine_start_duration_ms:
                             engineState.engineStartSucceededAt &&
-                            (engineState.engineFirstUpdateAt || engineState.engineStartRequestedAt)
-                                ? engineState.engineStartSucceededAt - (engineState.engineFirstUpdateAt || engineState.engineStartRequestedAt)
+                            (engineState.engineTakeScreenshotAt || engineState.engineFirstUpdateAt || engineState.engineStartRequestedAt)
+                                ? engineState.engineStartSucceededAt - (engineState.engineTakeScreenshotAt || engineState.engineFirstUpdateAt || engineState.engineStartRequestedAt)
                                 : null,
                         canvas: clip,
                     };

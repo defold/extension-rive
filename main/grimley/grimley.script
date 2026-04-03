@@ -14,15 +14,10 @@ function init(self)
 	print("artboard:", artboard)
 	print("state_machine:", state_machine)
 
-	self.first = true
-end
-
-function update(self, dt)
-	if self.first then
-		self.first = false
-		if html5 then
-			html5.run('Module.firstEngineUpdate()')
-		end
+	if html5 then
+		timer.delay(0.001, false, function ()
+				html5.run('Module.takeScreenshot()')
+			end)
 	end
 end
 

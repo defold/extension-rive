@@ -135,6 +135,7 @@
 		window.__rendertest = window.__rendertest || {};
 		window.__rendertest.engineStartRequestedAt = null;
 		window.__rendertest.engineFirstUpdateAt = null;
+		window.__rendertest.engineTakeScreenshotAt = null;
 		window.__rendertest.engineStartSucceededAt = null;
 		window.__rendertest.engineStartError = null;
 		window.__rendertest.engineStartErrorStack = null;
@@ -142,15 +143,17 @@
 		var previousStartSuccess = CUSTOM_PARAMETERS.start_success;
 		var previousStartError = CUSTOM_PARAMETERS.start_error;
 
-		function markFirstEngineUpdate() {
-			if (window.__rendertest.engineFirstUpdateAt === null) {
-				window.__rendertest.engineFirstUpdateAt = Date.now();
-				window.__rendertest.engineStartRequestedAt = window.__rendertest.engineFirstUpdateAt;
+		function markTakeScreenshot() {
+			if (window.__rendertest.engineTakeScreenshotAt === null) {
+				window.__rendertest.engineTakeScreenshotAt = Date.now();
+				window.__rendertest.engineFirstUpdateAt = window.__rendertest.engineTakeScreenshotAt;
+				window.__rendertest.engineStartRequestedAt = window.__rendertest.engineTakeScreenshotAt;
 			}
 		}
 
 		if (typeof Module !== "undefined") {
-			Module.firstEngineUpdate = markFirstEngineUpdate;
+			Module.firstEngineUpdate = markTakeScreenshot;
+			Module.takeScreenshot = markTakeScreenshot;
 		}
 
 		CUSTOM_PARAMETERS.start_success = function() {
