@@ -1,25 +1,59 @@
-127.0.0.1 - - [03/Apr/2026 13:44:42] "GET /index.html HTTP/1.1" 200 -
-127.0.0.1 - - [03/Apr/2026 13:44:42] "GET /index.html HTTP/1.1" 200 -
-127.0.0.1 - - [03/Apr/2026 13:44:43] "GET /?key=bootstrap.main_collection&value=%2Fmain%2Fgrimley%2Fgrimley.collectionc HTTP/1.1" 200 -
-127.0.0.1 - - [03/Apr/2026 13:44:43] "GET /dmloader.js HTTP/1.1" 200 -
-127.0.0.1 - - [03/Apr/2026 13:44:43] "GET /archive/archive_files.json HTTP/1.1" 200 -
-127.0.0.1 - - [03/Apr/2026 13:44:43] "GET /extensionrive_wasm.js HTTP/1.1" 200 -
-127.0.0.1 - - [03/Apr/2026 13:44:43] "GET /archive/game0.projectc HTTP/1.1" 200 -
-127.0.0.1 - - [03/Apr/2026 13:44:43] code 404, message File not found
-127.0.0.1 - - [03/Apr/2026 13:44:43] "GET /favicon.ico HTTP/1.1" 404 -
-127.0.0.1 - - [03/Apr/2026 13:44:43] "GET /archive/game0.arci HTTP/1.1" 200 -
-127.0.0.1 - - [03/Apr/2026 13:44:43] "GET /archive/game0.arcd HTTP/1.1" 200 -
-127.0.0.1 - - [03/Apr/2026 13:44:43] "GET /archive/game3.arcd HTTP/1.1" 200 -
-127.0.0.1 - - [03/Apr/2026 13:44:43] "GET /archive/game2.arcd HTTP/1.1" 200 -
-127.0.0.1 - - [03/Apr/2026 13:44:43] "GET /archive/game4.arcd HTTP/1.1" 200 -
-127.0.0.1 - - [03/Apr/2026 13:44:43] "GET /archive/game5.arcd HTTP/1.1" 200 -
-127.0.0.1 - - [03/Apr/2026 13:44:43] "GET /archive/game1.arcd HTTP/1.1" 200 -
-127.0.0.1 - - [03/Apr/2026 13:44:43] "GET /archive/game0.arcd HTTP/1.1" 200 -
-127.0.0.1 - - [03/Apr/2026 13:44:43] "GET /archive/game1.arcd HTTP/1.1" 200 -
-127.0.0.1 - - [03/Apr/2026 13:44:43] "GET /archive/game5.arcd HTTP/1.1" 200 -
-127.0.0.1 - - [03/Apr/2026 13:44:43] "GET /archive/game2.arcd HTTP/1.1" 200 -
-127.0.0.1 - - [03/Apr/2026 13:44:43] "GET /archive/game4.arcd HTTP/1.1" 200 -
-127.0.0.1 - - [03/Apr/2026 13:44:43] "GET /archive/game3.arcd HTTP/1.1" 200 -
-127.0.0.1 - - [03/Apr/2026 13:44:43] "GET /extensionrive.wasm HTTP/1.1" 200 -
-127.0.0.1 - - [03/Apr/2026 13:44:43] "GET /archive/game0.dmanifest HTTP/1.1" 200 -
-127.0.0.1 - - [03/Apr/2026 13:44:43] "GET /archive/game0.public.der HTTP/1.1" 200 -
+127.0.0.1 - - [03/Apr/2026 13:56:16] "GET /index.html HTTP/1.1" 200 -
+127.0.0.1 - - [03/Apr/2026 13:56:16] "GET /index.html HTTP/1.1" 200 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /?key=bootstrap.main_collection&value=%2Fmain%2Fgrimley%2Fgrimley.collectionc HTTP/1.1" 200 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /dmloader.js HTTP/1.1" 200 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /archive/archive_files.json HTTP/1.1" 200 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /extensionrive_wasm.js HTTP/1.1" 200 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /archive/game0.projectc HTTP/1.1" 200 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] code 404, message File not found
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /extensionrive_wasm.js HTTP/1.1" 304 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /archive/game0.arci HTTP/1.1" 200 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /archive/game0.arcd HTTP/1.1" 200 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /archive/game3.arcd HTTP/1.1" 200 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /archive/game2.arcd HTTP/1.1" 200 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /archive/game4.arcd HTTP/1.1" 200 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /archive/game5.arcd HTTP/1.1" 200 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /archive/game1.arcd HTTP/1.1" 200 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /?key=bootstrap.main_collection&value=%2Fmain%2Fgrimley%2Fgrimley.collectionc HTTP/1.1" 304 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /extensionrive.wasm HTTP/1.1" 200 -
+----------------------------------------
+Exception occurred during processing of request from ('127.0.0.1', 45542)
+Traceback (most recent call last):
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /dmloader.js HTTP/1.1" 304 -
+  File "/usr/lib/python3.12/socketserver.py", line 692, in process_request_thread
+    self.finish_request(request, client_address)
+  File "/usr/lib/python3.12/http/server.py", line 1311, in finish_request
+    self.RequestHandlerClass(request, client_address, self,
+  File "/usr/lib/python3.12/http/server.py", line 672, in __init__
+    super().__init__(*args, **kwargs)
+  File "/usr/lib/python3.12/socketserver.py", line 761, in __init__
+    self.handle()
+  File "/usr/lib/python3.12/http/server.py", line 436, in handle
+    self.handle_one_request()
+  File "/usr/lib/python3.12/http/server.py", line 424, in handle_one_request
+    method()
+  File "/usr/lib/python3.12/http/server.py", line 679, in do_GET
+    self.copyfile(f, self.wfile)
+  File "/usr/lib/python3.12/http/server.py", line 878, in copyfile
+    shutil.copyfileobj(source, outputfile)
+  File "/usr/lib/python3.12/shutil.py", line 204, in copyfileobj
+    fdst_write(buf)
+  File "/usr/lib/python3.12/socketserver.py", line 840, in write
+    self._sock.sendall(b)
+ConnectionResetError: [Errno 104] Connection reset by peer
+----------------------------------------
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /archive/archive_files.json HTTP/1.1" 304 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /extensionrive_wasm.js HTTP/1.1" 304 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /archive/game0.projectc HTTP/1.1" 304 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /archive/game0.arci HTTP/1.1" 304 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /extensionrive_wasm.js HTTP/1.1" 304 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /archive/game2.arcd HTTP/1.1" 304 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /archive/game4.arcd HTTP/1.1" 200 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /archive/game1.arcd HTTP/1.1" 200 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /archive/game5.arcd HTTP/1.1" 304 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /archive/game0.arcd HTTP/1.1" 304 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /archive/game3.arcd HTTP/1.1" 304 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /extensionrive.wasm HTTP/1.1" 200 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /archive/game0.dmanifest HTTP/1.1" 200 -
+127.0.0.1 - - [03/Apr/2026 13:56:17] "GET /archive/game0.public.der HTTP/1.1" 200 -
