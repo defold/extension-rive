@@ -90,13 +90,15 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
-          ./ci/test_html5.sh
+          set -euo pipefail
+          ./ci/tests/html5/test.sh
 
       - name: Build HTML5 test summary
         id: build-summary
         if: always()
         shell: bash
         run: |
+          set -euo pipefail
           python3 ./ci/rendertest/build_summary.py \
             --reports-root ./build/render-test \
             --output ./build/render-test/index.html \
