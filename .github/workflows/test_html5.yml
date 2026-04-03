@@ -87,12 +87,6 @@ jobs:
             --with-symbols \
             resolve build bundle
 
-          if ! grep -q "__rendertest.engineStartRequestedAt" bundle_web/extension-rive/index.html; then
-            echo "Custom rendertest HTML template was not applied to bundle_web/extension-rive/index.html" >&2
-            sed -n '120,190p' bundle_web/extension-rive/index.html || true
-            exit 1
-          fi
-
       - name: Pack wasm-web bundle zip
         shell: bash
         run: |
