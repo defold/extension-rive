@@ -54,6 +54,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          java -jar ./bob.jar resolve
+
           java -jar ./bob.jar build --archive bundle \
                                     --bo bundle_web \
                                     --variant=debug \
