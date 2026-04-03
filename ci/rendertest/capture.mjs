@@ -137,6 +137,43 @@ function escapeHtml(value) {
         .replaceAll('"', "&quot;");
 }
 
+function findExecutableInPath(command) {
+    const pathValue = process.env.PATH || "";
+    const searchDirs = pathValue.split(path.delimiter).filter(Boolean);
+    for (const dir of searchDirs) {
+        const candidate = path.join(dir, command);
+        try {
+            fsSync.accessSync(candidate, fsSync.constants.X_OK);
+            return candidate;
+        } catch {
+            // Keep searching PATH.
+        }
+    }
+    return null;
+}
+
+function resolveCompareCommand() {
+    const comparePath = findExecutableInPath("compare");
+    if (comparePath) {
+        return {
+            executable: comparePath,
+            argsPrefix: [],
+            displayName: "compare",
+        };
+    }
+
+    const magickPath = findExecutableInPath("magick");
+    if (magickPath) {
+        return {
+            executable: magickPath,
+            argsPrefix: ["compare"],
+            displayName: "magick compare",
+        };
+    }
+
+    throw new Error("Could not find ImageMagick compare executable. Expected either 'compare' or 'magick' on PATH.");
+}
+
 function requestJson(url) {
     return new Promise((resolve, reject) => {
         const req = http.get(url, (res) => {
@@ -369,10 +406,18 @@ async function waitForCanvas(session, timeoutMs) {
 function compareImages(resultPath, expectedPath, reportDir) {
     const diffImageName = `diff-${path.basename(resultPath)}`;
     const diffImagePath = path.join(reportDir, diffImageName);
-    const compareArgs = ["-metric", "RMSE", resultPath, expectedPath, diffImagePath];
-    console.log(`Running: compare ${compareArgs.join(" ")}`);
+    const compareCommand = resolveCompareCommand();
+    const compareArgs = [
+        ...compareCommand.argsPrefix,
+        "-metric",
+        "RMSE",
+        resultPath,
+        expectedPath,
+        diffImagePath,
+    ];
+    console.log(`Running: ${compareCommand.displayName} ${compareArgs.join(" ")}`);
     const compareResult = spawnSync(
-        "compare",
+        compareCommand.executable,
         compareArgs,
         { encoding: "utf8" },
     );
