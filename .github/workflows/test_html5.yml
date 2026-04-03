@@ -183,7 +183,7 @@ jobs:
           fetch-depth: 1
           ref: ${{ env.REPORTS_BRANCH }}
           path: gh-pages
-          token: ${{ secrets.TEST_REPORTS_TOKEN != '' && secrets.TEST_REPORTS_TOKEN || github.token }}
+          token: ${{ secrets.SERVICES_GITHUB_TOKEN != '' && secrets.SERVICES_GITHUB_TOKEN || github.token }}
 
       - name: Publish report history to gh-pages
         id: publish
@@ -191,7 +191,7 @@ jobs:
           REPORTS_REPOSITORY: ${{ env.REPORTS_REPOSITORY }}
           REPORTS_BRANCH: ${{ env.REPORTS_BRANCH }}
           REPORTS_SUBFOLDER: ${{ env.REPORTS_SUBFOLDER }}
-          REPORTS_PUSH_TOKEN: ${{ secrets.TEST_REPORTS_TOKEN != '' && secrets.TEST_REPORTS_TOKEN || github.token }}
+          REPORTS_PUSH_TOKEN: ${{ secrets.SERVICES_GITHUB_TOKEN != '' && secrets.SERVICES_GITHUB_TOKEN || github.token }}
         shell: bash
         run: |
           set -euo pipefail
