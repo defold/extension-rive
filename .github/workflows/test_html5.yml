@@ -45,6 +45,12 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Setup ImageMagick
+        uses: mfinelli/setup-imagemagick@v7
+        with:
+          cache: true
+          install-libfuse2: true
+
       - name: Restore Defold SDK and bob.jar from cache
         uses: actions/cache/restore@v4
         with:
