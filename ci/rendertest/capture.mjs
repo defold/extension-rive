@@ -17,6 +17,7 @@ class RenderComparisonError extends Error {
 const RENDERTEST_BOOTSTRAP_SCRIPT = `(() => {
     const state = window.__rendertest = window.__rendertest || {};
     if (typeof state.engineStartRequestedAt === "undefined") state.engineStartRequestedAt = null;
+    if (typeof state.engineFirstUpdateAt === "undefined") state.engineFirstUpdateAt = null;
     if (typeof state.engineStartSucceededAt === "undefined") state.engineStartSucceededAt = null;
     if (typeof state.engineStartError === "undefined") state.engineStartError = null;
     if (typeof state.engineStartErrorStack === "undefined") state.engineStartErrorStack = null;
@@ -78,6 +79,27 @@ const RENDERTEST_BOOTSTRAP_SCRIPT = `(() => {
         return loader;
     };
 
+    const wrapModule = (moduleValue) => {
+        if (!moduleValue || moduleValue.__rendertestWrapped) {
+            return moduleValue;
+        }
+
+        moduleValue.firstEngineUpdate = function() {
+            if (state.engineFirstUpdateAt === null) {
+                state.engineFirstUpdateAt = Date.now();
+            }
+            if (state.engineStartRequestedAt === null) {
+                state.engineStartRequestedAt = state.engineFirstUpdateAt;
+            }
+        };
+
+        Object.defineProperty(moduleValue, "__rendertestWrapped", {
+            value: true,
+            configurable: true,
+        });
+        return moduleValue;
+    };
+
     let customParametersValue;
     Object.defineProperty(window, "CUSTOM_PARAMETERS", {
         configurable: true,
@@ -102,12 +124,27 @@ const RENDERTEST_BOOTSTRAP_SCRIPT = `(() => {
         },
     });
 
+    let moduleValue;
+    Object.defineProperty(window, "Module", {
+        configurable: true,
+        enumerable: true,
+        get() {
+            return moduleValue;
+        },
+        set(value) {
+            moduleValue = wrapModule(value);
+        },
+    });
+
     const poll = setInterval(() => {
         if (window.CUSTOM_PARAMETERS) {
             customParametersValue = wrapCustomParameters(window.CUSTOM_PARAMETERS);
         }
         if (window.EngineLoader) {
             engineLoaderValue = wrapEngineLoader(window.EngineLoader);
+        }
+        if (window.Module) {
+            moduleValue = wrapModule(window.Module);
         }
         if (
             customParametersValue && customParametersValue.__rendertestWrapped &&
@@ -456,6 +493,7 @@ async function getRenderState(session) {
                 readyState: document.readyState,
                 hasModule: typeof window.Module !== "undefined",
                 engineStartRequestedAt: state.engineStartRequestedAt || null,
+                engineFirstUpdateAt: state.engineFirstUpdateAt || null,
                 engineStartSucceededAt: state.engineStartSucceededAt || null,
                 engineStartError: state.engineStartError || null,
                 engineStartErrorStack: state.engineStartErrorStack || null,
@@ -826,10 +864,12 @@ async function main() {
                         startup_timeout_ms: args.startupTimeoutMs,
                         likeness_threshold: args.likenessThreshold,
                         engine_start_requested_at: engineState.engineStartRequestedAt,
+                        engine_first_update_at: engineState.engineFirstUpdateAt,
                         engine_start_succeeded_at: engineState.engineStartSucceededAt,
                         engine_start_duration_ms:
-                            engineState.engineStartRequestedAt && engineState.engineStartSucceededAt
-                                ? engineState.engineStartSucceededAt - engineState.engineStartRequestedAt
+                            engineState.engineStartSucceededAt &&
+                            (engineState.engineFirstUpdateAt || engineState.engineStartRequestedAt)
+                                ? engineState.engineStartSucceededAt - (engineState.engineFirstUpdateAt || engineState.engineStartRequestedAt)
                                 : null,
                         canvas: clip,
                     };

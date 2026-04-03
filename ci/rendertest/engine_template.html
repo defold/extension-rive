@@ -134,12 +134,24 @@
 	<script id='engine-start' type='text/javascript'>
 		window.__rendertest = window.__rendertest || {};
 		window.__rendertest.engineStartRequestedAt = null;
+		window.__rendertest.engineFirstUpdateAt = null;
 		window.__rendertest.engineStartSucceededAt = null;
 		window.__rendertest.engineStartError = null;
 		window.__rendertest.engineStartErrorStack = null;
 
 		var previousStartSuccess = CUSTOM_PARAMETERS.start_success;
 		var previousStartError = CUSTOM_PARAMETERS.start_error;
+
+		function markFirstEngineUpdate() {
+			if (window.__rendertest.engineFirstUpdateAt === null) {
+				window.__rendertest.engineFirstUpdateAt = Date.now();
+				window.__rendertest.engineStartRequestedAt = window.__rendertest.engineFirstUpdateAt;
+			}
+		}
+
+		if (typeof Module !== "undefined") {
+			Module.firstEngineUpdate = markFirstEngineUpdate;
+		}
 
 		CUSTOM_PARAMETERS.start_success = function() {
 			window.__rendertest.engineStartSucceededAt = Date.now();
@@ -162,7 +174,6 @@
 			runningFromFileWarning.style.display = "block";
 		}
 		else {
-			window.__rendertest.engineStartRequestedAt = Date.now();
 			EngineLoader.load("canvas", "{{exe-name}}");
 			runningFromFileWarning.parentNode.removeChild(runningFromFileWarning);
 		}
