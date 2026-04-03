@@ -3,6 +3,11 @@ name: HTML5 Tests
 on:
   pull_request:
 
+env:
+  REPORTS_REPOSITORY: defold/test-reports
+  REPORTS_BRANCH: gh-pages
+  REPORTS_SUBFOLDER: extension-rive
+
 permissions:
   contents: read
   actions: read
@@ -151,7 +156,7 @@ jobs:
     needs: test-html5
     permissions:
       actions: read
-      contents: write
+      contents: read
     runs-on: ubuntu-latest
     outputs:
       page_url: ${{ steps.publish.outputs.page_url }}
@@ -166,33 +171,53 @@ jobs:
         continue-on-error: true
         uses: actions/checkout@v5
         with:
+          repository: ${{ env.REPORTS_REPOSITORY }}
           fetch-depth: 1
-          ref: gh-pages
+          ref: ${{ env.REPORTS_BRANCH }}
           path: gh-pages
+          token: ${{ secrets.TEST_REPORTS_TOKEN != '' && secrets.TEST_REPORTS_TOKEN || github.token }}
 
       - name: Publish report history to gh-pages
         id: publish
+        env:
+          REPORTS_REPOSITORY: ${{ env.REPORTS_REPOSITORY }}
+          REPORTS_BRANCH: ${{ env.REPORTS_BRANCH }}
+          REPORTS_SUBFOLDER: ${{ env.REPORTS_SUBFOLDER }}
+          REPORTS_PUSH_TOKEN: ${{ secrets.TEST_REPORTS_TOKEN != '' && secrets.TEST_REPORTS_TOKEN || github.token }}
         shell: bash
         run: |
           set -euo pipefail
 
-          repo_name="${GITHUB_REPOSITORY#*/}"
-          owner="${GITHUB_REPOSITORY_OWNER}"
+          reports_repo="${REPORTS_REPOSITORY}"
+          reports_owner="${reports_repo%%/*}"
+          reports_name="${reports_repo#*/}"
           pr_number="${{ github.event.pull_request.number }}"
-          site_url="https://${owner}.github.io/${repo_name}/pr-${pr_number}/"
+          reports_subfolder="${REPORTS_SUBFOLDER}"
+          site_path_prefix=""
+          if [[ -n "${reports_subfolder}" ]]; then
+            site_path_prefix="${reports_subfolder}/"
+          fi
+          site_url="https://${reports_owner}.github.io/${reports_name}/${site_path_prefix}pr-${pr_number}/"
           pages_root="${PWD}/gh-pages"
 
           if [[ ! -d "${pages_root}/.git" ]]; then
             rm -rf "${pages_root}"
             mkdir -p "${pages_root}"
             git init "${pages_root}"
-            git -C "${pages_root}" checkout --orphan gh-pages
+            git -C "${pages_root}" checkout --orphan "${REPORTS_BRANCH}"
+            git -C "${pages_root}" remote add origin "https://x-access-token:${REPORTS_PUSH_TOKEN}@github.com/${reports_repo}.git"
+          else
+            git -C "${pages_root}" remote set-url origin "https://x-access-token:${REPORTS_PUSH_TOKEN}@github.com/${reports_repo}.git"
           fi
 
           git -C "${pages_root}" config user.name "github-actions[bot]"
           git -C "${pages_root}" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          pr_root="${pages_root}/pr-${pr_number}"
+          pr_root="${pages_root}"
+          if [[ -n "${reports_subfolder}" ]]; then
+            pr_root="${pr_root}/${reports_subfolder}"
+          fi
+          pr_root="${pr_root}/pr-${pr_number}"
           rm -rf "${pr_root}"
           mkdir -p "${pr_root}"
 
@@ -204,7 +229,7 @@ jobs:
             echo "No gh-pages changes to commit"
           else
             git -C "${pages_root}" commit -m "html5 report for pr-${pr_number}"
-            git -C "${pages_root}" push origin HEAD:gh-pages
+            git -C "${pages_root}" push origin HEAD:${REPORTS_BRANCH}
           fi
 
           echo "page_url=${site_url}" >> "${GITHUB_OUTPUT}"
