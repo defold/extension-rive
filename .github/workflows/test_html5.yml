@@ -45,6 +45,7 @@ jobs:
         with:
           path: |
             bob.jar
+            build/defoldsdk
           key: ${{ needs.prepare-defoldsdk.outputs.defoldsdk_cache_key }}
           enableCrossOsArchive: true
           fail-on-cache-miss: true
