@@ -28,6 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [prepare-defoldsdk]
     outputs:
+      run_tests_outcome: ${{ steps.run-tests-status.outputs.run_tests_outcome }}
       pass_count: ${{ steps.build-summary.outputs.pass_count }}
       fail_count: ${{ steps.build-summary.outputs.fail_count }}
       total_count: ${{ steps.build-summary.outputs.total_count }}
@@ -118,6 +119,13 @@ jobs:
           set -euo pipefail
           ./ci/tests/html5/test.sh
 
+      - name: Record HTML5 test step outcome
+        id: run-tests-status
+        if: always()
+        shell: bash
+        run: |
+          echo "run_tests_outcome=${{ steps.run-tests.outcome }}" >> "${GITHUB_OUTPUT}"
+
       - name: Build HTML5 test summary
         id: build-summary
         if: always()
@@ -150,13 +158,6 @@ jobs:
           path: build/render-test/
           if-no-files-found: error
           retention-days: 30
-
-      - name: Verify Build Status
-        if: always()
-        shell: bash
-        run: |
-          test "${{ steps.run-tests.outcome }}" = "success"
-          test "${{ steps.build-summary.outputs.fail_count }}" = "0"
 
   publish-pages:
     if: always() && github.event.pull_request.head.repo.full_name == github.repository
@@ -266,7 +267,7 @@ jobs:
           REPORT_ARTIFACT_URL: ${{ needs.test-html5.outputs.report_artifact_url }}
           PAGE_URL: ${{ needs.publish-pages.outputs.page_url }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          TEST_JOB_RESULT: ${{ needs.test-html5.result }}
+          RUN_TESTS_OUTCOME: ${{ needs.test-html5.outputs.run_tests_outcome }}
           PASS_COUNT: ${{ needs.test-html5.outputs.pass_count }}
           FAIL_COUNT: ${{ needs.test-html5.outputs.fail_count }}
           TOTAL_COUNT: ${{ needs.test-html5.outputs.total_count }}
@@ -279,10 +280,11 @@ jobs:
             const pageUrl = process.env.PAGE_URL;
             const runUrl = process.env.RUN_URL;
             const reportArtifactUrl = process.env.REPORT_ARTIFACT_URL;
-            const testJobResult = process.env.TEST_JOB_RESULT;
+            const runTestsOutcome = process.env.RUN_TESTS_OUTCOME;
             const passCount = process.env.PASS_COUNT;
             const failCount = process.env.FAIL_COUNT;
             const totalCount = process.env.TOTAL_COUNT;
+            const overallStatus = (runTestsOutcome === 'success' && Number(failCount) === 0) ? 'success' : 'failure';
             const markerStart = '<!-- html5-tests:start -->';
             const markerEnd = '<!-- html5-tests:end -->';
 
@@ -316,7 +318,7 @@ jobs:
               '#### Tests',
               markerStart,
               '',
-              `Status: **${testJobResult}**`,
+              `Status: **${overallStatus}**`,
               `Summary: ✅ ${passCount} passed, ❌ ${failCount} failed${totalCount ? `, ${totalCount} total` : ''}`,
               `Run: [workflow run](${runUrl})`,
             ];
@@ -364,3 +366,14 @@ jobs:
               pull_number: pr.number,
               body,
             });
+
+  verify-status:
+    if: always()
+    needs: [test-html5]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify Build Status
+        shell: bash
+        run: |
+          test "${{ needs.test-html5.outputs.run_tests_outcome }}" = "success"
+          test "${{ needs.test-html5.outputs.fail_count }}" = "0"
