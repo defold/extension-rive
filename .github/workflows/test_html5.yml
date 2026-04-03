@@ -72,17 +72,25 @@ jobs:
           BOB: ${{ github.workspace }}/bob.jar
         run: |
           set -euo pipefail
-          java -jar "${BOB}" resolve
+          rm -rf bundle_web
 
-          java -jar "${BOB}" build --archive bundle \
-                                   --bo bundle_web \
-                                   --variant=debug \
-                                   --build-server=https://build-stage.defold.com \
-                                   --platform=wasm-web \
-                                   --architectures=wasm-web \
-                                   --settings=./ci/rendertest/settings_html5.ini \
-                                   --brjson bundle_web/build-report.html \
-                                   --with-symbols
+          java -jar "${BOB}" \
+            --archive \
+            --bo bundle_web \
+            --variant=debug \
+            --build-server=https://build-stage.defold.com \
+            --platform=wasm-web \
+            --architectures=wasm-web \
+            --settings=./ci/rendertest/settings_html5.ini \
+            --brjson bundle_web/build-report.json \
+            --with-symbols \
+            resolve build bundle
+
+          if ! grep -q "__rendertest.engineStartRequestedAt" bundle_web/extension-rive/index.html; then
+            echo "Custom rendertest HTML template was not applied to bundle_web/extension-rive/index.html" >&2
+            sed -n '120,190p' bundle_web/extension-rive/index.html || true
+            exit 1
+          fi
 
       - name: Pack wasm-web bundle zip
         shell: bash
