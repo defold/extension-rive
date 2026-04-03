@@ -14,6 +14,110 @@ class RenderComparisonError extends Error {
     }
 }
 
+const RENDERTEST_BOOTSTRAP_SCRIPT = `(() => {
+    const state = window.__rendertest = window.__rendertest || {};
+    if (typeof state.engineStartRequestedAt === "undefined") state.engineStartRequestedAt = null;
+    if (typeof state.engineStartSucceededAt === "undefined") state.engineStartSucceededAt = null;
+    if (typeof state.engineStartError === "undefined") state.engineStartError = null;
+    if (typeof state.engineStartErrorStack === "undefined") state.engineStartErrorStack = null;
+
+    const wrapCustomParameters = (params) => {
+        if (!params || params.__rendertestWrapped) {
+            return params;
+        }
+
+        const previousStartSuccess = params.start_success;
+        const previousStartError = params.start_error;
+
+        params.start_success = function(...args) {
+            if (state.engineStartSucceededAt === null) {
+                state.engineStartSucceededAt = Date.now();
+            }
+            if (typeof previousStartSuccess === "function") {
+                return previousStartSuccess.apply(this, args);
+            }
+            return undefined;
+        };
+
+        params.start_error = function(error, ...args) {
+            const message = error && error.message ? error.message : String(error);
+            state.engineStartError = message;
+            state.engineStartErrorStack = error && error.stack ? String(error.stack) : null;
+            if (typeof previousStartError === "function") {
+                return previousStartError.call(this, error, ...args);
+            }
+            return undefined;
+        };
+
+        Object.defineProperty(params, "__rendertestWrapped", {
+            value: true,
+            configurable: true,
+        });
+        return params;
+    };
+
+    const wrapEngineLoader = (loader) => {
+        if (!loader || loader.__rendertestWrapped) {
+            return loader;
+        }
+
+        const originalLoad = loader.load;
+        if (typeof originalLoad === "function") {
+            loader.load = function(...args) {
+                if (state.engineStartRequestedAt === null) {
+                    state.engineStartRequestedAt = Date.now();
+                }
+                return originalLoad.apply(this, args);
+            };
+        }
+
+        Object.defineProperty(loader, "__rendertestWrapped", {
+            value: true,
+            configurable: true,
+        });
+        return loader;
+    };
+
+    let customParametersValue;
+    Object.defineProperty(window, "CUSTOM_PARAMETERS", {
+        configurable: true,
+        enumerable: true,
+        get() {
+            return customParametersValue;
+        },
+        set(value) {
+            customParametersValue = wrapCustomParameters(value);
+        },
+    });
+
+    let engineLoaderValue;
+    Object.defineProperty(window, "EngineLoader", {
+        configurable: true,
+        enumerable: true,
+        get() {
+            return engineLoaderValue;
+        },
+        set(value) {
+            engineLoaderValue = wrapEngineLoader(value);
+        },
+    });
+
+    const poll = setInterval(() => {
+        if (window.CUSTOM_PARAMETERS) {
+            customParametersValue = wrapCustomParameters(window.CUSTOM_PARAMETERS);
+        }
+        if (window.EngineLoader) {
+            engineLoaderValue = wrapEngineLoader(window.EngineLoader);
+        }
+        if (
+            customParametersValue && customParametersValue.__rendertestWrapped &&
+            engineLoaderValue && engineLoaderValue.__rendertestWrapped
+        ) {
+            clearInterval(poll);
+        }
+    }, 10);
+})();`;
+
 function usage() {
     console.error(`usage: capture.mjs --url URL --screenshot FILE --run-json FILE --result-json FILE --index FILE [options]
 
@@ -679,17 +783,13 @@ async function main() {
                         deviceScaleFactor: 1,
                         mobile: false,
                     });
+                    await session.send("Page.addScriptToEvaluateOnNewDocument", {
+                        source: RENDERTEST_BOOTSTRAP_SCRIPT,
+                    });
 
                     const loadEvent = session.once("Page.loadEventFired");
                     await session.send("Page.navigate", { url: args.url });
                     await loadEvent;
-
-                    const initialState = await getRenderState(session);
-                    if (!initialState?.hasRenderTestState) {
-                        throw new Error(
-                            "Bundle is missing rendertest startup hooks. Rebuild the HTML5 bundle so it picks up ci/rendertest/engine_template.html.",
-                        );
-                    }
 
                     const engineState = await waitForEngineStart(session, args.startupTimeoutMs);
                     await sleep(args.settleMs);
