@@ -289,6 +289,32 @@ function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function describeRemoteObject(remoteObject) {
+    if (Object.prototype.hasOwnProperty.call(remoteObject, "value")) {
+        if (remoteObject.value === null) {
+            return "null";
+        }
+        if (typeof remoteObject.value === "string") {
+            return remoteObject.value;
+        }
+        return String(remoteObject.value);
+    }
+    if (typeof remoteObject.description === "string") {
+        return remoteObject.description;
+    }
+    return remoteObject.type || "<object>";
+}
+
+function formatCallFrame(frame) {
+    if (!frame) {
+        return "";
+    }
+    const url = frame.url || frame.scriptId || "eval";
+    const line = Number.isFinite(frame.lineNumber) ? frame.lineNumber : 0;
+    const column = Number.isFinite(frame.columnNumber) ? frame.columnNumber : 0;
+    return `${url}:${line}:${column}`;
+}
+
 function requestJson(url) {
     return new Promise((resolve, reject) => {
         const req = http.get(url, (res) => {
@@ -431,6 +457,12 @@ class CDPSession {
         });
     }
 
+    on(method, listener) {
+        const listeners = this.eventListeners.get(method) || [];
+        listeners.push(listener);
+        this.eventListeners.set(method, listeners);
+    }
+
     async close() {
         if (this.ws.readyState === WebSocket.OPEN) {
             this.ws.close();
@@ -541,6 +573,10 @@ async function waitForSettledCapture(session, timeoutMs, settleMs) {
 
 async function main() {
     const args = parseArgs(process.argv.slice(2));
+    const reportDir = path.dirname(args.runJsonPath);
+    const outputDir = path.dirname(reportDir);
+    const consoleLogPath = path.join(outputDir, "console.log");
+    const consoleEntries = [];
     if (typeof WebSocket !== "function") {
         throw new Error("WebSocket is not available in this Node runtime. Use Node.js 22 or newer.");
     }
@@ -586,6 +622,25 @@ async function main() {
                 });
 
                 const session = new CDPSession(ws);
+                session.on("Runtime.consoleAPICalled", (params) => {
+                    const argsText = (params.args || []).map(describeRemoteObject).join(" ");
+                    const location = formatCallFrame(params.stackTrace?.callFrames?.[0]);
+                    const entry = `${new Date().toISOString()} [${params.type}] ${argsText}${location ? ` (${location})` : ""}`;
+                    consoleEntries.push(entry);
+                });
+                session.on("Runtime.exceptionThrown", (params) => {
+                    const details = params.exceptionDetails || {};
+                    const message =
+                        details.text ||
+                        details.exception?.description ||
+                        details.exceptionText ||
+                        "exception";
+                    const location =
+                        formatCallFrame(details.stackTrace?.callFrames?.[0]) ||
+                        formatCallFrame(params.stackTrace?.callFrames?.[0]);
+                    const entry = `${new Date().toISOString()} [exception] ${message}${location ? ` (${location})` : ""}`;
+                    consoleEntries.push(entry);
+                });
                 try {
                     await session.send("Page.enable");
                     await session.send("Runtime.enable");
@@ -635,7 +690,6 @@ async function main() {
                     await fs.mkdir(path.dirname(args.screenshotPath), { recursive: true });
                     await fs.writeFile(args.screenshotPath, Buffer.from(screenshot.data, "base64"));
 
-                    const outputDir = path.dirname(path.dirname(args.runJsonPath));
                     let description = "";
                     if (args.descriptionFile) {
                         const descriptionPath = path.isAbsolute(args.descriptionFile)
@@ -673,7 +727,13 @@ async function main() {
                         canvas: clip,
                     };
 
+                    await fs.mkdir(outputDir, { recursive: true });
                     await fs.mkdir(path.dirname(args.runJsonPath), { recursive: true });
+                    await fs.writeFile(
+                        consoleLogPath,
+                        consoleEntries.join("\n") + (consoleEntries.length ? "\n" : ""),
+                        "utf8",
+                    );
                     await fs.writeFile(args.runJsonPath, `${JSON.stringify(runData, null, 2)}\n`, "utf8");
                 } finally {
                     await session.close();
