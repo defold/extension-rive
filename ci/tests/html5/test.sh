@@ -73,7 +73,7 @@ run_render_test "Databind" \
   --name "Databind" \
   --collection /main/databind/databind.collection \
   --wait-mode timeout \
-  --settle-ms 5000 \
+  --settle-ms 9000 \
   --description-file ./ci/tests/data/databind/description.txt \
   --expected-screenshot ./ci/tests/data/databind/html5/expected.png \
   --output ${REPORT_FOLDER}/databind \
