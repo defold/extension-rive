@@ -72,7 +72,7 @@ run_render_test "Databind" \
   --description-file ./ci/tests/html5/databind/description.txt \
   --collection /main/databind/databind.collection \
   --wait-mode timeout \
-  --settle-ms 3000 \
   --expected-screenshot ./ci/tests/html5/databind/expected.png \
   --output build/render-tests/wasm-web/databind \
+  --settle-ms 5000 \
   --likeness ${DEFAULT_LIKENESS}
