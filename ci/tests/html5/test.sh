@@ -26,7 +26,7 @@ run_render_test() {
   echo "******************************************************"
 
   set +e
-  ./ci/rendertest/run.sh "$@"
+  ./ci/rendertest/html5/run.sh "$@"
   local exit_code=$?
   set -e
 
@@ -49,8 +49,7 @@ run_render_test "Grimley" \
   --name "Grimley" \
   --collection /main/grimley/grimley.collectionc \
   --wait-mode signal \
-  --expected-screenshot ./ci/tests/html5/expected/grimley.png \
-  --screenshot grimley.png \
+  --expected-screenshot ./ci/tests/html5/grimley/expected.png \
   --output build/render-test/grimley \
   --likeness ${DEFAULT_LIKENESS}
 
@@ -60,7 +59,6 @@ run_render_test "Egg" \
   --name "Egg" \
   --collection /main/egg/egg.collection \
   --wait-mode timeout \
-  --expected-screenshot ./ci/tests/html5/expected/egg.png \
-  --screenshot egg.png \
+  --expected-screenshot ./ci/tests/html5/egg/expected.png \
   --output build/render-test/egg \
   --likeness ${DEFAULT_LIKENESS}

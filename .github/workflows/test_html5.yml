@@ -82,7 +82,6 @@ jobs:
             --build-server=https://build-stage.defold.com \
             --platform=wasm-web \
             --architectures=wasm-web \
-            --settings=./ci/rendertest/settings_html5.ini \
             --brjson bundle_web/build-report.json \
             --with-symbols \
             resolve build bundle

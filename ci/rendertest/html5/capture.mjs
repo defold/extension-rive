@@ -5,14 +5,7 @@ import fsSync from "node:fs";
 import http from "node:http";
 import net from "node:net";
 import path from "node:path";
-import { spawn, spawnSync } from "node:child_process";
-
-class RenderComparisonError extends Error {
-    constructor(message) {
-        super(message);
-        this.name = "RenderComparisonError";
-    }
-}
+import { spawn } from "node:child_process";
 
 const RENDERTEST_BOOTSTRAP_SCRIPT = `(() => {
     const state = window.__rendertest = window.__rendertest || {};
@@ -184,18 +177,16 @@ const RENDERTEST_BOOTSTRAP_SCRIPT = `(() => {
 })();`;
 
 function usage() {
-    console.error(`usage: capture.mjs --url URL --screenshot FILE --run-json FILE --result-json FILE --index FILE [options]
+    console.error(`usage: capture.mjs --url URL --screenshot FILE --run-json FILE [options]
 
 Options:
   --name TEXT
   --collection PATH
-  --expected-screenshot FILE
   --browser chrome|auto
   --wait-mode timeout|signal
   --settle-ms MS
   --startup-timeout-ms MS
   --timeout-ms MS
-  --likeness PERCENT
   --headed
   --width PX
   --height PX
@@ -208,7 +199,6 @@ function parseArgs(argv) {
         waitMode: "timeout",
         settleMs: 1500,
         startupTimeoutMs: 30000,
-        likenessThreshold: 95,
         headed: false,
         width: 960,
         height: 540,
@@ -226,9 +216,6 @@ function parseArgs(argv) {
             case "--collection":
                 args.collection = argv[++i];
                 break;
-            case "--expected-screenshot":
-                args.expectedScreenshotPath = argv[++i];
-                break;
             case "--browser":
                 args.browser = argv[++i];
                 break;
@@ -244,20 +231,11 @@ function parseArgs(argv) {
             case "--timeout-ms":
                 args.startupTimeoutMs = Number(argv[++i]);
                 break;
-            case "--likeness":
-                args.likenessThreshold = Number(argv[++i]);
-                break;
             case "--screenshot":
                 args.screenshotPath = argv[++i];
                 break;
             case "--run-json":
                 args.runJsonPath = argv[++i];
-                break;
-            case "--result-json":
-                args.resultJsonPath = argv[++i];
-                break;
-            case "--index":
-                args.indexPath = argv[++i];
                 break;
             case "--width":
                 args.width = Number(argv[++i]);
@@ -278,7 +256,7 @@ function parseArgs(argv) {
         }
     }
 
-    for (const required of ["url", "screenshotPath", "runJsonPath", "resultJsonPath", "indexPath"]) {
+    for (const required of ["url", "screenshotPath", "runJsonPath"]) {
         if (!args[required]) {
             throw new Error(`Missing required argument: ${required}`);
         }
@@ -296,23 +274,11 @@ function parseArgs(argv) {
         throw new Error(`Invalid --startup-timeout-ms: ${args.startupTimeoutMs}`);
     }
 
-    if (!Number.isFinite(args.likenessThreshold) || args.likenessThreshold < 0 || args.likenessThreshold > 100) {
-        throw new Error(`Invalid --likeness: ${args.likenessThreshold}`);
-    }
-
     return args;
 }
 
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function escapeHtml(value) {
-    return String(value)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;");
 }
 
 function findExecutableInPath(command) {
@@ -328,28 +294,6 @@ function findExecutableInPath(command) {
         }
     }
     return null;
-}
-
-function resolveCompareCommand() {
-    const comparePath = findExecutableInPath("compare");
-    if (comparePath) {
-        return {
-            executable: comparePath,
-            argsPrefix: [],
-            displayName: "compare",
-        };
-    }
-
-    const magickPath = findExecutableInPath("magick");
-    if (magickPath) {
-        return {
-            executable: magickPath,
-            argsPrefix: ["compare"],
-            displayName: "magick compare",
-        };
-    }
-
-    throw new Error("Could not find ImageMagick compare executable. Expected either 'compare' or 'magick' on PATH.");
 }
 
 function requestJson(url) {
@@ -602,226 +546,6 @@ async function waitForSettledCapture(session, timeoutMs, settleMs) {
     return { engineState, canvas };
 }
 
-function compareImages(resultPath, expectedPath, reportDir) {
-    const diffImageName = `diff-${path.basename(resultPath)}`;
-    const diffImagePath = path.join(reportDir, diffImageName);
-    const compareCommand = resolveCompareCommand();
-    const compareArgs = [
-        ...compareCommand.argsPrefix,
-        "-metric",
-        "RMSE",
-        resultPath,
-        expectedPath,
-        diffImagePath,
-    ];
-    console.log(`Running: ${compareCommand.displayName} ${compareArgs.join(" ")}`);
-    const compareResult = spawnSync(
-        compareCommand.executable,
-        compareArgs,
-        { encoding: "utf8" },
-    );
-
-    const rawOutput = `${compareResult.stdout || ""}${compareResult.stderr || ""}`.trim();
-
-    if (compareResult.error) {
-        throw new Error(`Failed to run ImageMagick compare: ${compareResult.error.message}`);
-    }
-
-    if (compareResult.status !== 0 && compareResult.status !== 1) {
-        throw new Error(rawOutput || `ImageMagick compare exited with status ${compareResult.status}`);
-    }
-
-    const match = rawOutput.match(/\(([0-9.+\-eE]+)\)/);
-    if (!match) {
-        throw new Error(`Could not parse ImageMagick compare output: ${rawOutput}`);
-    }
-
-    const normalizedDifference = Number(match[1]);
-    if (!Number.isFinite(normalizedDifference)) {
-        throw new Error(`Invalid normalized difference from compare output: ${rawOutput}`);
-    }
-
-    const likenessPercent = Math.max(0, Math.min(100, (1 - normalizedDifference) * 100));
-
-    return {
-        metric: "RMSE",
-        raw_output: rawOutput,
-        normalized_difference: normalizedDifference,
-        likeness_percent: likenessPercent,
-        diff_image_name: diffImageName,
-    };
-}
-
-async function writeReport(runJsonPath, resultJsonPath, indexPath, runData, resultData) {
-    await fs.mkdir(path.dirname(runJsonPath), { recursive: true });
-
-    const resultScreenshotName = path.basename(runData.screenshot_path);
-    let expectedScreenshotName = null;
-    let comparison = resultData;
-    if (runData.expected_screenshot_path) {
-        expectedScreenshotName = `expected-${path.basename(runData.expected_screenshot_path)}`;
-        await fs.copyFile(
-            runData.expected_screenshot_path,
-            path.join(path.dirname(indexPath), expectedScreenshotName),
-        );
-
-        comparison = compareImages(
-            runData.screenshot_path,
-            path.join(path.dirname(indexPath), expectedScreenshotName),
-            path.dirname(indexPath),
-        );
-    }
-
-    const finalizedResultData = {
-        ...resultData,
-        ...(comparison || {}),
-    };
-
-    if (finalizedResultData.likeness_percent !== undefined) {
-        finalizedResultData.status = finalizedResultData.likeness_percent >= runData.likeness_threshold ? "pass" : "fail";
-    } else {
-        finalizedResultData.status = "fail";
-    }
-
-    const runJson = JSON.stringify(runData, null, 2);
-    const resultJson = JSON.stringify(finalizedResultData, null, 2);
-    await fs.writeFile(runJsonPath, `${runJson}\n`, "utf8");
-    await fs.writeFile(resultJsonPath, `${resultJson}\n`, "utf8");
-
-    const title = runData.test_name || runData.collection || "Render Test";
-    const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>Render Test Report</title>
-  <style>
-    body {
-      margin: 24px;
-      font-family: Menlo, Monaco, Consolas, monospace;
-      background: #101418;
-      color: #d7e0ea;
-    }
-    h1, h2 {
-      font-weight: 600;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 24px;
-      margin-top: 24px;
-    }
-    .panel {
-      background: #182028;
-      border-radius: 8px;
-      padding: 16px;
-    }
-    .result-summary {
-      margin-top: 24px;
-    }
-    .result-detail {
-      margin: 6px 0;
-      color: #b9c7d5;
-    }
-    .result-details {
-      margin-top: 16px;
-      background: #101418;
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    .result-details summary {
-      padding: 12px 14px;
-      font-weight: 600;
-    }
-    .result-details[open] summary {
-      border-bottom: 1px solid #2b3947;
-    }
-    .result-details-body {
-      padding: 16px;
-    }
-    .result-details-body .meta {
-      margin-bottom: 16px;
-    }
-    .meta {
-      white-space: pre-wrap;
-      background: #182028;
-      border-radius: 8px;
-      padding: 16px;
-      line-height: 1.5;
-    }
-    details {
-      margin-top: 24px;
-      margin-bottom: 24px;
-      background: #182028;
-      border-radius: 8px;
-      padding: 0;
-      overflow: hidden;
-    }
-    summary {
-      cursor: pointer;
-      padding: 14px 16px;
-      font-weight: 600;
-      user-select: none;
-    }
-    details[open] summary {
-      border-bottom: 1px solid #2b3947;
-    }
-    details .meta {
-      margin: 0;
-      border-radius: 0;
-      background: transparent;
-    }
-    img {
-      display: block;
-      max-width: 100%;
-      height: auto;
-      border-radius: 8px;
-      border: 1px solid #2b3947;
-      background: #0b0f13;
-    }
-  </style>
-</head>
-<body>
-  <h1>${escapeHtml(title)}</h1>
-  <details>
-    <summary>Meta Info</summary>
-    <div class="meta">${escapeHtml(runJson)}</div>
-  </details>
-  <section class="panel result-summary">
-    <h2>Result: ${finalizedResultData.likeness_percent !== undefined
-        ? `${escapeHtml(finalizedResultData.likeness_percent.toFixed(2))}% Likeness - ${finalizedResultData.status === "pass" ? "✅ PASS" : "❌ FAIL"}`
-        : "No comparison result available"}</h2>
-    ${finalizedResultData.likeness_percent !== undefined
-        ? `<details class="result-details">
-      <summary>Detailed Info</summary>
-      <div class="result-details-body">
-        <p class="result-detail">Threshold: ${escapeHtml(runData.likeness_threshold.toFixed(2))}%</p>
-        <p class="result-detail">Metric: ${escapeHtml(finalizedResultData.metric)}</p>
-        <p class="result-detail">Normalized difference: ${escapeHtml(finalizedResultData.normalized_difference.toFixed(6))}</p>
-        <div class="meta">${escapeHtml(resultJson)}</div>
-        <img src="${escapeHtml(finalizedResultData.diff_image_name)}" alt="Difference image from ImageMagick compare">
-      </div>
-    </details>`
-        : `<p class="result-detail">No comparison result available.</p>`}
-  </section>
-  <div class="grid">
-    <section class="panel">
-      <h2>Captured:</h2>
-      <img src="${escapeHtml(resultScreenshotName)}" alt="Render test result screenshot">
-    </section>
-    <section class="panel">
-      <h2>Expected:</h2>
-      ${expectedScreenshotName
-        ? `<img src="${escapeHtml(expectedScreenshotName)}" alt="Expected render screenshot">`
-        : `<p>No expected screenshot provided.</p>`}
-    </section>
-  </div>
-</body>
-</html>
-`;
-
-    await fs.writeFile(indexPath, html, "utf8");
-}
-
 async function main() {
     const args = parseArgs(process.argv.slice(2));
     if (typeof WebSocket !== "function") {
@@ -927,11 +651,9 @@ async function main() {
                         url: args.url,
                         wait_mode: args.waitMode,
                         screenshot_path: args.screenshotPath,
-                        expected_screenshot_path: args.expectedScreenshotPath || "",
                         captured_at: new Date().toISOString(),
                         settle_ms: args.settleMs,
                         startup_timeout_ms: args.startupTimeoutMs,
-                        likeness_threshold: args.likenessThreshold,
                         engine_start_requested_at: engineState.engineStartRequestedAt,
                         engine_first_update_at: engineState.engineFirstUpdateAt,
                         engine_take_screenshot_at: engineState.engineTakeScreenshotAt,
@@ -944,18 +666,8 @@ async function main() {
                         canvas: clip,
                     };
 
-                    const resultData = {
-                    };
-
-                    await writeReport(args.runJsonPath, args.resultJsonPath, args.indexPath, runData, resultData);
-
-                    const resultJsonRaw = await fs.readFile(args.resultJsonPath, "utf8");
-                    const finalizedResultData = JSON.parse(resultJsonRaw);
-                    if (finalizedResultData.status !== "pass") {
-                        throw new RenderComparisonError(
-                            `Render comparison failed: ${finalizedResultData.likeness_percent?.toFixed(2) ?? "n/a"}% likeness, threshold ${args.likenessThreshold.toFixed(2)}%`,
-                        );
-                    }
+                    await fs.mkdir(path.dirname(args.runJsonPath), { recursive: true });
+                    await fs.writeFile(args.runJsonPath, `${JSON.stringify(runData, null, 2)}\n`, "utf8");
                 } finally {
                     await session.close();
                 }
@@ -973,5 +685,5 @@ async function main() {
 
 main().catch((error) => {
     console.error(error.stack || String(error));
-    process.exit(error instanceof RenderComparisonError ? 2 : 1);
+    process.exit(1);
 });

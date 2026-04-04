@@ -4,7 +4,7 @@ set -euo pipefail
 
 usage() {
     cat <<'EOF'
-usage: utils/rendertest/run.sh [options]
+usage: ci/rendertest/html5/run.sh [options]
 
 Run a render capture against an already built web bundle.
 
@@ -127,7 +127,7 @@ if [[ "${MODE}" != "direct" ]]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 OUTPUT_DIR_ABS="${REPO_ROOT}/${OUTPUT_DIR}"
 REPORT_DIR="${OUTPUT_DIR_ABS}/report"
 SCREENSHOT_PATH=""
@@ -271,17 +271,28 @@ node "${SCRIPT_DIR}/capture.mjs" \
     --url "${LAUNCH_URL}" \
     --name "${TEST_NAME}" \
     --collection "${RUNTIME_COLLECTION}" \
-    --expected-screenshot "${EXPECTED_SCREENSHOT_ABS}" \
     --browser "${BROWSER}" \
     --wait-mode "${WAIT_MODE}" \
     --settle-ms "${SETTLE_MS}" \
     --startup-timeout-ms "${STARTUP_TIMEOUT_MS}" \
-    --likeness "${LIKENESS}" \
     --screenshot "${SCREENSHOT_PATH}" \
     --run-json "${RUN_JSON_PATH}" \
-    --result-json "${RESULT_JSON_PATH}" \
-    --index "${INDEX_PATH}" \
     $( [[ "${HEADED}" == "1" ]] && printf '%s' "--headed" )
+
+BUILD_REPORT_ARGS=(
+    python3
+    "${SCRIPT_DIR}/../build_report.py"
+    --run-json "${RUN_JSON_PATH}"
+    --result-json "${RESULT_JSON_PATH}"
+    --index "${INDEX_PATH}"
+    --likeness "${LIKENESS}"
+)
+
+if [[ -n "${EXPECTED_SCREENSHOT_ABS}" ]]; then
+    BUILD_REPORT_ARGS+=(--expected-screenshot "${EXPECTED_SCREENSHOT_ABS}")
+fi
+
+"${BUILD_REPORT_ARGS[@]}"
 
 echo "Render test report written to ${REPORT_DIR}"
 echo "  Screenshot: ${SCREENSHOT_PATH}"
