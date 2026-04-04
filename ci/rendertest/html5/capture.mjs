@@ -181,12 +181,13 @@ function usage() {
 
 Options:
   --name TEXT
+  --description-file PATH
   --collection PATH
+  --platform TEXT
   --browser chrome|auto
   --wait-mode timeout|signal
   --settle-ms MS
   --startup-timeout-ms MS
-  --timeout-ms MS
   --headed
   --width PX
   --height PX
@@ -198,7 +199,7 @@ function parseArgs(argv) {
         browser: "chrome",
         waitMode: "timeout",
         settleMs: 1500,
-        startupTimeoutMs: 30000,
+        startupTimeoutMs: 10000,
         headed: false,
         width: 960,
         height: 540,
@@ -213,8 +214,14 @@ function parseArgs(argv) {
             case "--name":
                 args.testName = argv[++i];
                 break;
+            case "--description-file":
+                args.descriptionFile = argv[++i];
+                break;
             case "--collection":
                 args.collection = argv[++i];
+                break;
+            case "--platform":
+                args.platform = argv[++i];
                 break;
             case "--browser":
                 args.browser = argv[++i];
@@ -226,9 +233,6 @@ function parseArgs(argv) {
                 args.settleMs = Number(argv[++i]);
                 break;
             case "--startup-timeout-ms":
-                args.startupTimeoutMs = Number(argv[++i]);
-                break;
-            case "--timeout-ms":
                 args.startupTimeoutMs = Number(argv[++i]);
                 break;
             case "--screenshot":
@@ -272,6 +276,10 @@ function parseArgs(argv) {
 
     if (!Number.isFinite(args.startupTimeoutMs) || args.startupTimeoutMs <= 0) {
         throw new Error(`Invalid --startup-timeout-ms: ${args.startupTimeoutMs}`);
+    }
+
+    if (args.descriptionFile && typeof args.descriptionFile !== "string") {
+        throw new Error(`Invalid --description-file: ${args.descriptionFile}`);
     }
 
     return args;
@@ -642,10 +650,24 @@ async function main() {
                     await fs.mkdir(path.dirname(args.screenshotPath), { recursive: true });
                     await fs.writeFile(args.screenshotPath, Buffer.from(screenshot.data, "base64"));
 
+                    const outputDir = path.dirname(path.dirname(args.runJsonPath));
+                    let description = "";
+                    if (args.descriptionFile) {
+                        const descriptionPath = path.isAbsolute(args.descriptionFile)
+                            ? args.descriptionFile
+                            : path.resolve(process.cwd(), args.descriptionFile);
+                        description = (await fs.readFile(descriptionPath, "utf8")).trim();
+                        await fs.mkdir(outputDir, { recursive: true });
+                        await fs.writeFile(path.join(outputDir, "description.txt"), `${description}\n`, "utf8");
+                    }
+
                     const runData = {
                         mode: "direct",
                         test_name: args.testName || "",
+                        test_group: path.basename(outputDir),
                         collection: args.collection,
+                        platform: args.platform || "",
+                        description,
                         browser: "chrome",
                         browser_executable: chromePath,
                         url: args.url,

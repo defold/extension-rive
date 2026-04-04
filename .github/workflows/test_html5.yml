@@ -126,8 +126,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 ./ci/rendertest/build_summary.py \
-            --reports-root ./build/render-test \
-            --output ./build/render-test/index.html \
+            --reports-root ./build/render-tests \
+            --output ./build/render-tests/index.html \
             --title "Rive Render Test" \
             --subtitle "PR #${{ github.event.pull_request.number }} run #${{ github.run_id }} $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
 
@@ -136,7 +136,7 @@ jobs:
           import json
           from pathlib import Path
 
-          summary = json.loads(Path("build/render-test/summary.json").read_text())
+          summary = json.loads(Path("build/render-tests/summary.json").read_text())
           print(f"pass_count={summary['pass_count']}")
           print(f"fail_count={summary['fail_count']}")
           print(f"total_count={summary['total_count']}")
@@ -148,7 +148,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: html5-test-report-pr-${{ github.event.pull_request.number }}
-          path: build/render-test/
+          path: build/render-tests/
           if-no-files-found: error
           retention-days: 30
 
@@ -166,7 +166,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: html5-test-report-pr-${{ github.event.pull_request.number }}
-          path: build/render-test
+          path: build/render-tests
 
       - name: Checkout gh-pages branch
         continue-on-error: true
@@ -222,7 +222,7 @@ jobs:
           rm -rf "${pr_root}"
           mkdir -p "${pr_root}"
 
-          cp -R build/render-test/. "${pr_root}/"
+          cp -R build/render-tests/. "${pr_root}/"
           touch "${pages_root}/.nojekyll"
 
           git -C "${pages_root}" add -A
@@ -250,13 +250,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: html5-test-report-pr-${{ github.event.pull_request.number }}
-          path: build/render-test
+          path: build/render-tests
 
       - name: Update PR body with test results
         continue-on-error: true
         uses: actions/github-script@v7
         env:
-          REPORTS_ROOT: build/render-test
+          REPORTS_ROOT: build/render-tests
           REPORT_ARTIFACT_URL: ${{ needs.test-html5.outputs.report_artifact_url }}
           PAGE_URL: ${{ needs.publish-pages.outputs.page_url }}
           RUN_TESTS_OUTCOME: ${{ needs.test-html5.outputs.run_tests_outcome }}

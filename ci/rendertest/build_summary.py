@@ -29,18 +29,18 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--reports-root",
-        default="build/render-test",
-        help="Root directory containing per-test report folders. Default: build/render-test",
+        default="build/render-tests",
+        help="Root directory containing per-test report folders. Default: build/render-tests",
     )
     parser.add_argument(
         "--output",
-        default="build/render-test/index.html",
-        help="Output HTML summary path. Default: build/render-test/index.html",
+        default="build/render-tests/index.html",
+        help="Output HTML summary path. Default: build/render-tests/index.html",
     )
     parser.add_argument(
         "--summary-json",
-        default="build/render-test/summary.json",
-        help="JSON file to write aggregate summary data to. Default: build/render-test/summary.json",
+        default="build/render-tests/summary.json",
+        help="JSON file to write aggregate summary data to. Default: build/render-tests/summary.json",
     )
     return parser.parse_args()
 
@@ -50,10 +50,15 @@ def load_json(path: Path) -> dict:
         return json.load(fh)
 
 
-def collect_tests(reports_root: Path, output_path: Path) -> list[dict]:
-    tests: list[dict] = []
+def load_inline_svg(name: str) -> str:
+    svg_path = Path(__file__).resolve().parent / "icons" / name
+    return svg_path.read_text(encoding="utf8").strip()
 
-    for run_json_path in sorted(reports_root.glob("*/report/run.json")):
+
+def collect_groups(reports_root: Path, output_path: Path) -> list[dict]:
+    groups: dict[str, dict] = {}
+
+    for run_json_path in sorted(reports_root.glob("**/report/run.json")):
         report_dir = run_json_path.parent
         result_json_path = report_dir / "result.json"
         index_path = report_dir / "index.html"
@@ -70,13 +75,30 @@ def collect_tests(reports_root: Path, output_path: Path) -> list[dict]:
             screenshot_path = None
 
         test_name = run_data.get("test_name") or run_data.get("collection") or run_json_path.parent.parent.name
+        group_name = str(run_data.get("test_group") or report_dir.parent.name or test_name).strip()
+        description = str(run_data.get("description") or "").strip()
         likeness = result_data.get("likeness_percent")
         status = result_data.get("status", "fail")
+        platform_name = str(run_data.get("platform") or (run_json_path.parents[2].name if len(run_json_path.parents) > 2 else ""))
 
-        tests.append(
+        group = groups.setdefault(
+            group_name,
+            {
+                "name": group_name,
+                "description": "",
+                "tests": [],
+            },
+        )
+        if not group["description"] and description:
+            group["description"] = description
+
+        group["tests"].append(
             {
                 "name": test_name,
+                "group_name": group_name,
                 "collection": run_data.get("collection", ""),
+                "platform": platform_name,
+                "is_html5": platform_name.endswith("-web"),
                 "status": status,
                 "status_icon": PASS_ICON if status == "pass" else FAIL_ICON,
                 "likeness": likeness,
@@ -86,33 +108,63 @@ def collect_tests(reports_root: Path, output_path: Path) -> list[dict]:
             }
         )
 
-    tests.sort(key=lambda item: item["name"].lower())
-    return tests
+    grouped_tests = []
+    for group_name in sorted(groups.keys(), key=lambda value: value.lower()):
+        group = groups[group_name]
+        group["tests"].sort(key=lambda item: (item["platform"].lower(), item["name"].lower(), item["index_href"].lower()))
+        grouped_tests.append(group)
+
+    return grouped_tests
 
 
-def render_html(title: str, subtitle: str, tests: list[dict]) -> str:
+def render_html(title: str, subtitle: str, groups: list[dict]) -> str:
+    tests = [test for group in groups for test in group["tests"]]
     pass_count = sum(1 for test in tests if test["status"] == "pass")
     fail_count = sum(1 for test in tests if test["status"] != "pass")
+    html5_icon = load_inline_svg("html5.svg").replace(
+        "<svg ",
+        '<svg class="inline-icon" width="16" height="16" preserveAspectRatio="xMidYMid meet" ',
+        1,
+    )
 
-    cards = []
-    for test in tests:
-        thumbnail = (
-            f'<img src="{escape(test["thumbnail_src"])}" alt="{escape(test["name"])} thumbnail">'
-            if test["thumbnail_src"]
-            else '<div class="missing-thumb">No screenshot</div>'
-        )
-        cards.append(
-            f"""<article class="card {escape(test["status"])}">
-  <a class="card-link" href="{escape(test["index_href"])}">
-    <div class="thumb">{thumbnail}</div>
-    <h2>{escape(test["name"])}</h2>
-  </a>
-  <p class="score">{escape(test["status_icon"])} {escape(test["likeness_text"])} likeness</p>
-  <p class="collection">{escape(test["collection"])}</p>
+    rows = []
+    for group in groups:
+        thumbs = []
+        for test in group["tests"]:
+            thumbnail = (
+                f'<img src="{escape(test["thumbnail_src"])}" alt="{escape(test["name"])} thumbnail">'
+                if test["thumbnail_src"]
+                else '<div class="missing-thumb">No screenshot</div>'
+            )
+            overlay = (
+                f'<div class="thumb-badge" title="Html5">{html5_icon}</div>'
+                if test["is_html5"]
+                else ""
+            )
+            thumbs.append(
+                f"""<a class="thumb-card {escape(test["status"])}" href="{escape(test["index_href"])}">
+  <div class="thumb">{thumbnail}{overlay}</div>
+  <div class="thumb-caption">
+    <span class="thumb-status">{escape(test["status_icon"])} {escape(test["likeness_text"])}</span>
+    <span class="thumb-platform">{escape(test["platform"])}</span>
+  </div>
+</a>"""
+            )
+
+        group_description = escape(group["description"]) if group["description"] else "No description available."
+        rows.append(
+            f"""<article class="group">
+  <header class="group-header">
+    <h2 class="group-name">{escape(group["name"])}</h2>
+    <p class="group-description">{group_description}</p>
+  </header>
+  <div class="thumb-strip">
+    {"".join(thumbs)}
+  </div>
 </article>"""
         )
 
-    cards_html = "\n".join(cards) if cards else '<p class="empty">No test reports found.</p>'
+    rows_html = "\n".join(rows) if rows else '<p class="empty">No test reports found.</p>'
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -147,29 +199,43 @@ def render_html(title: str, subtitle: str, tests: list[dict]) -> str:
       border-radius: 8px;
       font-size: 18px;
     }}
-    .grid {{
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    .groups {{
+      display: flex;
+      flex-direction: column;
       gap: 20px;
     }}
-    .card {{
+    .group {{
       background: #182028;
       border-radius: 10px;
-      overflow: hidden;
+      padding: 16px;
       border: 1px solid #2b3947;
     }}
-    .card.pass {{
-      box-shadow: inset 0 0 0 1px rgba(90, 180, 110, 0.35);
+    .group-header {{
+      margin-bottom: 14px;
     }}
-    .card.fail {{
-      box-shadow: inset 0 0 0 1px rgba(220, 80, 80, 0.35);
+    .group-name {{
+      margin: 0 0 6px;
+      font-size: 18px;
     }}
-    .card-link {{
+    .group-description {{
+      margin: 0;
+      color: #9fb0c0;
+      font-size: 13px;
+      line-height: 1.4;
+    }}
+    .thumb-strip {{
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }}
+    .thumb-card {{
+      width: 180px;
       color: inherit;
       text-decoration: none;
       display: block;
     }}
     .thumb {{
+      position: relative;
       aspect-ratio: 16 / 9;
       background: #0b0f13;
       display: flex;
@@ -183,24 +249,48 @@ def render_html(title: str, subtitle: str, tests: list[dict]) -> str:
       height: 100%;
       object-fit: contain;
       display: block;
+      position: relative;
+      z-index: 0;
     }}
     .missing-thumb {{
       color: #8fa1b2;
       font-size: 14px;
     }}
-    h2 {{
-      font-size: 18px;
-      margin: 14px 16px 8px;
+    .thumb-badge {{
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3px 5px;
+      border-radius: 6px;
+      background: rgba(16, 20, 24, 0.7);
+      border: 1px solid rgba(201, 213, 228, 0.28);
+      backdrop-filter: blur(4px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.32);
+      z-index: 2;
     }}
-    .score, .collection, .empty {{
-      margin: 0 16px 14px;
+    .inline-icon {{
+      width: 16px;
+      height: 16px;
+      display: block;
+      min-width: 16px;
+      min-height: 16px;
     }}
-    .score {{
+    .thumb-caption {{
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding-top: 8px;
+    }}
+    .thumb-status {{
+      font-size: 13px;
       font-weight: 600;
     }}
-    .collection {{
+    .thumb-platform {{
       color: #9fb0c0;
-      font-size: 13px;
+      font-size: 12px;
       word-break: break-word;
     }}
   </style>
@@ -212,8 +302,8 @@ def render_html(title: str, subtitle: str, tests: list[dict]) -> str:
     <p>{PASS_ICON} {pass_count} passed</p>
     <p>{FAIL_ICON} {fail_count} failed</p>
   </div>
-  <section class="grid">
-    {cards_html}
+  <section class="groups">
+    {rows_html}
   </section>
 </body>
 </html>
@@ -225,11 +315,12 @@ def main() -> int:
     reports_root = Path(args.reports_root).resolve()
     output_path = Path(args.output).resolve()
 
-    tests = collect_tests(reports_root, output_path)
+    groups = collect_groups(reports_root, output_path)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(render_html(args.title, args.subtitle, tests), encoding="utf8")
+    output_path.write_text(render_html(args.title, args.subtitle, groups), encoding="utf8")
 
+    tests = [test for group in groups for test in group["tests"]]
     pass_count = sum(1 for test in tests if test["status"] == "pass")
     fail_count = sum(1 for test in tests if test["status"] != "pass")
     total_count = len(tests)

@@ -16,6 +16,11 @@ def escape_html(value: object) -> str:
     return html.escape(str(value), quote=True)
 
 
+def load_inline_svg(name: str) -> str:
+    svg_path = Path(__file__).resolve().parent / "icons" / name
+    return svg_path.read_text(encoding="utf8").strip()
+
+
 def resolve_compare_command() -> tuple[list[str], str]:
     compare = shutil.which("compare")
     if compare:
@@ -73,20 +78,34 @@ def build_result_data(run_data: dict[str, object], likeness_threshold: float, ex
 
 def build_html(
     title: str,
+    platform_name: str,
     run_json: str,
     result_json: str,
     result_data: dict[str, object],
     expected_screenshot: Path | None,
     captured_screenshot: Path,
 ) -> str:
+    html5_icon = load_inline_svg("html5.svg").replace(
+        "<svg ",
+        '<svg class="inline-icon" width="16" height="16" preserveAspectRatio="xMidYMid meet" ',
+        1,
+    )
+
     if "likeness_percent" in result_data:
+        status_pass = result_data.get("status") == "pass"
         result_header = (
-            f"{float(result_data['likeness_percent']):.2f}% Likeness - "
-            f"{'✅ PASS' if result_data.get('status') == 'pass' else '❌ FAIL'}"
+            f'<summary class="result-summary-summary">'
+            f'<span class="summary-arrow" aria-hidden="true"></span>'
+            f'<span class="likeness-line">'
+            f'<span class="likeness-value">{float(result_data["likeness_percent"]):.2f}%</span> '
+            f'<span class="likeness-label">Likeness</span> '
+            f'<span class="likeness-status {"pass" if status_pass else "fail"}">'
+            f'{"✅ PASS" if status_pass else "❌ FAIL"}'
+            f'</span>'
+            f'</span>'
+            f'</summary>'
         )
         result_body = f"""
-        <details class="result-details">
-      <summary>Detailed Info</summary>
       <div class="result-details-body">
         <p class="result-detail">Threshold: {escape_html(f"{float(result_data.get('likeness_threshold', 0.0)):.2f}")}%</p>
         <p class="result-detail">Metric: {escape_html(result_data.get('metric', 'n/a'))}</p>
@@ -94,15 +113,21 @@ def build_html(
         <div class="meta">{escape_html(result_json)}</div>
         <img src="{escape_html(result_data.get('diff_image_name', ''))}" alt="Difference image from ImageMagick compare">
       </div>
-    </details>"""
+    """
     else:
-        result_header = "No comparison result available"
-        result_body = '<p class="result-detail">No comparison result available.</p>'
+        result_header = '<summary class="result-summary-summary"><span class="summary-arrow" aria-hidden="true"></span><span class="likeness-line"><span class="likeness-label">No comparison result available</span></span></summary>'
+        result_body = '<div class="result-details-body"><p class="result-detail">No comparison result available.</p></div>'
 
     expected_body = (
         '<img src="expected.png" alt="Expected render screenshot">'
         if expected_screenshot is not None
         else "<p>No expected screenshot provided.</p>"
+    )
+
+    platform_badge = (
+        f'{html5_icon}<span class="platform-text">Platform: <strong>{escape_html(platform_name)}</strong></span>'
+        if platform_name
+        else ""
     )
 
     return f"""<!DOCTYPE html>
@@ -134,35 +159,64 @@ def build_html(
     .result-summary {{
       margin-top: 24px;
     }}
+    .title-row {{
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }}
+    .title-row h1 {{
+      margin: 0;
+    }}
+    .platform-row {{
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+      padding: 6px 10px;
+      border-radius: 8px;
+      background: #223040;
+      border: 1px solid #39506b;
+      color: #c7d7e6;
+      font-size: 12px;
+      font-weight: 600;
+      flex: 0 0 auto;
+    }}
+    .inline-icon {{
+      width: 16px;
+      height: 16px;
+      display: block;
+    }}
+    .platform-text {{
+      line-height: 1.2;
+    }}
+    .likeness-line {{
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }}
+    .likeness-status.pass {{
+      color: #7ee787;
+    }}
+    .likeness-status.fail {{
+      color: #ff7b72;
+    }}
     .result-detail {{
-      margin: 6px 0;
+      margin: 3px 0;
       color: #b9c7d5;
     }}
-    .result-details {{
-      margin-top: 16px;
-      background: #101418;
-      border-radius: 8px;
-      overflow: hidden;
-    }}
-    .result-details summary {{
-      padding: 12px 14px;
-      font-weight: 600;
-    }}
-    .result-details[open] summary {{
-      border-bottom: 1px solid #2b3947;
-    }}
     .result-details-body {{
-      padding: 16px;
+      padding: 10px 12px;
     }}
     .result-details-body .meta {{
-      margin-bottom: 16px;
+      margin-bottom: 8px;
     }}
     .meta {{
       white-space: pre-wrap;
       background: #182028;
       border-radius: 8px;
-      padding: 16px;
-      line-height: 1.5;
+      padding: 10px 12px;
+      line-height: 1.3;
     }}
     details {{
       margin-top: 24px;
@@ -172,11 +226,12 @@ def build_html(
       padding: 0;
       overflow: hidden;
     }}
-    summary {{
+    summary, .summary {{
       cursor: pointer;
-      padding: 14px 16px;
+      padding: 10px 14px;
       font-weight: 600;
       user-select: none;
+      font-size: small;
     }}
     details[open] summary {{
       border-bottom: 1px solid #2b3947;
@@ -194,18 +249,65 @@ def build_html(
       border: 1px solid #2b3947;
       background: #0b0f13;
     }}
+    .result-summary {{
+      font-size: small;
+      margin-top: 16px;
+      padding: 0;
+      overflow: hidden;
+    }}
+    .result-summary[open] .result-summary-summary {{
+      border-bottom: 1px solid #2b3947;
+    }}
+    .result-summary-summary {{
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      padding: 10px 12px;
+      user-select: none;
+      font-size: small;
+      font-weight: 600;
+    }}
+    .result-summary-summary::-webkit-details-marker {{
+      display: none;
+    }}
+    .summary-arrow {{
+      display: inline-block;
+      flex: 0 0 auto;
+      width: 0;
+      height: 0;
+      border-top: 5px solid transparent;
+      border-bottom: 5px solid transparent;
+      border-left: 7px solid #c7d7e6;
+      vertical-align: middle;
+      transform: translateY(-1px);
+      transition: transform 120ms ease;
+    }}
+    .likeness-line {{
+      display: inline-flex;
+      align-items: baseline;
+      gap: 8px;
+      min-width: 0;
+    }}
+    .result-summary[open] .summary-arrow {{
+      transform: translateY(-1px) rotate(90deg);
+    }}
   </style>
 </head>
 <body>
-  <h1>{escape_html(title)}</h1>
+  <div class="title-row">
+    <h1>{escape_html(title)}</h1>
+    {f'<div class="platform-row">{platform_badge}</div>' if platform_badge else ''}
+  </div>
   <details>
-    <summary>Meta Info</summary>
+    <summary>Test Info</summary>
     <div class="meta">{escape_html(run_json)}</div>
   </details>
-  <section class="panel result-summary">
-    <h2>{escape_html(result_header)}</h2>
+  <details class="panel result-summary">
+    {result_header}
     {result_body}
-  </section>
+  </details>
   <div class="grid">
     <section class="panel">
       <h2>Captured:</h2>
@@ -261,12 +363,14 @@ def main(argv: list[str]) -> int:
 
     run_json = json.dumps(run_data, indent=2)
     title = str(run_data.get("test_name") or run_data.get("collection") or "Render Test")
+    platform_name = str(run_data.get("platform") or report_dir.parent.parent.name)
     captured_screenshot = Path(str(run_data["screenshot_path"]))
     if not captured_screenshot.is_absolute():
         captured_screenshot = captured_screenshot.resolve()
 
     html_text = build_html(
         title=title,
+        platform_name=platform_name,
         run_json=run_json,
         result_json=result_json,
         result_data=result_data,

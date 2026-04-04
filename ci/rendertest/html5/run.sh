@@ -13,16 +13,17 @@ Options:
   --bundle-dir DIR              Directory containing index.html for the built bundle.
                                 Default: auto-detect under ./bundle_web
   --name TEXT                   Human-readable test name shown in the report.
+  --description-file PATH       Optional description text file to copy into the output folder and report metadata.
   --collection PATH             Collection to boot at runtime. Accepts .collection or .collectionc.
+  --platform TEXT               Platform name recorded in the report metadata. Default: wasm-web
   --expected-screenshot PATH    Expected screenshot path to show in the report.
   --screenshot PATH             Output screenshot path. Relative paths are placed under the report dir.
   --likeness PERCENT           Minimum likeness percentage required to pass. Default: 95
-  --output DIR                  Output directory. Default: build/render-test
+  --output DIR                  Output directory. Default: build/render-tests/wasm-web
   --port PORT                   Local HTTP server port. Default: 18080
   --wait-mode timeout|signal    How to wait for the capture point. Default: timeout
   --settle-ms MS                Delay after engine start before capture. Default: 1500
-  --startup-timeout-ms MS       Timeout while waiting for browser + engine startup. Default: 30000
-  --timeout-ms MS               Deprecated alias for --startup-timeout-ms
+  --startup-timeout-ms MS       Timeout while waiting for browser + engine startup. Default: 10000
   --browser chrome|auto         Browser selection hint. Default: chrome
   --headed                      Launch browser headed for local debugging
   -h, --help                    Show this help
@@ -35,12 +36,15 @@ EOF
 MODE="direct"
 BUNDLE_DIR=""
 TEST_NAME=""
+DESCRIPTION_FILE=""
 COLLECTION=""
+PLATFORM="wasm-web"
 EXPECTED_SCREENSHOT=""
 SCREENSHOT_ARG=""
 LIKENESS="95"
-OUTPUT_DIR="build/render-test"
+OUTPUT_DIR="build/render-tests/wasm-web"
 PORT="18080"
+PORT_EXPLICIT="0"
 WAIT_MODE="timeout"
 SETTLE_MS="500"
 STARTUP_TIMEOUT_MS="30000"
@@ -61,8 +65,16 @@ while [[ $# -gt 0 ]]; do
             TEST_NAME="${2:-}"
             shift 2
             ;;
+        --description-file)
+            DESCRIPTION_FILE="${2:-}"
+            shift 2
+            ;;
         --collection)
             COLLECTION="${2:-}"
+            shift 2
+            ;;
+        --platform)
+            PLATFORM="${2:-}"
             shift 2
             ;;
         --expected-screenshot)
@@ -83,6 +95,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         --port)
             PORT="${2:-}"
+            PORT_EXPLICIT="1"
             shift 2
             ;;
         --wait-mode)
@@ -94,10 +107,6 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         --startup-timeout-ms)
-            STARTUP_TIMEOUT_MS="${2:-}"
-            shift 2
-            ;;
-        --timeout-ms)
             STARTUP_TIMEOUT_MS="${2:-}"
             shift 2
             ;;
@@ -138,6 +147,7 @@ SERVER_PID=""
 RUNTIME_COLLECTION=""
 LAUNCH_URL=""
 EXPECTED_SCREENSHOT_ABS=""
+DESCRIPTION_ABS=""
 
 if [[ -z "${BUNDLE_DIR}" ]]; then
     FIRST_INDEX_HTML="$(find "${REPO_ROOT}/bundle_web" -maxdepth 3 -name index.html -print -quit 2>/dev/null || true)"
@@ -188,6 +198,18 @@ if [[ -n "${EXPECTED_SCREENSHOT}" ]]; then
     fi
 fi
 
+if [[ -n "${DESCRIPTION_FILE}" ]]; then
+    case "${DESCRIPTION_FILE}" in
+        /*) DESCRIPTION_ABS="${DESCRIPTION_FILE}" ;;
+        *) DESCRIPTION_ABS="${REPO_ROOT}/${DESCRIPTION_FILE}" ;;
+    esac
+
+    if [[ ! -f "${DESCRIPTION_ABS}" ]]; then
+        echo "description file not found: ${DESCRIPTION_ABS}" >&2
+        exit 1
+    fi
+fi
+
 if [[ -n "${SCREENSHOT_ARG}" ]]; then
     case "${SCREENSHOT_ARG}" in
         /*)
@@ -234,8 +256,42 @@ cleanup() {
 }
 trap cleanup EXIT
 
+port_is_available() {
+    python3 - "$1" <<'PY'
+import socket
+import sys
+
+port = int(sys.argv[1])
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+try:
+    sock.bind(("127.0.0.1", port))
+except OSError:
+    raise SystemExit(1)
+finally:
+    sock.close()
+PY
+}
+
+pick_free_port() {
+    python3 - <<'PY'
+import socket
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sock.bind(("127.0.0.1", 0))
+print(sock.getsockname()[1])
+sock.close()
+PY
+}
+
+if [[ "${PORT_EXPLICIT}" != "1" ]]; then
+    if ! port_is_available "${PORT}" 2>/dev/null; then
+        PORT="$(pick_free_port)"
+    fi
+fi
+
 rm -rf "${REPORT_DIR}"
 mkdir -p "${REPORT_DIR}"
+mkdir -p "${OUTPUT_DIR_ABS}"
 
 echo "Serving bundle from ${BUNDLE_DIR_ABS} on http://127.0.0.1:${PORT}/"
 python3 -m http.server "${PORT}" --bind 127.0.0.1 --directory "${BUNDLE_DIR_ABS}" > "${OUTPUT_DIR_ABS}/server.log" 2>&1 &
@@ -267,17 +323,30 @@ if [[ -n "${RUNTIME_COLLECTION}" ]]; then
 fi
 
 echo "Capturing screenshot to ${SCREENSHOT_PATH}"
-node "${SCRIPT_DIR}/capture.mjs" \
-    --url "${LAUNCH_URL}" \
-    --name "${TEST_NAME}" \
-    --collection "${RUNTIME_COLLECTION}" \
-    --browser "${BROWSER}" \
-    --wait-mode "${WAIT_MODE}" \
-    --settle-ms "${SETTLE_MS}" \
-    --startup-timeout-ms "${STARTUP_TIMEOUT_MS}" \
-    --screenshot "${SCREENSHOT_PATH}" \
-    --run-json "${RUN_JSON_PATH}" \
-    $( [[ "${HEADED}" == "1" ]] && printf '%s' "--headed" )
+CAPTURE_ARGS=(
+    node
+    "${SCRIPT_DIR}/capture.mjs"
+    --url "${LAUNCH_URL}"
+    --name "${TEST_NAME}"
+    --collection "${RUNTIME_COLLECTION}"
+    --platform "${PLATFORM}"
+    --browser "${BROWSER}"
+    --wait-mode "${WAIT_MODE}"
+    --settle-ms "${SETTLE_MS}"
+    --startup-timeout-ms "${STARTUP_TIMEOUT_MS}"
+    --screenshot "${SCREENSHOT_PATH}"
+    --run-json "${RUN_JSON_PATH}"
+)
+
+if [[ -n "${DESCRIPTION_ABS}" ]]; then
+    CAPTURE_ARGS+=(--description-file "${DESCRIPTION_ABS}")
+fi
+
+if [[ "${HEADED}" == "1" ]]; then
+    CAPTURE_ARGS+=(--headed)
+fi
+
+"${CAPTURE_ARGS[@]}"
 
 BUILD_REPORT_ARGS=(
     python3
