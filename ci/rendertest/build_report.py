@@ -21,6 +21,21 @@ def load_inline_svg(name: str) -> str:
     return svg_path.read_text(encoding="utf8").strip()
 
 
+def inline_svg_html(name: str, prefix: str = "") -> str:
+    svg = load_inline_svg(name)
+    if prefix:
+        svg = re.sub(r'id="([^"]+)"', lambda match: f'id="{prefix}{match.group(1)}"', svg)
+        svg = re.sub(r'url\(#([^)]+)\)', lambda match: f'url(#{prefix}{match.group(1)})', svg)
+        svg = re.sub(r'href="#([^"]+)"', lambda match: f'href="#{prefix}{match.group(1)}"', svg)
+        svg = re.sub(r'xlink:href="#([^"]+)"', lambda match: f'xlink:href="#{prefix}{match.group(1)}"', svg)
+
+    return svg.replace(
+        "<svg ",
+        '<svg class="inline-icon" width="16" height="16" preserveAspectRatio="xMidYMid meet" ',
+        1,
+    )
+
+
 def resolve_compare_command() -> tuple[list[str], str]:
     compare = shutil.which("compare")
     if compare:
@@ -85,11 +100,15 @@ def build_html(
     expected_screenshot: Path | None,
     captured_screenshot: Path,
 ) -> str:
-    html5_icon = load_inline_svg("html5.svg").replace(
-        "<svg ",
-        '<svg class="inline-icon" width="16" height="16" preserveAspectRatio="xMidYMid meet" ',
-        1,
-    )
+    platform_key = platform_name.lower().strip()
+    if platform_key.endswith("android"):
+        platform_icon_name = "android.svg"
+    elif platform_key.endswith("-web"):
+        platform_icon_name = "html5.svg"
+    else:
+        platform_icon_name = ""
+
+    platform_icon = inline_svg_html(platform_icon_name, prefix="platform-") if platform_icon_name else ""
 
     if "likeness_percent" in result_data:
         status_pass = result_data.get("status") == "pass"
@@ -125,7 +144,7 @@ def build_html(
     )
 
     platform_badge = (
-        f'{html5_icon}<span class="platform-text">Platform: <strong>{escape_html(platform_name)}</strong></span>'
+        f'{platform_icon}<span class="platform-text">Platform: <strong>{escape_html(platform_name)}</strong></span>'
         if platform_name
         else ""
     )

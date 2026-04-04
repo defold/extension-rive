@@ -2,8 +2,10 @@
 
 set -euo pipefail
 
+PLATFORM=wasm-web
+
 BUNDLE_FOLDER=./bundle_web/extension-rive
-REPORT_FOLDER=./build/render-tests/wasm-web
+REPORT_FOLDER=./build/render-tests/${PLATFORM}
 
 DEFAULT_LIKENESS=95
 MODE=direct
@@ -47,32 +49,32 @@ run_render_test "Grimley" \
   --mode ${MODE} \
   --bundle-dir ${BUNDLE_FOLDER} \
   --name "Grimley" \
-  --description-file ./ci/tests/html5/grimley/description.txt \
   --collection /main/grimley/grimley.collectionc \
   --wait-mode signal \
-  --expected-screenshot ./ci/tests/html5/grimley/expected.png \
-  --output build/render-tests/wasm-web/grimley \
+  --description-file ./ci/tests/data/grimley/description.txt \
+  --expected-screenshot ./ci/tests/data/grimley/html5/expected.png \
+  --output ${REPORT_FOLDER}/grimley \
   --likeness ${DEFAULT_LIKENESS}
 
 run_render_test "Egg" \
   --mode ${MODE} \
   --bundle-dir ${BUNDLE_FOLDER} \
   --name "Egg" \
-  --description-file ./ci/tests/html5/egg/description.txt \
   --collection /main/egg/egg.collection \
   --wait-mode timeout \
-  --expected-screenshot ./ci/tests/html5/egg/expected.png \
-  --output build/render-tests/wasm-web/egg \
+  --description-file ./ci/tests/data/egg/description.txt \
+  --expected-screenshot ./ci/tests/data/egg/html5/expected.png \
+  --output ${REPORT_FOLDER}/egg \
   --likeness ${DEFAULT_LIKENESS}
 
 run_render_test "Databind" \
   --mode ${MODE} \
   --bundle-dir ${BUNDLE_FOLDER} \
   --name "Databind" \
-  --description-file ./ci/tests/html5/databind/description.txt \
   --collection /main/databind/databind.collection \
   --wait-mode timeout \
-  --expected-screenshot ./ci/tests/html5/databind/expected.png \
-  --output build/render-tests/wasm-web/databind \
   --settle-ms 5000 \
+  --description-file ./ci/tests/data/databind/description.txt \
+  --expected-screenshot ./ci/tests/data/databind/html5/expected.png \
+  --output ${REPORT_FOLDER}/databind \
   --likeness ${DEFAULT_LIKENESS}

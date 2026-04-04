@@ -289,21 +289,6 @@ function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function findExecutableInPath(command) {
-    const pathValue = process.env.PATH || "";
-    const searchDirs = pathValue.split(path.delimiter).filter(Boolean);
-    for (const dir of searchDirs) {
-        const candidate = path.join(dir, command);
-        try {
-            fsSync.accessSync(candidate, fsSync.constants.X_OK);
-            return candidate;
-        } catch {
-            // Keep searching PATH.
-        }
-    }
-    return null;
-}
-
 function requestJson(url) {
     return new Promise((resolve, reject) => {
         const req = http.get(url, (res) => {

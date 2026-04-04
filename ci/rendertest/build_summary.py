@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from html import escape
 from pathlib import Path
 
@@ -55,30 +56,82 @@ def load_inline_svg(name: str) -> str:
     return svg_path.read_text(encoding="utf8").strip()
 
 
+def inline_svg_html(name: str, prefix: str = "") -> str:
+    svg = load_inline_svg(name)
+    if prefix:
+        svg = re.sub(r'id="([^"]+)"', lambda match: f'id="{prefix}{match.group(1)}"', svg)
+        svg = re.sub(r'url\(#([^)]+)\)', lambda match: f'url(#{prefix}{match.group(1)})', svg)
+        svg = re.sub(r'href="#([^"]+)"', lambda match: f'href="#{prefix}{match.group(1)}"', svg)
+        svg = re.sub(r'xlink:href="#([^"]+)"', lambda match: f'xlink:href="#{prefix}{match.group(1)}"', svg)
+
+    return svg.replace(
+        "<svg ",
+        '<svg class="inline-icon" width="16" height="16" preserveAspectRatio="xMidYMid meet" ',
+        1,
+    )
+
+
+def platform_label(platform: str) -> str:
+    return platform if platform else "empty platform"
+
+
+def platform_icon_name(platform: str) -> str:
+    platform = platform.lower().strip()
+    if platform.endswith("android"):
+        return "android.svg"
+    if platform.endswith("-web"):
+        return "html5.svg"
+    return ""
+
+
+def platform_display_html(platform: str, label: str, prefix: str = "") -> str:
+    if platform == "__total__":
+        return f'<span class="platform-label"><span>{escape(label)}</span></span>'
+
+    icon_name = platform_icon_name(platform)
+    icon_html = ""
+    if icon_name:
+        icon_html = inline_svg_html(icon_name, prefix=prefix)
+    label_html = escape(label)
+    if icon_html:
+        return f'<span class="platform-label">{icon_html}<span>{label_html}</span></span>'
+    return f'<span class="platform-label"><span>{label_html}</span></span>'
+
+
 def collect_groups(reports_root: Path, output_path: Path) -> list[dict]:
     groups: dict[str, dict] = {}
 
-    for run_json_path in sorted(reports_root.glob("**/report/run.json")):
-        report_dir = run_json_path.parent
-        result_json_path = report_dir / "result.json"
-        index_path = report_dir / "index.html"
-
-        if not result_json_path.is_file() or not index_path.is_file():
+    for run_json_path in sorted(reports_root.glob("**/run.json")):
+        if run_json_path.name != "run.json":
             continue
 
+        report_dir = run_json_path.parent
         run_data = load_json(run_json_path)
-        result_data = load_json(result_json_path)
+        result_data: dict[str, object] = {}
+        index_path: Path | None = None
+        screenshot_path: Path | None = None
 
-        screenshot_name = Path(run_data["screenshot_path"]).name
-        screenshot_path = report_dir / screenshot_name
-        if not screenshot_path.is_file():
+        if report_dir.name == "report":
+            result_json_path = report_dir / "result.json"
+            index_path = report_dir / "index.html"
+            if not result_json_path.is_file() or not index_path.is_file():
+                continue
+            result_data = load_json(result_json_path)
+            screenshot_name = Path(run_data["screenshot_path"]).name
+            screenshot_path = report_dir / screenshot_name
+        else:
+            screenshot_name = Path(run_data["screenshot_path"]).name
+            screenshot_path = report_dir / screenshot_name
+            index_path = screenshot_path if screenshot_path.is_file() else run_json_path
+
+        if screenshot_path is not None and not screenshot_path.is_file():
             screenshot_path = None
 
         test_name = run_data.get("test_name") or run_data.get("collection") or run_json_path.parent.parent.name
-        group_name = str(run_data.get("test_group") or report_dir.parent.name or test_name).strip()
+        group_name = str(run_data.get("test_group") or report_dir.name or test_name).strip()
         description = str(run_data.get("description") or "").strip()
         likeness = result_data.get("likeness_percent")
-        status = result_data.get("status", "fail")
+        status = result_data.get("status", "pass" if not result_data else "fail")
         platform_name = str(run_data.get("platform") or (run_json_path.parents[2].name if len(run_json_path.parents) > 2 else ""))
 
         group = groups.setdefault(
@@ -103,7 +156,7 @@ def collect_groups(reports_root: Path, output_path: Path) -> list[dict]:
                 "status_icon": PASS_ICON if status == "pass" else FAIL_ICON,
                 "likeness": likeness,
                 "likeness_text": f"{likeness:.2f}%" if isinstance(likeness, (int, float)) else "n/a",
-                "index_href": index_path.relative_to(output_path.parent).as_posix(),
+                "index_href": index_path.relative_to(output_path.parent).as_posix() if index_path else "",
                 "thumbnail_src": screenshot_path.relative_to(output_path.parent).as_posix() if screenshot_path else "",
             }
         )
@@ -117,36 +170,63 @@ def collect_groups(reports_root: Path, output_path: Path) -> list[dict]:
     return grouped_tests
 
 
-def render_html(title: str, subtitle: str, groups: list[dict]) -> str:
-    tests = [test for group in groups for test in group["tests"]]
-    pass_count = sum(1 for test in tests if test["status"] == "pass")
-    fail_count = sum(1 for test in tests if test["status"] != "pass")
-    html5_icon = load_inline_svg("html5.svg").replace(
-        "<svg ",
-        '<svg class="inline-icon" width="16" height="16" preserveAspectRatio="xMidYMid meet" ',
-        1,
+def collect_platform_counts(groups: list[dict]) -> list[dict]:
+    counts: dict[str, dict[str, int]] = {}
+
+    for group in groups:
+        for test in group["tests"]:
+            platform = test["platform"].strip()
+            platform_counts = counts.setdefault(platform, {"pass": 0, "fail": 0})
+            if test["status"] == "pass":
+                platform_counts["pass"] += 1
+            else:
+                platform_counts["fail"] += 1
+
+    rows: list[dict] = []
+    for platform in sorted((key for key in counts.keys() if key), key=lambda value: value.lower()):
+        rows.append(
+            {
+                "platform": platform,
+                "label": platform_label(platform),
+                "pass": counts[platform]["pass"],
+                "fail": counts[platform]["fail"],
+            }
+        )
+
+    rows.append(
+        {
+            "platform": "__total__",
+            "label": "total",
+            "pass": sum(bucket["pass"] for bucket in counts.values()),
+            "fail": sum(bucket["fail"] for bucket in counts.values()),
+        }
     )
 
+    return rows
+
+
+def render_html(title: str, subtitle: str, groups: list[dict], platform_rows: list[dict], overall_status_text: str, overall_status_class: str) -> str:
     rows = []
-    for group in groups:
+    for group_index, group in enumerate(groups):
         thumbs = []
-        for test in group["tests"]:
+        for test_index, test in enumerate(group["tests"]):
             thumbnail = (
                 f'<img src="{escape(test["thumbnail_src"])}" alt="{escape(test["name"])} thumbnail">'
                 if test["thumbnail_src"]
                 else '<div class="missing-thumb">No screenshot</div>'
             )
-            overlay = (
-                f'<div class="thumb-badge" title="Html5">{html5_icon}</div>'
-                if test["is_html5"]
+            thumb_platform_icon_name = platform_icon_name(test["platform"])
+            platform_icon_html = (
+                inline_svg_html(thumb_platform_icon_name, prefix=f"thumb-{group_index}-{test_index}-")
+                if thumb_platform_icon_name
                 else ""
             )
             thumbs.append(
                 f"""<a class="thumb-card {escape(test["status"])}" href="{escape(test["index_href"])}">
-  <div class="thumb">{thumbnail}{overlay}</div>
+  <div class="thumb">{thumbnail}</div>
   <div class="thumb-caption">
     <span class="thumb-status">{escape(test["status_icon"])} {escape(test["likeness_text"])}</span>
-    <span class="thumb-platform">{escape(test["platform"])}</span>
+    <span class="thumb-platform">{platform_icon_html}{escape(test["platform"])}</span>
   </div>
 </a>"""
             )
@@ -165,6 +245,15 @@ def render_html(title: str, subtitle: str, groups: list[dict]) -> str:
         )
 
     rows_html = "\n".join(rows) if rows else '<p class="empty">No test reports found.</p>'
+
+    platform_rows_html = "\n".join(
+        f"""<tr class="{escape('total-row' if row['platform'] == '__total__' else 'platform-row')}">
+      <td>{platform_display_html(row["platform"], row["label"], prefix=f'platform-{index}-')}</td>
+      <td>{row["pass"]}</td>
+      <td>{row["fail"]}</td>
+    </tr>"""
+        for index, row in enumerate(platform_rows)
+    )
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -186,18 +275,68 @@ def render_html(title: str, subtitle: str, groups: list[dict]) -> str:
       color: #9fb0c0;
       font-size: 15px;
     }}
-    .totals {{
+    .summary-row {{
       display: flex;
+      align-items: flex-start;
       gap: 16px;
-      flex-wrap: wrap;
       margin-bottom: 24px;
     }}
-    .totals p {{
-      margin: 0;
+    .totals {{
+      width: 100%;
+      max-width: 640px;
+      border-collapse: collapse;
+    }}
+    .totals th,
+    .totals td {{
       padding: 10px 14px;
       background: #182028;
+      border: 1px solid #2b3947;
+      text-align: left;
+      font-size: 14px;
+    }}
+    .totals th {{
+      color: #9fb0c0;
+      font-weight: 600;
+    }}
+    .totals td {{
+      color: #d7e0ea;
+    }}
+    .platform-label {{
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }}
+    .platform-label .inline-icon {{
+      width: 14px;
+      height: 14px;
+      min-width: 14px;
+      min-height: 14px;
+    }}
+    .totals tbody tr:last-child td {{
+      font-weight: 700;
+    }}
+    .totals tbody tr.total-row td {{
+      background: #1e2832;
+    }}
+    .overall-status {{
+      flex: 0 0 auto;
+      padding: 10px 14px;
       border-radius: 8px;
-      font-size: 18px;
+      border: 1px solid #2b3947;
+      font-size: 14px;
+      font-weight: 700;
+      white-space: nowrap;
+      margin-top: 0;
+    }}
+    .overall-status.pass {{
+      color: #6ee7a0;
+      background: rgba(110, 231, 160, 0.08);
+      border-color: rgba(110, 231, 160, 0.28);
+    }}
+    .overall-status.fail {{
+      color: #ff7b7b;
+      background: rgba(255, 123, 123, 0.08);
+      border-color: rgba(255, 123, 123, 0.28);
     }}
     .groups {{
       display: flex;
@@ -256,21 +395,6 @@ def render_html(title: str, subtitle: str, groups: list[dict]) -> str:
       color: #8fa1b2;
       font-size: 14px;
     }}
-    .thumb-badge {{
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 3px 5px;
-      border-radius: 6px;
-      background: rgba(16, 20, 24, 0.7);
-      border: 1px solid rgba(201, 213, 228, 0.28);
-      backdrop-filter: blur(4px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.32);
-      z-index: 2;
-    }}
     .inline-icon {{
       width: 16px;
       height: 16px;
@@ -292,15 +416,29 @@ def render_html(title: str, subtitle: str, groups: list[dict]) -> str:
       color: #9fb0c0;
       font-size: 12px;
       word-break: break-word;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }}
   </style>
 </head>
 <body>
   <h1>{escape(title)}</h1>
   {f'<p class="subtitle">{escape(subtitle)}</p>' if subtitle else ""}
-  <div class="totals">
-    <p>{PASS_ICON} {pass_count} passed</p>
-    <p>{FAIL_ICON} {fail_count} failed</p>
+  <div class="summary-row">
+    <table class="totals">
+      <thead>
+        <tr>
+          <th>platform</th>
+          <th>passed</th>
+          <th>failed</th>
+        </tr>
+      </thead>
+      <tbody>
+        {platform_rows_html}
+      </tbody>
+    </table>
+    <div class="overall-status {overall_status_class}">{overall_status_text}</div>
   </div>
   <section class="groups">
     {rows_html}
@@ -316,13 +454,18 @@ def main() -> int:
     output_path = Path(args.output).resolve()
 
     groups = collect_groups(reports_root, output_path)
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(render_html(args.title, args.subtitle, groups), encoding="utf8")
-
+    platform_rows = collect_platform_counts(groups)
     tests = [test for group in groups for test in group["tests"]]
     pass_count = sum(1 for test in tests if test["status"] == "pass")
     fail_count = sum(1 for test in tests if test["status"] != "pass")
+    overall_status_text = f"{FAIL_ICON} FAIL" if fail_count > 0 else f"{PASS_ICON} PASS"
+    overall_status_class = "fail" if fail_count > 0 else "pass"
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
+        render_html(args.title, args.subtitle, groups, platform_rows, overall_status_text, overall_status_class),
+        encoding="utf8",
+    )
     total_count = len(tests)
 
     summary_json_path = Path(args.summary_json).resolve()
@@ -333,6 +476,7 @@ def main() -> int:
                 "pass_count": pass_count,
                 "fail_count": fail_count,
                 "total_count": total_count,
+                "platform_counts": platform_rows,
             },
             indent=2,
         )
@@ -340,8 +484,9 @@ def main() -> int:
         encoding="utf8",
     )
 
-    print(f"{PASS_ICON} {pass_count} passed")
-    print(f"{FAIL_ICON} {fail_count} failed")
+    print("platform | passed | failed")
+    for row in platform_rows:
+        print(f"{row['label']} | {row['pass']} | {row['fail']}")
     print(f"Wrote summary: {output_path}")
     return 0
 
