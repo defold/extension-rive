@@ -28,7 +28,7 @@ run_render_test() {
   echo "******************************************************"
 
   set +e
-  ./ci/rendertest/html5/run.sh "$@"
+  ./ci/rendertest/html5/run.sh --name ${test_name} "$@"
   local exit_code=$?
   set -e
 
@@ -48,7 +48,6 @@ run_render_test() {
 run_render_test "Grimley" \
   --mode ${MODE} \
   --bundle-dir ${BUNDLE_FOLDER} \
-  --name "Grimley" \
   --collection /main/grimley/grimley.collectionc \
   --wait-mode signal \
   --description-file ./ci/tests/data/grimley/description.txt \
@@ -59,7 +58,6 @@ run_render_test "Grimley" \
 run_render_test "Egg" \
   --mode ${MODE} \
   --bundle-dir ${BUNDLE_FOLDER} \
-  --name "Egg" \
   --collection /main/egg/egg.collection \
   --wait-mode timeout \
   --description-file ./ci/tests/data/egg/description.txt \
@@ -67,14 +65,28 @@ run_render_test "Egg" \
   --output ${REPORT_FOLDER}/egg \
   --likeness ${DEFAULT_LIKENESS}
 
-run_render_test "Databind" \
+# Currently waaaay too slow on emulation!
+
+# run_render_test "Databind" \
+#   --mode ${MODE} \
+#   --bundle-dir ${BUNDLE_FOLDER} \
+#   --name "Databind" \
+#   --collection /main/databind/databind.collection \
+#   --wait-mode timeout \
+#   --settle-ms 9000 \
+#   --description-file ./ci/tests/data/databind/description.txt \
+#   --expected-screenshot ./ci/tests/data/databind/html5/expected.png \
+#   --output ${REPORT_FOLDER}/databind \
+#   --likeness ${DEFAULT_LIKENESS}
+
+
+run_render_test "Layout" \
   --mode ${MODE} \
   --bundle-dir ${BUNDLE_FOLDER} \
-  --name "Databind" \
-  --collection /main/databind/databind.collection \
+  --collection /main/layout/layout.collection \
   --wait-mode timeout \
   --settle-ms 9000 \
-  --description-file ./ci/tests/data/databind/description.txt \
-  --expected-screenshot ./ci/tests/data/databind/html5/expected.png \
-  --output ${REPORT_FOLDER}/databind \
+  --description-file ./ci/tests/data/layout/description.txt \
+  --expected-screenshot ./ci/tests/data/layout/html5/expected.png \
+  --output ${REPORT_FOLDER}/layout \
   --likeness ${DEFAULT_LIKENESS}

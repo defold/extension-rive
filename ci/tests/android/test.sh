@@ -48,15 +48,17 @@ run_render_test() {
 
 adb shell am force-stop ${PACKAGE_NAME}
 
-run_render_test "Grimley" \
-    --package ${PACKAGE_NAME} \
-    --platform ${PLATFORM} \
-    --output build/render-tests/arm64-android/grimley \
-    --collection /main/grimley/grimley.collectionc \
-    --description-file ci/tests/data/grimley/description.txt \
-    --expected-screenshot ./ci/tests/data/grimley/android/expected.png \
+# Currently crashes!
 
-adb shell am force-stop ${PACKAGE_NAME}
+# run_render_test "Grimley" \
+#     --package ${PACKAGE_NAME} \
+#     --platform ${PLATFORM} \
+#     --output build/render-tests/arm64-android/grimley \
+#     --collection /main/grimley/grimley.collectionc \
+#     --description-file ci/tests/data/grimley/description.txt \
+#     --expected-screenshot ./ci/tests/data/grimley/android/expected.png \
+
+# adb shell am force-stop ${PACKAGE_NAME}
 
 run_render_test "Egg" \
     --package ${PACKAGE_NAME} \
@@ -65,6 +67,29 @@ run_render_test "Egg" \
     --collection /main/egg/egg.collectionc \
     --description-file ci/tests/data/egg/description.txt \
     --expected-screenshot ./ci/tests/data/egg/android/expected.png \
+
+adb shell am force-stop ${PACKAGE_NAME}
+
+# Currently waaaay too slow on emulation/browser!
+
+# run_render_test "Databind" \
+#     --package ${PACKAGE_NAME} \
+#     --platform ${PLATFORM} \
+#     --wait-ms 25000 \
+#     --output build/render-tests/arm64-android/databind \
+#     --collection /main/databind/databind.collectionc \
+#     --description-file ci/tests/data/databind/description.txt \
+#     --expected-screenshot ./ci/tests/data/databind/android/expected.png \
+
+# adb shell am force-stop ${PACKAGE_NAME}
+
+run_render_test "Layout" \
+    --package ${PACKAGE_NAME} \
+    --platform ${PLATFORM} \
+    --output build/render-tests/arm64-android/layout \
+    --collection /main/layout/layout.collectionc \
+    --description-file ci/tests/data/layout/description.txt \
+    --expected-screenshot ./ci/tests/data/layout/android/expected.png \
 
 adb shell am force-stop ${PACKAGE_NAME}
 

@@ -27,18 +27,9 @@ def load_inline_svg(name: str) -> str:
 
 
 def inline_svg_html(name: str, prefix: str = "") -> str:
+    _ = prefix
     svg = load_inline_svg(name)
-    if prefix:
-        svg = re.sub(r'id="([^"]+)"', lambda match: f'id="{prefix}{match.group(1)}"', svg)
-        svg = re.sub(r'url\(#([^)]+)\)', lambda match: f'url(#{prefix}{match.group(1)})', svg)
-        svg = re.sub(r'href="#([^"]+)"', lambda match: f'href="#{prefix}{match.group(1)}"', svg)
-        svg = re.sub(r'xlink:href="#([^"]+)"', lambda match: f'xlink:href="#{prefix}{match.group(1)}"', svg)
-
-    return svg.replace(
-        "<svg ",
-        '<svg class="inline-icon" width="16" height="16" preserveAspectRatio="xMidYMid meet" ',
-        1,
-    )
+    return f'<span class="inline-icon">{svg}</span>'
 
 
 def resolve_compare_command() -> tuple[list[str], str]:
