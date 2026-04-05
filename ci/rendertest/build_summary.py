@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+from urllib.parse import quote, urljoin
 from html import escape
 from pathlib import Path
 
@@ -16,7 +17,7 @@ FAIL_ICON = "❌"
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Assemble individual render test reports into one HTML summary.",
+        description="Assemble individual render test reports into HTML and Markdown summaries.",
     )
     parser.add_argument(
         "--title",
@@ -43,6 +44,16 @@ def parse_args() -> argparse.Namespace:
         default="build/render-tests/summary.json",
         help="JSON file to write aggregate summary data to. Default: build/render-tests/summary.json",
     )
+    parser.add_argument(
+        "--summary-md",
+        default="build/render-tests/summary.md",
+        help="Markdown summary file to write. Default: build/render-tests/summary.md",
+    )
+    parser.add_argument(
+        "--repo-url-root",
+        default="",
+        help="Optional absolute URL root used for Markdown links, e.g. https://github.com/org/repo/tree/<sha>/. Default: empty (relative links).",
+    )
     return parser.parse_args()
 
 
@@ -65,6 +76,23 @@ def inline_svg_html(name: str, prefix: str = "") -> str:
     _ = prefix
     svg = load_inline_svg(name)
     return f'<span class="inline-icon">{svg}</span>'
+
+
+def markdown_escape(value: object) -> str:
+    text = str(value)
+    return (
+        text.replace("\\", "\\\\")
+        .replace("|", "\\|")
+        .replace("[", "\\[")
+        .replace("]", "\\]")
+    )
+
+
+def markdown_link(label: object, href: str, repo_url_root: str = "") -> str:
+    href = quote(href, safe="/-._~")
+    if repo_url_root:
+        href = urljoin(repo_url_root.rstrip("/") + "/", href)
+    return f'[{markdown_escape(label)}]({href})'
 
 
 def platform_label(platform: str) -> str:
@@ -356,6 +384,50 @@ def render_html(
 """
 
 
+def render_markdown(
+    title: str,
+    subtitle: str,
+    platform_rows: list[dict],
+    failed_tests: list[dict],
+    overall_status_text: str,
+    repo_url_root: str,
+) -> str:
+    lines: list[str] = []
+    lines.append(f"# {markdown_escape(title)}")
+    if subtitle:
+        lines.append("")
+        lines.append(markdown_escape(subtitle))
+    lines.append("")
+    lines.append(f"**Overall:** {markdown_escape(overall_status_text)}")
+    lines.append("")
+    lines.append("## Totals")
+    lines.append("")
+    lines.append("| Platform | Passed | Failed |")
+    lines.append("| --- | ---: | ---: |")
+    for row in platform_rows:
+        lines.append(
+            f"| {markdown_escape(row['label'])} | {row['pass']} | {row['fail']} |"
+        )
+
+    if failed_tests:
+        lines.append("")
+        lines.append("## Failed tests")
+        lines.append("")
+        lines.append("| Platform | Test | Fail types |")
+        lines.append("| --- | --- | --- |")
+        for test in failed_tests:
+            fail_types = test["fail_types"] or ["Unknown"]
+            fail_type_text = ", ".join(f"❌ {markdown_escape(fail_type)}" for fail_type in fail_types)
+            platform_text = markdown_escape(test["platform"])
+            test_link = markdown_link(test["name"], test["index_href"], repo_url_root=repo_url_root)
+            lines.append(
+                f"| {platform_text} | {test_link} | {fail_type_text} |"
+            )
+
+    lines.append("")
+    return "\n".join(lines)
+
+
 def main() -> int:
     args = parse_args()
     reports_root = Path(args.reports_root).resolve()
@@ -384,6 +456,21 @@ def main() -> int:
         ),
         encoding="utf8",
     )
+
+    summary_md_path = Path(args.summary_md).resolve()
+    summary_md_path.parent.mkdir(parents=True, exist_ok=True)
+    summary_md_path.write_text(
+        render_markdown(
+            args.title,
+            args.subtitle,
+            platform_rows,
+            failed_tests,
+            overall_status_text,
+            args.repo_url_root,
+        ),
+        encoding="utf8",
+    )
+
     total_count = len(tests)
 
     summary_json_path = Path(args.summary_json).resolve()
@@ -406,6 +493,7 @@ def main() -> int:
     for row in platform_rows:
         print(f"{row['label']} | {row['pass']} | {row['fail']}")
     print(f"Wrote summary: {output_path}")
+    print(f"Wrote markdown summary: {summary_md_path}")
     return 0
 
 
