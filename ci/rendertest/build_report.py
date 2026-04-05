@@ -16,6 +16,11 @@ def escape_html(value: object) -> str:
     return html.escape(str(value), quote=True)
 
 
+def copy_report_css(destination_dir: Path) -> None:
+    stylesheet_path = Path(__file__).resolve().parent / "report.css"
+    shutil.copyfile(stylesheet_path, destination_dir / "report.css")
+
+
 def load_inline_svg(name: str) -> str:
     svg_path = Path(__file__).resolve().parent / "icons" / name
     return svg_path.read_text(encoding="utf8").strip()
@@ -76,6 +81,86 @@ def compare_images(result_path: Path, expected_path: Path, report_dir: Path) -> 
     }
 
 
+CRASH_SIGNATURES = (
+    re.compile(r"\bFATAL EXCEPTION\b"),
+    re.compile(r"\bFatal signal \d+\b"),
+    re.compile(r"\bSIG(?:SEGV|ABRT|BUS|ILL)\b"),
+    re.compile(r"\bAndroidRuntime\b"),
+    re.compile(r"\b(?:INFO|ERROR):CRASH\b"),
+    re.compile(r"\bProcess .* has died\b"),
+)
+
+
+def resolve_console_log_path(run_data: dict[str, object], report_dir: Path) -> Path | None:
+    for key in ("console_log_path", "logcat_path", "console_log_raw_path", "logcat_raw_path"):
+        raw_path = run_data.get(key)
+        if not isinstance(raw_path, str) or not raw_path:
+            continue
+
+        candidate = Path(raw_path)
+        if not candidate.is_absolute():
+            candidate = candidate.resolve()
+        if candidate.is_file():
+            return candidate
+
+    for fallback_name in ("console.log", "logcat.txt", "logcat.raw.txt"):
+        candidate = report_dir / fallback_name
+        if candidate.is_file():
+            return candidate
+
+    return None
+
+
+def resolve_console_log_href(run_data: dict[str, object], report_dir: Path) -> str | None:
+    console_log_path = resolve_console_log_path(run_data, report_dir)
+    if console_log_path is None:
+        return None
+
+    try:
+        return console_log_path.relative_to(report_dir).as_posix()
+    except ValueError:
+        try:
+            return console_log_path.relative_to(report_dir.parent).as_posix()
+        except ValueError:
+            return console_log_path.as_posix()
+
+
+def detect_android_crash(run_data: dict[str, object], report_dir: Path) -> dict[str, object] | None:
+    if str(run_data.get("mode", "")).strip().lower() != "android":
+        return None
+
+    console_log_path = resolve_console_log_path(run_data, report_dir)
+    if console_log_path is None:
+        return None
+
+    log_text = console_log_path.read_text(encoding="utf8", errors="replace")
+    log_lines = log_text.splitlines()
+    if not log_lines:
+        return None
+
+    crash_line_indexes = [index for index, line in enumerate(log_lines) if any(signature.search(line) for signature in CRASH_SIGNATURES)]
+    if not crash_line_indexes:
+        return None
+
+    first_index = max(0, crash_line_indexes[0] - 5)
+    last_index = min(len(log_lines), first_index + 250)
+    snippet_lines = log_lines[first_index:last_index]
+    if last_index < len(log_lines):
+        snippet_lines.append("... truncated ...")
+
+    signature_line = log_lines[crash_line_indexes[0]].strip()
+    details = "\n".join(snippet_lines).strip()
+    if not details:
+        return None
+
+    return {
+        "detected": True,
+        "signature": signature_line,
+        "details": details,
+        "log_path": str(console_log_path),
+    }
+
+
 def build_result_data(run_data: dict[str, object], likeness_threshold: float, expected_screenshot: Path | None, report_dir: Path) -> dict[str, object]:
     result_data: dict[str, object] = {}
     if expected_screenshot is None:
@@ -97,6 +182,8 @@ def build_html(
     run_json: str,
     result_json: str,
     result_data: dict[str, object],
+    crash_data: dict[str, object] | None,
+    console_log_href: str | None,
     expected_screenshot: Path | None,
     captured_screenshot: Path,
 ) -> str:
@@ -137,6 +224,25 @@ def build_html(
         result_header = '<summary class="result-summary-summary"><span class="summary-arrow" aria-hidden="true"></span><span class="likeness-line"><span class="likeness-label">No comparison result available</span></span></summary>'
         result_body = '<div class="result-details-body"><p class="result-detail">No comparison result available.</p></div>'
 
+    crash_body = ""
+    if crash_data:
+        crash_body = f"""
+    <details class="crash-summary">
+      <summary class="crash-summary-summary">
+        <span class="summary-arrow" aria-hidden="true"></span>
+        <span class="crash-line">
+          <span class="crash-mark" aria-hidden="true">❌</span>
+          <span class="crash-label">Crash</span>
+        </span>
+      </summary>
+      <div class="result-details-body">
+        <p class="result-detail">Detected in console.log</p>
+        <p class="result-detail">Signature: {escape_html(crash_data.get("signature", "n/a"))}</p>
+        <div class="meta">{escape_html(crash_data.get("details", ""))}</div>
+      </div>
+    </details>
+    """
+
     expected_body = (
         '<img src="expected.png" alt="Expected render screenshot">'
         if expected_screenshot is not None
@@ -154,165 +260,7 @@ def build_html(
 <head>
   <meta charset="utf-8">
   <title>Render Test Report</title>
-  <style>
-    body {{
-      margin: 24px;
-      font-family: Menlo, Monaco, Consolas, monospace;
-      background: #101418;
-      color: #d7e0ea;
-    }}
-    h1, h2 {{
-      font-weight: 600;
-    }}
-    .grid {{
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 24px;
-      margin-top: 24px;
-    }}
-    .panel {{
-      background: #182028;
-      border-radius: 8px;
-      padding: 16px;
-    }}
-    .result-summary {{
-      margin-top: 24px;
-    }}
-    .title-row {{
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }}
-    .title-row h1 {{
-      margin: 0;
-    }}
-    .platform-row {{
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      margin: 0;
-      padding: 6px 10px;
-      border-radius: 8px;
-      background: #223040;
-      border: 1px solid #39506b;
-      color: #c7d7e6;
-      font-size: 12px;
-      font-weight: 600;
-      flex: 0 0 auto;
-    }}
-    .inline-icon {{
-      width: 16px;
-      height: 16px;
-      display: block;
-    }}
-    .platform-text {{
-      line-height: 1.2;
-    }}
-    .likeness-line {{
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-    }}
-    .likeness-status.pass {{
-      color: #7ee787;
-    }}
-    .likeness-status.fail {{
-      color: #ff7b72;
-    }}
-    .result-detail {{
-      margin: 3px 0;
-      color: #b9c7d5;
-    }}
-    .result-details-body {{
-      padding: 10px 12px;
-    }}
-    .result-details-body .meta {{
-      margin-bottom: 8px;
-    }}
-    .meta {{
-      white-space: pre-wrap;
-      background: #182028;
-      border-radius: 8px;
-      padding: 10px 12px;
-      line-height: 1.3;
-    }}
-    details {{
-      margin-top: 24px;
-      margin-bottom: 24px;
-      background: #182028;
-      border-radius: 8px;
-      padding: 0;
-      overflow: hidden;
-    }}
-    summary, .summary {{
-      cursor: pointer;
-      padding: 10px 14px;
-      font-weight: 600;
-      user-select: none;
-      font-size: small;
-    }}
-    details[open] summary {{
-      border-bottom: 1px solid #2b3947;
-    }}
-    details .meta {{
-      margin: 0;
-      border-radius: 0;
-      background: transparent;
-    }}
-    img {{
-      display: block;
-      max-width: 100%;
-      height: auto;
-      border-radius: 8px;
-      border: 1px solid #2b3947;
-      background: #0b0f13;
-    }}
-    .result-summary {{
-      font-size: small;
-      margin-top: 16px;
-      padding: 0;
-      overflow: hidden;
-    }}
-    .result-summary[open] .result-summary-summary {{
-      border-bottom: 1px solid #2b3947;
-    }}
-    .result-summary-summary {{
-      list-style: none;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      cursor: pointer;
-      padding: 10px 12px;
-      user-select: none;
-      font-size: small;
-      font-weight: 600;
-    }}
-    .result-summary-summary::-webkit-details-marker {{
-      display: none;
-    }}
-    .summary-arrow {{
-      display: inline-block;
-      flex: 0 0 auto;
-      width: 0;
-      height: 0;
-      border-top: 5px solid transparent;
-      border-bottom: 5px solid transparent;
-      border-left: 7px solid #c7d7e6;
-      vertical-align: middle;
-      transform: translateY(-1px);
-      transition: transform 120ms ease;
-    }}
-    .likeness-line {{
-      display: inline-flex;
-      align-items: baseline;
-      gap: 8px;
-      min-width: 0;
-    }}
-    .result-summary[open] .summary-arrow {{
-      transform: translateY(-1px) rotate(90deg);
-    }}
-  </style>
+  <link rel="stylesheet" href="report.css">
 </head>
 <body>
   <div class="title-row">
@@ -321,8 +269,12 @@ def build_html(
   </div>
   <details>
     <summary>Test Info</summary>
-    <div class="meta">{escape_html(run_json)}</div>
+    <div class="result-details-body">
+      {"<p class=\"result-detail\">Console log: <a href=\"" + escape_html(console_log_href) + "\">console.log</a></p>" if console_log_href else ""}
+      <div class="meta">{escape_html(run_json)}</div>
+    </div>
   </details>
+  {crash_body}
   <details class="panel result-summary">
     {result_header}
     {result_body}
@@ -358,6 +310,7 @@ def main(argv: list[str]) -> int:
 
     report_dir = args.index.parent
     report_dir.mkdir(parents=True, exist_ok=True)
+    copy_report_css(report_dir)
 
     expected_screenshot = args.expected_screenshot
     if expected_screenshot is not None and not expected_screenshot.is_absolute():
@@ -376,6 +329,13 @@ def main(argv: list[str]) -> int:
 
     result_data = build_result_data(run_data, args.likeness, expected_screenshot, report_dir)
     result_data["likeness_threshold"] = args.likeness
+    console_log_href = resolve_console_log_href(run_data, report_dir)
+    crash_data = detect_android_crash(run_data, report_dir)
+    if crash_data is not None:
+        result_data["crash_detected"] = True
+        result_data["crash_signature"] = crash_data["signature"]
+        result_data["crash_log_path"] = crash_data["log_path"]
+        result_data["status"] = "fail"
 
     result_json = json.dumps(result_data, indent=2)
     args.result_json.write_text(f"{result_json}\n", encoding="utf8")
@@ -393,13 +353,15 @@ def main(argv: list[str]) -> int:
         run_json=run_json,
         result_json=result_json,
         result_data=result_data,
+        crash_data=crash_data,
+        console_log_href=console_log_href,
         expected_screenshot=expected_screenshot,
         captured_screenshot=captured_screenshot,
     )
     args.index.write_text(html_text, encoding="utf8")
 
     if result_data.get("status") != "pass":
-        return 2 if "likeness_percent" in result_data else 0
+        return 2 if ("likeness_percent" in result_data or crash_data is not None) else 0
 
     return 0
 

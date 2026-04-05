@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
+import shutil
 from html import escape
 from pathlib import Path
 
@@ -51,24 +51,20 @@ def load_json(path: Path) -> dict:
         return json.load(fh)
 
 
+def copy_report_css(destination_dir: Path) -> None:
+    stylesheet_path = Path(__file__).resolve().parent / "report.css"
+    shutil.copyfile(stylesheet_path, destination_dir / "report.css")
+
+
 def load_inline_svg(name: str) -> str:
     svg_path = Path(__file__).resolve().parent / "icons" / name
     return svg_path.read_text(encoding="utf8").strip()
 
 
 def inline_svg_html(name: str, prefix: str = "") -> str:
+    _ = prefix
     svg = load_inline_svg(name)
-    if prefix:
-        svg = re.sub(r'id="([^"]+)"', lambda match: f'id="{prefix}{match.group(1)}"', svg)
-        svg = re.sub(r'url\(#([^)]+)\)', lambda match: f'url(#{prefix}{match.group(1)})', svg)
-        svg = re.sub(r'href="#([^"]+)"', lambda match: f'href="#{prefix}{match.group(1)}"', svg)
-        svg = re.sub(r'xlink:href="#([^"]+)"', lambda match: f'xlink:href="#{prefix}{match.group(1)}"', svg)
-
-    return svg.replace(
-        "<svg ",
-        '<svg class="inline-icon" width="16" height="16" preserveAspectRatio="xMidYMid meet" ',
-        1,
-    )
+    return f'<span class="inline-icon">{svg}</span>'
 
 
 def platform_label(platform: str) -> str:
@@ -133,6 +129,14 @@ def collect_groups(reports_root: Path, output_path: Path) -> list[dict]:
         likeness = result_data.get("likeness_percent")
         status = result_data.get("status", "pass" if not result_data else "fail")
         platform_name = str(run_data.get("platform") or (run_json_path.parents[2].name if len(run_json_path.parents) > 2 else ""))
+        fail_types = []
+        if status != "pass":
+            if isinstance(likeness, (int, float)):
+                fail_types.append("Likeness")
+            if result_data.get("crash_detected"):
+                fail_types.append("Crash")
+            if not fail_types:
+                fail_types.append("Likeness")
 
         group = groups.setdefault(
             group_name,
@@ -156,6 +160,7 @@ def collect_groups(reports_root: Path, output_path: Path) -> list[dict]:
                 "status_icon": PASS_ICON if status == "pass" else FAIL_ICON,
                 "likeness": likeness,
                 "likeness_text": f"{likeness:.2f}%" if isinstance(likeness, (int, float)) else "n/a",
+                "fail_types": fail_types,
                 "index_href": index_path.relative_to(output_path.parent).as_posix() if index_path else "",
                 "thumbnail_src": screenshot_path.relative_to(output_path.parent).as_posix() if screenshot_path else "",
             }
@@ -205,7 +210,36 @@ def collect_platform_counts(groups: list[dict]) -> list[dict]:
     return rows
 
 
-def render_html(title: str, subtitle: str, groups: list[dict], platform_rows: list[dict], overall_status_text: str, overall_status_class: str) -> str:
+def collect_failed_tests(groups: list[dict]) -> list[dict]:
+    failed_tests: list[dict] = []
+    for group in groups:
+        for test in group["tests"]:
+            if test["status"] == "pass":
+                continue
+
+            fail_types = test.get("fail_types") or []
+            failed_tests.append(
+                {
+                    "platform": test["platform"],
+                    "name": test["name"],
+                    "fail_types": fail_types,
+                    "index_href": test["index_href"],
+                }
+            )
+
+    failed_tests.sort(key=lambda item: (item["platform"].lower(), item["name"].lower(), item["index_href"].lower()))
+    return failed_tests
+
+
+def render_html(
+    title: str,
+    subtitle: str,
+    groups: list[dict],
+    platform_rows: list[dict],
+    failed_tests: list[dict],
+    overall_status_text: str,
+    overall_status_class: str,
+) -> str:
     rows = []
     for group_index, group in enumerate(groups):
         thumbs = []
@@ -247,7 +281,7 @@ def render_html(title: str, subtitle: str, groups: list[dict], platform_rows: li
     rows_html = "\n".join(rows) if rows else '<p class="empty">No test reports found.</p>'
 
     platform_rows_html = "\n".join(
-        f"""<tr class="{escape('total-row' if row['platform'] == '__total__' else 'platform-row')}">
+        f"""<tr class="{escape('total-row' if row['platform'] == '__total__' else 'summary-platform-row')}">
       <td>{platform_display_html(row["platform"], row["label"], prefix=f'platform-{index}-')}</td>
       <td>{row["pass"]}</td>
       <td>{row["fail"]}</td>
@@ -255,172 +289,45 @@ def render_html(title: str, subtitle: str, groups: list[dict], platform_rows: li
         for index, row in enumerate(platform_rows)
     )
 
+    failed_tests_html = ""
+    if failed_tests:
+        failed_rows = []
+        for test in failed_tests:
+            fail_type_items = test["fail_types"] or ["Unknown"]
+            fail_type_html = ", ".join(
+                f'<span class="failed-type-item">❌ {escape(fail_type)}</span>'
+                for fail_type in fail_type_items
+            )
+            platform_icon_name_value = platform_icon_name(test["platform"])
+            platform_icon_html = inline_svg_html(platform_icon_name_value, prefix=f'failed-{test["platform"]}-') if platform_icon_name_value else ""
+            failed_rows.append(
+                f'<tr><td><a class="failed-test-link" href="{escape(test["index_href"])}">'
+                f'{platform_icon_html}'
+                f'<span class="failed-test-platform">{escape(test["platform"])}</span>'
+                f'<span class="failed-test-sep">|</span>'
+                f'<span class="failed-test-name">{escape(test["name"])}</span>'
+                f'<span class="failed-test-sep">|</span>'
+                f'<span class="failed-test-failtypes">{fail_type_html}</span>'
+                f'</a></td></tr>'
+            )
+
+        failed_tests_html = f"""
+  <section class="failed-tests">
+    <h2>Failed tests</h2>
+    <table class="failed-tests-table">
+      <tbody>
+        {"".join(failed_rows)}
+      </tbody>
+    </table>
+  </section>
+"""
+
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <title>{escape(title)}</title>
-  <style>
-    body {{
-      margin: 24px;
-      font-family: Menlo, Monaco, Consolas, monospace;
-      background: #101418;
-      color: #d7e0ea;
-    }}
-    h1 {{
-      margin-bottom: 8px;
-    }}
-    .subtitle {{
-      margin: 0 0 24px;
-      color: #9fb0c0;
-      font-size: 15px;
-    }}
-    .summary-row {{
-      display: flex;
-      align-items: flex-start;
-      gap: 16px;
-      margin-bottom: 24px;
-    }}
-    .totals {{
-      width: 100%;
-      max-width: 640px;
-      border-collapse: collapse;
-    }}
-    .totals th,
-    .totals td {{
-      padding: 10px 14px;
-      background: #182028;
-      border: 1px solid #2b3947;
-      text-align: left;
-      font-size: 14px;
-    }}
-    .totals th {{
-      color: #9fb0c0;
-      font-weight: 600;
-    }}
-    .totals td {{
-      color: #d7e0ea;
-    }}
-    .platform-label {{
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }}
-    .platform-label .inline-icon {{
-      width: 14px;
-      height: 14px;
-      min-width: 14px;
-      min-height: 14px;
-    }}
-    .totals tbody tr:last-child td {{
-      font-weight: 700;
-    }}
-    .totals tbody tr.total-row td {{
-      background: #1e2832;
-    }}
-    .overall-status {{
-      flex: 0 0 auto;
-      padding: 10px 14px;
-      border-radius: 8px;
-      border: 1px solid #2b3947;
-      font-size: 14px;
-      font-weight: 700;
-      white-space: nowrap;
-      margin-top: 0;
-    }}
-    .overall-status.pass {{
-      color: #6ee7a0;
-      background: rgba(110, 231, 160, 0.08);
-      border-color: rgba(110, 231, 160, 0.28);
-    }}
-    .overall-status.fail {{
-      color: #ff7b7b;
-      background: rgba(255, 123, 123, 0.08);
-      border-color: rgba(255, 123, 123, 0.28);
-    }}
-    .groups {{
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }}
-    .group {{
-      background: #182028;
-      border-radius: 10px;
-      padding: 16px;
-      border: 1px solid #2b3947;
-    }}
-    .group-header {{
-      margin-bottom: 14px;
-    }}
-    .group-name {{
-      margin: 0 0 6px;
-      font-size: 18px;
-    }}
-    .group-description {{
-      margin: 0;
-      color: #9fb0c0;
-      font-size: 13px;
-      line-height: 1.4;
-    }}
-    .thumb-strip {{
-      display: flex;
-      gap: 16px;
-      flex-wrap: wrap;
-    }}
-    .thumb-card {{
-      width: 180px;
-      color: inherit;
-      text-decoration: none;
-      display: block;
-    }}
-    .thumb {{
-      position: relative;
-      aspect-ratio: 16 / 9;
-      background: #0b0f13;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-      border-bottom: 1px solid #2b3947;
-    }}
-    .thumb img {{
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      display: block;
-      position: relative;
-      z-index: 0;
-    }}
-    .missing-thumb {{
-      color: #8fa1b2;
-      font-size: 14px;
-    }}
-    .inline-icon {{
-      width: 16px;
-      height: 16px;
-      display: block;
-      min-width: 16px;
-      min-height: 16px;
-    }}
-    .thumb-caption {{
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      padding-top: 8px;
-    }}
-    .thumb-status {{
-      font-size: 13px;
-      font-weight: 600;
-    }}
-    .thumb-platform {{
-      color: #9fb0c0;
-      font-size: 12px;
-      word-break: break-word;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }}
-  </style>
+  <link rel="stylesheet" href="report.css">
 </head>
 <body>
   <h1>{escape(title)}</h1>
@@ -440,6 +347,7 @@ def render_html(title: str, subtitle: str, groups: list[dict], platform_rows: li
     </table>
     <div class="overall-status {overall_status_class}">{overall_status_text}</div>
   </div>
+  {failed_tests_html}
   <section class="groups">
     {rows_html}
   </section>
@@ -455,6 +363,7 @@ def main() -> int:
 
     groups = collect_groups(reports_root, output_path)
     platform_rows = collect_platform_counts(groups)
+    failed_tests = collect_failed_tests(groups)
     tests = [test for group in groups for test in group["tests"]]
     pass_count = sum(1 for test in tests if test["status"] == "pass")
     fail_count = sum(1 for test in tests if test["status"] != "pass")
@@ -462,8 +371,17 @@ def main() -> int:
     overall_status_class = "fail" if fail_count > 0 else "pass"
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    copy_report_css(output_path.parent)
     output_path.write_text(
-        render_html(args.title, args.subtitle, groups, platform_rows, overall_status_text, overall_status_class),
+        render_html(
+            args.title,
+            args.subtitle,
+            groups,
+            platform_rows,
+            failed_tests,
+            overall_status_text,
+            overall_status_class,
+        ),
         encoding="utf8",
     )
     total_count = len(tests)
