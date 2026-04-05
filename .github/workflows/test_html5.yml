@@ -208,7 +208,7 @@ jobs:
           profile: pixel_7
           disable-linux-hw-accel: false
           script: |
-            set -euo pipefail
+            set -eu
             ./ci/rendertest/android/install.sh \
               --apk ./bundle_android/extensionrive/extensionrive.apk
             ./ci/tests/android/test.sh
