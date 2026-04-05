@@ -202,17 +202,22 @@ jobs:
         timeout-minutes: 5
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 34
+          api-level: 36
           target: google_apis
           arch: x86_64
-          profile: pixel_4
+          profile: pixel_8_pro
           disable-linux-hw-accel: false
+          disable-animations: true
           script: |
             set -eu
             echo "Android boot preflight"
             echo "sys.boot_completed=$(adb shell getprop sys.boot_completed | tr -d '\r')"
             echo "init.svc.bootanim=$(adb shell getprop init.svc.bootanim | tr -d '\r')"
             echo "launcher=$(adb shell dumpsys window | awk '/mCurrentFocus/ { print $0; exit }' | tr -d '\r')"
+            echo "Clearing Pixel Launcher app data"
+            adb shell am force-stop com.google.android.apps.nexuslauncher || true
+            adb shell pm clear com.google.android.apps.nexuslauncher || true
+            adb shell input keyevent KEYCODE_HOME || true
             ./ci/rendertest/android/install.sh --apk ./bundle_android/extensionrive/extensionrive.apk --serial emulator-5554
             ./ci/tests/android/test.sh
 
