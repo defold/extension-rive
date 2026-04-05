@@ -434,6 +434,18 @@ find_app_pid() {
     return 1
 }
 
+wait_for_engine_start() {
+    local attempt
+    for attempt in $(seq 1 60); do
+        if "${ADB_BIN}" "${ADB_DEVICE_ARGS[@]}" logcat -d -v threadtime | grep -Fq "INFO:ENGINE: Defold Engine"; then
+            return 0
+        fi
+        sleep 0.5
+    done
+
+    return 1
+}
+
 apply_device_orientation() {
     local user_rotation
     case "${DEVICE_ORIENTATION}" in
@@ -509,6 +521,12 @@ if APP_PID="$(find_app_pid)"; then
     echo "Captured app PID ${APP_PID}"
 else
     echo "Warning: failed to resolve PID for ${PACKAGE_NAME}; logcat will be saved unfiltered" >&2
+fi
+
+if wait_for_engine_start; then
+    echo "Detected Defold engine startup"
+else
+    echo "Warning: timed out waiting for Defold engine startup marker" >&2
 fi
 
 sleep_seconds="$(printf '%d.%03d' "$((WAIT_MS / 1000))" "$((WAIT_MS % 1000))")"
