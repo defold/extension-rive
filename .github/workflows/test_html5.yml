@@ -205,10 +205,14 @@ jobs:
           api-level: 34
           target: google_apis
           arch: x86_64
-          profile: pixel_7
+          profile: pixel_4
           disable-linux-hw-accel: false
           script: |
             set -eu
+            echo "Android boot preflight"
+            echo "sys.boot_completed=$(adb shell getprop sys.boot_completed | tr -d '\r')"
+            echo "init.svc.bootanim=$(adb shell getprop init.svc.bootanim | tr -d '\r')"
+            echo "launcher=$(adb shell dumpsys window | awk '/mCurrentFocus/ { print $0; exit }' | tr -d '\r')"
             ./ci/rendertest/android/install.sh --apk ./bundle_android/extensionrive/extensionrive.apk --serial emulator-5554
             ./ci/tests/android/test.sh
 

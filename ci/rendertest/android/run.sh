@@ -19,6 +19,7 @@ Options:
   --logcat-path PATH       Save logcat output to this path. Default: <report>/console.log
   --device-orientation ORIENTATION  Device orientation. Default: landscape
   --wait-ms MS             Delay before screenshot capture. Default: 1500
+  --system-trace           Record a system trace during the settle window.
   --serial SERIAL          Optional adb device serial. For an emulator, use e.g. emulator-5554.
                            If omitted, a single connected device is used.
   --runtime-arg KEY=VALUE  Intent extra passed to the app. Repeatable.
@@ -51,6 +52,7 @@ EXPECTED_SCREENSHOT=""
 CONSOLE_LOG_PATH=""
 DEVICE_ORIENTATION="landscape"
 WAIT_MS="1500"
+SYSTEM_TRACE="0"
 SERIAL=""
 DESCRIPTION_FILE=""
 RUNTIME_ARGS=()
@@ -96,6 +98,10 @@ while [[ $# -gt 0 ]]; do
         --wait-ms)
             WAIT_MS="${2:-}"
             shift 2
+            ;;
+        --system-trace)
+            SYSTEM_TRACE="1"
+            shift
             ;;
         --serial)
             SERIAL="${2:-}"
@@ -172,6 +178,11 @@ CONSOLE_LOG_RAW_PATH="${REPORT_DIR}/logcat.raw.txt"
 if [[ -z "${CONSOLE_LOG_PATH}" ]]; then
     CONSOLE_LOG_PATH="${REPORT_DIR}/console.log"
 fi
+SYSTEM_CPUINFO_PATH="${REPORT_DIR}/system-cpuinfo.txt"
+SYSTEM_TOP_PATH="${REPORT_DIR}/system-top.txt"
+SYSTEM_MEMINFO_PATH="${REPORT_DIR}/system-meminfo.txt"
+SYSTEM_DISPLAY_PATH="${REPORT_DIR}/system-display.txt"
+SYSTEM_TRACE_REPORT_PATH="${REPORT_DIR}/system-trace.json"
 
 case "${DEVICE_ORIENTATION}" in
     landscape|portrait)
@@ -226,6 +237,10 @@ if ! command -v "${ADB_BIN}" >/dev/null 2>&1; then
 fi
 
 LOGCAT_CAPTURE_PID=""
+SYSTEM_TRACE_PID=""
+SYSTEM_TRACE_BACKEND=""
+SYSTEM_TRACE_DEVICE_PATH=""
+SYSTEM_TRACE_PATH=""
 APP_PID=""
 
 cleanup_logcat() {
@@ -236,7 +251,168 @@ cleanup_logcat() {
     fi
 }
 
-trap cleanup_logcat EXIT
+cleanup_system_trace() {
+    if [[ -n "${SYSTEM_TRACE_PID}" ]]; then
+        kill "${SYSTEM_TRACE_PID}" >/dev/null 2>&1 || true
+        wait "${SYSTEM_TRACE_PID}" >/dev/null 2>&1 || true
+        SYSTEM_TRACE_PID=""
+    fi
+}
+
+trap 'cleanup_system_trace; cleanup_logcat' EXIT
+
+start_system_trace() {
+    local sdk_level
+    sdk_level="$("${ADB_BIN}" "${ADB_DEVICE_ARGS[@]}" shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r' | awk 'NF { print $1; exit }')"
+    if [[ -z "${sdk_level}" ]]; then
+        sdk_level="0"
+    fi
+
+    if [[ "${sdk_level}" -lt 29 ]]; then
+        echo "System trace: API ${sdk_level} does not support perfetto; using atrace fallback" >&2
+        local atrace_bin
+        atrace_bin="$("${ADB_BIN}" "${ADB_DEVICE_ARGS[@]}" shell command -v atrace 2>/dev/null | tr -d '\r' | awk 'NF { print $1; exit }')"
+        if [[ -z "${atrace_bin}" ]]; then
+            echo "Warning: atrace not available on device; skipping system trace" >&2
+            return 1
+        fi
+
+        SYSTEM_TRACE_BACKEND="atrace"
+        SYSTEM_TRACE_DEVICE_PATH=""
+        SYSTEM_TRACE_PATH="${REPORT_DIR}/system-trace.atrace.txt"
+        rm -f "${SYSTEM_TRACE_PATH}"
+        echo "System trace: using atrace -> ${SYSTEM_TRACE_PATH}"
+        "${ADB_BIN}" "${ADB_DEVICE_ARGS[@]}" shell "${atrace_bin}" --async_start -z -b 8192 \
+            gfx view wm am hal binder_driver sched freq idle disk >/dev/null 2>&1 || {
+            echo "Warning: atrace failed to start; skipping system trace" >&2
+            SYSTEM_TRACE_BACKEND=""
+            SYSTEM_TRACE_DEVICE_PATH=""
+            SYSTEM_TRACE_PATH=""
+            return 1
+        }
+        return 0
+    fi
+
+    local perfetto_bin
+    perfetto_bin="$("${ADB_BIN}" "${ADB_DEVICE_ARGS[@]}" shell command -v perfetto 2>/dev/null | tr -d '\r' | awk 'NF { print $1; exit }')"
+    if [[ -z "${perfetto_bin}" ]]; then
+        local atrace_bin
+        atrace_bin="$("${ADB_BIN}" "${ADB_DEVICE_ARGS[@]}" shell command -v atrace 2>/dev/null | tr -d '\r' | awk 'NF { print $1; exit }')"
+        if [[ -z "${atrace_bin}" ]]; then
+            echo "Warning: perfetto and atrace not available on device; skipping system trace" >&2
+            return 1
+        fi
+
+        SYSTEM_TRACE_BACKEND="atrace"
+        SYSTEM_TRACE_DEVICE_PATH="/data/local/tmp/rive-render-test.atrace.txt"
+        SYSTEM_TRACE_PATH="${REPORT_DIR}/system-trace.atrace.txt"
+        rm -f "${SYSTEM_TRACE_PATH}"
+        echo "System trace: using atrace -> ${SYSTEM_TRACE_PATH}"
+        "${ADB_BIN}" "${ADB_DEVICE_ARGS[@]}" shell "${atrace_bin}" --async_start -z -b 8192 \
+            gfx view wm am hal binder_driver sched freq idle disk >/dev/null 2>&1 || {
+            echo "Warning: atrace failed to start; skipping system trace" >&2
+            SYSTEM_TRACE_BACKEND=""
+            SYSTEM_TRACE_DEVICE_PATH=""
+            SYSTEM_TRACE_PATH=""
+            return 1
+        }
+        return 0
+    fi
+
+    SYSTEM_TRACE_BACKEND="perfetto"
+    SYSTEM_TRACE_DEVICE_PATH="/data/local/tmp/rive-render-test.perfetto-trace"
+    SYSTEM_TRACE_PATH="${REPORT_DIR}/system-trace.perfetto-trace"
+    rm -f "${SYSTEM_TRACE_PATH}"
+    echo "System trace: using perfetto -> ${SYSTEM_TRACE_PATH}"
+    "${ADB_BIN}" "${ADB_DEVICE_ARGS[@]}" shell "${perfetto_bin}" \
+        -o "${SYSTEM_TRACE_DEVICE_PATH}" \
+        --txt -c - <<'EOF' >/dev/null 2>&1 &
+buffers: {
+  size_kb: 8192
+  fill_policy: RING_BUFFER
+}
+duration_ms: 0
+data_sources: {
+  config {
+    name: "linux.ftrace"
+    ftrace_config {
+      ftrace_events: "sched/sched_switch"
+      ftrace_events: "sched/sched_wakeup"
+      atrace_categories: "gfx"
+      atrace_categories: "view"
+      atrace_categories: "wm"
+      atrace_categories: "am"
+      atrace_categories: "hal"
+      atrace_categories: "binder_driver"
+    }
+  }
+}
+EOF
+    SYSTEM_TRACE_PID="$!"
+    return 0
+}
+
+stop_system_trace() {
+    if [[ "${SYSTEM_TRACE}" != "1" ]] || [[ -z "${SYSTEM_TRACE_BACKEND}" ]]; then
+        return 0
+    fi
+
+    if [[ "${SYSTEM_TRACE_BACKEND}" == "perfetto" ]]; then
+        cleanup_system_trace
+    else
+        "${ADB_BIN}" "${ADB_DEVICE_ARGS[@]}" shell atrace --async_stop -z -b 8192 \
+            gfx view wm am hal binder_driver sched freq idle disk > "${SYSTEM_TRACE_PATH}" 2>/dev/null || true
+    fi
+
+    if [[ -n "${SYSTEM_TRACE_DEVICE_PATH}" ]]; then
+        "${ADB_BIN}" "${ADB_DEVICE_ARGS[@]}" pull "${SYSTEM_TRACE_DEVICE_PATH}" "${SYSTEM_TRACE_PATH}" >/dev/null 2>&1 || true
+        "${ADB_BIN}" "${ADB_DEVICE_ARGS[@]}" shell rm -f "${SYSTEM_TRACE_DEVICE_PATH}" >/dev/null 2>&1 || true
+    fi
+
+    if [[ -f "${SYSTEM_TRACE_PATH}" ]]; then
+        echo "System trace saved to ${SYSTEM_TRACE_PATH}"
+    else
+        echo "Warning: system trace was requested with ${SYSTEM_TRACE_BACKEND}, but no trace file was produced" >&2
+    fi
+
+    SYSTEM_TRACE_BACKEND=""
+    SYSTEM_TRACE_DEVICE_PATH=""
+}
+
+capture_system_metrics() {
+    local sample_count sample_index
+    sample_count=$((WAIT_MS / 500))
+    if [[ "${sample_count}" -lt 1 ]]; then
+        sample_count=1
+    elif [[ "${sample_count}" -gt 5 ]]; then
+        sample_count=5
+    fi
+
+    : > "${SYSTEM_TOP_PATH}"
+    if [[ -n "${APP_PID}" ]]; then
+        for sample_index in $(seq 1 "${sample_count}"); do
+            {
+                echo "# sample ${sample_index} $(date -u +%FT%TZ)"
+                "${ADB_BIN}" "${ADB_DEVICE_ARGS[@]}" shell top -n 1 -p "${APP_PID}" 2>/dev/null
+                echo
+            } >> "${SYSTEM_TOP_PATH}" || true
+            if [[ "${sample_index}" -lt "${sample_count}" ]]; then
+                sleep 0.5
+            fi
+        done
+    fi
+
+    if [[ ! -s "${SYSTEM_TOP_PATH}" ]]; then
+        "${ADB_BIN}" "${ADB_DEVICE_ARGS[@]}" shell top -n 1 > "${SYSTEM_TOP_PATH}" 2>&1 || true
+    fi
+
+    "${ADB_BIN}" "${ADB_DEVICE_ARGS[@]}" shell dumpsys meminfo "${PACKAGE_NAME}" > "${SYSTEM_MEMINFO_PATH}" 2>&1 || true
+    {
+        "${ADB_BIN}" "${ADB_DEVICE_ARGS[@]}" shell wm size
+        "${ADB_BIN}" "${ADB_DEVICE_ARGS[@]}" shell wm density
+        "${ADB_BIN}" "${ADB_DEVICE_ARGS[@]}" shell dumpsys display
+    } > "${SYSTEM_DISPLAY_PATH}" 2>&1 || true
+}
 
 start_logcat_capture() {
     rm -f "${CONSOLE_LOG_RAW_PATH}"
@@ -307,6 +483,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 apply_device_orientation
 "${ADB_BIN}" "${ADB_DEVICE_ARGS[@]}" shell am force-stop "${PACKAGE_NAME}" >/dev/null 2>&1 || true
 start_logcat_capture
+if [[ "${SYSTEM_TRACE}" == "1" ]]; then
+    start_system_trace || true
+else
+    echo "System trace: disabled"
+fi
 AM_START_CMD=(
     "${ADB_BIN}"
     "${ADB_DEVICE_ARGS[@]}"
@@ -333,6 +514,12 @@ fi
 sleep_seconds="$(printf '%d.%03d' "$((WAIT_MS / 1000))" "$((WAIT_MS % 1000))")"
 sleep "${sleep_seconds}"
 
+# Finalize and pull the trace before taking the screenshot so capture overhead
+# does not get counted in the trace.
+stop_system_trace
+if [[ "${SYSTEM_TRACE}" == "1" ]]; then
+    capture_system_metrics
+fi
 "${ADB_BIN}" "${ADB_DEVICE_ARGS[@]}" exec-out screencap -p > "${SCREENSHOT_PATH}"
 
 cleanup_logcat
@@ -362,6 +549,14 @@ export TEST_NAME
 export APP_PID
 export CONSOLE_LOG_PATH
 export CONSOLE_LOG_RAW_PATH
+export SYSTEM_TRACE
+export SYSTEM_TRACE_PATH
+export SYSTEM_TRACE_BACKEND
+export SYSTEM_TOP_PATH
+export SYSTEM_CPUINFO_PATH
+export SYSTEM_MEMINFO_PATH
+export SYSTEM_DISPLAY_PATH
+export SYSTEM_TRACE_REPORT_PATH
 export DEVICE_ORIENTATION
 
 python3 -B - <<'PY'
@@ -391,6 +586,14 @@ run_data = {
     "app_pid": os.environ.get("APP_PID", ""),
     "console_log_path": os.environ.get("CONSOLE_LOG_PATH", ""),
     "console_log_raw_path": os.environ.get("CONSOLE_LOG_RAW_PATH", ""),
+    "system_trace": os.environ.get("SYSTEM_TRACE", "0") == "1",
+    "system_trace_path": os.environ.get("SYSTEM_TRACE_PATH", ""),
+    "system_trace_backend": os.environ.get("SYSTEM_TRACE_BACKEND", ""),
+    "system_top_path": os.environ.get("SYSTEM_TOP_PATH", ""),
+    "system_cpuinfo_path": os.environ.get("SYSTEM_CPUINFO_PATH", ""),
+    "system_meminfo_path": os.environ.get("SYSTEM_MEMINFO_PATH", ""),
+    "system_display_path": os.environ.get("SYSTEM_DISPLAY_PATH", ""),
+    "system_trace_report_path": os.environ.get("SYSTEM_TRACE_REPORT_PATH", ""),
     "device_orientation": os.environ.get("DEVICE_ORIENTATION", ""),
 }
 run_json_path.write_text(json.dumps(run_data, indent=2) + "\n", encoding="utf8")

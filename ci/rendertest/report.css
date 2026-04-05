@@ -385,6 +385,49 @@ h2 {
   display: none;
 }
 
+.trace-summary {
+  font-size: small;
+  margin-top: 16px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.trace-summary[open] .trace-summary-summary {
+  border-bottom: 1px solid #2b3947;
+}
+
+.trace-summary-summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 10px 12px;
+  user-select: none;
+  font-size: small;
+  font-weight: 600;
+}
+
+.trace-summary-summary::-webkit-details-marker {
+  display: none;
+}
+
+.trace-line {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.trace-label {
+  color: #9fb0c0;
+  flex: 0 0 auto;
+}
+
+.trace-summary-text {
+  color: #d7e0ea;
+}
+
 .crash-line {
   display: inline-flex;
   align-items: baseline;

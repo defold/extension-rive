@@ -116,6 +116,57 @@ def resolve_console_log_href(run_data: dict[str, object], report_dir: Path) -> s
             return console_log_path.as_posix()
 
 
+def resolve_system_trace_report_href(run_data: dict[str, object], report_dir: Path) -> str | None:
+    raw_path = run_data.get("system_trace_report_path")
+    if not isinstance(raw_path, str) or not raw_path:
+        return None
+
+    candidate = Path(raw_path)
+    if not candidate.is_absolute():
+        candidate = candidate.resolve()
+    if not candidate.is_file():
+        return None
+
+    try:
+        return candidate.relative_to(report_dir).as_posix()
+    except ValueError:
+        try:
+            return candidate.relative_to(report_dir.parent).as_posix()
+        except ValueError:
+            return candidate.as_posix()
+
+
+def build_android_trace_report(run_json_path: Path, report_dir: Path, run_data: dict[str, object]) -> dict[str, object] | None:
+    if str(run_data.get("mode", "")).strip().lower() != "android":
+        return None
+
+    raw_report_path = run_data.get("system_trace_report_path")
+    if not isinstance(raw_report_path, str) or not raw_report_path:
+        return None
+
+    report_path = Path(raw_report_path)
+    if not report_path.is_absolute():
+        report_path = report_path.resolve()
+
+    helper_path = Path(__file__).resolve().parent / "android" / "build_report_android.py"
+    if not helper_path.is_file():
+        return None
+
+    try:
+        subprocess.run(
+            [sys.executable, str(helper_path), "--run-json", str(run_json_path), "--output", str(report_path)],
+            check=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        print(f"Warning: failed to build Android trace report: {exc}", file=sys.stderr)
+        return None
+
+    if not report_path.is_file():
+        return None
+
+    return json.loads(report_path.read_text(encoding="utf8"))
+
+
 def detect_android_crash(run_data: dict[str, object], report_dir: Path) -> dict[str, object] | None:
     if str(run_data.get("mode", "")).strip().lower() != "android":
         return None
@@ -175,6 +226,8 @@ def build_html(
     result_data: dict[str, object],
     crash_data: dict[str, object] | None,
     console_log_href: str | None,
+    system_trace_report_href: str | None,
+    trace_report: dict[str, object] | None,
     expected_screenshot: Path | None,
     captured_screenshot: Path,
 ) -> str:
@@ -234,6 +287,25 @@ def build_html(
     </details>
     """
 
+    trace_body = ""
+    if trace_report is not None:
+        trace_summary = escape_html(trace_report.get("Summary", "Trace"))
+        trace_payload = escape_html(json.dumps(trace_report, indent=2))
+        trace_body = f"""
+    <details class="trace-summary">
+      <summary class="trace-summary-summary">
+        <span class="summary-arrow" aria-hidden="true"></span>
+        <span class="trace-line">
+          <span class="trace-label">Trace</span>
+          <span class="trace-summary-text">{trace_summary}</span>
+        </span>
+      </summary>
+      <div class="result-details-body">
+        <div class="meta">{trace_payload}</div>
+      </div>
+    </details>
+    """
+
     expected_body = (
         '<img src="expected.png" alt="Expected render screenshot">'
         if expected_screenshot is not None
@@ -262,10 +334,12 @@ def build_html(
     <summary>Test Info</summary>
     <div class="result-details-body">
       {"<p class=\"result-detail\">Console log: <a href=\"" + escape_html(console_log_href) + "\">console.log</a></p>" if console_log_href else ""}
+      {"<p class=\"result-detail\">System trace: <a href=\"" + escape_html(system_trace_report_href) + "\">system-trace.json</a></p>" if system_trace_report_href else ""}
       <div class="meta">{escape_html(run_json)}</div>
     </div>
   </details>
   {crash_body}
+  {trace_body}
   <details class="panel result-summary">
     {result_header}
     {result_body}
@@ -320,7 +394,9 @@ def main(argv: list[str]) -> int:
 
     result_data = build_result_data(run_data, args.likeness, expected_screenshot, report_dir)
     result_data["likeness_threshold"] = args.likeness
+    trace_report = build_android_trace_report(args.run_json, report_dir, run_data)
     console_log_href = resolve_console_log_href(run_data, report_dir)
+    system_trace_report_href = resolve_system_trace_report_href(run_data, report_dir)
     crash_data = detect_android_crash(run_data, report_dir)
     if crash_data is not None:
         result_data["crash_detected"] = True
@@ -346,6 +422,8 @@ def main(argv: list[str]) -> int:
         result_data=result_data,
         crash_data=crash_data,
         console_log_href=console_log_href,
+        system_trace_report_href=system_trace_report_href,
+        trace_report=trace_report,
         expected_screenshot=expected_screenshot,
         captured_screenshot=captured_screenshot,
     )

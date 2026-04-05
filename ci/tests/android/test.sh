@@ -67,6 +67,7 @@ run_render_test "Egg" \
     --collection /main/egg/egg.collectionc \
     --description-file ci/tests/data/egg/description.txt \
     --expected-screenshot ./ci/tests/data/egg/android/expected.png \
+    --system-trace
 
 adb shell am force-stop ${PACKAGE_NAME}
 
@@ -90,5 +91,6 @@ run_render_test "Layout" \
     --collection /main/layout/layout.collectionc \
     --description-file ci/tests/data/layout/description.txt \
     --expected-screenshot ./ci/tests/data/layout/android/expected.png \
+    --system-trace
 
 adb shell am force-stop ${PACKAGE_NAME}
