@@ -209,9 +209,7 @@ jobs:
           disable-linux-hw-accel: false
           script: |
             set -eu
-            ./ci/rendertest/android/install.sh \
-              --apk ./bundle_android/extensionrive/extensionrive.apk \
-              --serial emulator-5554
+            ./ci/rendertest/android/install.sh --apk ./bundle_android/extensionrive/extensionrive.apk --serial emulator-5554
             ./ci/tests/android/test.sh
 
       - name: Upload Android test report
