@@ -210,7 +210,8 @@ jobs:
           script: |
             set -eu
             ./ci/rendertest/android/install.sh \
-              --apk ./bundle_android/extensionrive/extensionrive.apk
+              --apk ./bundle_android/extensionrive/extensionrive.apk \
+              --serial emulator-5554
             ./ci/tests/android/test.sh
 
       - name: Upload Android test report
