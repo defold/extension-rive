@@ -199,6 +199,7 @@ jobs:
             resolve build bundle
 
       - name: Run Android collection tests
+        timeout-minutes: 5
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
