@@ -494,7 +494,6 @@ AM_START_CMD=(
     shell
     am
     start
-    -W
     -n "${PACKAGE_NAME}/${ACTIVITY_NAME}"
     -a android.intent.action.MAIN
     -c android.intent.category.LAUNCHER
@@ -504,6 +503,7 @@ if [[ "${#RUNTIME_EXTRA_ARGS[@]}" -gt 0 ]]; then
 fi
 print_command "${AM_START_CMD[@]}"
 "${AM_START_CMD[@]}"
+echo "Android launch issued; waiting for app PID"
 
 if APP_PID="$(find_app_pid)"; then
     echo "Captured app PID ${APP_PID}"
