@@ -207,7 +207,11 @@ jobs:
           arch: x86_64
           profile: pixel_7
           disable-linux-hw-accel: false
-          script: ./ci/tests/android/test.sh
+          script: |
+            set -euo pipefail
+            ./ci/rendertest/android/install.sh \
+              --apk ./bundle_android/extensionrive/extensionrive.apk
+            ./ci/tests/android/test.sh
 
       - name: Upload Android test report
         id: upload-report

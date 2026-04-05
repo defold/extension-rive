@@ -92,5 +92,3 @@ run_render_test "Layout" \
     --expected-screenshot ./ci/tests/data/layout/android/expected.png \
 
 adb shell am force-stop ${PACKAGE_NAME}
-
-
