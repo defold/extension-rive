@@ -171,6 +171,14 @@ jobs:
           enableCrossOsArchive: true
           fail-on-cache-miss: true
 
+      - name: Enable KVM
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
       - name: Build arm64-android bundle
         shell: bash
         env:
@@ -197,6 +205,7 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_7
+          disable-linux-hw-accel: false
           script: ./ci/tests/android/test.sh
 
       - name: Upload Android test report
