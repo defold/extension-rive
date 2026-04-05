@@ -456,9 +456,12 @@ jobs:
             if (markerRegex.test(body)) {
               body = body.replace(markerRegex, `${markerStart}\n${block.split('\n').slice(2, -1).join('\n')}\n${markerEnd}`);
             } else {
-              const techHeadingRegex = /(^###\s*Tech[^\n]*\n)/m;
-              if (techHeadingRegex.test(body)) {
-                body = body.replace(techHeadingRegex, `$1\n${block}\n`);
+              const technicalChangesRegex = /(^###\s*Technical changes[^\n]*\n)/m;
+              const testsHeadingRegex = /(^####\s*Tests[^\n]*\n)/m;
+              if (technicalChangesRegex.test(body)) {
+                body = body.replace(technicalChangesRegex, `$1\n${block}\n`);
+              } else if (testsHeadingRegex.test(body)) {
+                body = body.replace(testsHeadingRegex, `${block}\n\n$1`);
               } else if (body.trim().length > 0) {
                 body = `${body}\n\n${block}\n`;
               } else {
