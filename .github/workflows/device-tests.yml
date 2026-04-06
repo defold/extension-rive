@@ -356,13 +356,14 @@ jobs:
           path: build/render-tests
           repository: ${{ github.repository }}
           run-id: ${{ steps.find-run.outputs.run_id }}
-          github-token: ${{ github.token }}
+          github-token: ${{ secrets.SERVICES_GITHUB_TOKEN != '' && secrets.SERVICES_GITHUB_TOKEN || github.token }}
 
       - name: Upsert PR comment
         uses: actions/github-script@v7
         env:
           SUMMARY_MD_PATH: build/render-tests/summary.md
           COMMENT_MARKER: "<!-- extension-rive:html5-summary -->"
+          GITHUB_TOKEN: ${{ secrets.SERVICES_GITHUB_TOKEN != '' && secrets.SERVICES_GITHUB_TOKEN || github.token }}
         with:
           script: |
             const fs = require('fs');
