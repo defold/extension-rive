@@ -1,0 +1,7 @@
+function init(self)
+	if html5 then
+		timer.delay(0.001, false, function ()
+			html5.run('Module.takeScreenshot()')
+		end)
+	end
+end

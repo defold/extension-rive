@@ -7,6 +7,10 @@ scale_along_z: 0
 embedded_instances {
   id: "go"
   data: "components {\n"
+  "  id: \"egg\"\n"
+  "  component: \"/main/egg/egg.script\"\n"
+  "}\n"
+  "embedded_components {\n"
   "  id: \"test\"\n"
   "  component: \"/main/egg/egg.rivemodel\"\n"
   "  position {\n"

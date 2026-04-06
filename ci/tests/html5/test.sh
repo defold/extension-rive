@@ -59,8 +59,7 @@ run_render_test "Egg" \
   --mode ${MODE} \
   --bundle-dir ${BUNDLE_FOLDER} \
   --collection /main/egg/egg.collection \
-  --wait-mode timeout \
-  --settle-ms 0 \
+  --wait-mode signal \
   --description-file ./ci/tests/data/egg/description.txt \
   --expected-screenshot ./ci/tests/data/egg/html5/expected.png \
   --output ${REPORT_FOLDER}/egg \
