@@ -1,4 +1,4 @@
-name: HTML5 Tests
+name: Device Tests
 
 on:
   pull_request:
@@ -289,7 +289,7 @@ jobs:
         shell: bash
         run: |
           {
-            echo "### HTML5 Tests"
+            echo "### Device Tests"
             echo ""
             echo "- Passed: ${{ needs.build-summary.outputs.pass_count }}"
             echo "- Failed: ${{ needs.build-summary.outputs.fail_count }}"
