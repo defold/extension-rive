@@ -334,8 +334,7 @@ jobs:
 
                 const match = runs.data.workflow_runs.find((run) =>
                   run.head_sha === targetSha &&
-                  run.name === workflowName &&
-                  run.conclusion === 'success'
+                  run.name === workflowName
                 );
 
                 if (match) {
@@ -344,11 +343,11 @@ jobs:
                 }
               }
 
-              core.info(`Waiting for successful ${workflowName} run for ${targetSha} (${attempt}/${maxAttempts})`);
+              core.info(`Waiting for completed ${workflowName} run for ${targetSha} (${attempt}/${maxAttempts})`);
               await new Promise((resolve) => setTimeout(resolve, delayMs));
             }
 
-            throw new Error(`Could not find a completed successful ${workflowName} run for ${targetSha}`);
+            throw new Error(`Could not find a completed ${workflowName} run for ${targetSha}`);
 
       - name: Download combined test report artifact
         uses: actions/download-artifact@v4
