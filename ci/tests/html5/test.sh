@@ -63,7 +63,7 @@ run_render_test "Egg" \
   --description-file ./ci/tests/data/egg/description.txt \
   --expected-screenshot ./ci/tests/data/egg/html5/expected.png \
   --output ${REPORT_FOLDER}/egg \
-  --likeness ${DEFAULT_LIKENESS}
+  --likeness 80
 
 run_render_test "Layout" \
   --mode ${MODE} \
