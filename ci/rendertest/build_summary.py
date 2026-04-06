@@ -108,32 +108,6 @@ def platform_icon_name(platform: str) -> str:
     return ""
 
 
-def platform_icon_markdown(platform: str) -> str:
-    platform = platform.lower().strip()
-    if platform.endswith("android"):
-        return "🤖"
-    if platform.endswith("-web"):
-        return "🌐"
-    if platform.endswith("-ios"):
-        return "📱"
-    if platform.endswith("-macos"):
-        return "🍎"
-    if platform.endswith("-linux"):
-        return "🐧"
-    if platform.endswith("-win32"):
-        return "🪟"
-    return "•"
-
-
-def platform_icon_href(platform: str) -> str:
-    platform = platform.lower().strip()
-    if platform.endswith("android"):
-        return "ci/rendertest/icons/android.svg"
-    if platform.endswith("-web"):
-        return "ci/rendertest/icons/html5.svg"
-    return ""
-
-
 def platform_display_html(platform: str, label: str, prefix: str = "") -> str:
     if platform == "__total__":
         return f'<span class="platform-label"><span>{escape(label)}</span></span>'
@@ -435,13 +409,9 @@ def render_markdown(
         for test in failed_tests:
             fail_types = test["fail_types"] or ["Unknown"]
             fail_type_text = ", ".join(f"❌ {markdown_escape(fail_type)}" for fail_type in fail_types)
-            platform_icon = platform_icon_markdown(test["platform"])
-            platform_icon_link = platform_icon_href(test["platform"])
-            if platform_icon_link:
-                platform_icon = markdown_link(platform_icon, platform_icon_link)
             platform_text = markdown_escape(test["platform"])
             test_name = markdown_escape(test["name"])
-            lines.append(f"- {platform_icon} {platform_text} - {test_name} - {fail_type_text}")
+            lines.append(f"- {platform_text} - {test_name} - {fail_type_text}")
     else:
         lines.append("Failed tests:")
         lines.append("- None")
