@@ -176,6 +176,8 @@ const RENDERTEST_BOOTSTRAP_SCRIPT = `(() => {
     }, 10);
 })();`;
 
+const ENGINE_START_LOG_PREFIX = "INFO:ENGINE: Defold Engine";
+
 function usage() {
     console.error(`usage: capture.mjs --url URL --screenshot FILE --run-json FILE [options]
 
@@ -538,6 +540,19 @@ async function waitForEngineStart(session, timeoutMs) {
     throw new Error(`Timed out waiting for Defold engine start after ${timeoutMs} ms`);
 }
 
+async function waitForEngineStartLog(consoleEntries, timeoutMs) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        if (consoleEntries.some((entry) => entry.includes(ENGINE_START_LOG_PREFIX))) {
+            return;
+        }
+
+        await sleep(100);
+    }
+
+    throw new Error(`Timed out waiting for Defold engine log line after ${timeoutMs} ms`);
+}
+
 async function waitForScreenshotSignal(session, timeoutMs) {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
@@ -556,7 +571,8 @@ async function waitForScreenshotSignal(session, timeoutMs) {
     throw new Error(`Timed out waiting for Defold screenshot signal after ${timeoutMs} ms`);
 }
 
-async function waitForSettledCapture(session, timeoutMs, settleMs) {
+async function waitForSettledCapture(session, consoleEntries, timeoutMs, settleMs) {
+    await waitForEngineStartLog(consoleEntries, timeoutMs);
     const engineState = await waitForEngineStart(session, timeoutMs);
     if (settleMs > 0) {
         await sleep(settleMs);
@@ -608,6 +624,7 @@ async function main() {
     });
 
     let chromeExited = false;
+    let engineStartLogSeenAt = null;
     chrome.on("exit", () => {
         chromeExited = true;
     });
@@ -627,6 +644,9 @@ async function main() {
                     const location = formatCallFrame(params.stackTrace?.callFrames?.[0]);
                     const entry = `${new Date().toISOString()} [${params.type}] ${argsText}${location ? ` (${location})` : ""}`;
                     consoleEntries.push(entry);
+                    if (engineStartLogSeenAt === null && argsText.includes(ENGINE_START_LOG_PREFIX)) {
+                        engineStartLogSeenAt = Date.now();
+                    }
                 });
                 session.on("Runtime.exceptionThrown", (params) => {
                     const details = params.exceptionDetails || {};
@@ -668,7 +688,7 @@ async function main() {
                             throw new Error("Defold canvas was not ready when takeScreenshot() fired");
                         }
                     } else {
-                        const settledCapture = await waitForSettledCapture(session, args.startupTimeoutMs, args.settleMs);
+                        const settledCapture = await waitForSettledCapture(session, consoleEntries, args.startupTimeoutMs, args.settleMs);
                         engineState = settledCapture.engineState;
                         canvas = settledCapture.canvas;
                     }
@@ -719,6 +739,8 @@ async function main() {
                         engine_first_update_at: engineState.engineFirstUpdateAt,
                         engine_take_screenshot_at: engineState.engineTakeScreenshotAt,
                         engine_start_succeeded_at: engineState.engineStartSucceededAt,
+                        engine_start_log_prefix: ENGINE_START_LOG_PREFIX,
+                        engine_start_log_seen_at: engineStartLogSeenAt,
                         engine_start_duration_ms:
                             engineState.engineStartSucceededAt &&
                             (engineState.engineTakeScreenshotAt || engineState.engineFirstUpdateAt || engineState.engineStartRequestedAt)
