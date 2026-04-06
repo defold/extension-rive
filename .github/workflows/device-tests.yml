@@ -1,0 +1,410 @@
+name: Device Tests
+
+on:
+  pull_request:
+  pull_request_target:
+
+env:
+  REPORTS_REPOSITORY: defold/test-reports
+  REPORTS_BRANCH: gh-pages
+  REPORTS_SUBFOLDER: extension-rive
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  prepare-defoldsdk:
+    if: github.event_name == 'pull_request'
+    name: defoldsdk
+    uses: defold/github-actions-common/.github/workflows/defoldsdk.yml@master
+    with:
+      runner: ${{ github.event.inputs.platform == 'arm64-linux' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+      defold_channel: alpha
+      defold_version: ${{ github.event.inputs.defold_version || 'latest' }}
+      sdk_output_path: build/defoldsdk
+      bob_output_path: bob.jar
+
+  test-html5:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    needs: [prepare-defoldsdk]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Setup Temurin Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup ImageMagick
+        uses: mfinelli/setup-imagemagick@v7
+        with:
+          cache: true
+          install-libfuse2: true
+
+      - name: Restore Defold SDK and bob.jar from cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            bob.jar
+            build/defoldsdk
+          key: ${{ needs.prepare-defoldsdk.outputs.defoldsdk_cache_key }}
+          enableCrossOsArchive: true
+          fail-on-cache-miss: true
+
+      - name: Build wasm-web bundle
+        shell: bash
+        env:
+          BOB: ${{ github.workspace }}/bob.jar
+        run: |
+          set -euo pipefail
+          rm -rf bundle_web
+
+          java -jar "${BOB}" \
+            --archive \
+            --bo bundle_web \
+            --variant=debug \
+            --build-server=https://build-stage.defold.com \
+            --platform=wasm-web \
+            --architectures=wasm-web \
+            --brjson bundle_web/build-report.json \
+            --with-symbols \
+            resolve build bundle
+
+      - name: Pack wasm-web bundle zip
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          rm -f "build/html5-bundle-pr-${{ github.event.pull_request.number }}.zip"
+          (
+            cd bundle_web
+            zip -qr "../build/html5-bundle-pr-${{ github.event.pull_request.number }}.zip" .
+          )
+
+      - name: Upload wasm-web bundle zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: html5-bundle-pr-${{ github.event.pull_request.number }}
+          path: build/html5-bundle-pr-${{ github.event.pull_request.number }}.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Run HTML5 collection tests
+        id: run-tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./ci/tests/html5/test.sh
+
+      - name: Upload HTML5 test report
+        id: upload-report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: html5-test-report-pr-${{ github.event.pull_request.number }}
+          path: build/render-tests/wasm-web
+          if-no-files-found: error
+          retention-days: 30
+
+  build-summary:
+    if: github.event_name == 'pull_request' && always()
+    needs:
+      - test-html5
+    permissions:
+      actions: read
+      contents: read
+    runs-on: ubuntu-latest
+    outputs:
+      pass_count: ${{ steps.summary.outputs.pass_count }}
+      fail_count: ${{ steps.summary.outputs.fail_count }}
+      total_count: ${{ steps.summary.outputs.total_count }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          sparse-checkout: |
+            ci
+          sparse-checkout-cone-mode: true
+
+      - name: Download HTML5 test report artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: html5-test-report-pr-${{ github.event.pull_request.number }}
+          path: build/render-tests/html5
+
+      - name: Build combined test summary
+        id: summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          reports_repo="${REPORTS_REPOSITORY}"
+          reports_owner="${reports_repo%%/*}"
+          reports_name="${reports_repo#*/}"
+          reports_subfolder="${REPORTS_SUBFOLDER}"
+          site_path_prefix=""
+          if [[ -n "${reports_subfolder}" ]]; then
+            site_path_prefix="${reports_subfolder}/"
+          fi
+          repo_url_root="https://${reports_owner}.github.io/${reports_name}/${site_path_prefix}pr-${{ github.event.pull_request.number }}/"
+
+          python3 ./ci/rendertest/build_summary.py \
+            --reports-root ./build/render-tests \
+            --output ./build/render-tests/index.html \
+            --summary-md ./build/render-tests/summary.md \
+            --repo-url-root "${repo_url_root}" \
+            --title "Rive Render Test" \
+            --subtitle "PR #${{ github.event.pull_request.number }} run #${{ github.run_id }} $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+
+          python3 - <<'PY' >> "${GITHUB_OUTPUT}"
+          import json
+          from pathlib import Path
+
+          summary = json.loads(Path("build/render-tests/summary.json").read_text())
+          print(f"pass_count={summary['pass_count']}")
+          print(f"fail_count={summary['fail_count']}")
+          print(f"total_count={summary['total_count']}")
+          PY
+
+      - name: Upload combined render test report
+        id: upload-report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: render-test-report-pr-${{ github.event.pull_request.number }}
+          path: build/render-tests/
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-pages:
+    if: github.event_name == 'pull_request' && always() && github.event.pull_request.head.repo.full_name == github.repository
+    needs: build-summary
+    permissions:
+      actions: read
+      contents: read
+    runs-on: ubuntu-latest
+    outputs:
+      page_url: ${{ steps.publish.outputs.page_url }}
+    steps:
+      - name: Download combined test report artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: render-test-report-pr-${{ github.event.pull_request.number }}
+          path: build/render-tests
+
+      - name: Checkout gh-pages branch
+        continue-on-error: true
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.REPORTS_REPOSITORY }}
+          fetch-depth: 1
+          ref: ${{ env.REPORTS_BRANCH }}
+          path: gh-pages
+          token: ${{ secrets.SERVICES_GITHUB_TOKEN != '' && secrets.SERVICES_GITHUB_TOKEN || github.token }}
+
+      - name: Publish report history to gh-pages
+        id: publish
+        env:
+          REPORTS_REPOSITORY: ${{ env.REPORTS_REPOSITORY }}
+          REPORTS_BRANCH: ${{ env.REPORTS_BRANCH }}
+          REPORTS_SUBFOLDER: ${{ env.REPORTS_SUBFOLDER }}
+          REPORTS_PUSH_TOKEN: ${{ secrets.SERVICES_GITHUB_TOKEN != '' && secrets.SERVICES_GITHUB_TOKEN || github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          reports_repo="${REPORTS_REPOSITORY}"
+          reports_owner="${reports_repo%%/*}"
+          reports_name="${reports_repo#*/}"
+          pr_number="${{ github.event.pull_request.number }}"
+          reports_subfolder="${REPORTS_SUBFOLDER}"
+          site_path_prefix=""
+          if [[ -n "${reports_subfolder}" ]]; then
+            site_path_prefix="${reports_subfolder}/"
+          fi
+          site_url="https://${reports_owner}.github.io/${reports_name}/${site_path_prefix}pr-${pr_number}/"
+          pages_root="${PWD}/gh-pages"
+
+          if [[ ! -d "${pages_root}/.git" ]]; then
+            rm -rf "${pages_root}"
+            mkdir -p "${pages_root}"
+            git init "${pages_root}"
+            git -C "${pages_root}" checkout --orphan "${REPORTS_BRANCH}"
+            git -C "${pages_root}" remote add origin "https://x-access-token:${REPORTS_PUSH_TOKEN}@github.com/${reports_repo}.git"
+          else
+            git -C "${pages_root}" remote set-url origin "https://x-access-token:${REPORTS_PUSH_TOKEN}@github.com/${reports_repo}.git"
+          fi
+
+          git -C "${pages_root}" config user.name "github-actions[bot]"
+          git -C "${pages_root}" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          pr_root="${pages_root}"
+          if [[ -n "${reports_subfolder}" ]]; then
+            pr_root="${pr_root}/${reports_subfolder}"
+          fi
+          pr_root="${pr_root}/pr-${pr_number}"
+          rm -rf "${pr_root}"
+          mkdir -p "${pr_root}"
+
+          cp -R build/render-tests/. "${pr_root}/"
+          touch "${pages_root}/.nojekyll"
+
+          git -C "${pages_root}" add -A
+          if git -C "${pages_root}" diff --cached --quiet; then
+            echo "No gh-pages changes to commit"
+          else
+            git -C "${pages_root}" commit -m "html5 report for pr-${pr_number}"
+            git -C "${pages_root}" push origin HEAD:${REPORTS_BRANCH}
+          fi
+
+          echo "page_url=${site_url}" >> "${GITHUB_OUTPUT}"
+
+  verify-status:
+    if: github.event_name == 'pull_request' && always()
+    needs: [build-summary]
+    permissions:
+      actions: read
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify Build Status
+        shell: bash
+        run: |
+          test "${{ needs.build-summary.outputs.fail_count }}" = "0"
+
+      - name: Write check summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "### Device Tests"
+            echo ""
+            echo "- Passed: ${{ needs.build-summary.outputs.pass_count }}"
+            echo "- Failed: ${{ needs.build-summary.outputs.fail_count }}"
+            echo "- Total: ${{ needs.build-summary.outputs.total_count }}"
+            echo ""
+            if [[ "${{ needs.build-summary.outputs.fail_count }}" = "0" ]]; then
+              echo "Status: success"
+            else
+              echo "Status: failure"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  comment-pr:
+    if: github.event_name == 'pull_request_target'
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find matching build run
+        id: find-run
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const targetSha = context.payload.pull_request.head.sha;
+            const workflowName = context.workflow;
+            const perPage = 100;
+            const delayMs = 15000;
+            const maxAttempts = 80;
+
+            for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+              for (let page = 1; page <= 5; page += 1) {
+                const runs = await github.rest.actions.listWorkflowRunsForRepo({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  event: 'pull_request',
+                  status: 'completed',
+                  per_page: perPage,
+                  page,
+                });
+
+                const match = runs.data.workflow_runs.find((run) =>
+                  run.head_sha === targetSha &&
+                  run.name === workflowName
+                );
+
+                if (match) {
+                  core.setOutput('run_id', String(match.id));
+                  return;
+                }
+              }
+
+              core.info(`Waiting for completed ${workflowName} run for ${targetSha} (${attempt}/${maxAttempts})`);
+              await new Promise((resolve) => setTimeout(resolve, delayMs));
+            }
+
+            throw new Error(`Could not find a completed ${workflowName} run for ${targetSha}`);
+
+      - name: Download combined test report artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: render-test-report-pr-${{ github.event.pull_request.number }}
+          path: build/render-tests
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.find-run.outputs.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Upsert PR comment
+        uses: actions/github-script@v7
+        env:
+          SUMMARY_MD_PATH: build/render-tests/summary.md
+          COMMENT_MARKER: "<!-- extension-rive:html5-summary -->"
+        with:
+          script: |
+            const fs = require('fs');
+
+            const marker = process.env.COMMENT_MARKER;
+            const summaryMdPath = process.env.SUMMARY_MD_PATH;
+            const summaryMd = fs.existsSync(summaryMdPath)
+              ? fs.readFileSync(summaryMdPath, 'utf8').trimEnd()
+              : '_No summary markdown was generated._';
+
+            const body = [
+              marker,
+              '### HTML5 Test Results',
+              '',
+              summaryMd,
+            ].join('\n');
+
+            const issueNumber = context.payload.pull_request.number;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              per_page: 100,
+            });
+
+            const existing = comments
+              .filter((comment) => typeof comment.body === 'string' && comment.body.includes(marker))
+              .sort((a, b) => a.id - b.id)
+              .pop();
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                body,
+              });
+            }
