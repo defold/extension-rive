@@ -363,8 +363,8 @@ jobs:
         env:
           SUMMARY_MD_PATH: build/render-tests/summary.md
           COMMENT_MARKER: "<!-- extension-rive:html5-summary -->"
-          GITHUB_TOKEN: ${{ secrets.SERVICES_GITHUB_TOKEN != '' && secrets.SERVICES_GITHUB_TOKEN || github.token }}
         with:
+          github-token: ${{ secrets.SERVICES_GITHUB_TOKEN != '' && secrets.SERVICES_GITHUB_TOKEN || github.token }}
           script: |
             const fs = require('fs');
 
