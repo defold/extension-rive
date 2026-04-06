@@ -108,6 +108,32 @@ def platform_icon_name(platform: str) -> str:
     return ""
 
 
+def platform_icon_markdown(platform: str) -> str:
+    platform = platform.lower().strip()
+    if platform.endswith("android"):
+        return "🤖"
+    if platform.endswith("-web"):
+        return "🌐"
+    if platform.endswith("-ios"):
+        return "📱"
+    if platform.endswith("-macos"):
+        return "🍎"
+    if platform.endswith("-linux"):
+        return "🐧"
+    if platform.endswith("-win32"):
+        return "🪟"
+    return "•"
+
+
+def platform_icon_href(platform: str) -> str:
+    platform = platform.lower().strip()
+    if platform.endswith("android"):
+        return "ci/rendertest/icons/android.svg"
+    if platform.endswith("-web"):
+        return "ci/rendertest/icons/html5.svg"
+    return ""
+
+
 def platform_display_html(platform: str, label: str, prefix: str = "") -> str:
     if platform == "__total__":
         return f'<span class="platform-label"><span>{escape(label)}</span></span>'
@@ -387,42 +413,38 @@ def render_html(
 def render_markdown(
     title: str,
     subtitle: str,
-    platform_rows: list[dict],
+    pass_count: int,
+    fail_count: int,
     failed_tests: list[dict],
-    overall_status_text: str,
     repo_url_root: str,
+    report_index_path: Path,
 ) -> str:
     lines: list[str] = []
-    lines.append(f"# {markdown_escape(title)}")
-    if subtitle:
-        lines.append("")
-        lines.append(markdown_escape(subtitle))
+    _ = title
+    _ = subtitle
+    lines.append(f"✅ {pass_count} passed ❌ {fail_count} failed")
     lines.append("")
-    lines.append(f"**Overall:** {markdown_escape(overall_status_text)}")
+    if repo_url_root:
+        report_link = markdown_link("report", "index.html", repo_url_root=repo_url_root)
+    else:
+        report_link = "[report](index.html)"
+    lines.append(f"Full Report: {report_link}")
     lines.append("")
-    lines.append("## Totals")
-    lines.append("")
-    lines.append("| Platform | Passed | Failed |")
-    lines.append("| --- | ---: | ---: |")
-    for row in platform_rows:
-        lines.append(
-            f"| {markdown_escape(row['label'])} | {row['pass']} | {row['fail']} |"
-        )
-
     if failed_tests:
-        lines.append("")
-        lines.append("## Failed tests")
-        lines.append("")
-        lines.append("| Platform | Test | Fail types |")
-        lines.append("| --- | --- | --- |")
+        lines.append("Failed tests:")
         for test in failed_tests:
             fail_types = test["fail_types"] or ["Unknown"]
             fail_type_text = ", ".join(f"❌ {markdown_escape(fail_type)}" for fail_type in fail_types)
+            platform_icon = platform_icon_markdown(test["platform"])
+            platform_icon_link = platform_icon_href(test["platform"])
+            if platform_icon_link:
+                platform_icon = markdown_link(platform_icon, platform_icon_link)
             platform_text = markdown_escape(test["platform"])
-            test_link = markdown_link(test["name"], test["index_href"], repo_url_root=repo_url_root)
-            lines.append(
-                f"| {platform_text} | {test_link} | {fail_type_text} |"
-            )
+            test_name = markdown_escape(test["name"])
+            lines.append(f"- {platform_icon} {platform_text} - {test_name} - {fail_type_text}")
+    else:
+        lines.append("Failed tests:")
+        lines.append("- None")
 
     lines.append("")
     return "\n".join(lines)
@@ -463,10 +485,11 @@ def main() -> int:
         render_markdown(
             args.title,
             args.subtitle,
-            platform_rows,
+            pass_count,
+            fail_count,
             failed_tests,
-            overall_status_text,
             args.repo_url_root,
+            output_path.parent / "index.html",
         ),
         encoding="utf8",
     )
