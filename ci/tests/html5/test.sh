@@ -60,10 +60,33 @@ run_render_test "Egg" \
   --bundle-dir ${BUNDLE_FOLDER} \
   --collection /main/egg/egg.collection \
   --wait-mode timeout \
+  --settle-ms 0 \
   --description-file ./ci/tests/data/egg/description.txt \
   --expected-screenshot ./ci/tests/data/egg/html5/expected.png \
   --output ${REPORT_FOLDER}/egg \
   --likeness ${DEFAULT_LIKENESS}
+
+run_render_test "Layout" \
+  --mode ${MODE} \
+  --bundle-dir ${BUNDLE_FOLDER} \
+  --collection /main/layout/layout.collection \
+  --wait-mode timeout \
+  --description-file ./ci/tests/data/layout/description.txt \
+  --expected-screenshot ./ci/tests/data/layout/html5/expected.png \
+  --output ${REPORT_FOLDER}/layout \
+  --likeness ${DEFAULT_LIKENESS}
+
+
+run_render_test "Out-of-band" \
+  --mode ${MODE} \
+  --bundle-dir ${BUNDLE_FOLDER} \
+  --collection /main/outofband/outofband.collection \
+  --wait-mode timeout \
+  --description-file ./ci/tests/data/outofband/description.txt \
+  --expected-screenshot ./ci/tests/data/outofband/html5/expected.png \
+  --output ${REPORT_FOLDER}/outofband \
+  --likeness ${DEFAULT_LIKENESS}
+
 
 # Currently waaaay too slow on emulation!
 
@@ -78,15 +101,3 @@ run_render_test "Egg" \
 #   --expected-screenshot ./ci/tests/data/databind/html5/expected.png \
 #   --output ${REPORT_FOLDER}/databind \
 #   --likeness ${DEFAULT_LIKENESS}
-
-
-run_render_test "Layout" \
-  --mode ${MODE} \
-  --bundle-dir ${BUNDLE_FOLDER} \
-  --collection /main/layout/layout.collection \
-  --wait-mode timeout \
-  --settle-ms 9000 \
-  --description-file ./ci/tests/data/layout/description.txt \
-  --expected-screenshot ./ci/tests/data/layout/html5/expected.png \
-  --output ${REPORT_FOLDER}/layout \
-  --likeness ${DEFAULT_LIKENESS}

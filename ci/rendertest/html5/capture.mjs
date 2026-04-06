@@ -572,8 +572,12 @@ async function waitForScreenshotSignal(session, timeoutMs) {
 }
 
 async function waitForSettledCapture(session, consoleEntries, timeoutMs, settleMs) {
-    await waitForEngineStartLog(consoleEntries, timeoutMs);
     const engineState = await waitForEngineStart(session, timeoutMs);
+
+    await waitForEngineStartLog(consoleEntries, timeoutMs);
+
+    await waitForAnimationFrames(session, 1);
+
     if (settleMs > 0) {
         await sleep(settleMs);
     }
@@ -585,6 +589,26 @@ async function waitForSettledCapture(session, consoleEntries, timeoutMs, settleM
     }
 
     return { engineState, canvas };
+}
+
+async function waitForAnimationFrames(session, frameCount = 1) {
+    const count = Math.max(1, Math.floor(frameCount));
+    await session.send("Runtime.evaluate", {
+        expression: `new Promise((resolve) => {
+            let remaining = ${count};
+            const step = () => {
+                remaining -= 1;
+                if (remaining <= 0) {
+                    resolve();
+                    return;
+                }
+                requestAnimationFrame(step);
+            };
+            requestAnimationFrame(step);
+        })`,
+        awaitPromise: true,
+        returnByValue: true,
+    });
 }
 
 async function main() {
