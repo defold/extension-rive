@@ -393,6 +393,18 @@
   (with-open [in (io/input-stream resource)]
     (IOUtils/toByteArray in)))
 
+(defn- rive-runtime-header? [^bytes bytes]
+  (and (>= (alength bytes) 4)
+       (= (bit-and 0xff (aget bytes 0)) (int \R))
+       (= (bit-and 0xff (aget bytes 1)) (int \I))
+       (= (bit-and 0xff (aget bytes 2)) (int \V))
+       (= (bit-and 0xff (aget bytes 3)) (int \E))))
+
+(defn- validate-rive-runtime-header! [^bytes bytes path]
+  (when-not (rive-runtime-header? bytes)
+    (throw (RuntimeException.
+             (format "Invalid Rive file header: %s (expected runtime file starting with RIVE)" path)))))
+
 (defn- handle-read-error [^Throwable error node-id resource]
   (let [^Throwable error (if (instance? java.lang.reflect.InvocationTargetException error) (.getCause error) error)
         msg (.getMessage error)
@@ -525,6 +537,7 @@
   (try
     (let [content (resource->bytes resource)
           path (resource/resource->proj-path resource)
+          _ (validate-rive-runtime-header! content path)
           rive-handle (plugin-load-file content path)
           _ (when-not rive-handle
               (throw (RuntimeException. "LoadFromBuffer returned null")))
