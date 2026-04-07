@@ -441,11 +441,9 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          CONFLICT_FILE="defold-rive/plugins/share/pluginRiveExt.jar"
-          if git ls-files -u "$CONFLICT_FILE" >/dev/null 2>&1; then
-            git checkout --ours "$CONFLICT_FILE"
-          fi
-          git add -v defold-rive/plugins || true
+          git add -v defold-rive/plugins/share \
+            defold-rive/plugins/lib/arm64-macos \
+            defold-rive/plugins/lib/x86_64-macos || true
           if git diff --cached --quiet; then
             echo "No plugin changes to commit."
             exit 0
@@ -587,16 +585,12 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          CONFLICT_FILE="defold-rive/plugins/share/pluginRiveExt.jar"
-          if git ls-files -u "$CONFLICT_FILE" >/dev/null 2>&1; then
-            git checkout --ours "$CONFLICT_FILE"
-          fi
-          git add -v defold-rive/plugins || true
+          git add -v defold-rive/plugins/share defold-rive/plugins/lib/${{ matrix.platform }} || true
           if git diff --cached --quiet; then
             echo "No plugin changes to commit."
             exit 0
           fi
-          msg="ci: update linux plugin on ${{ github.ref_name }} [skip ci]"
+          msg="ci: update ${matrix.platform} plugin on ${{ github.ref_name }} [skip ci]"
           if [ -n "${{ github.event.inputs.commit_message }}" ]; then
             msg="$msg - ${{ github.event.inputs.commit_message }}"
           fi
@@ -715,11 +709,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          CONFLICT_FILE="defold-rive/plugins/share/pluginRiveExt.jar"
-          if git ls-files -u "$CONFLICT_FILE" >/dev/null 2>&1; then
-            git checkout --ours "$CONFLICT_FILE"
-          fi
-          git add -v defold-rive/plugins || true
+          git add -v defold-rive/plugins/share defold-rive/plugins/lib/x86_64-win32 || true
           if git diff --cached --quiet; then
             echo "No plugin changes to commit."
             exit 0
