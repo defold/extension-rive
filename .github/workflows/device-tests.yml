@@ -189,20 +189,62 @@ jobs:
           retention-days: 30
 
   publish-pages:
-    if: github.event_name == 'pull_request' && always() && github.event.pull_request.head.repo.full_name == github.repository
-    needs: build-summary
+    if: github.event_name == 'pull_request_target'
     permissions:
       actions: read
       contents: read
     runs-on: ubuntu-latest
     outputs:
+      run_id: ${{ steps.find-run.outputs.run_id }}
       page_url: ${{ steps.publish.outputs.page_url }}
     steps:
+      - name: Find matching build run
+        id: find-run
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const targetSha = context.payload.pull_request.head.sha;
+            const workflowName = context.workflow;
+            const perPage = 100;
+            const delayMs = 15000;
+            const maxAttempts = 80;
+
+            for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+              for (let page = 1; page <= 5; page += 1) {
+                const runs = await github.rest.actions.listWorkflowRunsForRepo({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  event: 'pull_request',
+                  status: 'completed',
+                  per_page: perPage,
+                  page,
+                });
+
+                const match = runs.data.workflow_runs.find((run) =>
+                  run.head_sha === targetSha &&
+                  run.name === workflowName
+                );
+
+                if (match) {
+                  core.setOutput('run_id', String(match.id));
+                  return;
+                }
+              }
+
+              core.info(`Waiting for completed ${workflowName} run for ${targetSha} (${attempt}/${maxAttempts})`);
+              await new Promise((resolve) => setTimeout(resolve, delayMs));
+            }
+
+            throw new Error(`Could not find a completed ${workflowName} run for ${targetSha}`);
+
       - name: Download combined test report artifact
         uses: actions/download-artifact@v4
         with:
           name: render-test-report-pr-${{ github.event.pull_request.number }}
           path: build/render-tests
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.find-run.outputs.run_id }}
+          github-token: ${{ secrets.SERVICES_GITHUB_TOKEN != '' && secrets.SERVICES_GITHUB_TOKEN || github.token }}
 
       - name: Checkout gh-pages branch
         continue-on-error: true
@@ -304,58 +346,20 @@ jobs:
 
   comment-pr:
     if: github.event_name == 'pull_request_target'
+    needs: publish-pages
     permissions:
       actions: read
       contents: read
       issues: write
     runs-on: ubuntu-latest
     steps:
-      - name: Find matching build run
-        id: find-run
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const targetSha = context.payload.pull_request.head.sha;
-            const workflowName = context.workflow;
-            const perPage = 100;
-            const delayMs = 15000;
-            const maxAttempts = 80;
-
-            for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-              for (let page = 1; page <= 5; page += 1) {
-                const runs = await github.rest.actions.listWorkflowRunsForRepo({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  event: 'pull_request',
-                  status: 'completed',
-                  per_page: perPage,
-                  page,
-                });
-
-                const match = runs.data.workflow_runs.find((run) =>
-                  run.head_sha === targetSha &&
-                  run.name === workflowName
-                );
-
-                if (match) {
-                  core.setOutput('run_id', String(match.id));
-                  return;
-                }
-              }
-
-              core.info(`Waiting for completed ${workflowName} run for ${targetSha} (${attempt}/${maxAttempts})`);
-              await new Promise((resolve) => setTimeout(resolve, delayMs));
-            }
-
-            throw new Error(`Could not find a completed ${workflowName} run for ${targetSha}`);
-
       - name: Download combined test report artifact
         uses: actions/download-artifact@v4
         with:
           name: render-test-report-pr-${{ github.event.pull_request.number }}
           path: build/render-tests
           repository: ${{ github.repository }}
-          run-id: ${{ steps.find-run.outputs.run_id }}
+          run-id: ${{ needs.publish-pages.outputs.run_id }}
           github-token: ${{ secrets.SERVICES_GITHUB_TOKEN != '' && secrets.SERVICES_GITHUB_TOKEN || github.token }}
 
       - name: Upsert PR comment
