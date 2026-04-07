@@ -13,6 +13,12 @@ function init(self)
 	local state_machine = rive.get_state_machine(self.url)
 	print("artboard:", artboard)
 	print("state_machine:", state_machine)
+
+	if html5 then
+		timer.delay(0.001, false, function ()
+				html5.run('Module.takeScreenshot()')
+			end)
+	end
 end
 
 function on_input(self, action_id, action)

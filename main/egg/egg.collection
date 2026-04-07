@@ -13,6 +13,10 @@ embedded_instances {
   "    x: 375.60974\n"
   "  }\n"
   "}\n"
+  "components {\n"
+  "  id: \"egg\"\n"
+  "  component: \"/main/egg/egg.script\"\n"
+  "}\n"
   ""
   position {
     x: 337.7781

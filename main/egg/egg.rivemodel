@@ -1,3 +1,5 @@
 scene: "/main/egg/egg.rivescene"
+coordinate_system: COORDINATE_SYSTEM_RIVE
+artboard_fit: FIT_CONTAIN
 default_animation: ""
 blit_material: "/defold-rive/assets/shader-library/rivemodel_blit.material"

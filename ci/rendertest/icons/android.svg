@@ -1,0 +1,32 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="256"
+  height="256"
+  viewBox="0 0 128 128"
+>
+  <!-- Group for the whole robot -->
+  <g fill="#3ddc84" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Antennas -->
+    <line x1="44" y1="18" x2="34" y2="6" />
+    <line x1="84" y1="18" x2="94" y2="6" />
+
+    <!-- Head -->
+    <rect x="32" y="18" width="64" height="36" rx="18" ry="18" />
+
+    <!-- Eyes -->
+    <circle cx="48" cy="34" r="3" fill="#ffffff" />
+    <circle cx="80" cy="34" r="3" fill="#ffffff" />
+
+    <!-- Arms -->
+    <rect x="16" y="52" width="10" height="40" rx="5" ry="5" />
+    <rect x="102" y="52" width="10" height="40" rx="5" ry="5" />
+
+    <!-- Legs -->
+    <rect x="40" y="100" width="12" height="20" rx="4" ry="4" />
+    <rect x="76" y="100" width="12" height="20" rx="4" ry="4" />
+
+    <!-- Body -->
+    <rect x="28" y="50" width="72" height="52" rx="10" ry="10" />
+
+  </g>
+</svg>
