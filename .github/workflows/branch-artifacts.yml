@@ -581,6 +581,8 @@ jobs:
       - name: Commit linux plugin outputs
         if: ${{ github.event.inputs.push_changes == 'true' }}
         shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -590,7 +592,7 @@ jobs:
             echo "No plugin changes to commit."
             exit 0
           fi
-          msg="ci: update ${matrix.platform} plugin on ${{ github.ref_name }} [skip ci]"
+          msg="ci: update ${PLATFORM} plugin on ${{ github.ref_name }} [skip ci]"
           if [ -n "${{ github.event.inputs.commit_message }}" ]; then
             msg="$msg - ${{ github.event.inputs.commit_message }}"
           fi
