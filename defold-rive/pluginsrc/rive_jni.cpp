@@ -902,9 +902,26 @@ jobject GetTexture(JNIEnv* env, jclass cls, jobject rive_file_obj)
         return 0;
     }
 
+    dmGraphics::AdapterFamily adapter_family = dmGraphics::GetInstalledAdapterFamily();
+    if (adapter_family == dmGraphics::ADAPTER_FAMILY_NONE)
+    {
+        dmLogWarning("Rive: headless environment, returning fallback texture");
+        return CreateFallbackTexture(env, 512, 512);
+    }
+
     dmGraphics::HContext graphics_context = dmGraphics::GetInstalledContext();
-    uint32_t fallback_width = graphics_context ? dmGraphics::GetWindowWidth(graphics_context) : 512;
-    uint32_t fallback_height = graphics_context ? dmGraphics::GetWindowHeight(graphics_context) : 512;
+    uint32_t fallback_width = 512;
+    uint32_t fallback_height = 512;
+    if (graphics_context)
+    {
+        uint32_t window_width = dmGraphics::GetWindowWidth(graphics_context);
+        uint32_t window_height = dmGraphics::GetWindowHeight(graphics_context);
+        if (window_width > 0 && window_height > 0)
+        {
+            fallback_width = window_width;
+            fallback_height = window_height;
+        }
+    }
 
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
     rive::AABB render_bounds;
@@ -944,7 +961,7 @@ jobject GetTexture(JNIEnv* env, jclass cls, jobject rive_file_obj)
         return CreateFallbackTexture(env, target_width, target_height);
     }
 
-    dmGraphics::AdapterFamily adapter_family = dmGraphics::GetInstalledAdapterFamily();
+    // adapter_family already initialized above
     bool render_to_backbuffer = adapter_family == dmGraphics::ADAPTER_FAMILY_VULKAN;
     ReadbackSource readback_source = render_to_backbuffer ? READBACK_SOURCE_BACKBUFFER
                                                           : READBACK_SOURCE_TEXTURE;
