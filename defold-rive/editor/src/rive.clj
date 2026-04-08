@@ -58,8 +58,7 @@
 (def rive-view-model-icon "/defold-rive/editor/resources/icons/32/Icons_21-Rive-viewmodel.png")
 (def rive-view-model-property-icon "/defold-rive/editor/resources/icons/32/Icons_22-Rive-property.png")
 
-;; These should be read from the .proto file
-(def default-blit-material-proj-path "/defold-rive/assets/shader-library/rivemodel_blit.material")
+(def default-blit-material-proj-path (protobuf/default rive-model-pb-class :blit-material))
 (def editor-blit-material-proj-path "/defold-rive/editor/resources/materials/rivemodel_blit.material")
 
 ;; Used for selection in the editor Scene View.
@@ -161,18 +160,21 @@
       (some-> enum-class protobuf/protocol-message-enums first protobuf/pb-enum->int)
       0))
 
-(defn- migrate-coordinate-system [coordinate-system]
+(defn- sanitize-coordinate-system [coordinate-system]
   (if (= coordinate-system :coordinate-system-fullscreen)
-    :coordinate-system-game
+    nil ; We want :coordinate-system-game, which is the default for the field.
     coordinate-system))
 
-(defn- migrate-rive-model-desc [rive-model-desc]
-  ;; Legacy migration: fullscreen, material, blend-mode, and create-go-bones are deprecated.
+(defn- sanitize-rive-model [rive-model-desc]
+  {:pre [(map? rive-model-desc)]} ; Rive$RiveModelDesc in map format.
+  ;; Legacy migration: Strip deprecated fields and convert deprecated values.
   (-> rive-model-desc
-      (update :coordinate-system migrate-coordinate-system)
-      (dissoc :material)
-      (dissoc :blend-mode)
-      (dissoc :create-go-bones)))
+      (protobuf/sanitize :coordinate-system sanitize-coordinate-system)
+      (dissoc :auto-play
+              :blend-mode
+              :create-go-bones
+              :default-animation
+              :material)))
 
 (def ^:private coordinate-system-edit-type
   (let [hidden? #{:coordinate-system-fullscreen}]
@@ -261,8 +263,7 @@
 ; .rivemodel
 (defn load-rive-model [project self resource rive-model-desc]
   {:pre [(map? rive-model-desc)]} ; Rive$RiveModelDesc in map format.
-  (let [resolve-resource #(workspace/resolve-resource resource %)
-        rive-model-desc (migrate-rive-model-desc rive-model-desc)]
+  (let [resolve-resource #(workspace/resolve-resource resource %)]
     (concat
       (g/connect project :default-tex-params self :default-tex-params)
       (g/set-property self :editor-blit-material (resolve-resource editor-blit-material-proj-path))
@@ -1036,6 +1037,10 @@
   (output aabb g/Any :cached (gu/passthrough aabb)))
 
 ; .rivescene
+(defn sanitize-rive-scene [rive-scene-desc]
+  {:pre [(map? rive-scene-desc)]} ; Rive$RiveSceneDesc in map format.
+  (dissoc rive-scene-desc :atlas))
+
 (defn load-rive-scene [project self resource rive-scene-desc]
   {:pre [(map? rive-scene-desc)]} ; Rive$RiveSceneDesc in map format.
   (let [resolve-resource #(workspace/resolve-resource resource %)]
@@ -1316,6 +1321,7 @@
       :label "Rive Scene"
       :node-type RiveSceneNode
       :ddf-type rive-scene-pb-class
+      :sanitize-fn sanitize-rive-scene
       :load-fn load-rive-scene
       :icon rive-scene-icon
       :category (localization/message "resource.category.resources")
@@ -1327,6 +1333,7 @@
       :label "Rive Model"
       :node-type RiveModelNode
       :ddf-type rive-model-pb-class
+      :sanitize-fn sanitize-rive-model
       :load-fn load-rive-model
       :icon rive-model-icon
       :category (localization/message "resource.category.components")
