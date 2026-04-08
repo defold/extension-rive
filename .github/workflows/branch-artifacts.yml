@@ -457,7 +457,7 @@ jobs:
           attempt=1
           until [ $attempt -gt $max_attempts ]; do
             echo "Attempt $attempt: rebase + push"
-            if git pull --rebase origin "${{ github.ref_name }}"; then
+            if git pull --rebase --autostash origin "${{ github.ref_name }}"; then
               local_sha="$(git rev-parse HEAD)"
               if git push origin HEAD:"${{ github.ref_name }}"; then
                 echo "Push succeeded"
@@ -602,7 +602,7 @@ jobs:
           attempt=1
           until [ $attempt -gt $max_attempts ]; do
             echo "Attempt $attempt: rebase + push"
-            if git pull --rebase origin "${{ github.ref_name }}"; then
+            if git pull --rebase --autostash origin "${{ github.ref_name }}"; then
               local_sha="$(git rev-parse HEAD)"
               if git push origin HEAD:"${{ github.ref_name }}"; then
                 echo "Push succeeded"
@@ -726,7 +726,7 @@ jobs:
           attempt=1
           until [ $attempt -gt $max_attempts ]; do
             echo "Attempt $attempt: rebase + push"
-            if git pull --rebase origin "${{ github.ref_name }}"; then
+            if git pull --rebase --autostash origin "${{ github.ref_name }}"; then
               local_sha="$(git rev-parse HEAD)"
               if git push origin HEAD:"${{ github.ref_name }}"; then
                 echo "Push succeeded"
