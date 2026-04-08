@@ -434,16 +434,15 @@ jobs:
           ./utils/plugin/build.sh arm64-macos
           ./utils/plugin/build.sh x86_64-macos
 
-      - name: Commit plugin outputs
+      - name: Commit macos plugin outputs
         if: ${{ github.event.inputs.push_changes == 'true' }}
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -v defold-rive/plugins/share \
-            defold-rive/plugins/lib/arm64-macos \
-            defold-rive/plugins/lib/x86_64-macos || true
+          git add -v defold-rive/plugins/lib/arm64-macos \
+                     defold-rive/plugins/lib/x86_64-macos || true
           if git diff --cached --quiet; then
             echo "No plugin changes to commit."
             exit 0
@@ -587,7 +586,8 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -v defold-rive/plugins/share defold-rive/plugins/lib/${{ matrix.platform }} || true
+          git add -v defold-rive/plugins/lib/${{ matrix.platform }} || true
+          git add -v defold-rive/plugins/share/pluginRiveExt.jar || true
           if git diff --cached --quiet; then
             echo "No plugin changes to commit."
             exit 0
@@ -711,7 +711,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -v defold-rive/plugins/share defold-rive/plugins/lib/x86_64-win32 || true
+          git add -v defold-rive/plugins/lib/${{ matrix.platform }} || true
           if git diff --cached --quiet; then
             echo "No plugin changes to commit."
             exit 0

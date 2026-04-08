@@ -10,6 +10,11 @@ set "JAR=%REPO_ROOT%\defold-rive\plugins\share\plugin%LIBNAME%.jar"
 
 set "PLUGIN_PLATFORM=x86_64-win32"
 set "PLUGIN_PLATFORM_DIR=%REPO_ROOT%\defold-rive\plugins\lib\%PLUGIN_PLATFORM%"
+set "LOCAL_PLUGIN_PLATFORM_DIR=%SCRIPT_DIR%\build\%PLUGIN_PLATFORM%"
+
+if exist "%LOCAL_PLUGIN_PLATFORM_DIR%" (
+    set "PLUGIN_PLATFORM_DIR=%LOCAL_PLUGIN_PLATFORM_DIR%"
+)
 
 if not exist "%JAR%" (
     echo Plugin jar not found: %JAR% 1>&2

@@ -36,6 +36,11 @@ case "${UNAME_S}" in
         ;;
 esac
 PLUGIN_PLATFORM_DIR=$(realpath "${REPO_ROOT}/defold-rive/plugins/lib/${PLUGIN_PLATFORM}")
+LOCAL_PLUGIN_PLATFORM_DIR="${SCRIPT_DIR}/build/${PLUGIN_PLATFORM}"
+
+if [ -d "${LOCAL_PLUGIN_PLATFORM_DIR}" ]; then
+    PLUGIN_PLATFORM_DIR="$(realpath "${LOCAL_PLUGIN_PLATFORM_DIR}")"
+fi
 
 if [ -z "${JAR}" ]; then
     echo "Couldn't find the jar file!"
