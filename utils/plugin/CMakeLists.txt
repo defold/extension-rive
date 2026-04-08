@@ -427,6 +427,11 @@ else()
     target_link_libraries(rive_plugin PRIVATE ${TARGET_LIBS})
 endif()
 
+if(TARGET_PLATFORM STREQUAL "x86_64-win32" AND WITH_VULKAN)
+    target_link_libraries(rive_plugin PRIVATE delayimp)
+    target_link_options(rive_plugin PRIVATE "/DELAYLOAD:vulkan-1.dll")
+endif()
+
 set(EXTENDER_PLATFORM "${TARGET_PLATFORM}")
 if(TARGET_PLATFORM STREQUAL "arm64-macos")
     set(EXTENDER_PLATFORM "arm64-osx")

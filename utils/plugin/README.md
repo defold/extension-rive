@@ -10,6 +10,9 @@ $ cd path-to-extension-rive
 extension-rive$ PROTOC=${DYNAMO_HOME}/ext/bin/arm64-macos/protoc BOB=${DYNAMO_HOME}/share/java/bob.jar ./utils/plugin/build.sh arm64-macos
 ```
 
+On Windows CI, Vulkan is delay-loaded by default so the plugin can start even if
+`vulkan-1.dll` is not installed on the machine.
+
 ## Test offline
 
 To test offline, you can use:
