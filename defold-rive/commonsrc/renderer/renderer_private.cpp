@@ -105,10 +105,15 @@ namespace dmRive
         DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
         if (renderer->m_GraphicsContext == 0)
         {
-            renderer->m_GraphicsContext = dmGraphics::GetInstalledContext();
-            if (renderer->m_GraphicsContext != 0)
+            dmGraphics::AdapterFamily adapter_family = dmGraphics::GetInstalledAdapterFamily();
+            if (adapter_family != dmGraphics::ADAPTER_FAMILY_NONE &&
+                adapter_family != dmGraphics::ADAPTER_FAMILY_NULL)
             {
-                renderer->m_RenderContext->SetGraphicsContext(renderer->m_GraphicsContext);
+                renderer->m_GraphicsContext = dmGraphics::GetInstalledContext();
+                if (renderer->m_GraphicsContext != 0)
+                {
+                    renderer->m_RenderContext->SetGraphicsContext(renderer->m_GraphicsContext);
+                }
             }
         }
         return renderer->m_RenderContext->Factory();

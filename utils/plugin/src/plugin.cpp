@@ -277,9 +277,9 @@ static void SetHeadlessModeInternal(bool headless)
         {
             dmGraphics::CloseWindow(g_GraphicsContext);
             dmGraphics::DeleteContext(g_GraphicsContext);
-            dmGraphics::Finalize();
             g_GraphicsContext = 0;
         }
+        dmGraphics::Finalize();
         if (g_JobContext)
         {
             JobSystemDestroy(g_JobContext);
@@ -554,7 +554,10 @@ static bool InstallGraphicsAdapter()
     }
     s_AdapterInstallAttempted = true;
 
-#if defined(DM_GRAPHICS_USE_VULKAN)
+#if defined(DM_TEST_HEADLESS)
+    #warning "Building with DM_TEST_HEADLESS"
+    dmLogError("This plugin was built with headless mode");
+#elif defined(DM_GRAPHICS_USE_VULKAN)
     GraphicsAdapterVulkan(); // register the adapter
 #else
     GraphicsAdapterOpenGL(); // register the adapter
@@ -583,7 +586,7 @@ static bool CreateGraphicsContextInternal()
 
     if (!InstallGraphicsAdapter())
     {
-        dmLogWarning("Rive: failed to install graphics adapter, switching to headless mode");
+        dmLogError("Rive: failed to install graphics adapter, switching to headless mode");
         SetHeadlessModeInternal(true);
         return false;
     }
@@ -794,9 +797,9 @@ static void PluginRiveFinalize()
     {
         dmGraphics::CloseWindow(g_GraphicsContext);
         dmGraphics::DeleteContext(g_GraphicsContext);
-        dmGraphics::Finalize();
         g_GraphicsContext = 0;
     }
+    dmGraphics::Finalize();
     s_GraphicsContextCreateAttempted = false;
     s_GraphicsContextCreateSuccess = false;
     g_Window = 0;
