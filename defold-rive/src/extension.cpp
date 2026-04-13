@@ -57,8 +57,10 @@ static dmExtension::Result InitializeRive(dmExtension::Params* params)
     assert(g_RenderMutex != 0);
     dmRive::SetRenderMutex(g_RenderContext, g_RenderMutex);
 
-    bool use_threads = PlatformHasThreadSupport() &&
-                        dmConfigFile::GetInt(params->m_ConfigFile, PROJECT_PROPERTY_USE_THREADS, 0) > 0;
+    // We need to secure multi thread rendering before supporting this feature.
+    bool use_threads = false;
+    //bool use_threads = PlatformHasThreadSupport() &&
+    //                    dmConfigFile::GetInt(params->m_ConfigFile, PROJECT_PROPERTY_USE_THREADS, 0) > 0;
 
     dmRiveCommands::InitParams cmd_params;
     cmd_params.m_UseThreads = use_threads;
