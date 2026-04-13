@@ -389,10 +389,12 @@ void SetStatemachine(RiveFile* file, const char* state_machine)
     if (state_machine && state_machine[0] != 0)
     {
         file->m_StateMachine = queue->instantiateStateMachineNamed(file->m_Artboard, state_machine);
+#if !defined(DM_RIVE_FILE_META_DATA)
         if (file->m_StateMachine == RIVE_NULL_HANDLE)
         {
             dmLogWarning("Could not find state machine with name '%s'", state_machine);
         }
+#endif
     }
 
     if (file->m_StateMachine == RIVE_NULL_HANDLE)
@@ -444,10 +446,12 @@ void SetViewModel(RiveFile* file, const char* view_model)
     if (view_model && view_model[0] != 0)
     {
         file->m_ViewModelInstance = queue->instantiateDefaultViewModelInstance(file->m_File, view_model);
+#if !defined(DM_RIVE_FILE_META_DATA)
         if (file->m_ViewModelInstance == RIVE_NULL_HANDLE)
         {
             dmLogWarning("Could not find view model '%s'", view_model);
         }
+#endif
     }
 
     if (file->m_ViewModelInstance == RIVE_NULL_HANDLE &&
