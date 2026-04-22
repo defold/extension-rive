@@ -207,6 +207,41 @@ static void PushEnumsArray(lua_State* L, const char* name, std::vector<rive::Vie
     lua_setfield(L, -2, name);
 }
 
+static void PushViewModelDataValue(lua_State* L, const rive::CommandQueue::ViewModelInstanceData& data)
+{
+    switch (data.metaData.type)
+    {
+        case rive::DataType::boolean:
+            lua_pushboolean(L, data.boolValue);
+            lua_setfield(L, -2, "value");
+            break;
+        case rive::DataType::number:
+        case rive::DataType::integer:
+            lua_pushnumber(L, (lua_Number)data.numberValue);
+            lua_setfield(L, -2, "value");
+            break;
+        case rive::DataType::color:
+            lua_pushinteger(L, (lua_Integer)data.colorValue);
+            lua_setfield(L, -2, "value");
+            break;
+        case rive::DataType::enumType:
+        case rive::DataType::string:
+            lua_pushstring(L, data.stringValue.c_str());
+            lua_setfield(L, -2, "value");
+            break;
+        case rive::DataType::assetImage:
+        case rive::DataType::trigger:
+        case rive::DataType::list:
+        case rive::DataType::viewModel:
+        case rive::DataType::artboard:
+        case rive::DataType::none:
+        case rive::DataType::symbolListIndex:
+            break;
+        default:
+            break;
+    }
+}
+
 void RequestViewModelInstanceProperties(rive::FileHandle file, rive::ViewModelInstanceHandle instance, const char* viewmodel_name)
 {
     if (instance == RIVE_NULL_HANDLE || viewmodel_name == 0 || viewmodel_name[0] == '\0')
@@ -372,26 +407,30 @@ void FileListener::onViewModelPropertiesListed(const rive::FileHandle file, uint
         for (uint32_t i = 0; i < properties.size(); ++i)
         {
             const ViewModelPropertyData& property = properties[i];
-            queue->subscribeToViewModelProperty(request->m_Instance, property.name, property.type);
             switch (property.type)
             {
                 case rive::DataType::boolean:
+                    queue->subscribeToViewModelProperty(request->m_Instance, property.name, property.type);
                     queue->requestViewModelInstanceBool(request->m_Instance, property.name);
                     break;
                 case rive::DataType::number:
-                case rive::DataType::integer:
+                    queue->subscribeToViewModelProperty(request->m_Instance, property.name, property.type);
                     queue->requestViewModelInstanceNumber(request->m_Instance, property.name);
                     break;
                 case rive::DataType::color:
+                    queue->subscribeToViewModelProperty(request->m_Instance, property.name, property.type);
                     queue->requestViewModelInstanceColor(request->m_Instance, property.name);
                     break;
                 case rive::DataType::enumType:
+                    queue->subscribeToViewModelProperty(request->m_Instance, property.name, property.type);
                     queue->requestViewModelInstanceEnum(request->m_Instance, property.name);
                     break;
                 case rive::DataType::string:
+                    queue->subscribeToViewModelProperty(request->m_Instance, property.name, property.type);
                     queue->requestViewModelInstanceString(request->m_Instance, property.name);
                     break;
                 case rive::DataType::list:
+                    queue->subscribeToViewModelProperty(request->m_Instance, property.name, property.type);
                     if (listener)
                         listener->EnsureListSize(dmHashString64(property.name.c_str()), 0);
                     queue->requestViewModelInstanceListSize(request->m_Instance, property.name);
@@ -651,13 +690,36 @@ bool ViewModelInstanceListener::EnsureListSize(dmhash_t path_hash, size_t value)
     return true;
 }
 
-void ViewModelInstanceListener::onViewModelInstanceError(const rive::ViewModelInstanceHandle, uint64_t requestId, std::string error)
+void ViewModelInstanceListener::onViewModelInstanceError(const rive::ViewModelInstanceHandle handle, uint64_t requestId, std::string error)
 {
+    static dmhash_t id = dmHashString64("onViewModelInstanceError");
+    if (m_Callback && SetupCallback(m_Callback, id, requestId))
+    {
+        lua_State* L = dmScript::GetCallbackLuaContext(m_Callback);
 
+        lua_pushinteger(L, (lua_Integer)(uintptr_t)handle);
+        lua_setfield(L, -2, "viewModel");
+
+        lua_pushstring(L, error.c_str());
+        lua_setfield(L, -2, "error");
+
+        InvokeCallback(L, m_Callback);
+    }
 }
 
 void ViewModelInstanceListener::onViewModelDeleted(const rive::ViewModelInstanceHandle handle, uint64_t requestId)
 {
+    static dmhash_t id = dmHashString64("onViewModelDeleted");
+    if (m_Callback && SetupCallback(m_Callback, id, requestId))
+    {
+        lua_State* L = dmScript::GetCallbackLuaContext(m_Callback);
+
+        lua_pushinteger(L, (lua_Integer)(uintptr_t)handle);
+        lua_setfield(L, -2, "viewModel");
+
+        InvokeCallback(L, m_Callback);
+    }
+
     UnregisterViewModelInstanceListener(handle);
     if (m_DeleteOnViewModelDeleted)
     {
@@ -665,53 +727,93 @@ void ViewModelInstanceListener::onViewModelDeleted(const rive::ViewModelInstance
     }
 }
 
-void ViewModelInstanceListener::onViewModelDataReceived(const rive::ViewModelInstanceHandle, uint64_t requestId, rive::CommandQueue::ViewModelInstanceData data)
+void ViewModelInstanceListener::onViewModelDataReceived(const rive::ViewModelInstanceHandle handle, uint64_t requestId, rive::CommandQueue::ViewModelInstanceData data)
 {
     dmhash_t path_hash = dmHashString64(data.metaData.name.c_str());
-    DM_MUTEX_OPTIONAL_SCOPED_LOCK(m_Mutex);
-    if (m_PropertyValues.Capacity() == 0)
     {
-        EnsureTableCapacity(m_PropertyValues, 32);
-    }
-    else if (m_PropertyValues.Full())
-    {
-        EnsureTableCapacity(m_PropertyValues, m_PropertyValues.Capacity() * 2);
+        DM_MUTEX_OPTIONAL_SCOPED_LOCK(m_Mutex);
+        if (m_PropertyValues.Capacity() == 0)
+        {
+            EnsureTableCapacity(m_PropertyValues, 32);
+        }
+        else if (m_PropertyValues.Full())
+        {
+            EnsureTableCapacity(m_PropertyValues, m_PropertyValues.Capacity() * 2);
+        }
+
+        rive::CommandQueue::ViewModelInstanceData** entry = m_PropertyValues.Get(path_hash);
+        if (entry && *entry)
+        {
+            **entry = data;
+        }
+        else
+        {
+            rive::CommandQueue::ViewModelInstanceData* copy = new rive::CommandQueue::ViewModelInstanceData(data);
+            m_PropertyValues.Put(path_hash, copy);
+        }
     }
 
-    rive::CommandQueue::ViewModelInstanceData** entry = m_PropertyValues.Get(path_hash);
-    if (entry && *entry)
+    static dmhash_t id = dmHashString64("onViewModelDataReceived");
+    if (m_Callback && SetupCallback(m_Callback, id, requestId))
     {
-        **entry = data;
-    }
-    else
-    {
-        rive::CommandQueue::ViewModelInstanceData* copy = new rive::CommandQueue::ViewModelInstanceData(data);
-        m_PropertyValues.Put(path_hash, copy);
+        lua_State* L = dmScript::GetCallbackLuaContext(m_Callback);
+
+        lua_pushinteger(L, (lua_Integer)(uintptr_t)handle);
+        lua_setfield(L, -2, "viewModel");
+
+        lua_pushstring(L, data.metaData.name.c_str());
+        lua_setfield(L, -2, "path");
+
+        lua_pushinteger(L, (lua_Integer)data.metaData.type);
+        lua_setfield(L, -2, "type");
+
+        PushViewModelDataValue(L, data);
+
+        InvokeCallback(L, m_Callback);
     }
 }
 
-void ViewModelInstanceListener::onViewModelListSizeReceived(const rive::ViewModelInstanceHandle, uint64_t requestId, std::string path, size_t size)
+void ViewModelInstanceListener::onViewModelListSizeReceived(const rive::ViewModelInstanceHandle handle, uint64_t requestId, std::string path, size_t size)
 {
     dmhash_t path_hash = dmHashString64(path.c_str());
-    DM_MUTEX_OPTIONAL_SCOPED_LOCK(m_Mutex);
-    if (m_ListSizes.Capacity() == 0)
     {
-        EnsureTableCapacity(m_ListSizes, 16);
-    }
-    else if (m_ListSizes.Full())
-    {
-        EnsureTableCapacity(m_ListSizes, m_ListSizes.Capacity() * 2);
+        DM_MUTEX_OPTIONAL_SCOPED_LOCK(m_Mutex);
+        if (m_ListSizes.Capacity() == 0)
+        {
+            EnsureTableCapacity(m_ListSizes, 16);
+        }
+        else if (m_ListSizes.Full())
+        {
+            EnsureTableCapacity(m_ListSizes, m_ListSizes.Capacity() * 2);
+        }
+
+        size_t** entry = m_ListSizes.Get(path_hash);
+        if (entry && *entry)
+        {
+            **entry = size;
+        }
+        else
+        {
+            size_t* copy = new size_t(size);
+            m_ListSizes.Put(path_hash, copy);
+        }
     }
 
-    size_t** entry = m_ListSizes.Get(path_hash);
-    if (entry && *entry)
+    static dmhash_t id = dmHashString64("onViewModelListSizeReceived");
+    if (m_Callback && SetupCallback(m_Callback, id, requestId))
     {
-        **entry = size;
-    }
-    else
-    {
-        size_t* copy = new size_t(size);
-        m_ListSizes.Put(path_hash, copy);
+        lua_State* L = dmScript::GetCallbackLuaContext(m_Callback);
+
+        lua_pushinteger(L, (lua_Integer)(uintptr_t)handle);
+        lua_setfield(L, -2, "viewModel");
+
+        lua_pushstring(L, path.c_str());
+        lua_setfield(L, -2, "path");
+
+        lua_pushinteger(L, (lua_Integer)size);
+        lua_setfield(L, -2, "size");
+
+        InvokeCallback(L, m_Callback);
     }
 }
 

@@ -80,6 +80,13 @@ function init(self)
 	self.view_model_badge = rive.cmd.referenceNestedViewModelInstance(self.view_model, "property of vmBadge")
 	self.view_model_rating = rive.cmd.referenceNestedViewModelInstance(self.view_model, "property of vmRating")
 
+	-- see data_type.hpp
+	-- rive::DataType::
+	-- string = 1,
+	-- boolean = 3
+	rive.cmd.subscribeToViewModelProperty(self.view_model, "isOpen", 3)
+	rive.cmd.subscribeToViewModelProperty(self.view_model_flag, "flagText", 1)
+
 	-- no need to bind, as it has "autobind" selected
 	--rive.cmd.bindViewModelInstance(self.state_machine, self.view_model)
 
@@ -87,6 +94,7 @@ function init(self)
 	rive.cmd.setViewModelInstanceBool(self.view_model, "isOpen", self.isOpen)
 
 	rive.cmd.setViewModelInstanceString(self.view_model_flag, "flagText", "DEFOLD!")
+	print("flagText:", rive.cmd.getViewModelInstanceString(self.view_model_flag, "flagText"))
 	rive.cmd.setViewModelInstanceColor(self.view_model_flag, "flagColor", vmath.vector4(0.5, 0.3, 0.4, 1.0))
 
 	-- 1 = "Froggo",
