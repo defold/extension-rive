@@ -261,7 +261,7 @@ for ARCH in "${ARCH_LIST[@]}"; do
     out_dir="$BUILD_DIR/$out_dir_rel"
 
     # Drive build (use windows token and arch)
-    BUILD_ARGS=(--toolset=msc "$ARCH" "$CONFIG")
+    BUILD_ARGS=(--toolset=msc "$ARCH" "$CONFIG" --with_rive_scripting)
     if [[ "$WITH_VULKAN" == "true" ]]; then
         BUILD_ARGS+=(--with_vulkan)
     fi

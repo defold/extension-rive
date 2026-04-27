@@ -184,10 +184,10 @@ for TARGET in "${TARGET_LIST[@]}"; do
     if [[ -n "$EXTRA_PREMAKE" ]]; then
         # Clean and rebuild into custom OUT directory when using wagyu.
         # Pass RIVE_OUT as a relative path so premake doesn't prepend _WORKING_DIR twice.
-        RIVE_OUT="$OUT_DIR_REL" "$BUILD_SCRIPT" clean "$BUILD_ARCH" "$CONFIG" "$EXTRA_PREMAKE" --with-libs-only || true
-        RIVE_OUT="$OUT_DIR_REL" "$BUILD_SCRIPT" ninja "$BUILD_ARCH" "$CONFIG" "$EXTRA_PREMAKE" --with-libs-only
+        RIVE_OUT="$OUT_DIR_REL" "$BUILD_SCRIPT" clean "$BUILD_ARCH" "$CONFIG" "$EXTRA_PREMAKE" --with_rive_scripting --with-libs-only || true
+        RIVE_OUT="$OUT_DIR_REL" "$BUILD_SCRIPT" ninja "$BUILD_ARCH" "$CONFIG" "$EXTRA_PREMAKE" --with_rive_scripting --with-libs-only
     else
-        "$BUILD_SCRIPT" ninja "$BUILD_ARCH" "$CONFIG" --with-libs-only
+        "$BUILD_SCRIPT" ninja "$BUILD_ARCH" "$CONFIG" --with_rive_scripting --with-libs-only
     fi
 
     # Sanity check: ensure build.ninja exists where we expect

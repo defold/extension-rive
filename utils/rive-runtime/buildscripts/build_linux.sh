@@ -162,7 +162,7 @@ for ARCH in "${ARCH_LIST[@]}"; do
     out_dir_rel="out/linux_${ARCH}_${CONFIG}"
     out_dir="$BUILD_DIR/$out_dir_rel"
 
-    BUILD_ARGS=(ninja "$ARCH" "$CONFIG" --no-lto --with-libs-only)
+    BUILD_ARGS=(ninja "$ARCH" "$CONFIG" --no-lto --with_rive_scripting --with-libs-only)
     if [[ "$WITH_VULKAN" == "true" ]]; then
         BUILD_ARGS+=(--with_vulkan)
     fi

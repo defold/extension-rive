@@ -219,7 +219,7 @@ build_for_target_arch() {
 
     # Force the out directory naming to include target and architecture consistently.
     if [[ "$target" == "macos" ]]; then
-        BUILD_ARGS=(ninja "$rive_os" "$arch" "$CONFIG" --with-libs-only)
+        BUILD_ARGS=(ninja "$rive_os" "$arch" "$CONFIG" --with_rive_scripting --with-libs-only)
         if [[ "$WITH_VULKAN" == "true" ]]; then
             BUILD_ARGS+=(--with_vulkan)
         fi
@@ -227,9 +227,9 @@ build_for_target_arch() {
     else
         # For iOS, use iossim when arch is x64 (variant emulator), otherwise ios.
         if [[ "$arch" == "x64" ]]; then
-            BUILD_ARGS=(ninja iossim "$arch" "$CONFIG" --with-libs-only)
+            BUILD_ARGS=(ninja iossim "$arch" "$CONFIG" --with_rive_scripting --with-libs-only)
         else
-            BUILD_ARGS=(ninja "$rive_os" "$arch" "$CONFIG" --with-libs-only)
+            BUILD_ARGS=(ninja "$rive_os" "$arch" "$CONFIG" --with_rive_scripting --with-libs-only)
         fi
         if [[ "$WITH_VULKAN" == "true" ]]; then
             BUILD_ARGS+=(--with_vulkan)

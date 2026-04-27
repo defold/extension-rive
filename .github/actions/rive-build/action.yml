@@ -134,7 +134,7 @@ runs:
           exit 1
         fi
 
-        build_args=(release clean)
+        build_args=(release clean --with_rive_scripting)
         if [ "$INPUT_WITH_VULKAN" = "true" ]; then
           build_args+=(--with_vulkan)
         fi
@@ -151,6 +151,7 @@ runs:
           libpng
           libjpeg
           libwebp
+          luau_vm
         )
 
         echo "Running (in ${RIVE_ROOT}/renderer): ../build/build_rive.sh ${build_args[*]}"
