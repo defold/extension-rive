@@ -89,7 +89,7 @@ class ViewerNoOpRenderPath : public rive::RenderPath
 public:
     void rewind() override {}
     void fillRule(rive::FillRule value) override { (void)value; }
-    void addRenderPath(rive::RenderPath* path, const rive::Mat2D& transform) override
+    void addRenderPath(const rive::RenderPath* path, const rive::Mat2D& transform) override
     {
         (void)path;
         (void)transform;
