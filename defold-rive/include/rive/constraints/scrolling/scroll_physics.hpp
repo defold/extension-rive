@@ -54,17 +54,32 @@ public:
                      Vec2D rangeMax,
                      Vec2D value,
                      std::vector<Vec2D> snappingPoints,
-                     float contentSize)
+                     float contentSize,
+                     float viewportSize)
     {
         m_isRunning = true;
     }
     virtual void stop() { m_isRunning = false; }
-    virtual void reset()
-    {
-        m_acceleration = Vec2D();
-        stop();
-    }
+    virtual void reset();
     StatusCode import(ImportStack& importStack) override;
+
+    /// Initiate animated scroll to target position.
+    virtual void scrollToPosition(Vec2D current,
+                                  Vec2D target,
+                                  Vec2D rangeMin,
+                                  Vec2D rangeMax,
+                                  bool horizontal,
+                                  bool vertical)
+    {}
+
+    /// Get the target X position if animating.
+    virtual float targetX() { return 0.0f; }
+    /// Get the target Y position if animating.
+    virtual float targetY() { return 0.0f; }
+    /// Whether there's an active X target.
+    virtual bool hasTargetX() { return false; }
+    /// Whether there's an active Y target.
+    virtual bool hasTargetY() { return false; }
 };
 } // namespace rive
 

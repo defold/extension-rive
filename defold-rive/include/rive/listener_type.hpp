@@ -17,6 +17,10 @@ enum class ListenerType : int
     dragEnd = 10,
     viewModel = 11,
     drag = 12,
+    focus = 13,
+    blur = 14,
+    keyboard = 15,
+    semanticAction = 16,
 };
 }
 #endif

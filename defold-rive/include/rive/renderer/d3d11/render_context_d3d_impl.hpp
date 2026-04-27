@@ -183,6 +183,13 @@ public:
         return make_rcp<RenderTargetD3D>(this, width, height);
     }
 
+    rcp<Texture> adoptImageTexture(ComPtr<ID3D11Texture2D> image,
+                                   uint32_t width,
+                                   uint32_t height);
+
+    rcp<RenderCanvas> makeRenderCanvas(uint32_t width,
+                                       uint32_t height) override;
+
     const D3DCapabilities& d3dCapabilities() const { return m_d3dCapabilities; }
     ID3D11Device* gpu() const { return m_gpu.Get(); }
     ID3D11DeviceContext* gpuContext() const { return m_gpuContext.Get(); }
@@ -280,7 +287,8 @@ private:
     ComPtr<ID3D11SamplerState>
         m_samplerStates[rive::ImageSampler::MAX_SAMPLER_PERMUTATIONS];
 
-    ComPtr<ID3D11RasterizerState> m_atlasRasterState;
+    ComPtr<ID3D11RasterizerState> m_atlasFillRasterState;
+    ComPtr<ID3D11RasterizerState> m_atlasStrokeRasterState;
     ComPtr<ID3D11RasterizerState> m_backCulledRasterState[2];
     ComPtr<ID3D11RasterizerState> m_doubleSidedRasterState[2];
 
