@@ -55,7 +55,7 @@ runs:
         ref="${{ inputs.rive_ref }}"
         tag="${{ inputs.rive_tag }}"
         sha="${{ inputs.rive_sha }}"
-        echo "RIVE_RUNTIME_TAG=${tag}" >> "$GITHUB_ENV"
+        selected_tag=""
         echo "Cloning Rive runtime from: ${url}"
         if [ -n "$sha" ]; then
           echo "Checking out Rive runtime commit SHA: ${sha}"
@@ -64,12 +64,14 @@ runs:
         elif [ -n "$tag" ]; then
           echo "Checking out Rive runtime tag: ${tag}"
           git -c core.autocrlf=false -c core.eol=lf clone --depth 1 --branch "$tag" "$url" "$RIVE_TMP_DIR"
+          selected_tag="$tag"
         elif [ -n "$ref" ]; then
           echo "Checking out Rive runtime ref: ${ref}"
           git -c core.autocrlf=false -c core.eol=lf clone --depth 1 --branch "$ref" "$url" "$RIVE_TMP_DIR"
         else
           git -c core.autocrlf=false -c core.eol=lf clone --depth 1 "$url" "$RIVE_TMP_DIR"
         fi
+        echo "RIVE_RUNTIME_TAG=${selected_tag}" >> "$GITHUB_ENV"
         # Double-check repo config to avoid CRLF breaking patch apply
         (cd "$RIVE_TMP_DIR" && git config core.autocrlf false && git config core.eol lf)
         echo "Checked out rive-runtime commit: $(cd "$RIVE_TMP_DIR" && git rev-parse HEAD)"
