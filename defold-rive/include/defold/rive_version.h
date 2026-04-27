@@ -8,4 +8,5 @@
 
 const char* RIVE_RUNTIME_AUTHOR="bodymovin";
 const char* RIVE_RUNTIME_DATE="2026-01-09T07:54:52Z";
+const char* RIVE_RUNTIME_TAG="";
 const char* RIVE_RUNTIME_SHA1="3a5b5058aca009b823154ed7f92c11d599c00ae3";

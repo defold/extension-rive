@@ -10,11 +10,15 @@ inputs:
     required: true
     default: https://github.com/rive-app/rive-runtime.git
   rive_ref:
-    description: Rive runtime ref (branch/tag)
+    description: Rive runtime ref (branch or other git ref)
+    required: false
+    default: ""
+  rive_tag:
+    description: Rive runtime GitHub release tag (for example runtime-v0.1.8)
     required: false
     default: ""
   rive_sha:
-    description: Rive runtime commit SHA (overrides ref)
+    description: Rive runtime commit SHA (overrides tag and ref)
     required: false
     default: ""
   upload_artifact:
@@ -49,12 +53,19 @@ runs:
         echo "RIVE_ROOT=${RIVE_TMP_DIR}" >> "$GITHUB_ENV"
         url="${{ inputs.rive_repo_url }}"
         ref="${{ inputs.rive_ref }}"
+        tag="${{ inputs.rive_tag }}"
         sha="${{ inputs.rive_sha }}"
+        echo "RIVE_RUNTIME_TAG=${tag}" >> "$GITHUB_ENV"
         echo "Cloning Rive runtime from: ${url}"
         if [ -n "$sha" ]; then
+          echo "Checking out Rive runtime commit SHA: ${sha}"
           git -c core.autocrlf=false -c core.eol=lf clone --depth 1 "$url" "$RIVE_TMP_DIR"
           (cd "$RIVE_TMP_DIR" && git fetch --depth 1 origin "$sha" && git checkout -f "$sha")
+        elif [ -n "$tag" ]; then
+          echo "Checking out Rive runtime tag: ${tag}"
+          git -c core.autocrlf=false -c core.eol=lf clone --depth 1 --branch "$tag" "$url" "$RIVE_TMP_DIR"
         elif [ -n "$ref" ]; then
+          echo "Checking out Rive runtime ref: ${ref}"
           git -c core.autocrlf=false -c core.eol=lf clone --depth 1 --branch "$ref" "$url" "$RIVE_TMP_DIR"
         else
           git -c core.autocrlf=false -c core.eol=lf clone --depth 1 "$url" "$RIVE_TMP_DIR"

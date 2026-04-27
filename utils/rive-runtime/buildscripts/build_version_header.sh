@@ -28,8 +28,12 @@ mkdir -p "$OUT_DIR"
 
 # Resolve Git information from local repo; fall back to .rive_head if needed.
 sha=""
+tag="${RIVE_RUNTIME_TAG:-}"
 if git -C "$REPO_DIR" rev-parse --git-dir >/dev/null 2>&1; then
     sha=$(git -C "$REPO_DIR" rev-parse HEAD)
+    if [[ -z "$tag" ]]; then
+        tag=$(git -C "$REPO_DIR" describe --tags --exact-match HEAD 2>/dev/null || true)
+    fi
     author=$(git -C "$REPO_DIR" show -s --format=%cn HEAD)
     date=$(git -C "$REPO_DIR" show -s --format=%cI HEAD)
     message=$(git -C "$REPO_DIR" log -1 --pretty=%B HEAD)
@@ -39,6 +43,9 @@ else
     else
         echo "error: not a git repo and .rive_head not found: $REPO_DIR" >&2
         exit 1
+    fi
+    if [[ -z "$tag" && -f "$REPO_DIR/.rive_tag" ]]; then
+        tag="$(cat "$REPO_DIR/.rive_tag" | tr -d '\n\r')"
     fi
     # Best-effort for author/date/message when not in a git repo
     author="unknown"
@@ -57,6 +64,7 @@ escape_c() {
 author_esc=$(escape_c "$author")
 date_esc=$(escape_c "$date")
 sha_esc=$(escape_c "$sha")
+tag_esc=$(escape_c "$tag")
 
 {
     echo "// Generated. Do not edit! See ./build_version_header.sh"
@@ -71,8 +79,8 @@ sha_esc=$(escape_c "$sha")
     fi
     printf 'const char* RIVE_RUNTIME_AUTHOR="%s";\n' "$author_esc"
     printf 'const char* RIVE_RUNTIME_DATE="%s";\n' "$date_esc"
+    printf 'const char* RIVE_RUNTIME_TAG="%s";\n' "$tag_esc"
     printf 'const char* RIVE_RUNTIME_SHA1="%s";\n' "$sha_esc"
 } >"$OUT_PATH"
 
 echo "Wrote $OUT_PATH"
-

@@ -14,13 +14,17 @@ on:
         required: true
         default: "https://github.com/rive-app/rive-runtime.git"
       rive_ref:
-        description: "Rive runtime ref (branch/tag/commit). Leave empty for default."
+        description: "Rive runtime branch or other git ref. Leave empty for default."
+        required: false
+        default: ""
+      rive_tag:
+        description: "Rive runtime GitHub release tag, for example runtime-v0.1.8"
         required: false
         default: ""
       rive_sha:
-        description: "Rive runtime commit SHA to checkout (overrides rive_ref)"
+        description: "Rive runtime commit SHA to checkout (overrides rive_tag and rive_ref)"
         required: false
-        default: "3a5b5058aca009b823154ed7f92c11d599c00ae3"
+        default: ""
       upload_artifact:
         description: "Upload tarball artifact (defold-rive/lib + include)"
         required: true
@@ -163,6 +167,7 @@ jobs:
           platform: ${{ matrix.platform }}
           rive_repo_url: ${{ github.event.inputs.rive_repo_url }}
           rive_ref: ${{ github.event.inputs.rive_ref }}
+          rive_tag: ${{ github.event.inputs.rive_tag }}
           rive_sha: ${{ github.event.inputs.rive_sha }}
           upload_artifact: ${{ github.event.inputs.upload_artifact }}
           commit_message: ${{ github.event.inputs.commit_message }}
@@ -192,6 +197,7 @@ jobs:
           platform: ${{ matrix.platform }}
           rive_repo_url: ${{ github.event.inputs.rive_repo_url }}
           rive_ref: ${{ github.event.inputs.rive_ref }}
+          rive_tag: ${{ github.event.inputs.rive_tag }}
           rive_sha: ${{ github.event.inputs.rive_sha }}
           upload_artifact: ${{ github.event.inputs.upload_artifact }}
           commit_message: ${{ github.event.inputs.commit_message }}
@@ -243,6 +249,7 @@ jobs:
           platform: ${{ matrix.platform }}
           rive_repo_url: ${{ github.event.inputs.rive_repo_url }}
           rive_ref: ${{ github.event.inputs.rive_ref }}
+          rive_tag: ${{ github.event.inputs.rive_tag }}
           rive_sha: ${{ github.event.inputs.rive_sha }}
           upload_artifact: ${{ github.event.inputs.upload_artifact }}
           commit_message: ${{ github.event.inputs.commit_message }}
@@ -280,6 +287,7 @@ jobs:
           platform: ${{ matrix.platform }}
           rive_repo_url: ${{ github.event.inputs.rive_repo_url }}
           rive_ref: ${{ github.event.inputs.rive_ref }}
+          rive_tag: ${{ github.event.inputs.rive_tag }}
           rive_sha: ${{ github.event.inputs.rive_sha }}
           upload_artifact: ${{ github.event.inputs.upload_artifact }}
           commit_message: ${{ github.event.inputs.commit_message }}
@@ -347,6 +355,7 @@ jobs:
           platform: ${{ matrix.platform }}
           rive_repo_url: ${{ github.event.inputs.rive_repo_url }}
           rive_ref: ${{ github.event.inputs.rive_ref }}
+          rive_tag: ${{ github.event.inputs.rive_tag }}
           rive_sha: ${{ github.event.inputs.rive_sha }}
           upload_artifact: ${{ github.event.inputs.upload_artifact }}
           commit_message: ${{ github.event.inputs.commit_message }}

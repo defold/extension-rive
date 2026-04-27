@@ -91,6 +91,12 @@ Example with GitHub CLI:
 gh workflow run branch-artifacts.yml -r update-<sha1> -f platform=all -f push_changes=true -f rive_sha=<sha1>
 ```
 
+Example using a Rive runtime release tag:
+
+```bash
+gh workflow run branch-artifacts.yml -r update-runtime-v0.1.8 -f platform=all -f push_changes=true -f rive_tag=runtime-v0.1.8
+```
+
 Example for a single platform:
 
 ```bash
@@ -102,6 +108,7 @@ gh workflow run branch-artifacts.yml -r update-a228887fa6032efd0e0e23af70455913d
 The workflow:
 
 - Checks out your branch and clones the Rive runtime to a temp folder
+- Checks out the requested `rive_sha`, `rive_tag`, or `rive_ref`; SHA takes precedence over tag, and tag takes precedence over ref
 - Exports `RIVE_ROOT` to that folder and ensures the repo is clean
 - Runs `./utils/rive-runtime/build.sh ${PLATFORM} ${RIVE_ROOT}`
 - Uploads `branch-artifacts-<branch>.tgz` containing `defold-rive/lib` and `defold-rive/include`
