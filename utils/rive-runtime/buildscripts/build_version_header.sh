@@ -31,7 +31,13 @@ sha=""
 tag="${RIVE_RUNTIME_TAG:-}"
 if git -C "$REPO_DIR" rev-parse --git-dir >/dev/null 2>&1; then
     sha=$(git -C "$REPO_DIR" rev-parse HEAD)
-    if [[ -z "$tag" ]]; then
+    if [[ -n "$tag" ]]; then
+        tag_sha=$(git -C "$REPO_DIR" rev-list -n 1 "$tag" 2>/dev/null || true)
+        if [[ "$tag_sha" != "$sha" ]]; then
+            echo "error: RIVE_RUNTIME_TAG '$tag' does not resolve to checked-out commit $sha" >&2
+            exit 1
+        fi
+    else
         tag=$(git -C "$REPO_DIR" describe --tags --exact-match HEAD 2>/dev/null || true)
     fi
     author=$(git -C "$REPO_DIR" show -s --format=%cn HEAD)

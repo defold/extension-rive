@@ -1,0 +1,168 @@
+name: Update Rive Runtime
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: "Select the Rive runtime source type"
+        required: true
+        type: choice
+        options: ["tag", "sha"]
+        default: "tag"
+      rive_tag:
+        description: "Rive runtime tag from https://github.com/rive-app/rive-runtime/tags"
+        required: false
+        default: ""
+      rive_sha:
+        description: "Rive runtime commit SHA1"
+        required: false
+        default: ""
+      platform:
+        description: "Target platform for Rive build"
+        required: true
+        type: choice
+        options: ["x86_64-linux", "arm64-linux", "arm64-macos", "x86_64-macos", "arm64-ios", "x86_64-ios", "arm64-android", "armv7-android", "js-web", "wasm-web", "wasm_pthread-web", "x86-win32", "x86_64-win32", "all"]
+        default: "all"
+      rive_repo_url:
+        description: "Rive runtime repo URL (HTTPS)"
+        required: true
+        default: "https://github.com/rive-app/rive-runtime.git"
+      upload_artifact:
+        description: "Upload tarball artifact (defold-rive/lib + include)"
+        required: true
+        type: choice
+        options: ["true", "false"]
+        default: "false"
+      commit_message:
+        description: "Optional commit message suffix"
+        required: false
+        default: ""
+      defold_version:
+        description: "Defold SDK version (defaults to latest stable)"
+        required: false
+        default: "latest"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-rive-${{ github.ref_name }}-${{ inputs.source }}-${{ inputs.rive_tag || inputs.rive_sha }}
+  cancel-in-progress: false
+
+jobs:
+  prepare-update:
+    name: Create update branch
+    runs-on: ubuntu-22.04
+    outputs:
+      target_branch: ${{ steps.resolve.outputs.target_branch }}
+      rive_tag: ${{ steps.resolve.outputs.rive_tag }}
+      rive_sha: ${{ steps.resolve.outputs.rive_sha }}
+      commit_message: ${{ steps.resolve.outputs.commit_message }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Resolve Rive runtime selection
+        id: resolve
+        shell: bash
+        env:
+          SOURCE: ${{ inputs.source }}
+          RIVE_REPO_URL: ${{ inputs.rive_repo_url }}
+          RIVE_TAG_INPUT: ${{ inputs.rive_tag }}
+          RIVE_SHA_INPUT: ${{ inputs.rive_sha }}
+          COMMIT_MESSAGE_INPUT: ${{ inputs.commit_message }}
+        run: |
+          set -euo pipefail
+
+          rive_tag=""
+          rive_sha=""
+          selected_ref=""
+
+          if [ "${SOURCE}" = "tag" ]; then
+            rive_tag="${RIVE_TAG_INPUT}"
+            if [ -z "${rive_tag}" ]; then
+              echo "error: rive_tag is required when source=tag" >&2
+              exit 1
+            fi
+            if ! git ls-remote --exit-code --tags --refs "${RIVE_REPO_URL}" "refs/tags/${rive_tag}" >/dev/null; then
+              echo "error: tag '${rive_tag}' was not found in ${RIVE_REPO_URL}" >&2
+              exit 1
+            fi
+            selected_ref="${rive_tag}"
+          elif [ "${SOURCE}" = "sha" ]; then
+            rive_sha="${RIVE_SHA_INPUT}"
+            if [[ ! "${rive_sha}" =~ ^[0-9a-fA-F]{40}$ ]]; then
+              echo "error: rive_sha must be a full 40-character SHA1" >&2
+              exit 1
+            fi
+            tmp_dir="$(mktemp -d)"
+            git init -q "${tmp_dir}"
+            git -C "${tmp_dir}" remote add origin "${RIVE_REPO_URL}"
+            if ! git -C "${tmp_dir}" fetch --depth 1 origin "${rive_sha}" >/dev/null 2>&1; then
+              echo "error: commit '${rive_sha}' could not be fetched from ${RIVE_REPO_URL}" >&2
+              exit 1
+            fi
+            selected_ref="${rive_sha}"
+          else
+            echo "error: unsupported source '${SOURCE}'" >&2
+            exit 1
+          fi
+
+          branch_suffix="$(printf '%s' "${selected_ref}" | sed -E 's/[^A-Za-z0-9._-]+/-/g; s/^-+//; s/-+$//')"
+          if [ -z "${branch_suffix}" ]; then
+            echo "error: could not derive a branch suffix from '${selected_ref}'" >&2
+            exit 1
+          fi
+
+          target_branch="update-runtime-${branch_suffix}"
+          if ! git check-ref-format --branch "${target_branch}" >/dev/null; then
+            echo "error: derived branch name '${target_branch}' is not valid" >&2
+            exit 1
+          fi
+
+          commit_message="${COMMIT_MESSAGE_INPUT}"
+          if [ -z "${commit_message}" ]; then
+            commit_message="Rive runtime ${selected_ref}"
+          fi
+
+          {
+            echo "target_branch=${target_branch}"
+            echo "rive_tag=${rive_tag}"
+            echo "rive_sha=${rive_sha}"
+            echo "commit_message=${commit_message}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create and push update branch
+        shell: bash
+        env:
+          TARGET_BRANCH: ${{ steps.resolve.outputs.target_branch }}
+        run: |
+          set -euo pipefail
+
+          if git ls-remote --exit-code --heads origin "${TARGET_BRANCH}" >/dev/null 2>&1; then
+            echo "error: branch '${TARGET_BRANCH}' already exists on origin" >&2
+            exit 1
+          fi
+
+          git switch -c "${TARGET_BRANCH}"
+          git push origin "HEAD:${TARGET_BRANCH}"
+
+  build:
+    name: Build Rive artifacts
+    needs: prepare-update
+    permissions:
+      contents: write
+    uses: ./.github/workflows/branch-artifacts.yml
+    with:
+      platform: ${{ inputs.platform }}
+      rive_repo_url: ${{ inputs.rive_repo_url }}
+      rive_ref: ""
+      rive_tag: ${{ needs.prepare-update.outputs.rive_tag }}
+      rive_sha: ${{ needs.prepare-update.outputs.rive_sha }}
+      upload_artifact: ${{ inputs.upload_artifact }}
+      commit_message: ${{ needs.prepare-update.outputs.commit_message }}
+      push_changes: ${{ 'true' }}
+      defold_version: ${{ inputs.defold_version }}
+      target_branch: ${{ needs.prepare-update.outputs.target_branch }}

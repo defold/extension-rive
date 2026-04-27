@@ -33,6 +33,10 @@ inputs:
     description: Push changes back to the same branch
     required: true
     default: "true"
+  target_branch:
+    description: Branch to push committed changes to. Defaults to the workflow ref.
+    required: false
+    default: ""
   build_mode:
     description: Build mode (`patched` uses utils/rive-runtime/build.sh, `vanilla` uses build/build_rive.sh directly when supported)
     required: false
@@ -197,6 +201,10 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
+        target_branch="${{ inputs.target_branch }}"
+        if [ -z "${target_branch}" ]; then
+          target_branch="${GITHUB_REF_NAME}"
+        fi
         paths=()
         [ -d defold-rive/lib ] && paths+=(defold-rive/lib)
         [ -d defold-rive/include ] && paths+=(defold-rive/include)
@@ -205,14 +213,14 @@ runs:
           exit 0
         fi
         echo "Packing: ${paths[*]}"
-        tar -czf "branch-artifacts-${GITHUB_REF_NAME}.tgz" "${paths[@]}"
+        tar -czf "branch-artifacts-${target_branch}.tgz" "${paths[@]}"
 
     - name: Upload artifact (optional)
       if: ${{ inputs.upload_artifact == 'true' }}
       uses: actions/upload-artifact@v4
       with:
-        name: branch-artifacts-${{ github.ref_name }}
-        path: branch-artifacts-${{ github.ref_name }}.tgz
+        name: branch-artifacts-${{ inputs.target_branch || github.ref_name }}
+        path: branch-artifacts-${{ inputs.target_branch || github.ref_name }}.tgz
         if-no-files-found: ignore
 
     - name: Commit and push changes (optional)
@@ -220,8 +228,10 @@ runs:
       shell: bash
       env:
         COMMIT_SUFFIX: ${{ inputs.commit_message }}
+        TARGET_BRANCH: ${{ inputs.target_branch }}
       run: |
         set -euo pipefail
+        target_branch="${TARGET_BRANCH:-${GITHUB_REF_NAME}}"
         git config user.name "github-actions[bot]"
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
         add_paths=()
@@ -234,7 +244,7 @@ runs:
           echo "No changes to commit."
           exit 0
         fi
-        msg="ci: update artifacts on ${GITHUB_REF_NAME} [skip ci]"
+        msg="ci: update artifacts on ${target_branch} [skip ci]"
         if [ -n "${COMMIT_SUFFIX}" ]; then
           msg="$msg - ${COMMIT_SUFFIX}"
         fi
@@ -244,13 +254,13 @@ runs:
         attempt=1
         until [ $attempt -gt $max_attempts ]; do
           echo "Attempt $attempt: rebase + push"
-          if git pull --rebase origin "${GITHUB_REF_NAME}"; then
+          if git pull --rebase origin "${target_branch}"; then
             local_sha="$(git rev-parse HEAD)"
-            if git push origin HEAD:"${GITHUB_REF_NAME}"; then
+            if git push origin HEAD:"${target_branch}"; then
               echo "Push succeeded"
               break
             fi
-            remote_sha="$(git ls-remote origin "refs/heads/${GITHUB_REF_NAME}" | awk '{print $1}' || true)"
+            remote_sha="$(git ls-remote origin "refs/heads/${target_branch}" | awk '{print $1}' || true)"
             if [ -n "${remote_sha}" ] && [ "${remote_sha}" = "${local_sha}" ]; then
               echo "Remote branch already points at ${local_sha}; treating push as successful."
               break
