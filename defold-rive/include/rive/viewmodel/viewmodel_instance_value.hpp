@@ -4,7 +4,7 @@
 #include "rive/animation/state_machine_input_instance.hpp"
 #include "rive/viewmodel/viewmodel_property.hpp"
 #include "rive/dependency_helper.hpp"
-#include "rive/dirtyable.hpp"
+#include "rive/viewmodel/viewmodel_value_dependent.hpp"
 #include "rive/component.hpp"
 #include "rive/component_dirt.hpp"
 #include "rive/refcnt.hpp"
@@ -22,11 +22,11 @@ public:
 
 enum class ValueFlags : uint8_t
 {
+    none = 0,
     valueChanged = 1 << 1,
     delegatesChanged = 1 << 2,
     delegating = 1 << 3,
 };
-RIVE_MAKE_ENUM_BITSET(ValueFlags)
 
 class SuppressDelegation;
 
@@ -37,7 +37,7 @@ class ViewModelInstanceValue : public ViewModelInstanceValueBase,
     friend class SuppressDelegation;
 
 private:
-    ViewModelProperty* m_ViewModelProperty;
+    ViewModelProperty* m_ViewModelProperty = nullptr;
     static std::string defaultName;
     ValueFlags m_changeFlags;
     std::vector<ViewModelInstanceValueDelegate*> m_delegates;
@@ -48,7 +48,9 @@ public:
     void removeDelegate(ViewModelInstanceValueDelegate* delegate);
 
 protected:
-    DependencyHelper<rcp<ViewModelInstance>, Dirtyable> m_DependencyHelper;
+    DependencyHelper<rcp<ViewModelInstance>, ViewModelValueDependent>
+        m_DependencyHelper;
+    ViewModelInstance* m_viewModelInstance = nullptr;
     void addDirt(ComponentDirt value);
 
     // Suppress/restore calling delegates.
@@ -56,16 +58,22 @@ protected:
     void restoreDelegation();
 
 public:
+    StatusCode onAddedDirty(CoreContext* context) override;
     StatusCode import(ImportStack& importStack) override;
     void viewModelProperty(ViewModelProperty* value);
     ViewModelProperty* viewModelProperty();
-    void addDependent(Dirtyable* value);
-    void removeDependent(Dirtyable* value);
+    void viewModelInstance(ViewModelInstance* value);
+    void addDependent(ViewModelValueDependent* value);
+    void removeDependent(ViewModelValueDependent* value);
     virtual void setRoot(rcp<ViewModelInstance> value);
     virtual void advanced();
     bool hasChanged();
     void onValueChanged();
     const std::string& name() const;
+    std::vector<ViewModelValueDependent*>& dependents()
+    {
+        return m_DependencyHelper.mutableDependents();
+    }
 };
 
 class SuppressDelegation
@@ -84,7 +92,7 @@ public:
     }
 
 private:
-    ViewModelInstanceValue* m_value;
+    ViewModelInstanceValue* m_value = nullptr;
     bool m_suppressed;
 };
 

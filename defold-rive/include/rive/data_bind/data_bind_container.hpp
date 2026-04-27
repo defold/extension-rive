@@ -11,9 +11,12 @@ class DataBindContainer
 public:
     virtual void updateDataBinds(bool applyTargetToSource = true);
     void addDataBind(DataBind* dataBind);
+    void removeDataBind(DataBind* dataBind);
     const std::vector<DataBind*> dataBinds() const { return m_dataBinds; }
     virtual void addDirtyDataBind(DataBind* dataBind);
     virtual void rebind() {};
+    virtual void relinkDataContext() {};
+    virtual void rebuildDataBind(DataBind*) {};
 
 protected:
     void deleteDataBinds();

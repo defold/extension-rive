@@ -3,6 +3,8 @@
 #define _RIVE_LUA_LIBS_HPP_
 #include "lua.h"
 #include "lualib.h"
+#include "rive/animation/linear_animation_instance.hpp"
+#include "rive/assets/file_asset.hpp"
 #include "rive/assets/script_asset.hpp"
 #include "rive/lua/lua_state.hpp"
 #include "rive/math/raw_path.hpp"
@@ -11,6 +13,8 @@
 #include "rive/math/contour_measure.hpp"
 #include "rive/math/path_measure.hpp"
 #include "rive/shapes/paint/image_sampler.hpp"
+#include "rive/shapes/paint/shape_paint.hpp"
+#include "rive/viewmodel/data_enum.hpp"
 #include "rive/viewmodel/viewmodel_instance_boolean.hpp"
 #include "rive/viewmodel/viewmodel_instance_color.hpp"
 #include "rive/viewmodel/viewmodel_instance_enum.hpp"
@@ -28,10 +32,22 @@
 #include "rive/data_bind/data_values/data_value_number.hpp"
 #include "rive/data_bind/data_values/data_value_string.hpp"
 #include "rive/viewmodel/viewmodel.hpp"
+#include "rive/animation/listener_invocation.hpp"
 #include "rive/hit_result.hpp"
+#include "rive/lua/scripting_vm.hpp"
 #include "rive/refcnt.hpp"
+#ifdef WITH_RIVE_AUDIO
+#include "rive/audio/audio_engine.hpp"
+#include "rive/audio/audio_source.hpp"
+#include "rive/audio/audio_sound.hpp"
+#endif
+#ifdef WITH_RIVE_TOOLS
+#include "rive/core/binary_writer.hpp"
+#include "rive/core/vector_binary_stream.hpp"
+#endif
 
 #include <chrono>
+#include <memory>
 #include <unordered_map>
 #include <unordered_set>
 #include <functional>
@@ -148,6 +164,9 @@ enum class LuaAtoms : int16_t
     getBoolean,
     getColor,
     getList,
+    getViewModel,
+    getEnum,
+    values,
     addListener,
     removeListener,
     fire,
@@ -156,6 +175,7 @@ enum class LuaAtoms : int16_t
     shift,
     pop,
     swap,
+    clear,
 
     // Artboards
     draw,
@@ -163,6 +183,7 @@ enum class LuaAtoms : int16_t
     frameOrigin,
     data,
     instance,
+    animation,
     newAtom,
     bounds,
     pointerDown,
@@ -193,6 +214,9 @@ enum class LuaAtoms : int16_t
     children,
     parent,
     node,
+    paint,
+    asPaint,
+    asPath,
 
     // PathMeasure/ContourMeasure
     positionAndTangent,
@@ -204,6 +228,68 @@ enum class LuaAtoms : int16_t
     // Scripted Context
     markNeedsUpdate,
     viewModel,
+    rootViewModel,
+    image,
+    blob,
+    size,
+    dataContext,
+    audio,
+    play,
+    playAtTime,
+    playInTime,
+    playAtFrame,
+    playInFrame,
+    stop,
+    pause,
+    resume,
+    seek,
+    seekFrame,
+    volume,
+    completed,
+    time,
+    timeFrame,
+    sampleRate,
+
+    // Animation
+    duration,
+    setTime,
+    setTimeFrames,
+    setTimePercentage,
+
+    // PointerEvent (append to avoid shifting existing atom ids)
+    previousPosition,
+    timeStamp,
+
+    // ScriptedInvocation / listener payloads (append only)
+    isPointerEvent,
+    isKeyboardEvent,
+    isTextInput,
+    isFocus,
+    isReportedEvent,
+    isViewModelChange,
+    isNone,
+    isGamepad,
+    asPointerEvent,
+    asKeyboardEvent,
+    asTextInput,
+    asFocus,
+    asReportedEvent,
+    asViewModelChange,
+    asGamepad,
+    asNone,
+    key,
+    alt,
+    control,
+    meta,
+    text,
+    phase,
+    delaySeconds,
+    deviceId,
+    buttonMask,
+    axis0,
+    remove,
+    removeAt,
+    removeAllOf,
 };
 
 struct ScriptedMat2D
@@ -217,6 +303,8 @@ struct ScriptedMat2D
     {}
 
     ScriptedMat2D(const Mat2D& mat) : value(mat) {}
+
+    ScriptedMat2D() {}
 
     rive::Mat2D value;
 };
@@ -316,6 +404,59 @@ public:
     static constexpr bool hasMetatable = true;
 };
 
+class ScriptedBlob
+{
+public:
+    rcp<FileAsset> asset; // Holds ref to keep BlobAsset alive
+
+    static constexpr uint8_t luaTag = LUA_T_COUNT + 35;
+    static constexpr const char* luaName = "Blob";
+    static constexpr bool hasMetatable = true;
+};
+
+#ifdef WITH_RIVE_AUDIO
+
+class ScriptedAudio
+{
+public:
+    static constexpr uint8_t luaTag = LUA_T_COUNT + 40;
+    static constexpr const char* luaName = "Audio";
+    static constexpr bool hasMetatable = true;
+};
+
+class ScriptedAudioSource
+{
+public:
+    static constexpr uint8_t luaTag = LUA_T_COUNT + 38;
+    static constexpr const char* luaName = "AudioSource";
+    static constexpr bool hasMetatable = true;
+    void source(rcp<AudioSource>);
+    rcp<AudioSource> source() { return m_source; }
+    int play(lua_State*, AudioEngine*);
+    int play(lua_State*, AudioEngine*, double, bool);
+    int playFrame(lua_State*, AudioEngine*);
+    int playFrame(lua_State*, AudioEngine*, uint64_t, bool);
+
+private:
+    rcp<AudioSource> m_source;
+    int initializeSound(lua_State*, rcp<AudioSound>, Artboard*);
+};
+
+class ScriptedAudioSound
+{
+public:
+    ScriptedAudioSound(Artboard* artboard) : m_artboard(artboard) {}
+    rcp<AudioSound> sound;
+    static constexpr uint8_t luaTag = LUA_T_COUNT + 39;
+    static constexpr const char* luaName = "AudioSound";
+    static constexpr bool hasMetatable = true;
+    Artboard* artboard() { return m_artboard; }
+
+private:
+    Artboard* m_artboard = nullptr;
+};
+#endif
+
 class ScriptedImageSampler
 {
 public:
@@ -333,63 +474,31 @@ public:
     static constexpr bool hasMetatable = false;
 };
 
-class ScriptedPaint
+class ScriptedPaintData
 {
 public:
-    ScriptedPaint(Factory* factory);
-    ScriptedPaint(Factory* factory, const ScriptedPaint& source);
-    rcp<RenderPaint> renderPaint;
+    ScriptedPaintData();
+    ScriptedPaintData(const ShapePaint* shapePaint);
+    virtual ~ScriptedPaintData() = default;
 
-    static constexpr uint8_t luaTag = LUA_T_COUNT + 8;
-    static constexpr const char* luaName = "Paint";
+    static constexpr uint8_t luaTag = LUA_T_COUNT + 33;
+    static constexpr const char* luaName = "PaintData";
     static constexpr bool hasMetatable = true;
 
-    void style(RenderPaintStyle style)
-    {
-        m_style = style;
-        renderPaint->style(style);
-    }
+    virtual void style(RenderPaintStyle style) { m_style = style; }
 
-    void color(ColorInt value)
-    {
-        m_color = value;
-        renderPaint->color(value);
-    }
-    void thickness(float value)
-    {
-        m_thickness = value;
-        renderPaint->thickness(value);
-    }
+    virtual void color(ColorInt value) { m_color = value; }
+    virtual void thickness(float value) { m_thickness = value; }
 
-    void join(StrokeJoin value)
-    {
-        m_join = value;
-        renderPaint->join(value);
-    }
+    virtual void join(StrokeJoin value) { m_join = value; }
 
-    void cap(StrokeCap value)
-    {
-        m_cap = value;
-        renderPaint->cap(value);
-    }
+    virtual void cap(StrokeCap value) { m_cap = value; }
 
-    void feather(float value)
-    {
-        m_feather = value;
-        renderPaint->feather(value);
-    }
+    virtual void feather(float value) { m_feather = value; }
 
-    void blendMode(BlendMode value)
-    {
-        m_blendMode = value;
-        renderPaint->blendMode(value);
-    }
+    virtual void blendMode(BlendMode value) { m_blendMode = value; }
 
-    void gradient(rcp<RenderShader> value)
-    {
-        m_gradient = value;
-        renderPaint->shader(value);
-    }
+    virtual void gradient(rcp<RenderShader> value) { m_gradient = value; }
 
     void pushStyle(lua_State* L);
     void pushJoin(lua_State* L);
@@ -400,7 +509,7 @@ public:
     void pushGradient(lua_State* L);
     void pushColor(lua_State* L);
 
-private:
+protected:
     RenderPaintStyle m_style = RenderPaintStyle::fill;
     rcp<RenderShader> m_gradient;
     float m_thickness = 1;
@@ -409,6 +518,66 @@ private:
     float m_feather = 0;
     BlendMode m_blendMode = BlendMode::srcOver;
     ColorInt m_color = 0xFF000000;
+};
+
+class ScriptedPaint : public ScriptedPaintData
+{
+public:
+    ScriptedPaint(Factory* factory);
+    ScriptedPaint(Factory* factory, const ScriptedPaint& source);
+    virtual ~ScriptedPaint() = default;
+    rcp<RenderPaint> renderPaint;
+
+    static constexpr uint8_t luaTag = LUA_T_COUNT + 8;
+    static constexpr const char* luaName = "Paint";
+    static constexpr bool hasMetatable = true;
+
+    void style(RenderPaintStyle style) override
+    {
+        ScriptedPaintData::style(style);
+        renderPaint->style(style);
+    }
+
+    void color(ColorInt value) override
+    {
+        ScriptedPaintData::color(value);
+        renderPaint->color(value);
+    }
+    void thickness(float value) override
+    {
+        ScriptedPaintData::thickness(value);
+        renderPaint->thickness(value);
+    }
+
+    void join(StrokeJoin value) override
+    {
+        ScriptedPaintData::join(value);
+        renderPaint->join(value);
+    }
+
+    void cap(StrokeCap value) override
+    {
+        ScriptedPaintData::cap(value);
+        renderPaint->cap(value);
+    }
+
+    void feather(float value) override
+    {
+        ScriptedPaintData::feather(value);
+        renderPaint->feather(value);
+    }
+
+    void blendMode(BlendMode value) override
+    {
+        ScriptedPaintData::blendMode(value);
+        renderPaint->blendMode(value);
+    }
+
+    void gradient(rcp<RenderShader> value) override
+    {
+        ScriptedPaintData::gradient(value);
+        renderPaint->shader(value);
+    }
 };
 
 class ScriptedRenderer
@@ -440,7 +609,9 @@ class ScriptReffedArtboard : public RefCnt<ScriptReffedArtboard>
 {
 public:
     ScriptReffedArtboard(rcp<File> file,
-                         std::unique_ptr<ArtboardInstance>&& artboardInstance);
+                         std::unique_ptr<ArtboardInstance>&& artboardInstance,
+                         rcp<ViewModelInstance> viewModelInstance,
+                         rcp<DataContext> parentDataContext);
 
     ~ScriptReffedArtboard();
     rive::rcp<rive::File> file();
@@ -460,7 +631,9 @@ class ScriptedArtboard
 public:
     ScriptedArtboard(lua_State* L,
                      rcp<File> file,
-                     std::unique_ptr<ArtboardInstance>&& artboardInstance);
+                     std::unique_ptr<ArtboardInstance>&& artboardInstance,
+                     rcp<ViewModelInstance> viewModelInstance,
+                     rcp<DataContext> dataContext);
     ~ScriptedArtboard();
 
     static constexpr uint8_t luaTag = LUA_T_COUNT + 10;
@@ -483,16 +656,36 @@ public:
     }
 
     int pushData(lua_State* L);
-    int instance(lua_State* L);
+    int instance(lua_State* L, rcp<ViewModelInstance> viewModelInstance);
+    int animation(lua_State* L, const char* animationName);
 
     bool advance(float seconds);
 
     void cleanupDataRef(lua_State* L);
 
 private:
-    lua_State* m_state;
-    rcp<ScriptReffedArtboard> m_scriptReffedArtboard;
+    lua_State* m_state = nullptr;
+    rcp<ScriptReffedArtboard> m_scriptReffedArtboard = nullptr;
+    rcp<DataContext> m_dataContext = nullptr;
     int m_dataRef = 0;
+};
+
+class ScriptedAnimation
+{
+public:
+    ScriptedAnimation(lua_State* L,
+                      std::unique_ptr<LinearAnimationInstance> animation);
+
+    static constexpr uint8_t luaTag = LUA_T_COUNT + 32;
+    static constexpr const char* luaName = "Animation";
+    static constexpr bool hasMetatable = true;
+    float duration();
+    int advance();
+    int setTime(std::string mode);
+
+private:
+    lua_State* m_state;
+    std::unique_ptr<LinearAnimationInstance> m_animation;
 };
 
 struct ScriptedListener
@@ -509,15 +702,22 @@ public:
     int addListener();
     int removeListener();
     void clearListeners();
+    virtual void dispose();
 
     void valueChanged() override;
 
     const lua_State* state() const { return m_state; }
 
     ViewModelInstanceValue* instanceValue() { return m_instanceValue.get(); }
+    ScriptedObject* owner() const { return m_owner; }
 
 private:
     std::vector<ScriptedListener> m_listeners;
+    ScriptedObject* m_owner = nullptr;
+#ifdef WITH_RIVE_TOOLS
+    ScriptingContext* m_orphanContext = nullptr;
+#endif
+    bool m_disposed = false;
 
 protected:
     lua_State* m_state;
@@ -542,6 +742,10 @@ public:
     {
         return m_viewModelInstance;
     }
+    rcp<ViewModelInstance> mutableViewModelInstance()
+    {
+        return m_viewModelInstance;
+    }
 
 private:
     lua_State* m_state;
@@ -561,6 +765,8 @@ public:
     static constexpr const char* luaName = "PropertyViewModel";
     static constexpr bool hasMetatable = true;
     int pushValue();
+    void setValue(ScriptedViewModel*);
+    void dispose() override;
 
 private:
     rcp<ViewModel> m_viewModel;
@@ -641,6 +847,26 @@ public:
 
     int pushValue();
     void setValue(bool value);
+};
+
+class ScriptedEnumValues
+{
+public:
+    ScriptedEnumValues(lua_State* L, DataEnum* value) :
+        m_state(L), m_dataEnum(value)
+    {}
+    static constexpr uint8_t luaTag = LUA_T_COUNT + 34;
+    static constexpr const char* luaName = "EnumValues";
+    static constexpr bool hasMetatable = true;
+    void dataEnum(DataEnum* value) { m_dataEnum = value; }
+    int pushValue(int index);
+    int pushLength();
+
+    const lua_State* state() const { return m_state; }
+
+private:
+    lua_State* m_state = nullptr;
+    DataEnum* m_dataEnum = nullptr;
 };
 
 class ScriptedPropertyEnum : public ScriptedProperty
@@ -732,6 +958,10 @@ inline void lua_pushvec2d(lua_State* L, Vec2D vec)
 int luaopen_rive(lua_State* L);
 int rive_luaErrorHandler(lua_State* L);
 int rive_lua_pcall(lua_State* state, int nargs, int nresults);
+int rive_lua_pcall_with_context(lua_State* state,
+                                ScriptedObject* scriptedObject,
+                                int nargs,
+                                int nresults);
 int rive_lua_pushRef(lua_State* state, int ref);
 void rive_lua_pop(lua_State* state, int count);
 
@@ -739,7 +969,16 @@ class ScriptingContext
 {
 public:
     ScriptingContext(Factory* factory) : m_factory(factory) {}
+    virtual ~ScriptingContext() = default;
     Factory* factory() const { return m_factory; }
+    ScriptedObject* currentScriptedObject() const
+    {
+        return m_currentScriptedObject;
+    }
+    void currentScriptedObject(ScriptedObject* value)
+    {
+        m_currentScriptedObject = value;
+    }
 
     virtual void printError(lua_State* state) = 0;
     virtual void printBeginLine(lua_State* state) = 0;
@@ -767,51 +1006,58 @@ private:
 
 private:
     Factory* m_factory;
+    ScriptedObject* m_currentScriptedObject = nullptr;
     std::vector<ModuleDetails*> m_modulesToRegister;
     std::unordered_map<std::string, ModuleDetails*> m_moduleLookup;
-
     std::unordered_set<ModuleDetails*> m_pendingModules;
+
+#ifdef WITH_RIVE_TOOLS
+    // Editor-only: Map from asset ID to generator function ref.
+    // Allows direct ScriptedObject reinitialization without regenerating
+    // the runtime file.
+    std::unordered_map<uint32_t, int> m_assetGeneratorRefs;
+    bool m_isPlaying = false;
+    std::vector<ScriptedProperty*> m_orphanScriptedProperties;
+
+public:
+    void setGeneratorRef(uint32_t assetId, int ref);
+    int getGeneratorRef(uint32_t assetId) const;
+    void clearGeneratorRefs();
+    bool hasGeneratorRef(uint32_t assetId) const;
+    void isPlaying(bool value) { m_isPlaying = value; }
+    bool isPlaying() const { return m_isPlaying; }
+    void trackOrphanScriptedProperty(ScriptedProperty* property);
+    void untrackOrphanScriptedProperty(ScriptedProperty* property);
+    void disposeOrphanScriptedProperties();
+#endif
 };
 
-class ScriptingVM
+class ScopedScriptedObjectContext
 {
 public:
-    ScriptingVM(ScriptingContext* context);
-    ~ScriptingVM();
-
-    // ScriptingContext& context() { return m_context; }
-    lua_State* state() { return m_state; }
-
-    static void init(lua_State* state, ScriptingContext* context);
-
-    // Add a module to be registered later via performRegistration()
-    void addModule(ModuleDetails* moduleDetails)
+    ScopedScriptedObjectContext(ScriptingContext* context,
+                                ScriptedObject* scriptedObject) :
+        m_context(context),
+        m_previous(context == nullptr ? nullptr
+                                      : context->currentScriptedObject())
     {
-        m_context->addModule(moduleDetails);
+        if (m_context != nullptr)
+        {
+            m_context->currentScriptedObject(scriptedObject);
+        }
     }
 
-    // Perform registration of all added modules, handling dependencies and
-    // retries
-    void performRegistration() { m_context->performRegistration(m_state); }
-
-    static bool registerModule(lua_State* state,
-                               const char* name,
-                               Span<uint8_t> bytecode);
-    static void unregisterModule(lua_State* state, const char* name);
-    bool registerModule(const char* name, Span<uint8_t> bytecode);
-    void unregisterModule(const char* name);
-
-    static bool registerScript(lua_State* state,
-                               const char* name,
-                               Span<uint8_t> bytecode);
-
-    bool registerScript(const char* name, Span<uint8_t> bytecode);
-
-    static void dumpStack(lua_State* state);
+    ~ScopedScriptedObjectContext()
+    {
+        if (m_context != nullptr)
+        {
+            m_context->currentScriptedObject(m_previous);
+        }
+    }
 
 private:
-    lua_State* m_state;
     ScriptingContext* m_context;
+    ScriptedObject* m_previous;
 };
 
 class ScriptedDataValue
@@ -889,8 +1135,16 @@ public:
 class ScriptedPointerEvent
 {
 public:
-    ScriptedPointerEvent(uint8_t id, Vec2D position) :
-        m_id(id), m_position(position)
+    ScriptedPointerEvent(uint8_t id,
+                         Vec2D position,
+                         Vec2D previousPosition = Vec2D(),
+                         int hitListenerType = 0,
+                         float timeStamp = 0.f) :
+        m_id(id),
+        m_position(position),
+        m_previousPosition(previousPosition),
+        m_hitListenerType(hitListenerType),
+        m_timeStamp(timeStamp)
     {}
 
     static constexpr uint8_t luaTag = LUA_T_COUNT + 24;
@@ -899,6 +1153,9 @@ public:
 
     uint8_t m_id = 0;
     Vec2D m_position;
+    Vec2D m_previousPosition;
+    int m_hitListenerType = 0;
+    float m_timeStamp = 0.f;
     HitResult m_hitResult = HitResult::none;
 };
 
@@ -915,9 +1172,13 @@ public:
     TransformComponent* component() { return m_component; }
     rcp<ScriptReffedArtboard> artboard() { return m_artboard; }
 
+    const ShapePaint* shapePaint();
+    void shapePaint(const ShapePaint* shapePaint) { m_shapePaint = shapePaint; }
+
 private:
     rcp<ScriptReffedArtboard> m_artboard;
-    TransformComponent* m_component;
+    TransformComponent* m_component = nullptr;
+    const ShapePaint* m_shapePaint = nullptr;
 };
 
 class ScriptedContourMeasure
@@ -960,6 +1221,7 @@ class ScriptedContext
 public:
     ScriptedContext(ScriptedObject*);
     ScriptedObject* scriptedObject() { return m_scriptedObject; }
+    void clearScriptedObject() { m_scriptedObject = nullptr; }
     static constexpr uint8_t luaTag = LUA_T_COUNT + 28;
     static constexpr const char* luaName = "Context";
     static constexpr bool hasMetatable = true;
@@ -968,26 +1230,220 @@ private:
     ScriptedObject* m_scriptedObject = nullptr;
 };
 
+/// Wraps [`ListenerInvocation`] for `performAction` in scripted listener
+/// actions.
+class ScriptedInvocation
+{
+public:
+    explicit ScriptedInvocation(ListenerInvocation inv) :
+        m_invocation(std::move(inv))
+    {}
+
+    ListenerInvocation& invocation() { return m_invocation; }
+    const ListenerInvocation& invocation() const { return m_invocation; }
+
+    static constexpr uint8_t luaTag = LUA_T_COUNT + 41;
+    static constexpr const char* luaName = "Invocation";
+    static constexpr bool hasMetatable = true;
+
+private:
+    ListenerInvocation m_invocation;
+};
+
+class ScriptedKeyboardInvocation
+{
+public:
+    ScriptedKeyboardInvocation(Key key,
+                               KeyModifiers modifiers,
+                               bool isPressed,
+                               bool isRepeat) :
+        m_key(key),
+        m_modifiers(modifiers),
+        m_isPressed(isPressed),
+        m_isRepeat(isRepeat)
+    {}
+
+    static constexpr uint8_t luaTag = LUA_T_COUNT + 42;
+    static constexpr const char* luaName = "KeyboardInvocation";
+    static constexpr bool hasMetatable = true;
+
+    Key m_key;
+    KeyModifiers m_modifiers;
+    bool m_isPressed;
+    bool m_isRepeat;
+};
+
+class ScriptedTextInputInvocation
+{
+public:
+    explicit ScriptedTextInputInvocation(std::string text) :
+        m_text(std::move(text))
+    {}
+
+    static constexpr uint8_t luaTag = LUA_T_COUNT + 43;
+    static constexpr const char* luaName = "TextInputInvocation";
+    static constexpr bool hasMetatable = true;
+
+    const std::string& text() const { return m_text; }
+
+private:
+    std::string m_text;
+};
+
+class ScriptedFocusInvocation
+{
+public:
+    explicit ScriptedFocusInvocation(bool isFocus) : m_isFocus(isFocus) {}
+
+    static constexpr uint8_t luaTag = LUA_T_COUNT + 44;
+    static constexpr const char* luaName = "FocusInvocation";
+    static constexpr bool hasMetatable = true;
+
+    bool m_isFocus;
+};
+
+class ScriptedReportedEventInvocation
+{
+public:
+    ScriptedReportedEventInvocation(Event* event, float delaySeconds) :
+        m_event(event), m_delaySeconds(delaySeconds)
+    {}
+
+    static constexpr uint8_t luaTag = LUA_T_COUNT + 45;
+    static constexpr const char* luaName = "ReportedEventInvocation";
+    static constexpr bool hasMetatable = true;
+
+    /// Valid only for the duration of the listener callback; do not retain.
+    Event* m_event;
+    float m_delaySeconds;
+};
+
+class ScriptedViewModelChangeInvocation
+{
+public:
+    ScriptedViewModelChangeInvocation() = default;
+
+    static constexpr uint8_t luaTag = LUA_T_COUNT + 46;
+    static constexpr const char* luaName = "ViewModelChangeInvocation";
+    static constexpr bool hasMetatable = true;
+};
+
+class ScriptedGamepadInvocation
+{
+public:
+    ScriptedGamepadInvocation(int deviceId, uint64_t buttonMask, float axis0) :
+        m_deviceId(deviceId), m_buttonMask(buttonMask), m_axis0(axis0)
+    {}
+
+    static constexpr uint8_t luaTag = LUA_T_COUNT + 47;
+    static constexpr const char* luaName = "GamepadInvocation";
+    static constexpr bool hasMetatable = true;
+
+    int m_deviceId;
+    uint64_t m_buttonMask;
+    float m_axis0;
+};
+
+class ScriptedNoneInvocation
+{
+public:
+    ScriptedNoneInvocation() = default;
+
+    static constexpr uint8_t luaTag = LUA_T_COUNT + 48;
+    static constexpr const char* luaName = "NoneInvocation";
+    static constexpr bool hasMetatable = true;
+};
+
+void rive_lua_register_listener_invocation_types(lua_State* L);
+void rive_lua_push_pointer_arg_for_perform(lua_State* L,
+                                           const ListenerInvocation& inv);
+void rive_lua_push_scripted_invocation(lua_State* L,
+                                       const ListenerInvocation& inv);
+
 static void interruptCPP(lua_State* L, int gc);
+
+#ifdef WITH_RIVE_TOOLS
+// Callback type for notifying when console data is available.
+// If null, console output goes to stdout.
+using ConsoleCallback = void (*)();
+#endif
 
 class CPPRuntimeScriptingContext : public ScriptingContext
 {
 public:
-    CPPRuntimeScriptingContext(Factory* factory) : ScriptingContext(factory) {}
+#ifdef WITH_RIVE_TOOLS
+    CPPRuntimeScriptingContext(Factory* factory,
+                               int timeoutMs = 200,
+                               ConsoleCallback consoleCallback = nullptr) :
+        ScriptingContext(factory),
+        m_timeoutMs(timeoutMs),
+        m_consoleCallback(consoleCallback)
+    {}
+#else
+    CPPRuntimeScriptingContext(Factory* factory, int timeoutMs = 200) :
+        ScriptingContext(factory), m_timeoutMs(timeoutMs)
+    {}
+#endif
     virtual ~CPPRuntimeScriptingContext() = default;
 
     std::chrono::time_point<std::chrono::steady_clock> executionTime;
 
+    int timeoutMs() const { return m_timeoutMs; }
+    void setTimeoutMs(int ms) { m_timeoutMs = ms; }
+
     int pCall(lua_State* state, int nargs, int nresults) override;
 
-    void printBeginLine(lua_State* state) override {}
-    void print(Span<const char> data) override
+    void printBeginLine(lua_State* state) override
     {
-        auto message = std::string(data.data(), data.size());
-        puts(message.c_str());
+#ifdef WITH_RIVE_TOOLS
+        BinaryWriter writer(&m_consoleBuffer);
+        lua_Debug ar;
+        lua_getinfo(state, 1, "sl", &ar);
+        writer.write((uint8_t)0);
+        writer.write(ar.source);
+        writer.writeVarUint((uint32_t)ar.currentline);
+#endif
     }
 
-    void printEndLine() override { puts("\n"); }
+    void print(Span<const char> data) override
+    {
+#ifdef WITH_RIVE_TOOLS
+        if (data.size() == 0)
+        {
+            return;
+        }
+        BinaryWriter writer(&m_consoleBuffer);
+        writer.writeVarUint((uint64_t)data.size());
+        writer.write((const uint8_t*)data.data(), (size_t)data.size());
+
+        if (m_consoleCallback == nullptr)
+#endif
+        {
+            auto message = std::string(data.data(), data.size());
+            printf("%s", message.c_str());
+        }
+    }
+
+    void printEndLine() override
+    {
+#ifdef WITH_RIVE_TOOLS
+        BinaryWriter writer(&m_consoleBuffer);
+        writer.writeVarUint((uint32_t)0);
+
+        if (m_consoleCallback != nullptr)
+        {
+            if (!m_calledConsoleCallback)
+            {
+                m_calledConsoleCallback = true;
+                m_consoleCallback();
+            }
+        }
+        else
+#endif
+        {
+            printf("\n");
+        }
+    }
 
     void printError(lua_State* state) override
     {
@@ -997,6 +1453,10 @@ public:
 
     void startTimedExecution(lua_State* state)
     {
+        if (m_timeoutMs == 0)
+        {
+            return;
+        }
         lua_Callbacks* cb = lua_callbacks(state);
         cb->interrupt = interruptCPP;
         executionTime = std::chrono::steady_clock::now();
@@ -1004,9 +1464,51 @@ public:
 
     void endTimedExecution(lua_State* state)
     {
+        if (m_timeoutMs == 0)
+        {
+            return;
+        }
         lua_Callbacks* cb = lua_callbacks(state);
         cb->interrupt = nullptr;
     }
+
+#ifdef WITH_RIVE_TOOLS
+    // Console buffer access for editor
+    Span<uint8_t> consoleMemory() { return m_consoleBuffer.memory(); }
+
+    void clearConsole()
+    {
+        m_consoleBuffer.clear();
+        m_calledConsoleCallback = false;
+    }
+
+    bool hasConsoleCallback() const { return m_consoleCallback != nullptr; }
+#endif
+
+private:
+    int m_timeoutMs = 200;
+#ifdef WITH_RIVE_TOOLS
+    ConsoleCallback m_consoleCallback = nullptr;
+    VectorBinaryStream m_consoleBuffer;
+    bool m_calledConsoleCallback = false;
+#endif
+};
+
+class ScriptedDataContext
+{
+public:
+    ScriptedDataContext(lua_State* L, rcp<DataContext> dataContext);
+    static constexpr uint8_t luaTag = LUA_T_COUNT + 36;
+    static constexpr const char* luaName = "DataContext";
+    static constexpr bool hasMetatable = true;
+    int pushViewModel();
+    int pushParent();
+
+    const lua_State* state() const { return m_state; }
+
+private:
+    lua_State* m_state = nullptr;
+    rcp<DataContext> m_dataContext = nullptr;
 };
 
 static void interruptCPP(lua_State* L, int gc)
@@ -1023,13 +1525,34 @@ static void interruptCPP(lua_State* L, int gc)
     auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                   now - context->executionTime)
                   .count();
-    if (ms > 50)
+    if (ms > context->timeoutMs())
     {
         lua_Callbacks* cb = lua_callbacks(L);
         cb->interrupt = nullptr;
         // reserve space for error string
         lua_rawcheckstack(L, 1);
-        luaL_error(L, "execution took too long");
+
+        // Format human-readable error message
+        char errorMsg[128];
+        int timeoutMs = context->timeoutMs();
+        if (timeoutMs >= 1000)
+        {
+            double seconds = timeoutMs / 1000.0;
+            snprintf(errorMsg,
+                     sizeof(errorMsg),
+                     "execution exceeded %.1f second%s timeout",
+                     seconds,
+                     seconds == 1.0 ? "" : "s");
+        }
+        else
+        {
+            snprintf(errorMsg,
+                     sizeof(errorMsg),
+                     "execution exceeded %d millisecond%s timeout",
+                     timeoutMs,
+                     timeoutMs == 1 ? "" : "s");
+        }
+        luaL_error(L, "%s", errorMsg);
     }
 }
 } // namespace rive

@@ -58,7 +58,8 @@ public:
     gpu::DrawContents drawContents() const { return m_drawContents; }
     bool isOpaque() const
     {
-        return m_drawContents & gpu::DrawContents::opaquePaint;
+        return enums::is_flag_set(m_drawContents,
+                                  gpu::DrawContents::opaquePaint);
     }
     uint32_t clipID() const { return m_clipID; }
     bool hasClipRect() const { return m_clipRectInverseMatrix != nullptr; }
@@ -195,6 +196,7 @@ public:
                               rcp<const RiveRenderPath>,
                               FillRule,
                               const RiveRenderPaint*,
+                              float modulatedOpacity,
                               RawPath* scratchPath);
 
     // Determines how coverage is calculated for antialiasing and feathers.
@@ -216,6 +218,7 @@ public:
              rcp<const RiveRenderPath>,
              FillRule,
              const RiveRenderPaint*,
+             float modulatedOpacity,
              CoverageType,
              const RenderContext::FrameDescriptor&);
 
@@ -240,6 +243,16 @@ public:
         return m_contourDirections;
     }
 
+    // Is the draw an "outermost" (i.e., non-nested) clip update?
+    // Outermost clip updates reset the clip buffer entirely, rather than
+    // subtracting coverage from what's already there.
+    bool isOutermostClipUpdate() const
+    {
+        return (m_drawContents & (gpu::DrawContents::clipUpdate |
+                                  gpu::DrawContents::activeClip)) ==
+               gpu::DrawContents::clipUpdate;
+    }
+
     // Only used when rendering coverage via the atlas.
     const gpu::AtlasTransform& atlasTransform() const
     {
@@ -252,6 +265,21 @@ public:
     const gpu::CoverageBufferRange& coverageBufferRange() const
     {
         return m_coverageBufferRange;
+    }
+    // Returns true if this path will need borrowed coverage prepass(es) in
+    // clockwiseAtomic mode.
+    // NOTE: Since the interlock mode isn't known at this level, the
+    // responsibility is on the caller to only use this method in
+    // clockwiseAtomic mode. Otherwise, there are never borrowed coverage
+    // prepasses.
+    bool needsBorrowedCoveragePrepass() const
+    {
+        assert(m_coverageType == CoverageType::clockwiseAtomic);
+        return !isStroke() && // Strokes don't have negative coverage.
+               !isOutermostClipUpdate(); // Outermost (i.e., non-nested)
+                                         // clockwiseAtomic clips render
+                                         // directly to the clip buffer in a
+                                         // single pass.
     }
 
     GrInnerFanTriangulator* triangulator() const { return m_triangulator; }
@@ -356,7 +384,7 @@ protected:
 
     const RiveRenderPath* const m_pathRef;
     const FillRule m_pathFillRule; // Fill rule can mutate on RenderPath.
-    const Gradient* m_gradientRef;
+    const Gradient* m_gradientRef; // Already modulated if opacity != 1.0
     const gpu::PaintType m_paintType;
     const CoverageType m_coverageType;
     float m_strokeRadius = 0;
@@ -491,10 +519,9 @@ protected:
     const float m_opacity;
 };
 
-// Resets the stencil clip by either entirely erasing the existing clip, or
-// intersecting it with a nested clip (i.e., erasing the region outside the
-// nested clip).
-class StencilClipReset : public Draw
+// Resets the clip by either entirely erasing the existing clip, or intersecting
+// it with a nested clip (i.e., erasing the region outside the nested clip).
+class ClipReset : public Draw
 {
 public:
     enum class ResetAction
@@ -503,10 +530,10 @@ public:
         intersectPreviousClip,
     };
 
-    StencilClipReset(RenderContext*,
-                     uint32_t previousClipID,
-                     gpu::DrawContents previousClipDrawContents,
-                     ResetAction);
+    ClipReset(RenderContext*,
+              uint32_t previousClipID,
+              gpu::DrawContents previousClipDrawContents,
+              ResetAction);
 
     uint32_t previousClipID() const { return m_previousClipID; }
 

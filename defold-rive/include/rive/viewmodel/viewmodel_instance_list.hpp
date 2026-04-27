@@ -1,5 +1,6 @@
 #ifndef _RIVE_VIEW_MODEL_INSTANCE_LIST_HPP_
 #define _RIVE_VIEW_MODEL_INSTANCE_LIST_HPP_
+#include "rive/data_bind/data_bind_list_item_consumer.hpp"
 #include "rive/generated/viewmodel/viewmodel_instance_list_base.hpp"
 #include "rive/viewmodel/viewmodel_instance_list_item.hpp"
 #include <stdio.h>
@@ -9,7 +10,8 @@ namespace rive
 class ViewModelInstanceList;
 typedef void (*ViewModelListChanged)(ViewModelInstanceList* vmi);
 #endif
-class ViewModelInstanceList : public ViewModelInstanceListBase
+class ViewModelInstanceList : public ViewModelInstanceListBase,
+                              public DataBindListItemConsumer
 {
 public:
     ~ViewModelInstanceList();
@@ -23,6 +25,10 @@ public:
     void swap(uint32_t index1, uint32_t index2);
     rcp<ViewModelInstanceListItem> pop();
     rcp<ViewModelInstanceListItem> shift();
+    void removeAllItems();
+    void removeAllItemsWithViewModelInstance(
+        ViewModelInstance* viewModelInstance);
+    void updateList(std::vector<rcp<ViewModelInstanceListItem>>* list) override;
     Core* clone() const override;
     void advanced() override;
     void parentViewModelInstance(ViewModelInstance* parent)

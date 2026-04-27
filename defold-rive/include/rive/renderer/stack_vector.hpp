@@ -26,6 +26,30 @@ public:
         return m_data[index];
     }
 
+    const T& front() const
+    {
+        assert(m_size > 0);
+        return m_data[0];
+    }
+
+    T& front()
+    {
+        assert(m_size > 0);
+        return m_data[0];
+    }
+
+    const T& back() const
+    {
+        assert(m_size > 0);
+        return m_data[m_size - 1];
+    }
+
+    T& back()
+    {
+        assert(m_size > 0);
+        return m_data[m_size - 1];
+    }
+
     T& push_back(const T& ele)
     {
         T* ret = push(1);
@@ -60,6 +84,12 @@ public:
     T* dataOrNull() { return m_size != 0 ? m_data : nullptr; }
 
     const uint32_t size() const { return m_size; }
+
+    T* begin() { return m_data; }
+    T* end() { return m_data + m_size; }
+
+    const T* begin() const { return m_data; }
+    const T* end() const { return m_data + m_size; }
 
 private:
     uint32_t m_size = 0;

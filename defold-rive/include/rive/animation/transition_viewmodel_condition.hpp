@@ -16,6 +16,9 @@
 #include "rive/data_bind/bindable_property_number.hpp"
 #include "rive/data_bind/bindable_property_string.hpp"
 #include "rive/data_bind/bindable_property_trigger.hpp"
+#include "rive/data_bind/bindable_property_viewmodel.hpp"
+#include "rive/data_bind/data_bind_context.hpp"
+#include "rive/viewmodel/viewmodel_instance_viewmodel.hpp"
 #include "rive/animation/transition_self_comparator.hpp"
 #include "rive/animation/transition_value_artboard_comparator.hpp"
 #include "rive/animation/transition_value_asset_comparator.hpp"
@@ -26,9 +29,12 @@
 #include "rive/animation/transition_value_enum_comparator.hpp"
 #include "rive/animation/transition_value_trigger_comparator.hpp"
 #include "rive/animation/artboard_property.hpp"
+#include <cstdint>
 #include <stdio.h>
 namespace rive
 {
+
+class TransitionPropertyComponentComparator;
 
 class ConditionOperation
 {
@@ -489,6 +495,78 @@ public:
 private:
     BindablePropertyAsset* m_bindableProperty;
 };
+class ConditionComparandViewModel : public ConditionComparand
+{
+public:
+    virtual ~ConditionComparandViewModel() {}
+    virtual ViewModelInstance* value(
+        const StateMachineInstance* stateMachineInstance) = 0;
+};
+class ConditionComparandViewModelBindable : public ConditionComparandViewModel
+{
+public:
+    ConditionComparandViewModelBindable(BindablePropertyViewModel* property) :
+        m_bindableProperty(property)
+    {}
+
+    ViewModelInstance* value(
+        const StateMachineInstance* stateMachineInstance) override
+    {
+        auto bindableInstance =
+            stateMachineInstance->bindablePropertyInstance(m_bindableProperty);
+        if (bindableInstance)
+        {
+            auto dataBind = stateMachineInstance->bindableDataBindToTarget(
+                bindableInstance);
+            if (dataBind != nullptr)
+            {
+                if (dataBind->is<DataBindContext>())
+                {
+                    const auto& sourcePathIds =
+                        dataBind->as<DataBindContext>()->sourcePathIds();
+                    // A root-only source path marks "My ViewModel" for
+                    // transition comparands. Resolve it from the state machine
+                    // data context.
+                    if (sourcePathIds.size() == 1)
+                    {
+                        auto dataContext = stateMachineInstance->dataContext();
+                        if (dataContext != nullptr &&
+                            dataContext->viewModelInstance() != nullptr)
+                        {
+                            return dataContext->viewModelInstance().get();
+                        }
+                        return nullptr;
+                    }
+                }
+                auto source = dataBind->source();
+                if (source != nullptr &&
+                    source->is<ViewModelInstanceViewModel>())
+                {
+                    auto sourceViewModel =
+                        source->as<ViewModelInstanceViewModel>();
+                    auto referenced =
+                        sourceViewModel->referenceViewModelInstance();
+                    if (referenced != nullptr)
+                    {
+                        return referenced.get();
+                    }
+                }
+            }
+            auto bindableViewModel =
+                bindableInstance->as<BindablePropertyViewModel>();
+            auto instanceValue = bindableViewModel->viewModelInstanceValue();
+            if (instanceValue != nullptr)
+            {
+                return instanceValue;
+            }
+            return bindableViewModel->viewModelInstance();
+        }
+        return nullptr;
+    }
+
+private:
+    BindablePropertyViewModel* m_bindableProperty;
+};
 class ConditionComparandAssetValue : public ConditionComparandUint32
 {
 public:
@@ -539,6 +617,86 @@ private:
     TransitionValueArtboardComparator* m_value;
 };
 
+class ConditionComparandComponentCoreNumber : public ConditionComparandNumber
+{
+public:
+    explicit ConditionComparandComponentCoreNumber(
+        TransitionPropertyComponentComparator* comparator);
+    float value(const StateMachineInstance* stateMachineInstance) override;
+
+private:
+    TransitionPropertyComponentComparator* m_comparator;
+};
+
+class ConditionComparandComponentCoreUintAsNumber
+    : public ConditionComparandNumber
+{
+public:
+    explicit ConditionComparandComponentCoreUintAsNumber(
+        TransitionPropertyComponentComparator* comparator);
+    float value(const StateMachineInstance* stateMachineInstance) override;
+
+private:
+    TransitionPropertyComponentComparator* m_comparator;
+};
+
+class ConditionComparandComponentCoreBoolean : public ConditionComparandBoolean
+{
+public:
+    explicit ConditionComparandComponentCoreBoolean(
+        TransitionPropertyComponentComparator* comparator);
+    bool value(const StateMachineInstance* stateMachineInstance) override;
+
+private:
+    TransitionPropertyComponentComparator* m_comparator;
+};
+
+class ConditionComparandComponentCoreString : public ConditionComparandString
+{
+public:
+    explicit ConditionComparandComponentCoreString(
+        TransitionPropertyComponentComparator* comparator);
+    std::string value(
+        const StateMachineInstance* stateMachineInstance) override;
+
+private:
+    TransitionPropertyComponentComparator* m_comparator;
+};
+
+class ConditionComparandComponentCoreColor : public ConditionComparandColor
+{
+public:
+    explicit ConditionComparandComponentCoreColor(
+        TransitionPropertyComponentComparator* comparator);
+    int value(const StateMachineInstance* stateMachineInstance) override;
+
+private:
+    TransitionPropertyComponentComparator* m_comparator;
+};
+
+class ConditionComparandComponentCoreUint : public ConditionComparandUint32
+{
+public:
+    explicit ConditionComparandComponentCoreUint(
+        TransitionPropertyComponentComparator* comparator);
+    uint32_t value(const StateMachineInstance* stateMachineInstance) override;
+
+private:
+    TransitionPropertyComponentComparator* m_comparator;
+};
+
+class ConditionComparandComponentViewModel : public ConditionComparandViewModel
+{
+public:
+    explicit ConditionComparandComponentViewModel(
+        TransitionPropertyComponentComparator* comparator);
+    ViewModelInstance* value(
+        const StateMachineInstance* stateMachineInstance) override;
+
+private:
+    TransitionPropertyComponentComparator* m_comparator;
+};
+
 class ConditionComparison
 {
 public:
@@ -552,6 +710,7 @@ public:
     bool compareStrings(const std::string& left, const std::string& right);
     bool compareColors(int left, int right);
     bool compareUints32(uint32_t left, uint32_t right);
+    bool comparePointers(const void* left, const void* right);
 
 protected:
     ConditionOperation* m_operation;
@@ -588,6 +747,9 @@ public:
     }
     ConditionOperation* operation(TransitionConditionOp op);
     void initialize();
+
+private:
+    bool canEvaluate(const StateMachineInstance*) const;
 };
 } // namespace rive
 

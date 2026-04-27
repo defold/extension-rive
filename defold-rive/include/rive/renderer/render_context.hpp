@@ -7,7 +7,9 @@
 #include "rive/math/vec2d.hpp"
 #include "rive/renderer/gpu.hpp"
 #include "rive/renderer/rive_render_factory.hpp"
+#include "rive/renderer/render_canvas.hpp"
 #include "rive/renderer/render_target.hpp"
+#include "rive/renderer/shader_compilation_mode.hpp"
 #include "rive/renderer/sk_rectanizer_skyline.hpp"
 #include "rive/renderer/trivial_block_allocator.hpp"
 #include "rive/shapes/paint/color.hpp"
@@ -30,20 +32,19 @@ class GradientLibrary;
 class IntersectionBoard;
 class ImageMeshDraw;
 class ImageRectDraw;
-class StencilClipReset;
+class ClipReset;
 class Draw;
 class Gradient;
 class RenderContextImpl;
 class PathDraw;
 
-enum class ShaderCompilationMode
+// Various types of ordered dithering we can add to reduce banding
+// https://en.wikipedia.org/wiki/Ordered_dithering
+// https://blog.demofox.org/2022/01/01/interleaved-gradient-noise-a-different-kind-of-low-discrepancy-sequence/
+enum class DitherMode
 {
-    allowAsynchronous,
-    alwaysSynchronous,
-    onlyUbershaders,
-
-    // The default mode is to allow asynchronous compilation where available.
-    standard = allowAsynchronous,
+    none,
+    interleavedGradientNoise,
 };
 
 // Used as a key for complex gradients.
@@ -104,6 +105,20 @@ public:
         uint32_t msaaSampleCount = 0;
         // Use atomic mode (preferred) or msaa instead of rasterOrdering.
         bool disableRasterOrdering = false;
+        DitherMode ditherMode = DitherMode::interleavedGradientNoise;
+
+        // If nonzero, frames are split up into virtual tiles of this size.
+        //
+        // As of now, each tile gets drawn in a separate render pass. The
+        // purpose of these virtual tiles, for now, is to break the frame up
+        // into smaller chunks so that Rive can be pre-empted by other rendering
+        // processes. This is only supported on Vulkan/non-msaa.
+        //
+        // TODO: We could also explore a different type of virtual tiling that
+        // reduces barriers in atomic mode, but that is not how this feature
+        // works currently.
+        uint32_t virtualTileWidth = 0;
+        uint32_t virtualTileHeight = 0;
 
         // Testing flags.
         bool wireframe = false;
@@ -286,12 +301,16 @@ public:
                                        size_t) override;
     rcp<RenderImage> decodeImage(Span<const uint8_t>) override;
 
+    // Creates a RenderCanvas: a GPU texture usable as both a render target
+    // (for rendering into) and a render image (for compositing into draws).
+    rcp<RenderCanvas> makeRenderCanvas(uint32_t width, uint32_t height);
+
 private:
     friend class Draw;
     friend class PathDraw;
     friend class ImageRectDraw;
     friend class ImageMeshDraw;
-    friend class StencilClipReset;
+    friend class ClipReset;
     friend class ::PushRetrofittedTrianglesGMDraw; // For testing.
     friend class ::RenderContextTest;              // For testing.
 
@@ -359,7 +378,7 @@ private:
     // size would not change.
     void setResourceSizes(ResourceAllocationCounts, bool forceRealloc = false);
 
-    void mapResourceBuffers(const ResourceAllocationCounts&);
+    [[nodiscard]] bool mapResourceBuffers(const ResourceAllocationCounts&);
     void unmapResourceBuffers(const ResourceAllocationCounts&);
 
     // Returns the next coverage buffer prefix to use in a logical flush.
@@ -672,6 +691,10 @@ private:
         // contour ID that is guaranteed to not be the same ID as any neighbors.
         void pushPaddingVertices(uint32_t count, uint32_t tessLocation);
 
+        // Schedules barriers that will be issued immediately before the next
+        // draw.
+        void pushBarriers(BarrierFlags);
+
         // Pushes a "midpointFanPatches" draw to the list. Path, contour, and
         // cubic data are pushed separately.
         //
@@ -718,8 +741,8 @@ private:
         // Pushes an "imageMesh" draw to the list.
         void pushImageMeshDraw(ImageMeshDraw*);
 
-        // Pushes a "stencilClipReset" draw to the list.
-        void pushStencilClipResetDraw(StencilClipReset*);
+        // Pushes a "clipReset" draw to the list.
+        void pushClipResetDraw(ClipReset*);
 
     private:
         friend class TessellationWriter;
@@ -806,7 +829,7 @@ private:
         uint32_t m_currentContourID;
 
         // Atlas for offscreen feathering.
-        std::unique_ptr<skgpu::RectanizerSkyline> m_atlasRectanizer;
+        std::unique_ptr<rive::RectanizerSkyline> m_atlasRectanizer;
         uint32_t m_atlasMaxX = 0;
         uint32_t m_atlasMaxY = 0;
         std::vector<PathDraw*> m_pendingAtlasDraws;

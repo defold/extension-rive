@@ -1,18 +1,24 @@
 #ifndef _RIVE_SCRIPT_ASSET_HPP_
 #define _RIVE_SCRIPT_ASSET_HPP_
-#ifdef WITH_RIVE_SCRIPTING
-#include "rive/lua/rive_lua_libs.hpp"
-#endif
 #include "rive/file.hpp"
 #include "rive/generated/assets/script_asset_base.hpp"
 #include "rive/simple_array.hpp"
 #include <stdio.h>
+#ifdef WITH_RIVE_SCRIPTING
+#include <unordered_set>
+#endif
+
+#ifdef WITH_RIVE_SCRIPTING
+struct lua_State;
+#endif
+
 namespace rive
 {
 class Artboard;
 class Component;
 class DataBind;
 class ScriptedObject;
+class ScriptingVM;
 
 enum ScriptProtocol
 {
@@ -20,7 +26,9 @@ enum ScriptProtocol
     node,
     layout,
     converter,
-    pathEffect
+    pathEffect,
+    listenerAction,
+    transitionCondition
 };
 
 #ifdef WITH_RIVE_SCRIPTING
@@ -32,14 +40,19 @@ class ScriptInput
 protected:
     ScriptedObject* m_scriptedObject = nullptr;
     DataBind* m_dataBind = nullptr;
+    bool m_ownsDataBind = false;
 
 public:
-    virtual ~ScriptInput() {};
+    virtual ~ScriptInput();
     virtual void initScriptedValue();
     virtual bool validateForScriptInit() = 0;
     static ScriptInput* from(Core* component);
     DataBind* dataBind() { return m_dataBind; }
-    void dataBind(DataBind* dataBind) { m_dataBind = dataBind; }
+    void dataBind(DataBind* dataBind, bool ownsDataBind = false)
+    {
+        m_dataBind = dataBind;
+        m_ownsDataBind = ownsDataBind;
+    }
     ScriptedObject* scriptedObject() { return m_scriptedObject; }
     void scriptedObject(ScriptedObject* object) { m_scriptedObject = object; }
 };
@@ -57,11 +70,20 @@ private:
     static const int m_wantsPointerCancelBit = 1 << 7;
     static const int m_drawsBit = 1 << 8;
     static const int m_initsBit = 1 << 9;
+    static const int m_dataConvertsBit = 1 << 10;
+    static const int m_dataReverseConvertsBit = 1 << 11;
+    static const int m_resizesBit = 1 << 12;
+    static const int m_listenerPerforms = 1 << 13;
+    static const int m_listenerPerformsAction = 1 << 14;
+    static const int m_wantsKeyboardInputBit = 1 << 15;
+    static const int m_wantsTextInputBit = 1 << 16;
 
     int m_implementedMethods = 0;
 
 protected:
-    bool verifyImplementation(ScriptedObject* object, LuaState* luaState);
+#ifdef WITH_RIVE_SCRIPTING
+    bool verifyImplementation(ScriptedObject* object, lua_State* state);
+#endif
 
 public:
     int implementedMethods() { return m_implementedMethods; }
@@ -79,6 +101,15 @@ public:
     bool advances() { return (m_implementedMethods & m_advancesBit) != 0; }
     bool updates() { return (m_implementedMethods & m_updatesBit) != 0; }
     bool measures() { return (m_implementedMethods & m_measuresBit) != 0; }
+    bool resizes() { return (m_implementedMethods & m_resizesBit) != 0; }
+    bool performs() const
+    {
+        return (m_implementedMethods & m_listenerPerforms) != 0;
+    }
+    bool performsAction() const
+    {
+        return (m_implementedMethods & m_listenerPerformsAction) != 0;
+    }
     bool wantsPointerDown()
     {
         return (m_implementedMethods & m_wantsPointerDownBit) != 0;
@@ -101,6 +132,22 @@ public:
     }
     bool draws() { return (m_implementedMethods & m_drawsBit) != 0; }
     bool inits() { return (m_implementedMethods & m_initsBit) != 0; }
+    bool dataConverts()
+    {
+        return (m_implementedMethods & m_dataConvertsBit) != 0;
+    }
+    bool dataReverseConverts()
+    {
+        return (m_implementedMethods & m_dataReverseConvertsBit) != 0;
+    }
+    bool wantsKeyboardInput()
+    {
+        return (m_implementedMethods & m_wantsKeyboardInputBit) != 0;
+    }
+    bool wantsTextInput()
+    {
+        return (m_implementedMethods & m_wantsTextInputBit) != 0;
+    }
 };
 
 class ModuleDetails
@@ -160,10 +207,14 @@ public:
     void file(File* value) { m_file = value; }
     File* file() const { return m_file; }
 #ifdef WITH_RIVE_SCRIPTING
-    LuaState* vm();
+    ScriptingVM* scriptingVM();
+    lua_State* vm();
     void registrationComplete(int ref) override;
 #endif
-    std::string moduleName() override { return name(); }
+    std::string moduleName() override
+    {
+        return folderPath() == "" ? name() : folderPath() + "/" + name();
+    }
     bool isProtocolScript() override { return !isModule(); }
 
 private:

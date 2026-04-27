@@ -112,6 +112,16 @@ public:
 
         virtual void onFileLoaded(const FileHandle, uint64_t requestId) {}
 
+        virtual void onArtboardInstantiated(const FileHandle,
+                                            uint64_t requestId,
+                                            ArtboardHandle)
+        {}
+
+        virtual void onViewModelInstanceInstantiated(const FileHandle,
+                                                     uint64_t requestId,
+                                                     ViewModelInstanceHandle)
+        {}
+
         virtual void onArtboardsListed(const FileHandle,
                                        uint64_t requestId,
                                        std::vector<std::string> artboardNames)
@@ -219,6 +229,11 @@ public:
         virtual void onArtboardDeleted(const ArtboardHandle, uint64_t requestId)
         {}
 
+        virtual void onStateMachineInstantiated(const ArtboardHandle,
+                                                uint64_t requestId,
+                                                StateMachineHandle)
+        {}
+
         virtual void onStateMachinesListed(
             const ArtboardHandle,
             uint64_t requestId,
@@ -250,6 +265,11 @@ public:
                                             ViewModelInstanceHandle>
     {
     public:
+        virtual void onViewModelInstanceViewModelNameReceived(
+            const ViewModelInstanceHandle,
+            uint64_t requestId,
+            std::string viewModelName)
+        {}
         virtual void onViewModelInstanceError(const ViewModelInstanceHandle,
                                               uint64_t requestId,
                                               std::string error)
@@ -598,6 +618,8 @@ public:
 
     void requestViewModelNames(FileHandle, uint64_t requestId = 0);
     void requestArtboardNames(FileHandle, uint64_t requestId = 0);
+    void requestViewModelInstanceViewModelName(ViewModelInstanceHandle,
+                                               uint64_t requestId = 0);
     void requestViewModelEnums(FileHandle, uint64_t requestId = 0);
     void requestViewModelPropertyDefinitions(FileHandle,
                                              std::string viewModelName,
@@ -826,6 +848,7 @@ private:
         listViewModelInstanceNames,
         listViewModelProperties,
         listViewModelPropertyValue,
+        getViewModelInstanceViewModelName,
         getViewModelListSize
     };
 
@@ -837,6 +860,7 @@ private:
         artboardsListed,
         stateMachinesListed,
         defaultViewModelReceived,
+        viewModelInstanceViewModelNameReceived,
         viewModelsListend,
         viewModelInstanceNamesListed,
         viewModelPropertiesListed,
@@ -844,6 +868,9 @@ private:
         viewModelListSizeReceived,
         fileLoaded,
         fileDeleted,
+        artboardInstantiated,
+        stateMachineInstantiated,
+        viewModelInstanceInstantiated,
         imageDecoded,
         imageDeleted,
         audioDecoded,

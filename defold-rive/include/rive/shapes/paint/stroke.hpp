@@ -16,13 +16,14 @@ public:
     ShapePaintPath* pickPath(ShapePaintContainer* shape) const override;
 
     void buildDependencies() override;
+    void update(ComponentDirt value) override;
     void invalidateRendering() override;
+    ShapePaintType paintType() const override { return ShapePaintType::stroke; }
 
 protected:
     void thicknessChanged() override;
     void capChanged() override;
     void joinChanged() override;
-    ShapePaintType paintType() override { return ShapePaintType::stroke; }
 };
 } // namespace rive
 
