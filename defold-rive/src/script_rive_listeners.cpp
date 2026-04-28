@@ -311,6 +311,26 @@ void FileListener::onArtboardsListed(const rive::FileHandle fileHandle, uint64_t
     }
 }
 
+void FileListener::onArtboardInstantiated(const rive::FileHandle fileHandle,
+                                          uint64_t requestId,
+                                          rive::ArtboardHandle artboardHandle)
+{
+    static dmhash_t id = dmHashString64("onArtboardInstantiated");
+
+    if (m_Callback && SetupCallback(m_Callback, id, requestId))
+    {
+        lua_State* L = dmScript::GetCallbackLuaContext(m_Callback);
+
+        lua_pushinteger(L, (lua_Integer)(uintptr_t)fileHandle);
+        lua_setfield(L, -2, "file");
+
+        lua_pushinteger(L, (lua_Integer)(uintptr_t)artboardHandle);
+        lua_setfield(L, -2, "artboard");
+
+        InvokeCallback(L, m_Callback);
+    }
+}
+
 void FileListener::onFileError(const rive::FileHandle, uint64_t requestId, std::string error)
 {
     RiveSceneData* scene = (RiveSceneData*)requestId;
@@ -373,6 +393,25 @@ void FileListener::onViewModelsListed(const rive::FileHandle file, uint64_t requ
         lua_pushinteger(L, (int)(uintptr_t)file);
         lua_setfield(L, -2, "file");
         PushStringArray(L, "viewModelNames", viewModelNames);
+
+        InvokeCallback(L, m_Callback);
+    }
+}
+
+void FileListener::onViewModelInstanceInstantiated(const rive::FileHandle file,
+                                                  uint64_t requestId,
+                                                  rive::ViewModelInstanceHandle viewModel)
+{
+    static dmhash_t id = dmHashString64("onViewModelInstanceInstantiated");
+    if (m_Callback && SetupCallback(m_Callback, id, requestId))
+    {
+        lua_State* L = dmScript::GetCallbackLuaContext(m_Callback);
+
+        lua_pushinteger(L, (lua_Integer)(uintptr_t)file);
+        lua_setfield(L, -2, "file");
+
+        lua_pushinteger(L, (lua_Integer)(uintptr_t)viewModel);
+        lua_setfield(L, -2, "viewModel");
 
         InvokeCallback(L, m_Callback);
     }
@@ -540,6 +579,26 @@ void ArtboardListener::onArtboardDeleted(const rive::ArtboardHandle, uint64_t re
 {
 
 }
+
+void ArtboardListener::onStateMachineInstantiated(const rive::ArtboardHandle artboardHandle,
+                                                  uint64_t requestId,
+                                                  rive::StateMachineHandle stateMachineHandle)
+{
+    static dmhash_t id = dmHashString64("onStateMachineInstantiated");
+    if (m_Callback && SetupCallback(m_Callback, id, requestId))
+    {
+        lua_State* L = dmScript::GetCallbackLuaContext(m_Callback);
+
+        lua_pushinteger(L, (lua_Integer)(uintptr_t)artboardHandle);
+        lua_setfield(L, -2, "artboard");
+
+        lua_pushinteger(L, (lua_Integer)(uintptr_t)stateMachineHandle);
+        lua_setfield(L, -2, "stateMachine");
+
+        InvokeCallback(L, m_Callback);
+    }
+}
+
 void ArtboardListener::onStateMachinesListed(const rive::ArtboardHandle, uint64_t requestId, std::vector<std::string> stateMachineNames)
 {
 
@@ -688,6 +747,25 @@ bool ViewModelInstanceListener::EnsureListSize(dmhash_t path_hash, size_t value)
     size_t* copy = new size_t(value);
     m_ListSizes.Put(path_hash, copy);
     return true;
+}
+
+void ViewModelInstanceListener::onViewModelInstanceViewModelNameReceived(const rive::ViewModelInstanceHandle handle,
+                                                                        uint64_t requestId,
+                                                                        std::string viewModelName)
+{
+    static dmhash_t id = dmHashString64("onViewModelInstanceViewModelNameReceived");
+    if (m_Callback && SetupCallback(m_Callback, id, requestId))
+    {
+        lua_State* L = dmScript::GetCallbackLuaContext(m_Callback);
+
+        lua_pushinteger(L, (lua_Integer)(uintptr_t)handle);
+        lua_setfield(L, -2, "viewModel");
+
+        lua_pushstring(L, viewModelName.c_str());
+        lua_setfield(L, -2, "viewModelName");
+
+        InvokeCallback(L, m_Callback);
+    }
 }
 
 void ViewModelInstanceListener::onViewModelInstanceError(const rive::ViewModelInstanceHandle handle, uint64_t requestId, std::string error)

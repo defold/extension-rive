@@ -190,8 +190,10 @@ static int SetListenerCallback(lua_State* L, LISTENER* listener)
  *   - `onFileLoaded`
  *   - `onFileDeleted`
  *   - `onFileError`
+ *   - `onArtboardInstantiated`
  *   - `onArtboardsListed`
  *   - `onViewModelsListed`
+ *   - `onViewModelInstanceInstantiated`
  *   - `onViewModelInstanceNamesListed`
  *   - `onViewModelPropertiesListed`
  *   - `onViewModelEnumsListed`
@@ -199,6 +201,8 @@ static int SetListenerCallback(lua_State* L, LISTENER* listener)
  * `data`
  * : [type:table] Additional fields vary by event. Common keys include:
  *   - `file`: [type:handle] File handle involved in the event.
+ *   - `artboard`: [type:handle] Instantiated artboard handle, when applicable.
+ *   - `viewModel`: [type:handle] Instantiated view model instance handle, when applicable.
  *   - `viewModelName`: [type:string] View model name for the request, when applicable.
  *   - `instanceNames`: [type:table] Array of instance name strings.
  *   - `artboardNames`: [type:table] Array of artboard name strings.
@@ -224,11 +228,13 @@ static int Script_SetFileListener(lua_State* L)
  *   - `onArtboardError`
  *   - `onDefaultViewModelInfoReceived`
  *   - `onArtboardDeleted`
+ *   - `onStateMachineInstantiated`
  *   - `onStateMachinesListed`
  *
  * `data`
  * : [type:table] Additional data per event, typically:
  *   - `artboard`: [type:handle] Artboard handle involved.
+ *   - `stateMachine`: [type:handle] Instantiated state machine handle, when applicable.
  *   - `viewModelName`: [type:string] View model name for defaults (received event).
  *   - `instanceName`: [type:string] Instance name for defaults.
  *   - `stateMachineNames`: [type:table] Array of state machine name strings.
@@ -273,6 +279,7 @@ static int Script_SetStateMachineListener(lua_State* L)
  *
  * `event`
  * : [type: string] One of:
+ *   - `onViewModelInstanceViewModelNameReceived`
  *   - `onViewModelInstanceError`
  *   - `onViewModelDeleted`
  *   - `onViewModelDataReceived`
@@ -281,6 +288,7 @@ static int Script_SetStateMachineListener(lua_State* L)
  * `data`
  * : [type:table] Additional payload per event:
  *   - `viewModel`: [type:handle] Handle of the affected view model instance.
+ *   - `viewModelName`: [type:string] View model name for the instance.
  *   - `error`: [type:string] Error description when an error fires.
  *   - `path`: [type:string] Path being inspected when list size arrives.
  *   - `size`: [type:number] List size value for list-size events.

@@ -73,7 +73,7 @@ static dmExtension::Result InitializeRive(dmExtension::Params* params)
     dmResource::HFactory factory = dmExtension::GetContextAsType<dmResource::HFactory>(params, "factory");
     dmRive::ScriptRegister(params->m_L, factory);
 
-    dmLogInfo("Registered Rive extension:  %s  %s\n", RIVE_RUNTIME_DATE, RIVE_RUNTIME_SHA1);
+    dmLogInfo("Registered Rive extension:  %s - %s - %s\n", RIVE_RUNTIME_DATE, RIVE_RUNTIME_TAG, RIVE_RUNTIME_SHA1);
     return dmExtension::RESULT_OK;
 }
 

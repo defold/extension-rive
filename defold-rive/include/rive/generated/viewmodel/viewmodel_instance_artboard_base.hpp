@@ -20,6 +20,7 @@ public:
         {
             case ViewModelInstanceArtboardBase::typeKey:
             case ViewModelInstanceValueBase::typeKey:
+            case ComponentBase::typeKey:
                 return true;
             default:
                 return false;
@@ -31,7 +32,7 @@ public:
     static const uint16_t propertyValuePropertyKey = 846;
 
 protected:
-    uint32_t m_PropertyValue = 0;
+    uint32_t m_PropertyValue = -1;
 
 public:
     inline uint32_t propertyValue() const { return m_PropertyValue; }

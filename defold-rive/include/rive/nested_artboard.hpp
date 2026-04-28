@@ -3,10 +3,12 @@
 
 #include "rive/generated/nested_artboard_base.hpp"
 #include "rive/artboard_host.hpp"
+#include "rive/artboard_referencer.hpp"
 #include "rive/data_bind_path_referencer.hpp"
 #include "rive/data_bind/data_context.hpp"
 #include "rive/viewmodel/viewmodel_instance_value.hpp"
 #include "rive/hit_info.hpp"
+#include "rive/input/focusable.hpp"
 #include "rive/span.hpp"
 #include "rive/advancing_component.hpp"
 #include "rive/resetting_component.hpp"
@@ -26,24 +28,31 @@ class StateMachineInstance;
 class NestedArtboard : public NestedArtboardBase,
                        public AdvancingComponent,
                        public ResettingComponent,
-                       public ArtboardHost
+                       public ArtboardHost,
+                       public ArtboardReferencer,
+                       public Focusable
 {
 protected:
-    Artboard* m_Artboard = nullptr; // might point to m_Instance, and might not
     std::unique_ptr<ArtboardInstance> m_Instance; // may be null
     std::unique_ptr<NestedStateMachine>
         m_boundNestedStateMachine; // may be null
     std::vector<NestedAnimation*> m_NestedAnimations;
     File* m_file = nullptr;
     rcp<ViewModelInstance> m_viewModelInstance = nullptr;
-    DataContext* m_dataContext = nullptr;
+    rcp<DataContext> m_dataContext = nullptr;
+    // ViewModelInstance child for stateful artboards.
+    rcp<ViewModelInstance> m_statefulViewModelInstance = nullptr;
 
 protected:
 private:
-    Artboard* findArtboard(
-        ViewModelInstanceArtboard* viewModelInstanceArtboard);
     void clearNestedAnimations();
     float m_cumulatedSeconds = 0;
+    bool m_hasPendingStatefulBinding = false;
+    void nest(Artboard* artboard);
+    bool tryScheduleBindStateful();
+    void bindStateful();
+    void bindArtboardInstance(rcp<ViewModelInstance> instance,
+                              rcp<DataContext> parent);
 
 public:
     NestedArtboard();
@@ -53,19 +62,20 @@ public:
     bool willDraw() override;
     Core* hitTest(HitInfo*, const Mat2D&) override;
     void addNestedAnimation(NestedAnimation* nestedAnimation);
-
-    void nest(Artboard* artboard);
-    virtual void updateArtboard(
-        ViewModelInstanceArtboard* viewModelInstanceArtboard);
+    void updateArtboard(
+        ViewModelInstanceArtboard* viewModelInstanceArtboard) override;
+    int referencedArtboardId() override;
+    void referencedArtboard(Artboard* artboard) override;
     size_t artboardCount() override { return 1; }
     ArtboardInstance* artboardInstance(int index = 0) override
     {
         return m_Instance.get();
     }
-    Artboard* sourceArtboard() { return m_Artboard; }
+    Artboard* sourceArtboard() { return m_referencedArtboard; }
 
     StatusCode import(ImportStack& importStack) override;
     Core* clone() const override;
+    bool collapse(bool value) override;
     void update(ComponentDirt value) override;
 
     bool hasNestedStateMachines() const;
@@ -92,8 +102,9 @@ public:
     void decodeDataBindPathIds(Span<const uint8_t> value) override;
     void copyDataBindPathIds(const NestedArtboardBase& object) override;
     void bindViewModelInstance(rcp<ViewModelInstance> viewModelInstance,
-                               DataContext* parent) override;
-    void internalDataContext(DataContext* dataContext) override;
+                               rcp<DataContext> parent) override;
+    void internalDataContext(rcp<DataContext> dataContext) override;
+    void relinkDataContext(rcp<ViewModelInstance> viewModelInstance) override;
     void clearDataContext() override;
     void unbind() override;
     void updateDataBinds() override;
@@ -105,12 +116,21 @@ public:
     void reset() override;
     Artboard* parentArtboard() override { return artboard(); }
     Vec2D hostTransformPoint(const Vec2D&, ArtboardInstance*) override;
+    Mat2D worldTransformForArtboard(ArtboardInstance*) override;
     bool hitTestHost(const Vec2D& position,
                      bool skipOnUnclipped,
                      ArtboardInstance* artboard) override;
     void markHostTransformDirty() override { markTransformDirty(); }
     void file(File*) override;
     File* file() const override;
+    Component* hostComponent() override { return this; }
+
+    // Focusable interface - delegates to nested state machines
+    bool keyInput(Key, KeyModifiers, bool, bool) override { return false; };
+    bool textInput(const std::string&) override { return false; };
+    void focused() override {}
+    void blurred() override {}
+    Artboard* focusableArtboard() const override { return artboard(); }
 };
 } // namespace rive
 

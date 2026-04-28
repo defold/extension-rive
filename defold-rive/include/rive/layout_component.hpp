@@ -118,6 +118,7 @@ protected:
     ShapePaintPath m_localPath;
     ShapePaintPath m_worldPath;
     DrawableProxy m_proxy;
+    bool m_justAddedToHost = false;
 
     Artboard* getArtboard() override { return artboard(); }
     LayoutAnimationData* currentAnimationData();
@@ -281,7 +282,7 @@ public:
     bool cascadeLayoutStyle(LayoutStyleInterpolation inheritedInterpolation,
                             KeyFrameInterpolator* inheritedInterpolator,
                             float inheritedInterpolationTime,
-                            LayoutDirection direction);
+                            LayoutDirection direction) override;
     bool setInheritedInterpolation(
         LayoutStyleInterpolation inheritedInterpolation,
         KeyFrameInterpolator* inheritedInterpolator,

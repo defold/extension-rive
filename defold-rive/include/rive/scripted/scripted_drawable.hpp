@@ -1,8 +1,5 @@
 #ifndef _RIVE_SCRIPTED_DRAWABLE_HPP_
 #define _RIVE_SCRIPTED_DRAWABLE_HPP_
-#ifdef WITH_RIVE_SCRIPTING
-#include "rive/lua/rive_lua_libs.hpp"
-#endif
 #include "rive/generated/scripted/scripted_drawable_base.hpp"
 #include "rive/animation/state_machine_instance.hpp"
 #include "rive/advancing_component.hpp"
@@ -24,7 +21,7 @@ class ScriptedDrawable : public ScriptedDrawableBase,
 {
 public:
 #ifdef WITH_RIVE_SCRIPTING
-    bool scriptInit(LuaState* state) override;
+    bool scriptInit(ScriptingVM* vm) override;
 #endif
     void draw(Renderer* renderer) override;
     void update(ComponentDirt value) override;
@@ -42,7 +39,7 @@ public:
     }
     void addProperty(CustomProperty* prop) override;
     bool addScriptedDirt(ComponentDirt value, bool recurse = false) override;
-    DataContext* dataContext() override
+    rcp<DataContext> dataContext() override
     {
         if (artboard() != nullptr)
         {
@@ -60,6 +57,11 @@ public:
     void markNeedsUpdate() override;
     bool willDraw() override;
     Component* component() override { return this; }
+    bool keyInput(Key key,
+                  KeyModifiers modifiers,
+                  bool isPressed,
+                  bool isRepeat);
+    bool textInput(const std::string& text);
 
 private:
     bool m_isAdvanceActive = true;

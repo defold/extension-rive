@@ -74,6 +74,7 @@ namespace dmRive
     static void DeleteData(RiveSceneData* scene_data)
     {
         rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+        dmRiveCommands::DisposeFileScripts(scene_data->m_File);
         queue->deleteFile(scene_data->m_File);
         delete scene_data;
     }

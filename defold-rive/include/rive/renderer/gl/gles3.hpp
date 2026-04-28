@@ -55,7 +55,8 @@ extern bool webgl_shader_pixel_local_storage_is_coherent();
 extern void glFramebufferTexturePixelLocalStorageANGLE(GLint plane,
                                                        GLuint backingtexture,
                                                        GLint level,
-                                                       GLint layer);
+                                                       GLint layer,
+                                                       GLenum usage);
 extern void glFramebufferPixelLocalClearValuefvANGLE(GLint plane,
                                                      const GLfloat value[4]);
 extern void glBeginPixelLocalStorageANGLE(GLsizei n, const GLenum loadops[]);
@@ -161,11 +162,12 @@ struct GLCapabilities
     uint32_t contextVersionMinor;
     uint32_t vendorDriverVersionMajor;
     uint32_t vendorDriverVersionMinor;
+    uint32_t adrenoSeries;
 
     // Workarounds.
-    // Some Mali and PowerVR devices crash when issuing draw commands with a
-    // large instancecount.
-    uint32_t maxSupportedInstancesPerDrawCommand;
+    // Many devices crash on draw commands with a large instancecount, or when
+    // drawing many instances without a glFlush to break them up.
+    uint32_t maxSupportedInstancesPerFlush;
     // Chrome 136 crashes when trying to run Rive because it attempts to enable
     // blending on the tessellation texture, which is invalid for an integer
     // render target. The workaround is to use a floating-point tessellation
@@ -198,6 +200,7 @@ struct GLCapabilities
     bool EXT_base_instance : 1;
     bool EXT_clip_cull_distance : 1;
     bool EXT_color_buffer_half_float : 1;
+    bool OES_texture_half_float_linear : 1;
     bool EXT_color_buffer_float : 1;
     bool EXT_float_blend : 1;
     bool EXT_multisampled_render_to_texture : 1;

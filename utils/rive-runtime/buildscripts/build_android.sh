@@ -159,7 +159,7 @@ for ABI in "${ABI_LIST[@]}"; do
 
     echo
     echo "==> Building: android $ABI ($CONFIG)"
-    BUILD_ARGS=(ninja android "$ABI" "$CONFIG" --with-libs-only)
+    BUILD_ARGS=(ninja android "$ABI" "$CONFIG" --with_rive_scripting --with-libs-only)
     if (( ${#EXTRA_BUILD_ARGS[@]} > 0 )); then
         BUILD_ARGS+=("${EXTRA_BUILD_ARGS[@]}")
     fi

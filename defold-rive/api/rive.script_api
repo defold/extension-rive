@@ -91,7 +91,7 @@
             desc: The calling script instance.
           - name: event
             type: string
-            desc: One of onFileLoaded, onFileDeleted, onFileError, onArtboardsListed, onViewModelsListed, onViewModelInstanceNamesListed, onViewModelPropertiesListed, onViewModelEnumsListed
+            desc: One of onFileLoaded, onFileDeleted, onFileError, onArtboardInstantiated, onArtboardsListed, onViewModelsListed, onViewModelInstanceInstantiated, onViewModelInstanceNamesListed, onViewModelPropertiesListed, onViewModelEnumsListed
           - name: data
             type: table
             desc: Additional fields vary by event. Common keys include
@@ -99,6 +99,12 @@
               - name: file
                 type: FileHandle
                 desc: File handle involved in the event.
+              - name: artboard
+                type: ArtboardHandle
+                desc: Instantiated artboard handle, when applicable.
+              - name: viewModel
+                type: ViewModelInstanceHandle
+                desc: Instantiated view model instance handle, when applicable.
               - name: viewModelName
                 type: string
                 desc: View model name for the request, when applicable.
@@ -985,6 +991,16 @@
       - name: file_handle
         type: FileHandle
         desc: File handle whose artboards to query.
+
+#*****************************************************************************************************
+
+  - name: requestViewModelInstanceViewModelName
+    type: function
+    desc: Requests the view model name used by the view model instance.
+    parameters:
+      - name: instance_handle
+        type: ViewModelInstanceHandle
+        desc: View model instance handle to query.
 
 #*****************************************************************************************************
 

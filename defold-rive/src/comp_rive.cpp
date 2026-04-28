@@ -476,7 +476,10 @@ namespace dmRive
         component->m_StateMachine = 0;
 
         if (component->m_Artboard)
+        {
+            dmRiveCommands::DisposeArtboardScripts(component->m_Artboard);
             queue->deleteArtboard(component->m_Artboard);
+        }
         component->m_Artboard = 0;
 
         delete component;

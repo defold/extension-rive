@@ -169,6 +169,7 @@ RiveFile* LoadFileFromBuffer(const void* buffer, size_t buffer_size, const char*
     {
         if (out->m_File != RIVE_NULL_HANDLE)
         {
+            dmRiveCommands::DisposeFileScripts(out->m_File);
             queue->deleteFile(out->m_File);
             dmRiveCommands::ProcessMessages();
             out->m_File = RIVE_NULL_HANDLE;
@@ -233,6 +234,14 @@ void DestroyFile(RiveFile* file)
         if (file->m_ViewModelInstance != RIVE_NULL_HANDLE)
         {
             queue->deleteViewModelInstance(file->m_ViewModelInstance);
+        }
+        if (file->m_Artboard != RIVE_NULL_HANDLE)
+        {
+            dmRiveCommands::DisposeArtboardScripts(file->m_Artboard);
+        }
+        if (file->m_File != RIVE_NULL_HANDLE)
+        {
+            dmRiveCommands::DisposeFileScripts(file->m_File);
         }
         if (file->m_Artboard != RIVE_NULL_HANDLE)
         {
@@ -314,6 +323,7 @@ void SetArtboard(RiveFile* file, const char* artboard)
     }
     if (file->m_Artboard != RIVE_NULL_HANDLE)
     {
+        dmRiveCommands::DisposeArtboardScripts(file->m_Artboard);
         queue->deleteArtboard(file->m_Artboard);
         file->m_Artboard = RIVE_NULL_HANDLE;
     }

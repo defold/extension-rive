@@ -780,6 +780,10 @@ void RequestMetaData(RiveFile* file, rive::rcp<rive::CommandQueue> queue)
 
     for (uint32_t i = 0; i < artboards_to_delete.Size(); ++i)
     {
+        dmRiveCommands::DisposeArtboardScripts(artboards_to_delete[i]);
+    }
+    for (uint32_t i = 0; i < artboards_to_delete.Size(); ++i)
+    {
         queue->deleteArtboard(artboards_to_delete[i]);
     }
     if (artboards_to_delete.Size() > 0)

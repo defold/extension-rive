@@ -10,11 +10,15 @@ inputs:
     required: true
     default: https://github.com/rive-app/rive-runtime.git
   rive_ref:
-    description: Rive runtime ref (branch/tag)
+    description: Rive runtime ref (branch or other git ref)
+    required: false
+    default: ""
+  rive_tag:
+    description: Rive runtime GitHub release tag (for example runtime-v0.1.8)
     required: false
     default: ""
   rive_sha:
-    description: Rive runtime commit SHA (overrides ref)
+    description: Rive runtime commit SHA (overrides tag and ref)
     required: false
     default: ""
   upload_artifact:
@@ -29,6 +33,10 @@ inputs:
     description: Push changes back to the same branch
     required: true
     default: "true"
+  target_branch:
+    description: Branch to push committed changes to. Defaults to the workflow ref.
+    required: false
+    default: ""
   build_mode:
     description: Build mode (`patched` uses utils/rive-runtime/build.sh, `vanilla` uses build/build_rive.sh directly when supported)
     required: false
@@ -49,16 +57,25 @@ runs:
         echo "RIVE_ROOT=${RIVE_TMP_DIR}" >> "$GITHUB_ENV"
         url="${{ inputs.rive_repo_url }}"
         ref="${{ inputs.rive_ref }}"
+        tag="${{ inputs.rive_tag }}"
         sha="${{ inputs.rive_sha }}"
+        selected_tag=""
         echo "Cloning Rive runtime from: ${url}"
         if [ -n "$sha" ]; then
+          echo "Checking out Rive runtime commit SHA: ${sha}"
           git -c core.autocrlf=false -c core.eol=lf clone --depth 1 "$url" "$RIVE_TMP_DIR"
           (cd "$RIVE_TMP_DIR" && git fetch --depth 1 origin "$sha" && git checkout -f "$sha")
+        elif [ -n "$tag" ]; then
+          echo "Checking out Rive runtime tag: ${tag}"
+          git -c core.autocrlf=false -c core.eol=lf clone --depth 1 --branch "$tag" "$url" "$RIVE_TMP_DIR"
+          selected_tag="$tag"
         elif [ -n "$ref" ]; then
+          echo "Checking out Rive runtime ref: ${ref}"
           git -c core.autocrlf=false -c core.eol=lf clone --depth 1 --branch "$ref" "$url" "$RIVE_TMP_DIR"
         else
           git -c core.autocrlf=false -c core.eol=lf clone --depth 1 "$url" "$RIVE_TMP_DIR"
         fi
+        echo "RIVE_RUNTIME_TAG=${selected_tag}" >> "$GITHUB_ENV"
         # Double-check repo config to avoid CRLF breaking patch apply
         (cd "$RIVE_TMP_DIR" && git config core.autocrlf false && git config core.eol lf)
         echo "Checked out rive-runtime commit: $(cd "$RIVE_TMP_DIR" && git rev-parse HEAD)"
@@ -117,7 +134,7 @@ runs:
           exit 1
         fi
 
-        build_args=(release clean)
+        build_args=(release clean --with_rive_scripting)
         if [ "$INPUT_WITH_VULKAN" = "true" ]; then
           build_args+=(--with_vulkan)
         fi
@@ -134,6 +151,7 @@ runs:
           libpng
           libjpeg
           libwebp
+          luau_vm
         )
 
         echo "Running (in ${RIVE_ROOT}/renderer): ../build/build_rive.sh ${build_args[*]}"
@@ -179,11 +197,45 @@ runs:
           exit 1
         fi
 
+    - name: Verify Luau VM library
+      shell: bash
+      env:
+        INPUT_PLATFORM: ${{ inputs.platform }}
+      run: |
+        set -euo pipefail
+
+        lib_dir="defold-rive/lib/${INPUT_PLATFORM}"
+        if [[ "${INPUT_PLATFORM}" == *-win32 ]]; then
+          luau_lib="${lib_dir}/luau_vm.lib"
+        else
+          luau_lib="${lib_dir}/libluau_vm.a"
+        fi
+
+        if [[ ! -f "${luau_lib}" ]]; then
+          echo "error: expected Luau VM library is missing: ${luau_lib}" >&2
+          echo "Contents of ${lib_dir}:" >&2
+          if [[ -d "${lib_dir}" ]]; then
+            for lib in "${lib_dir}"/*; do
+              [[ -e "${lib}" ]] || continue
+              echo "  $(basename "${lib}")" >&2
+            done
+          fi
+          if [[ -n "${RIVE_ROOT:-}" && -d "${RIVE_ROOT}" ]]; then
+            echo "Luau VM artifacts found under ${RIVE_ROOT}:" >&2
+            find "${RIVE_ROOT}" -type f \( -name "luau_vm.lib" -o -name "libluau_vm.a" \) 2>/dev/null | sort >&2 || true
+          fi
+          exit 1
+        fi
+
     - name: Pack artifacts (optional)
       if: ${{ inputs.upload_artifact == 'true' }}
       shell: bash
       run: |
         set -euo pipefail
+        target_branch="${{ inputs.target_branch }}"
+        if [ -z "${target_branch}" ]; then
+          target_branch="${GITHUB_REF_NAME}"
+        fi
         paths=()
         [ -d defold-rive/lib ] && paths+=(defold-rive/lib)
         [ -d defold-rive/include ] && paths+=(defold-rive/include)
@@ -192,14 +244,14 @@ runs:
           exit 0
         fi
         echo "Packing: ${paths[*]}"
-        tar -czf "branch-artifacts-${GITHUB_REF_NAME}.tgz" "${paths[@]}"
+        tar -czf "branch-artifacts-${target_branch}.tgz" "${paths[@]}"
 
     - name: Upload artifact (optional)
       if: ${{ inputs.upload_artifact == 'true' }}
       uses: actions/upload-artifact@v4
       with:
-        name: branch-artifacts-${{ github.ref_name }}
-        path: branch-artifacts-${{ github.ref_name }}.tgz
+        name: branch-artifacts-${{ inputs.target_branch || github.ref_name }}
+        path: branch-artifacts-${{ inputs.target_branch || github.ref_name }}.tgz
         if-no-files-found: ignore
 
     - name: Commit and push changes (optional)
@@ -207,8 +259,10 @@ runs:
       shell: bash
       env:
         COMMIT_SUFFIX: ${{ inputs.commit_message }}
+        TARGET_BRANCH: ${{ inputs.target_branch }}
       run: |
         set -euo pipefail
+        target_branch="${TARGET_BRANCH:-${GITHUB_REF_NAME}}"
         git config user.name "github-actions[bot]"
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
         add_paths=()
@@ -221,7 +275,7 @@ runs:
           echo "No changes to commit."
           exit 0
         fi
-        msg="ci: update artifacts on ${GITHUB_REF_NAME} [skip ci]"
+        msg="ci: update artifacts on ${target_branch} [skip ci]"
         if [ -n "${COMMIT_SUFFIX}" ]; then
           msg="$msg - ${COMMIT_SUFFIX}"
         fi
@@ -231,13 +285,13 @@ runs:
         attempt=1
         until [ $attempt -gt $max_attempts ]; do
           echo "Attempt $attempt: rebase + push"
-          if git pull --rebase origin "${GITHUB_REF_NAME}"; then
+          if git pull --rebase origin "${target_branch}"; then
             local_sha="$(git rev-parse HEAD)"
-            if git push origin HEAD:"${GITHUB_REF_NAME}"; then
+            if git push origin HEAD:"${target_branch}"; then
               echo "Push succeeded"
               break
             fi
-            remote_sha="$(git ls-remote origin "refs/heads/${GITHUB_REF_NAME}" | awk '{print $1}' || true)"
+            remote_sha="$(git ls-remote origin "refs/heads/${target_branch}" | awk '{print $1}' || true)"
             if [ -n "${remote_sha}" ] && [ "${remote_sha}" = "${local_sha}" ]; then
               echo "Remote branch already points at ${local_sha}; treating push as successful."
               break

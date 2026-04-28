@@ -14,13 +14,17 @@ on:
         required: true
         default: "https://github.com/rive-app/rive-runtime.git"
       rive_ref:
-        description: "Rive runtime ref (branch/tag/commit). Leave empty for default."
+        description: "Rive runtime branch or other git ref. Leave empty for default."
+        required: false
+        default: ""
+      rive_tag:
+        description: "Rive runtime GitHub release tag, for example runtime-v0.1.8"
         required: false
         default: ""
       rive_sha:
-        description: "Rive runtime commit SHA to checkout (overrides rive_ref)"
+        description: "Rive runtime commit SHA to checkout (overrides rive_tag and rive_ref)"
         required: false
-        default: "3a5b5058aca009b823154ed7f92c11d599c00ae3"
+        default: ""
       upload_artifact:
         description: "Upload tarball artifact (defold-rive/lib + include)"
         required: true
@@ -41,12 +45,67 @@ on:
         description: "Defold SDK version (defaults to latest stable)"
         required: false
         default: "latest"
+      target_branch:
+        description: "Branch to checkout and push changes to. Leave empty for the selected workflow branch."
+        required: false
+        default: ""
+  workflow_call:
+    inputs:
+      platform:
+        description: "Target platform for Rive build"
+        required: true
+        type: string
+      rive_repo_url:
+        description: "Rive runtime repo URL (HTTPS)"
+        required: false
+        type: string
+        default: "https://github.com/rive-app/rive-runtime.git"
+      rive_ref:
+        description: "Rive runtime branch or other git ref. Leave empty for default."
+        required: false
+        type: string
+        default: ""
+      rive_tag:
+        description: "Rive runtime GitHub release tag, for example runtime-v0.1.8"
+        required: false
+        type: string
+        default: ""
+      rive_sha:
+        description: "Rive runtime commit SHA to checkout (overrides rive_tag and rive_ref)"
+        required: false
+        type: string
+        default: ""
+      upload_artifact:
+        description: "Upload tarball artifact (defold-rive/lib + include)"
+        required: false
+        type: string
+        default: "false"
+      commit_message:
+        description: "Optional commit message suffix"
+        required: false
+        type: string
+        default: ""
+      push_changes:
+        description: "Push changes back to the same branch"
+        required: false
+        type: string
+        default: "true"
+      defold_version:
+        description: "Defold SDK version (defaults to latest stable)"
+        required: false
+        type: string
+        default: "latest"
+      target_branch:
+        description: "Branch to checkout and push changes to. Leave empty for the selected workflow branch."
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: write
 
 concurrency:
-  group: branch-artifacts-${{ github.ref_name }}
+  group: branch-artifacts-${{ inputs.target_branch || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -54,23 +113,24 @@ jobs:
     name: defoldsdk
     uses: defold/github-actions-common/.github/workflows/defoldsdk.yml@master
     with:
-      runner: ${{ github.event.inputs.platform == 'arm64-linux' && 'ubuntu-22.04-arm' || 'ubuntu-22.04' }}
+      runner: ${{ inputs.platform == 'arm64-linux' && 'ubuntu-22.04-arm' || 'ubuntu-22.04' }}
       defold_channel: alpha
-      defold_version: ${{ github.event.inputs.defold_version || 'latest' }}
+      defold_version: ${{ inputs.defold_version || 'latest' }}
       sdk_output_path: build/defoldsdk
       bob_output_path: bob.jar
 
   build-linux:
-    if: ${{ github.event.inputs.platform == 'x86_64-linux' || github.event.inputs.platform == 'arm64-linux' || github.event.inputs.platform == 'all' }}
+    if: ${{ inputs.platform == 'x86_64-linux' || inputs.platform == 'arm64-linux' || inputs.platform == 'all' }}
     runs-on: ${{ matrix.platform == 'arm64-linux' && 'ubuntu-22.04-arm' || 'ubuntu-22.04' }}
     strategy:
       matrix:
-        platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["x86_64-linux","arm64-linux"]' || format('["{0}"]', github.event.inputs.platform)) }}
+        platform: ${{ fromJSON(inputs.platform == 'all' && '["x86_64-linux","arm64-linux"]' || format('["{0}"]', inputs.platform)) }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
           fetch-depth: 1
+          ref: ${{ inputs.target_branch || github.ref_name }}
 
       - name: Resolve spirv-tools commit
         id: spirv-tools-ref
@@ -161,25 +221,28 @@ jobs:
         uses: ./.github/actions/rive-build
         with:
           platform: ${{ matrix.platform }}
-          rive_repo_url: ${{ github.event.inputs.rive_repo_url }}
-          rive_ref: ${{ github.event.inputs.rive_ref }}
-          rive_sha: ${{ github.event.inputs.rive_sha }}
-          upload_artifact: ${{ github.event.inputs.upload_artifact }}
-          commit_message: ${{ github.event.inputs.commit_message }}
-          push_changes: ${{ github.event.inputs.push_changes }}
+          rive_repo_url: ${{ inputs.rive_repo_url }}
+          rive_ref: ${{ inputs.rive_ref }}
+          rive_tag: ${{ inputs.rive_tag }}
+          rive_sha: ${{ inputs.rive_sha }}
+          upload_artifact: ${{ inputs.upload_artifact }}
+          commit_message: ${{ inputs.commit_message }}
+          push_changes: ${{ inputs.push_changes }}
+          target_branch: ${{ inputs.target_branch || github.ref_name }}
           with_vulkan: true
 
   build-macos:
-    if: ${{ github.event.inputs.platform == 'arm64-macos' || github.event.inputs.platform == 'x86_64-macos' || github.event.inputs.platform == 'arm64-ios' || github.event.inputs.platform == 'x86_64-ios' || github.event.inputs.platform == 'all' }}
+    if: ${{ inputs.platform == 'arm64-macos' || inputs.platform == 'x86_64-macos' || inputs.platform == 'arm64-ios' || inputs.platform == 'x86_64-ios' || inputs.platform == 'all' }}
     runs-on: macos-latest
     strategy:
       matrix:
-        platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["arm64-macos","x86_64-macos","arm64-ios","x86_64-ios"]' || format('["{0}"]', github.event.inputs.platform)) }}
+        platform: ${{ fromJSON(inputs.platform == 'all' && '["arm64-macos","x86_64-macos","arm64-ios","x86_64-ios"]' || format('["{0}"]', inputs.platform)) }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
           fetch-depth: 1
+          ref: ${{ inputs.target_branch || github.ref_name }}
 
       - name: Select Xcode 16.2
         uses: maxim-lobanov/setup-xcode@v1
@@ -190,24 +253,27 @@ jobs:
         uses: ./.github/actions/rive-build
         with:
           platform: ${{ matrix.platform }}
-          rive_repo_url: ${{ github.event.inputs.rive_repo_url }}
-          rive_ref: ${{ github.event.inputs.rive_ref }}
-          rive_sha: ${{ github.event.inputs.rive_sha }}
-          upload_artifact: ${{ github.event.inputs.upload_artifact }}
-          commit_message: ${{ github.event.inputs.commit_message }}
-          push_changes: ${{ github.event.inputs.push_changes }}
+          rive_repo_url: ${{ inputs.rive_repo_url }}
+          rive_ref: ${{ inputs.rive_ref }}
+          rive_tag: ${{ inputs.rive_tag }}
+          rive_sha: ${{ inputs.rive_sha }}
+          upload_artifact: ${{ inputs.upload_artifact }}
+          commit_message: ${{ inputs.commit_message }}
+          push_changes: ${{ inputs.push_changes }}
+          target_branch: ${{ inputs.target_branch || github.ref_name }}
 
   build-android:
-    if: ${{ github.event.inputs.platform == 'arm64-android' || github.event.inputs.platform == 'armv7-android' || github.event.inputs.platform == 'all' }}
+    if: ${{ inputs.platform == 'arm64-android' || inputs.platform == 'armv7-android' || inputs.platform == 'all' }}
     runs-on: macos-latest
     strategy:
       matrix:
-        platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["arm64-android","armv7-android"]' || format('["{0}"]', github.event.inputs.platform)) }}
+        platform: ${{ fromJSON(inputs.platform == 'all' && '["arm64-android","armv7-android"]' || format('["{0}"]', inputs.platform)) }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
           fetch-depth: 1
+          ref: ${{ inputs.target_branch || github.ref_name }}
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -233,32 +299,37 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "ANDROID_NDK_HOME=${ANDROID_NDK}" >> "$GITHUB_ENV"
-          echo "NDK_PATH=${ANDROID_NDK}" >> "$GITHUB_ENV"
           # API 21 is a safe default for arm64 and armv7 toolchains
-          echo "ANDROID_API=21" >> "$GITHUB_ENV"
+          {
+            echo "ANDROID_NDK_HOME=${ANDROID_NDK}"
+            echo "NDK_PATH=${ANDROID_NDK}"
+            echo "ANDROID_API=21"
+          } >> "$GITHUB_ENV"
       - name: Build, (optionally) upload, and commit
         uses: ./.github/actions/rive-build
         with:
           platform: ${{ matrix.platform }}
-          rive_repo_url: ${{ github.event.inputs.rive_repo_url }}
-          rive_ref: ${{ github.event.inputs.rive_ref }}
-          rive_sha: ${{ github.event.inputs.rive_sha }}
-          upload_artifact: ${{ github.event.inputs.upload_artifact }}
-          commit_message: ${{ github.event.inputs.commit_message }}
-          push_changes: ${{ github.event.inputs.push_changes }}
+          rive_repo_url: ${{ inputs.rive_repo_url }}
+          rive_ref: ${{ inputs.rive_ref }}
+          rive_tag: ${{ inputs.rive_tag }}
+          rive_sha: ${{ inputs.rive_sha }}
+          upload_artifact: ${{ inputs.upload_artifact }}
+          commit_message: ${{ inputs.commit_message }}
+          push_changes: ${{ inputs.push_changes }}
+          target_branch: ${{ inputs.target_branch || github.ref_name }}
 
   build-web:
-    if: ${{ github.event.inputs.platform == 'js-web' || github.event.inputs.platform == 'wasm-web' || github.event.inputs.platform == 'wasm_pthread-web' || github.event.inputs.platform == 'all' }}
+    if: ${{ inputs.platform == 'js-web' || inputs.platform == 'wasm-web' || inputs.platform == 'wasm_pthread-web' || inputs.platform == 'all' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["js-web","wasm-web","wasm_pthread-web"]' || format('["{0}"]', github.event.inputs.platform)) }}
+        platform: ${{ fromJSON(inputs.platform == 'all' && '["js-web","wasm-web","wasm_pthread-web"]' || format('["{0}"]', inputs.platform)) }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
           fetch-depth: 1
+          ref: ${{ inputs.target_branch || github.ref_name }}
 
       - name: Install Linux dependencies (uuid, glslangValidator, spirv-tools)
         shell: bash
@@ -278,24 +349,27 @@ jobs:
         uses: ./.github/actions/rive-build
         with:
           platform: ${{ matrix.platform }}
-          rive_repo_url: ${{ github.event.inputs.rive_repo_url }}
-          rive_ref: ${{ github.event.inputs.rive_ref }}
-          rive_sha: ${{ github.event.inputs.rive_sha }}
-          upload_artifact: ${{ github.event.inputs.upload_artifact }}
-          commit_message: ${{ github.event.inputs.commit_message }}
-          push_changes: ${{ github.event.inputs.push_changes }}
+          rive_repo_url: ${{ inputs.rive_repo_url }}
+          rive_ref: ${{ inputs.rive_ref }}
+          rive_tag: ${{ inputs.rive_tag }}
+          rive_sha: ${{ inputs.rive_sha }}
+          upload_artifact: ${{ inputs.upload_artifact }}
+          commit_message: ${{ inputs.commit_message }}
+          push_changes: ${{ inputs.push_changes }}
+          target_branch: ${{ inputs.target_branch || github.ref_name }}
 
   build-windows:
-    if: ${{ github.event.inputs.platform == 'x86-win32' || github.event.inputs.platform == 'x86_64-win32' || github.event.inputs.platform == 'all' }}
+    if: ${{ inputs.platform == 'x86-win32' || inputs.platform == 'x86_64-win32' || inputs.platform == 'all' }}
     runs-on: windows-2022
     strategy:
       matrix:
-        platform: ${{ fromJSON(github.event.inputs.platform == 'all' && '["x86_64-win32"]' || format('["{0}"]', github.event.inputs.platform)) }}
+        platform: ${{ fromJSON(inputs.platform == 'all' && '["x86_64-win32"]' || format('["{0}"]', inputs.platform)) }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
           fetch-depth: 1
+          ref: ${{ inputs.target_branch || github.ref_name }}
 
       - name: Setup Python 3
         uses: actions/setup-python@v5
@@ -345,17 +419,19 @@ jobs:
         uses: ./.github/actions/rive-build
         with:
           platform: ${{ matrix.platform }}
-          rive_repo_url: ${{ github.event.inputs.rive_repo_url }}
-          rive_ref: ${{ github.event.inputs.rive_ref }}
-          rive_sha: ${{ github.event.inputs.rive_sha }}
-          upload_artifact: ${{ github.event.inputs.upload_artifact }}
-          commit_message: ${{ github.event.inputs.commit_message }}
-          push_changes: ${{ github.event.inputs.push_changes }}
+          rive_repo_url: ${{ inputs.rive_repo_url }}
+          rive_ref: ${{ inputs.rive_ref }}
+          rive_tag: ${{ inputs.rive_tag }}
+          rive_sha: ${{ inputs.rive_sha }}
+          upload_artifact: ${{ inputs.upload_artifact }}
+          commit_message: ${{ inputs.commit_message }}
+          push_changes: ${{ inputs.push_changes }}
+          target_branch: ${{ inputs.target_branch || github.ref_name }}
           build_mode: vanilla
           with_vulkan: true
 
   build-plugin-macos:
-    if: ${{ github.event.inputs.platform == 'arm64-macos' || github.event.inputs.platform == 'x86_64-macos' || github.event.inputs.platform == 'all' }}
+    if: ${{ inputs.platform == 'arm64-macos' || inputs.platform == 'x86_64-macos' || inputs.platform == 'all' }}
     needs: [build-macos, prepare-defoldsdk]
     runs-on: macos-latest
     steps:
@@ -363,6 +439,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 1
+          ref: ${{ inputs.target_branch || github.ref_name }}
 
       - name: Setup Temurin Java 25
         uses: actions/setup-java@v4
@@ -435,10 +512,11 @@ jobs:
           ./utils/plugin/build.sh x86_64-macos
 
       - name: Commit macos plugin outputs
-        if: ${{ github.event.inputs.push_changes == 'true' }}
+        if: ${{ inputs.push_changes == 'true' }}
         shell: bash
         run: |
           set -euo pipefail
+          target_branch="${{ inputs.target_branch || github.ref_name }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -v defold-rive/plugins/lib/arm64-macos \
@@ -447,9 +525,9 @@ jobs:
             echo "No plugin changes to commit."
             exit 0
           fi
-          msg="ci: update editor plugin on ${{ github.ref_name }} [skip ci]"
-          if [ -n "${{ github.event.inputs.commit_message }}" ]; then
-            msg="$msg - ${{ github.event.inputs.commit_message }}"
+          msg="ci: update editor plugin on ${target_branch} [skip ci]"
+          if [ -n "${{ inputs.commit_message }}" ]; then
+            msg="$msg - ${{ inputs.commit_message }}"
           fi
           git commit -m "$msg"
           git config http.version HTTP/1.1
@@ -457,13 +535,13 @@ jobs:
           attempt=1
           until [ $attempt -gt $max_attempts ]; do
             echo "Attempt $attempt: rebase + push"
-            if git pull --rebase --autostash origin "${{ github.ref_name }}"; then
+            if git pull --rebase --autostash origin "${target_branch}"; then
               local_sha="$(git rev-parse HEAD)"
-              if git push origin HEAD:"${{ github.ref_name }}"; then
+              if git push origin HEAD:"${target_branch}"; then
                 echo "Push succeeded"
                 break
               fi
-              remote_sha="$(git ls-remote origin "refs/heads/${{ github.ref_name }}" | awk '{print $1}' || true)"
+              remote_sha="$(git ls-remote origin "refs/heads/${target_branch}" | awk '{print $1}' || true)"
               if [ -n "${remote_sha}" ] && [ "${remote_sha}" = "${local_sha}" ]; then
                 echo "Remote branch already points at ${local_sha}; treating push as successful."
                 break
@@ -481,7 +559,7 @@ jobs:
           fi
 
   build-plugin-linux:
-    if: ${{ github.event.inputs.platform == 'x86_64-linux' || github.event.inputs.platform == 'all' }}
+    if: ${{ inputs.platform == 'x86_64-linux' || inputs.platform == 'all' }}
     needs: [build-linux, prepare-defoldsdk]
     runs-on: ubuntu-22.04
     steps:
@@ -489,6 +567,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 1
+          ref: ${{ inputs.target_branch || github.ref_name }}
 
       - name: Setup Temurin Java 25
         uses: actions/setup-java@v4
@@ -578,23 +657,24 @@ jobs:
           ./utils/plugin/build.sh x86_64-linux
 
       - name: Commit linux plugin outputs
-        if: ${{ github.event.inputs.push_changes == 'true' }}
+        if: ${{ inputs.push_changes == 'true' }}
         shell: bash
         env:
-          PLATFORM: ${{ matrix.platform }}
+          PLATFORM: x86_64-linux
         run: |
           set -euo pipefail
+          target_branch="${{ inputs.target_branch || github.ref_name }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -v defold-rive/plugins/lib/${{ matrix.platform }} || true
+          git add -v defold-rive/plugins/lib/x86_64-linux || true
           git add -v defold-rive/plugins/share/pluginRiveExt.jar || true
           if git diff --cached --quiet; then
             echo "No plugin changes to commit."
             exit 0
           fi
-          msg="ci: update ${PLATFORM} plugin on ${{ github.ref_name }} [skip ci]"
-          if [ -n "${{ github.event.inputs.commit_message }}" ]; then
-            msg="$msg - ${{ github.event.inputs.commit_message }}"
+          msg="ci: update ${PLATFORM} plugin on ${target_branch} [skip ci]"
+          if [ -n "${{ inputs.commit_message }}" ]; then
+            msg="$msg - ${{ inputs.commit_message }}"
           fi
           git commit -m "$msg"
           git config http.version HTTP/1.1
@@ -602,13 +682,13 @@ jobs:
           attempt=1
           until [ $attempt -gt $max_attempts ]; do
             echo "Attempt $attempt: rebase + push"
-            if git pull --rebase --autostash origin "${{ github.ref_name }}"; then
+            if git pull --rebase --autostash origin "${target_branch}"; then
               local_sha="$(git rev-parse HEAD)"
-              if git push origin HEAD:"${{ github.ref_name }}"; then
+              if git push origin HEAD:"${target_branch}"; then
                 echo "Push succeeded"
                 break
               fi
-              remote_sha="$(git ls-remote origin "refs/heads/${{ github.ref_name }}" | awk '{print $1}' || true)"
+              remote_sha="$(git ls-remote origin "refs/heads/${target_branch}" | awk '{print $1}' || true)"
               if [ -n "${remote_sha}" ] && [ "${remote_sha}" = "${local_sha}" ]; then
                 echo "Remote branch already points at ${local_sha}; treating push as successful."
                 break
@@ -630,7 +710,7 @@ jobs:
           ./utils/plugin/test_plugin.sh ./main/grimley/4951-10031-grimley.riv
 
   build-plugin-windows:
-    if: ${{ github.event.inputs.platform == 'x86_64-win32' || github.event.inputs.platform == 'all' }}
+    if: ${{ inputs.platform == 'x86_64-win32' || inputs.platform == 'all' }}
     needs: [build-windows, prepare-defoldsdk]
     runs-on: windows-2022
     steps:
@@ -638,6 +718,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 1
+          ref: ${{ inputs.target_branch || github.ref_name }}
 
       - name: Setup Temurin Java 25
         uses: actions/setup-java@v4
@@ -705,20 +786,21 @@ jobs:
           ./utils/plugin/build.sh x86_64-win32
 
       - name: Commit windows plugin outputs
-        if: ${{ github.event.inputs.push_changes == 'true' }}
+        if: ${{ inputs.push_changes == 'true' }}
         shell: bash
         run: |
           set -euo pipefail
+          target_branch="${{ inputs.target_branch || github.ref_name }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -v defold-rive/plugins/lib/${{ matrix.platform }} || true
+          git add -v defold-rive/plugins/lib/x86_64-win32 || true
           if git diff --cached --quiet; then
             echo "No plugin changes to commit."
             exit 0
           fi
-          msg="ci: update windows plugin on ${{ github.ref_name }} [skip ci]"
-          if [ -n "${{ github.event.inputs.commit_message }}" ]; then
-            msg="$msg - ${{ github.event.inputs.commit_message }}"
+          msg="ci: update windows plugin on ${target_branch} [skip ci]"
+          if [ -n "${{ inputs.commit_message }}" ]; then
+            msg="$msg - ${{ inputs.commit_message }}"
           fi
           git commit -m "$msg"
           git config http.version HTTP/1.1
@@ -726,13 +808,13 @@ jobs:
           attempt=1
           until [ $attempt -gt $max_attempts ]; do
             echo "Attempt $attempt: rebase + push"
-            if git pull --rebase --autostash origin "${{ github.ref_name }}"; then
+            if git pull --rebase --autostash origin "${target_branch}"; then
               local_sha="$(git rev-parse HEAD)"
-              if git push origin HEAD:"${{ github.ref_name }}"; then
+              if git push origin HEAD:"${target_branch}"; then
                 echo "Push succeeded"
                 break
               fi
-              remote_sha="$(git ls-remote origin "refs/heads/${{ github.ref_name }}" | awk '{print $1}' || true)"
+              remote_sha="$(git ls-remote origin "refs/heads/${target_branch}" | awk '{print $1}' || true)"
               if [ -n "${remote_sha}" ] && [ "${remote_sha}" = "${local_sha}" ]; then
                 echo "Remote branch already points at ${local_sha}; treating push as successful."
                 break

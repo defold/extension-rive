@@ -25,7 +25,7 @@ class ScriptedPathEffect : public ScriptedPathEffectBase,
 {
 public:
 #ifdef WITH_RIVE_SCRIPTING
-    bool scriptInit(LuaState* state) override;
+    bool scriptInit(ScriptingVM* vm) override;
 #endif
     void addProperty(CustomProperty* prop) override;
     StatusCode onAddedClean(CoreContext* context) override;
@@ -37,7 +37,7 @@ public:
     bool addScriptedDirt(ComponentDirt value, bool recurse = false) override;
     void buildDependencies() override;
     void update(ComponentDirt value) override;
-    DataContext* dataContext() override
+    rcp<DataContext> dataContext() override
     {
         if (artboard() != nullptr)
         {
@@ -51,7 +51,7 @@ public:
     }
     void updateEffect(PathProvider* pathProvider,
                       const ShapePaintPath* source,
-                      ShapePaintType shapePaintType) override;
+                      const ShapePaint* shapePaint) override;
     StatusCode import(ImportStack& importStack) override;
     Core* clone() const override;
     void markNeedsUpdate() override;
@@ -60,6 +60,9 @@ public:
 
 protected:
     virtual EffectPath* createEffectPath() override;
+
+private:
+    bool m_isAdvanceActive = true;
 };
 } // namespace rive
 

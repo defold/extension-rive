@@ -107,6 +107,7 @@ function CleanLibraries {
     rm ${folder}/liblibjpeg.a
     rm ${folder}/liblibpng.a
     rm ${folder}/liblibwebp.a
+    rm ${folder}/libluau_vm.a
     rm ${folder}/libminiaudio.a
     rm ${folder}/librive.a
     rm ${folder}/librive_decoders.a
@@ -118,6 +119,7 @@ function CleanLibraries {
     rm ${folder}/libjpeg.lib
     rm ${folder}/libpng.lib
     rm ${folder}/libwebp.lib
+    rm ${folder}/luau_vm.lib
     rm ${folder}/miniaudio.lib
     rm ${folder}/rive.lib
     rm ${folder}/rive_decoders.lib

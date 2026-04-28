@@ -82,6 +82,7 @@ static int Script_deleteArtboard(lua_State* L)
     DM_LUA_STACK_CHECK(L, 0);
     rive::ArtboardHandle handle = CheckArtboardHandle(L, 1);
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    dmRiveCommands::DisposeArtboardScripts(handle);
     queue->deleteArtboard(handle);
     return 0;
 }
@@ -964,6 +965,7 @@ static int Script_deleteFile(lua_State* L)
     DM_LUA_STACK_CHECK(L, 0);
     rive::FileHandle handle = CheckFileHandle(L, 1);
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    dmRiveCommands::DisposeFileScripts(handle);
     queue->deleteFile(handle);
     return 0;
 }
@@ -1185,6 +1187,19 @@ static int Script_requestArtboardNames(lua_State* L)
     DM_LUA_STACK_CHECK(L, 0);
     rive::FileHandle file = CheckFileHandle(L, 1);
     dmRiveCommands::GetCommandQueue()->requestArtboardNames(file);
+    return 0;
+}
+
+/**
+ * Requests the view model name used by the view model instance.
+ * @name cmd.requestViewModelInstanceViewModelName(instance_handle)
+ * @param instance_handle [type: ViewModelInstanceHandle] View model instance handle to query.
+ */
+static int Script_requestViewModelInstanceViewModelName(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
+    dmRiveCommands::GetCommandQueue()->requestViewModelInstanceViewModelName(handle);
     return 0;
 }
 
@@ -1421,6 +1436,7 @@ static const luaL_reg RIVE_COMMAND_FUNCTIONS[] =
 
     {"requestViewModelNames",   Script_requestViewModelNames},
     {"requestArtboardNames",    Script_requestArtboardNames},
+    {"requestViewModelInstanceViewModelName", Script_requestViewModelInstanceViewModelName},
     {"requestViewModelEnums",   Script_requestViewModelEnums},
 
     {"requestViewModelPropertyDefinitions", Script_requestViewModelPropertyDefinitions},
