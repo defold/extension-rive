@@ -30,10 +30,16 @@ class FileListener : public rive::CommandQueue::FileListener
 {
 public:
     virtual void onArtboardsListed(const rive::FileHandle fileHandle, uint64_t requestId, std::vector<std::string> artboardNames) override;
+    virtual void onArtboardInstantiated(const rive::FileHandle fileHandle,
+                                        uint64_t requestId,
+                                        rive::ArtboardHandle artboardHandle) override;
     virtual void onFileError(const rive::FileHandle, uint64_t requestId, std::string error) override;
     virtual void onFileDeleted(const rive::FileHandle, uint64_t requestId) override;
     virtual void onFileLoaded(const rive::FileHandle, uint64_t requestId) override;
     virtual void onViewModelsListed(const rive::FileHandle, uint64_t requestId, std::vector<std::string> viewModelNames) override;
+    virtual void onViewModelInstanceInstantiated(const rive::FileHandle fileHandle,
+                                                uint64_t requestId,
+                                                rive::ViewModelInstanceHandle viewModelHandle) override;
     virtual void onViewModelInstanceNamesListed(const rive::FileHandle, uint64_t requestId, std::string viewModelName, std::vector<std::string> instanceNames) override;
     virtual void onViewModelPropertiesListed( const rive::FileHandle, uint64_t requestId, std::string viewModelName, std::vector<ViewModelPropertyData> properties) override;
     virtual void onViewModelEnumsListed(const rive::FileHandle, uint64_t requestId, std::vector<rive::ViewModelEnum> enums) override;
@@ -74,6 +80,9 @@ public:
     virtual void onArtboardError(const rive::ArtboardHandle, uint64_t requestId, std::string error) override;
     virtual void onDefaultViewModelInfoReceived(const rive::ArtboardHandle, uint64_t requestId, std::string viewModelName, std::string instanceName) override;
     virtual void onArtboardDeleted(const rive::ArtboardHandle, uint64_t requestId) override;
+    virtual void onStateMachineInstantiated(const rive::ArtboardHandle artboardHandle,
+                                            uint64_t requestId,
+                                            rive::StateMachineHandle stateMachineHandle) override;
     virtual void onStateMachinesListed(const rive::ArtboardHandle, uint64_t requestId, std::vector<std::string> stateMachineNames) override;
     dmScript::LuaCallbackInfo* m_Callback;
 };
@@ -89,6 +98,9 @@ public:
     bool GetListSize(dmhash_t path_hash, size_t& out) const;
     bool AdjustListSize(dmhash_t path_hash, int32_t delta);
     bool EnsureListSize(dmhash_t path_hash, size_t value);
+    virtual void onViewModelInstanceViewModelNameReceived(const rive::ViewModelInstanceHandle,
+                                                         uint64_t requestId,
+                                                         std::string viewModelName) override;
     virtual void onViewModelInstanceError(const rive::ViewModelInstanceHandle, uint64_t requestId, std::string error) override;
     virtual void onViewModelDeleted(const rive::ViewModelInstanceHandle, uint64_t requestId) override;
     virtual void onViewModelDataReceived(const rive::ViewModelInstanceHandle, uint64_t requestId, rive::CommandQueue::ViewModelInstanceData) override;

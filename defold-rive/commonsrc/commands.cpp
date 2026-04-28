@@ -23,6 +23,13 @@
 #include <rive/factory.hpp>
 #include <rive/file.hpp>
 #include <rive/refcnt.hpp>
+#include <rive/script_input_artboard.hpp>
+#include <rive/script_input_boolean.hpp>
+#include <rive/script_input_color.hpp>
+#include <rive/script_input_number.hpp>
+#include <rive/script_input_string.hpp>
+#include <rive/script_input_trigger.hpp>
+#include <rive/script_input_viewmodel_property.hpp>
 #include <rive/scripted/scripted_object.hpp>
 
 #include <rive/command_queue.hpp>
@@ -119,6 +126,44 @@ static bool RunOnServerAndWait(Context* context, Fn fn)
     return true;
 }
 
+static rive::ScriptInput* GetScriptInput(rive::Core* object)
+{
+    if (object == 0)
+    {
+        return 0;
+    }
+
+    switch (object->coreType())
+    {
+        case rive::ScriptInputArtboard::typeKey:
+            return object->as<rive::ScriptInputArtboard>();
+        case rive::ScriptInputBoolean::typeKey:
+            return object->as<rive::ScriptInputBoolean>();
+        case rive::ScriptInputColor::typeKey:
+            return object->as<rive::ScriptInputColor>();
+        case rive::ScriptInputNumber::typeKey:
+            return object->as<rive::ScriptInputNumber>();
+        case rive::ScriptInputString::typeKey:
+            return object->as<rive::ScriptInputString>();
+        case rive::ScriptInputTrigger::typeKey:
+            return object->as<rive::ScriptInputTrigger>();
+        case rive::ScriptInputViewModelProperty::typeKey:
+            return object->as<rive::ScriptInputViewModelProperty>();
+        default:
+            return 0;
+    }
+}
+
+static rive::ScriptedObject* GetScriptedObject(rive::Core* object)
+{
+    if (object == 0)
+    {
+        return 0;
+    }
+
+    return rive::ScriptedObject::from(object);
+}
+
 static void DisposeArtboardScripts(rive::Artboard* artboard)
 {
     if (artboard == 0)
@@ -130,7 +175,7 @@ static void DisposeArtboardScripts(rive::Artboard* artboard)
     for (size_t i = 0; i < object_count; ++i)
     {
         rive::Core* object = artboard->objects()[i];
-        rive::ScriptInput* script_input = rive::ScriptInput::from(object);
+        rive::ScriptInput* script_input = GetScriptInput(object);
         if (script_input != 0)
         {
             script_input->scriptedObject(0);
@@ -140,7 +185,7 @@ static void DisposeArtboardScripts(rive::Artboard* artboard)
     for (size_t i = 0; i < object_count; ++i)
     {
         rive::Core* object = artboard->objects()[i];
-        rive::ScriptedObject* scripted_object = rive::ScriptedObject::from(object);
+        rive::ScriptedObject* scripted_object = GetScriptedObject(object);
         if (scripted_object != 0)
         {
             scripted_object->scriptDispose();

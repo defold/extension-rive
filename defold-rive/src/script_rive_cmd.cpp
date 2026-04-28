@@ -1191,6 +1191,19 @@ static int Script_requestArtboardNames(lua_State* L)
 }
 
 /**
+ * Requests the view model name used by the view model instance.
+ * @name cmd.requestViewModelInstanceViewModelName(instance_handle)
+ * @param instance_handle [type: ViewModelInstanceHandle] View model instance handle to query.
+ */
+static int Script_requestViewModelInstanceViewModelName(lua_State* L)
+{
+    DM_LUA_STACK_CHECK(L, 0);
+    rive::ViewModelInstanceHandle handle = CheckViewModelInstanceHandle(L, 1);
+    dmRiveCommands::GetCommandQueue()->requestViewModelInstanceViewModelName(handle);
+    return 0;
+}
+
+/**
  * Requests enum definitions for the file.
  * @name cmd.requestViewModelEnums(file_handle)
  * @param file_handle [type: FileHandle] File handle whose enums to query.
@@ -1423,6 +1436,7 @@ static const luaL_reg RIVE_COMMAND_FUNCTIONS[] =
 
     {"requestViewModelNames",   Script_requestViewModelNames},
     {"requestArtboardNames",    Script_requestArtboardNames},
+    {"requestViewModelInstanceViewModelName", Script_requestViewModelInstanceViewModelName},
     {"requestViewModelEnums",   Script_requestViewModelEnums},
 
     {"requestViewModelPropertyDefinitions", Script_requestViewModelPropertyDefinitions},

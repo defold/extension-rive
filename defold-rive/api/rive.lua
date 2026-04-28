@@ -55,9 +55,11 @@ function rive.get_projection_matrix() end
 --- Sets or clears the global file listener callback.
 ---@param callback? fun(self, event, data) Callback invoked for file system events; pass nil to disable.
 ---@param callback_self object The calling script instance.
----@param callback_event string One of: onFileLoaded, onFileDeleted, onFileError, onArtboardsListed, onViewModelsListed, onViewModelInstanceNamesListed, onViewModelPropertiesListed, onViewModelEnumsListed
+---@param callback_event string One of: onFileLoaded, onFileDeleted, onFileError, onArtboardInstantiated, onArtboardsListed, onViewModelsListed, onViewModelInstanceInstantiated, onViewModelInstanceNamesListed, onViewModelPropertiesListed, onViewModelEnumsListed
 ---@param callback_data table Additional fields vary by event. Common keys include:
 ---@param callback_data_file FileHandle File handle involved in the event.
+---@param callback_data_artboard ArtboardHandle Instantiated artboard handle, when applicable.
+---@param callback_data_viewModel ViewModelInstanceHandle Instantiated view model instance handle, when applicable.
 ---@param callback_data_viewModelName string View model name for the request, when applicable.
 ---@param callback_data_instanceNames table Array of instance name strings.
 ---@param callback_data_artboardNames table Array of artboard name strings.
@@ -386,6 +388,10 @@ function rive.cmd.requestViewModelNames(file_handle) end
 --- Requests artboard names for the file.
 ---@param file_handle FileHandle File handle whose artboards to query.
 function rive.cmd.requestArtboardNames(file_handle) end
+
+--- Requests the view model name used by the view model instance.
+---@param instance_handle ViewModelInstanceHandle View model instance handle to query.
+function rive.cmd.requestViewModelInstanceViewModelName(instance_handle) end
 
 --- Requests enum definitions for the file.
 ---@param file_handle FileHandle File handle whose enums to query.
