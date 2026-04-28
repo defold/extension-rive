@@ -197,6 +197,36 @@ runs:
           exit 1
         fi
 
+    - name: Verify Luau VM library
+      shell: bash
+      env:
+        INPUT_PLATFORM: ${{ inputs.platform }}
+      run: |
+        set -euo pipefail
+
+        lib_dir="defold-rive/lib/${INPUT_PLATFORM}"
+        if [[ "${INPUT_PLATFORM}" == *-win32 ]]; then
+          luau_lib="${lib_dir}/luau_vm.lib"
+        else
+          luau_lib="${lib_dir}/libluau_vm.a"
+        fi
+
+        if [[ ! -f "${luau_lib}" ]]; then
+          echo "error: expected Luau VM library is missing: ${luau_lib}" >&2
+          echo "Contents of ${lib_dir}:" >&2
+          if [[ -d "${lib_dir}" ]]; then
+            for lib in "${lib_dir}"/*; do
+              [[ -e "${lib}" ]] || continue
+              echo "  $(basename "${lib}")" >&2
+            done
+          fi
+          if [[ -n "${RIVE_ROOT:-}" && -d "${RIVE_ROOT}" ]]; then
+            echo "Luau VM artifacts found under ${RIVE_ROOT}:" >&2
+            find "${RIVE_ROOT}" -type f \( -name "luau_vm.lib" -o -name "libluau_vm.a" \) 2>/dev/null | sort >&2 || true
+          fi
+          exit 1
+        fi
+
     - name: Pack artifacts (optional)
       if: ${{ inputs.upload_artifact == 'true' }}
       shell: bash
