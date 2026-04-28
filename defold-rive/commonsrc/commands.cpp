@@ -21,7 +21,9 @@
 
 #include <rive/artboard.hpp>
 #include <rive/factory.hpp>
+#include <rive/file.hpp>
 #include <rive/refcnt.hpp>
+#include <rive/scripted/scripted_object.hpp>
 
 #include <rive/command_queue.hpp>
 #include <rive/command_server.hpp>
@@ -115,6 +117,35 @@ static bool RunOnServerAndWait(Context* context, Fn fn)
     // Ensure listener callbacks produced by the fenced work are delivered.
     PumpMessages(context);
     return true;
+}
+
+static void DisposeArtboardScripts(rive::Artboard* artboard)
+{
+    if (artboard == 0)
+    {
+        return;
+    }
+
+    size_t object_count = artboard->objects().size();
+    for (size_t i = 0; i < object_count; ++i)
+    {
+        rive::Core* object = artboard->objects()[i];
+        rive::ScriptInput* script_input = rive::ScriptInput::from(object);
+        if (script_input != 0)
+        {
+            script_input->scriptedObject(0);
+        }
+    }
+
+    for (size_t i = 0; i < object_count; ++i)
+    {
+        rive::Core* object = artboard->objects()[i];
+        rive::ScriptedObject* scripted_object = rive::ScriptedObject::from(object);
+        if (scripted_object != 0)
+        {
+            scripted_object->scriptDispose();
+        }
+    }
 }
 
 static void RiveCommandThread(void* _ctx)
@@ -264,6 +295,53 @@ bool GetBounds(rive::ArtboardHandle artboard_handle, rive::AABB* out_bounds)
 
     *out_bounds = bounds;
     return true;
+}
+
+bool DisposeArtboardScripts(rive::ArtboardHandle artboard_handle)
+{
+    if (g_Context == 0 || artboard_handle == RIVE_NULL_HANDLE)
+    {
+        return false;
+    }
+
+    bool found = false;
+    bool completed = RunOnServerAndWait(g_Context, [&](rive::CommandServer* server) {
+        rive::ArtboardInstance* artboard = server->getArtboardInstance(artboard_handle);
+        if (artboard == 0)
+        {
+            return;
+        }
+
+        found = true;
+        DisposeArtboardScripts(artboard);
+    });
+
+    return completed && found;
+}
+
+bool DisposeFileScripts(rive::FileHandle file_handle)
+{
+    if (g_Context == 0 || file_handle == RIVE_NULL_HANDLE)
+    {
+        return false;
+    }
+
+    bool found = false;
+    bool completed = RunOnServerAndWait(g_Context, [&](rive::CommandServer* server) {
+        rive::File* file = server->getFile(file_handle);
+        if (file == 0)
+        {
+            return;
+        }
+
+        found = true;
+        for (size_t i = 0; i < file->artboardCount(); ++i)
+        {
+            DisposeArtboardScripts(file->artboard(i));
+        }
+    });
+
+    return completed && found;
 }
 
 } // namespace

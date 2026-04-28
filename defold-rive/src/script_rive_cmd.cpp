@@ -82,6 +82,7 @@ static int Script_deleteArtboard(lua_State* L)
     DM_LUA_STACK_CHECK(L, 0);
     rive::ArtboardHandle handle = CheckArtboardHandle(L, 1);
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    dmRiveCommands::DisposeArtboardScripts(handle);
     queue->deleteArtboard(handle);
     return 0;
 }
@@ -964,6 +965,7 @@ static int Script_deleteFile(lua_State* L)
     DM_LUA_STACK_CHECK(L, 0);
     rive::FileHandle handle = CheckFileHandle(L, 1);
     rive::rcp<rive::CommandQueue> queue = dmRiveCommands::GetCommandQueue();
+    dmRiveCommands::DisposeFileScripts(handle);
     queue->deleteFile(handle);
     return 0;
 }

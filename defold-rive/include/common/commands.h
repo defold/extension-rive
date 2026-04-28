@@ -55,4 +55,6 @@ namespace dmRiveCommands
     dmRive::HRenderContext          GetDefoldRenderContext();
     rive::rcp<rive::CommandQueue>   GetCommandQueue();
     bool                            GetBounds(rive::ArtboardHandle artboard_handle, rive::AABB* out_bounds);
+    bool                            DisposeArtboardScripts(rive::ArtboardHandle artboard_handle);
+    bool                            DisposeFileScripts(rive::FileHandle file_handle);
 }
