@@ -234,6 +234,7 @@ endif()
 
 set(RIVE_RUNTIME_LIBS
     rive
+    luau_vm
     rive_harfbuzz
     rive_pls_renderer
     rive_sheenbidi

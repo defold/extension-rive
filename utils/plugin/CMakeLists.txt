@@ -371,6 +371,7 @@ endif()
 
 set(RIVE_RUNTIME_LIBS
     rive
+    luau_vm
     rive_decoders
     rive_sheenbidi
     rive_harfbuzz
