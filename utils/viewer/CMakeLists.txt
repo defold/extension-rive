@@ -26,7 +26,7 @@ if(${TARGET_PLATFORM} MATCHES "win32" AND NOT MSVC)
     message(FATAL_ERROR
         "TARGET_PLATFORM=${TARGET_PLATFORM} must be built with MSVC on Windows. "
         "Use ./utils/viewer/build.sh x86_64-win32 (which selects Visual Studio generator) "
-        "or configure CMake with -G \"Visual Studio 17 2022\" -A x64.")
+        "or configure CMake with a Visual Studio generator and -A x64.")
 endif()
 
 option(WITH_ASAN "Build viewer with Address Sanitizer" OFF)

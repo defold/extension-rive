@@ -217,6 +217,37 @@ runs:
         PY
         }
 
+        source_emscripten_environment() {
+          if [[ "$INPUT_PLATFORM" != wasm*-web ]]; then
+            return 0
+          fi
+
+          if command -v emcc >/dev/null 2>&1; then
+            return 0
+          fi
+
+          local emsdk_env=""
+          if [[ -n "${EMSDK:-}" && -f "${EMSDK}/emsdk_env.sh" ]]; then
+            emsdk_env="${EMSDK}/emsdk_env.sh"
+          else
+            local emsdk_version="${RIVE_EMSDK_VERSION:-4.0.6}"
+            if [[ "${emsdk_version}" != "none" ]]; then
+              emsdk_env="${RIVE_ROOT}/build/dependencies/emsdk_${emsdk_version}/emsdk_env.sh"
+            fi
+          fi
+
+          if [[ -n "${emsdk_env}" && -f "${emsdk_env}" ]]; then
+            echo "Sourcing Emscripten environment: ${emsdk_env}"
+            # shellcheck disable=SC1090
+            source "${emsdk_env}"
+          fi
+
+          if ! command -v emcc >/dev/null 2>&1; then
+            echo "error: emcc not found after Rive emsdk setup. Expected emsdk_env.sh under ${RIVE_ROOT}/build/dependencies or set EMSDK." >&2
+            exit 1
+          fi
+        }
+
         build_ninja_library_targets() {
           local out_dir="$1"
           shift
@@ -484,6 +515,7 @@ runs:
             (
               cd "${RIVE_ROOT}/renderer"
               RIVE_OUT=out/release "${build_script}" "${build_args[@]}"
+              source_emscripten_environment
 
               if [[ "$enable_pthread" == "true" && ! " ${build_args[*]} " =~ " --with_pthread " ]]; then
                 inject_emscripten_pthread_flags out/release
@@ -516,6 +548,7 @@ runs:
                 printf '\n'
 
                 RIVE_OUT=out/release-wagyu "${build_script}" "${build_args[@]}"
+                source_emscripten_environment
                 if [[ "$enable_pthread" == "true" && ! " ${build_args[*]} " =~ " --with_pthread " ]]; then
                   inject_emscripten_pthread_flags out/release-wagyu
                 fi
