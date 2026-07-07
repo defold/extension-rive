@@ -203,17 +203,52 @@ runs:
         lines = path.read_text().splitlines()
         changed = False
         patched = []
+        compile_flags = ["-pthread", "-matomics", "-mbulk-memory"]
+        link_flags = ["-pthread"]
+
+        def append_missing(line, required_flags):
+            global changed
+            prefix, separator, value = line.partition("=")
+            flags = value.split()
+            for flag in required_flags:
+                if flag not in flags:
+                    flags.append(flag)
+            updated = f"{prefix}{separator} {' '.join(flags)}"
+            if updated != line:
+                changed = True
+            return updated
+
         for line in lines:
             stripped = line.strip()
-            if stripped.startswith(("flags =", "ldflags =", "linkflags =")) and "-pthread" not in stripped:
-                line = f"{line} -pthread"
-                changed = True
+            if stripped.startswith("flags ="):
+                line = append_missing(line, compile_flags)
+            elif stripped.startswith(("ldflags =", "linkflags =")):
+                line = append_missing(line, link_flags)
             patched.append(line)
+
+        missing = []
+        for number, line in enumerate(patched, 1):
+            stripped = line.strip()
+            if stripped.startswith("flags ="):
+                for flag in compile_flags:
+                    if flag not in line.split():
+                        missing.append((number, flag))
+            elif stripped.startswith(("ldflags =", "linkflags =")):
+                for flag in link_flags:
+                    if flag not in line.split():
+                        missing.append((number, flag))
+
+        if missing:
+            print(f"error: {path} is missing required pthread flags:", file=sys.stderr)
+            for number, flag in missing[:20]:
+                print(f"  line {number}: {flag}", file=sys.stderr)
+            sys.exit(1)
+
         if changed:
             path.write_text("\n".join(patched) + "\n")
-            print(f"Injected -pthread into {path}")
+            print(f"Injected pthread/atomics flags into {path}")
         else:
-            print(f"{path} already contains -pthread flags")
+            print(f"{path} already contains pthread/atomics flags")
         PY
         }
 
@@ -592,7 +627,7 @@ runs:
               fi
               source_emscripten_environment
 
-              if [[ "$enable_pthread" == "true" && ! " ${build_args[*]} " =~ " --with_pthread " ]]; then
+              if [[ "$enable_pthread" == "true" ]]; then
                 inject_emscripten_pthread_flags out/release
               fi
 
@@ -624,7 +659,7 @@ runs:
 
                 RIVE_OUT=out/release-wagyu "${build_script}" "${build_args[@]}"
                 source_emscripten_environment
-                if [[ "$enable_pthread" == "true" && ! " ${build_args[*]} " =~ " --with_pthread " ]]; then
+                if [[ "$enable_pthread" == "true" ]]; then
                   inject_emscripten_pthread_flags out/release-wagyu
                 fi
                 build_ninja_library_targets out/release-wagyu rive_pls_renderer

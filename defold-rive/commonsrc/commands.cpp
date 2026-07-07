@@ -12,6 +12,7 @@
 
 #include <common/commands.h>
 
+#include <assert.h>
 #include <stdint.h>
 
 #include <dmsdk/dlib/atomic.h>
@@ -221,8 +222,7 @@ Result Initialize(InitParams* params)
 {
     assert(g_Context == 0);
 
-    g_Context = new Context;
-    memset(g_Context, 0, sizeof(*g_Context));
+    g_Context = new Context();
     g_Context->m_Mutex = params->m_Mutex;
 
     g_Context->m_RenderContext = params->m_RenderContext;

@@ -169,6 +169,7 @@ BUILD_DIR="${SCRIPT_DIR}/build/${TARGET_PLATFORM}"
 mkdir -p "${BUILD_DIR}"
 
 GENERATOR_ARGS=(-G Ninja)
+COMPILER_ARGS=()
 UNAME_S="$(uname -s)"
 IS_WINDOWS_HOST=0
 case "${UNAME_S}" in
@@ -183,11 +184,18 @@ if [[ "${TARGET_PLATFORM}" == "x86_64-win32" ]]; then
         exit 1
     fi
 
-    # Force Visual Studio toolchain for Windows target to avoid picking MinGW/MSYS gcc.
     if [[ -z "${CMAKE_GENERATOR:-}" ]]; then
-        VS_GENERATOR="$(select_visual_studio_generator)"
-        echo "Using CMake generator '${VS_GENERATOR}' for ${TARGET_PLATFORM}"
-        GENERATOR_ARGS=(-G "${VS_GENERATOR}" -A x64)
+        if { command -v ninja >/dev/null 2>&1 || command -v ninja.exe >/dev/null 2>&1; } &&
+            { command -v cl >/dev/null 2>&1 || command -v cl.exe >/dev/null 2>&1; }; then
+            echo "Using CMake generator 'Ninja' with MSVC for ${TARGET_PLATFORM}"
+            GENERATOR_ARGS=(-G Ninja)
+            COMPILER_ARGS+=("-DCMAKE_C_COMPILER=cl")
+            COMPILER_ARGS+=("-DCMAKE_CXX_COMPILER=cl")
+        else
+            VS_GENERATOR="$(select_visual_studio_generator)"
+            echo "Using CMake generator '${VS_GENERATOR}' for ${TARGET_PLATFORM}"
+            GENERATOR_ARGS=(-G "${VS_GENERATOR}" -A x64)
+        fi
     else
         echo "Using user-specified CMAKE_GENERATOR='${CMAKE_GENERATOR}'"
         GENERATOR_ARGS=()
@@ -211,5 +219,5 @@ if [[ -n "${RIVE_LIB_DIR}" ]]; then
     CM_ARGS+=("-DVIEWER_WIN32_RIVE_LIB_DIR=${RIVE_LIB_DIR}")
 fi
 
-cmake -S "${SCRIPT_DIR}" -B "${BUILD_DIR}" "${GENERATOR_ARGS[@]}" "${CM_ARGS[@]}"
+cmake -S "${SCRIPT_DIR}" -B "${BUILD_DIR}" "${GENERATOR_ARGS[@]}" "${COMPILER_ARGS[@]}" "${CM_ARGS[@]}"
 cmake --build "${BUILD_DIR}" --target viewer --config "${BUILD_CONFIG}"
