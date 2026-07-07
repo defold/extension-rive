@@ -219,5 +219,14 @@ if [[ -n "${RIVE_LIB_DIR}" ]]; then
     CM_ARGS+=("-DVIEWER_WIN32_RIVE_LIB_DIR=${RIVE_LIB_DIR}")
 fi
 
-cmake -S "${SCRIPT_DIR}" -B "${BUILD_DIR}" "${GENERATOR_ARGS[@]}" "${COMPILER_ARGS[@]}" "${CM_ARGS[@]}"
+CMAKE_CONFIGURE_ARGS=(-S "${SCRIPT_DIR}" -B "${BUILD_DIR}")
+if [[ ${#GENERATOR_ARGS[@]} -gt 0 ]]; then
+    CMAKE_CONFIGURE_ARGS+=("${GENERATOR_ARGS[@]}")
+fi
+if [[ ${#COMPILER_ARGS[@]} -gt 0 ]]; then
+    CMAKE_CONFIGURE_ARGS+=("${COMPILER_ARGS[@]}")
+fi
+CMAKE_CONFIGURE_ARGS+=("${CM_ARGS[@]}")
+
+cmake "${CMAKE_CONFIGURE_ARGS[@]}"
 cmake --build "${BUILD_DIR}" --target viewer --config "${BUILD_CONFIG}"
