@@ -166,6 +166,94 @@ runs:
           fi
         }
 
+        supports_premake_option() {
+          local trigger="$1"
+
+          grep -R -E "trigger[[:space:]]*=[[:space:]]*['\"]${trigger}['\"]" \
+              "${RIVE_ROOT}/premake5_v2.lua" \
+              "${RIVE_ROOT}/renderer" \
+              "${RIVE_ROOT}/build/rive_build_config.lua" >/dev/null 2>&1
+        }
+
+        append_common_runtime_options() {
+          add_supported_premake_option with_rive_text --with_rive_text
+          add_supported_premake_option with_rive_layout --with_rive_layout
+          add_supported_premake_option with_rive_canvas --with_rive_canvas
+          add_supported_premake_option with_rive_tools --with_rive_tools
+          add_supported_premake_option with_rive_scripting --with_rive_scripting
+          if [ "$INPUT_WITH_VULKAN" = "true" ]; then
+            add_supported_premake_option with_vulkan --with_vulkan
+          fi
+          build_args+=("${supported_premake_options[@]}")
+        }
+
+        inject_emscripten_pthread_flags() {
+          local build_ninja="$1/build.ninja"
+
+          if [[ ! -f "${build_ninja}" ]]; then
+            echo "error: expected ${build_ninja} before injecting pthread flags" >&2
+            exit 1
+          fi
+
+          python3 - "${build_ninja}" <<'PY'
+        from pathlib import Path
+        import sys
+
+        path = Path(sys.argv[1])
+        lines = path.read_text().splitlines()
+        changed = False
+        patched = []
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith(("flags =", "ldflags =", "linkflags =")) and "-pthread" not in stripped:
+                line = f"{line} -pthread"
+                changed = True
+            patched.append(line)
+        if changed:
+            path.write_text("\n".join(patched) + "\n")
+            print(f"Injected -pthread into {path}")
+        else:
+            print(f"{path} already contains -pthread flags")
+        PY
+        }
+
+        build_ninja_library_targets() {
+          local out_dir="$1"
+          shift
+          local targets=("$@")
+
+          ninja -C "${out_dir}" -t targets all > "${out_dir}/ninja-targets.txt"
+          resolved_targets=()
+          for target in "${targets[@]}"; do
+            candidates=(
+              "${target}"
+              "lib${target}.a"
+              "${target}.a"
+            )
+            resolved_target=""
+            for candidate in "${candidates[@]}"; do
+              if grep -Eq "^${candidate}:" "${out_dir}/ninja-targets.txt"; then
+                resolved_target="${candidate}"
+                break
+              fi
+            done
+            if [[ -z "${resolved_target}" ]]; then
+              echo "error: failed to resolve Ninja target for ${target}" >&2
+              echo "Available targets:" >&2
+              sed -n '1,160p' "${out_dir}/ninja-targets.txt" >&2
+              exit 1
+            fi
+            resolved_targets+=("${resolved_target}")
+          done
+
+          printf '  ninja -C %q' "${out_dir}"
+          for target in "${resolved_targets[@]}"; do
+            printf ' %q' "${target}"
+          done
+          printf '\n'
+          ninja -C "${out_dir}" "${resolved_targets[@]}"
+        }
+
         case "$INPUT_PLATFORM" in
           x86_64-win32|x86-win32)
             if ! command -v make >/dev/null 2>&1; then
@@ -332,42 +420,58 @@ runs:
             )
             ;;
 
-          x86_64-linux|arm64-linux|x86_64-macos|arm64-macos)
+          x86_64-linux|arm64-linux|x86_64-macos|arm64-macos|arm64-ios|x86_64-ios|wasm-web|wasm_pthread-web)
             if ! command -v ninja >/dev/null 2>&1; then
               echo "error: ninja is required for build_mode=vanilla on ${INPUT_PLATFORM}" >&2
               exit 1
             fi
-
-            case "$INPUT_PLATFORM" in
-              x86_64-linux|x86_64-macos) rive_arch=x64 ;;
-              arm64-linux|arm64-macos) rive_arch=arm64 ;;
-            esac
 
             build_script="${RIVE_ROOT}/build/build_rive.sh"
             if [[ ! -x "${build_script}" ]]; then
               chmod +x "${build_script}"
             fi
 
+            enable_pthread=false
+            build_wagyu=false
+            case "$INPUT_PLATFORM" in
+              x86_64-linux|x86_64-macos) rive_build_tokens=(x64 release) ;;
+              arm64-linux|arm64-macos) rive_build_tokens=(arm64 release) ;;
+              arm64-ios) rive_build_tokens=(ios arm64 release) ;;
+              x86_64-ios) rive_build_tokens=(iossim x64 release) ;;
+              wasm-web)
+                rive_build_tokens=(wasm release)
+                build_wagyu=true
+                ;;
+              wasm_pthread-web)
+                rive_build_tokens=(wasm release)
+                build_wagyu=true
+                enable_pthread=true
+                ;;
+            esac
+
+            if [[ "$INPUT_PLATFORM" == wasm*-web && -z "${EMSDK:-}" ]]; then
+              export RIVE_EMSDK_VERSION="${RIVE_EMSDK_VERSION:-4.0.6}"
+              echo "Using RIVE_EMSDK_VERSION=${RIVE_EMSDK_VERSION}"
+            fi
+
             build_args=(
               nobuild
               ninja
-              "${rive_arch}"
-              release
+              "${rive_build_tokens[@]}"
             )
             supported_premake_options=()
-            add_supported_premake_option with_rive_text --with_rive_text
-            add_supported_premake_option with_rive_layout --with_rive_layout
-            add_supported_premake_option with_rive_canvas --with_rive_canvas
-            add_supported_premake_option with_rive_tools --with_rive_tools
-            add_supported_premake_option with_rive_scripting --with_rive_scripting
             if [[ "$INPUT_PLATFORM" == *-linux ]]; then
               add_supported_premake_option no-lto --no-lto
               add_supported_premake_option with-pic --with-pic
             fi
-            if [ "$INPUT_WITH_VULKAN" = "true" ]; then
-              add_supported_premake_option with_vulkan --with_vulkan
+            if [[ "$enable_pthread" == "true" ]]; then
+              if supports_premake_option with_pthread; then
+                add_supported_premake_option with_pthread --with_pthread
+              else
+                echo "Rive runtime has no --with_pthread option; generated Ninja flags will be patched."
+              fi
             fi
-            build_args+=("${supported_premake_options[@]}")
+            append_common_runtime_options
 
             echo "Vanilla build command lines:"
             echo "  cd renderer"
@@ -381,36 +485,42 @@ runs:
               cd "${RIVE_ROOT}/renderer"
               RIVE_OUT=out/release "${build_script}" "${build_args[@]}"
 
-              ninja -C out/release -t targets all > out/release/ninja-targets.txt
-              resolved_targets=()
-              for target in "${library_targets[@]}"; do
-                candidates=(
-                  "${target}"
-                  "lib${target}.a"
-                  "${target}.a"
-                )
-                resolved_target=""
-                for candidate in "${candidates[@]}"; do
-                  if grep -Eq "^${candidate}:" out/release/ninja-targets.txt; then
-                    resolved_target="${candidate}"
-                    break
-                  fi
-                done
-                if [[ -z "${resolved_target}" ]]; then
-                  echo "error: failed to resolve Ninja target for ${target}" >&2
-                  echo "Available targets:" >&2
-                  sed -n '1,160p' out/release/ninja-targets.txt >&2
-                  exit 1
-                fi
-                resolved_targets+=("${resolved_target}")
-              done
+              if [[ "$enable_pthread" == "true" && ! " ${build_args[*]} " =~ " --with_pthread " ]]; then
+                inject_emscripten_pthread_flags out/release
+              fi
 
-              printf '  ninja -C out/release'
-              for target in "${resolved_targets[@]}"; do
-                printf ' %q' "${target}"
-              done
-              printf '\n'
-              ninja -C out/release "${resolved_targets[@]}"
+              build_ninja_library_targets out/release "${library_targets[@]}"
+
+              if [[ "$build_wagyu" == "true" ]]; then
+                wagyu_build_args=(
+                  nobuild
+                  ninja
+                  "${rive_build_tokens[@]}"
+                  --with_wagyu
+                  --with-webgpu
+                  --webgpu-version=2
+                )
+                build_args=("${wagyu_build_args[@]}")
+                supported_premake_options=()
+                if [[ "$enable_pthread" == "true" ]]; then
+                  if supports_premake_option with_pthread; then
+                    add_supported_premake_option with_pthread --with_pthread
+                  fi
+                fi
+                append_common_runtime_options
+
+                printf '  RIVE_OUT=out/release-wagyu ../build/build_rive.sh'
+                for arg in "${build_args[@]}"; do
+                  printf ' %q' "${arg}"
+                done
+                printf '\n'
+
+                RIVE_OUT=out/release-wagyu "${build_script}" "${build_args[@]}"
+                if [[ "$enable_pthread" == "true" && ! " ${build_args[*]} " =~ " --with_pthread " ]]; then
+                  inject_emscripten_pthread_flags out/release-wagyu
+                fi
+                build_ninja_library_targets out/release-wagyu rive_pls_renderer
+              fi
             )
             ;;
 
@@ -438,19 +548,20 @@ runs:
         install_dir="${prefix}/lib/${install_platform}"
         version_header="${prefix}/include/defold/rive_version.h"
         runtime_out_dir="${RIVE_ROOT}/renderer/out/release"
+        runtime_wagyu_out_dir="${RIVE_ROOT}/renderer/out/release-wagyu"
 
         rm -rf "${prefix}/include/rive"
         mkdir -p "${install_dir}"
-        rm -f "${install_dir}"/*.lib "${install_dir}"/*.a "${install_dir}"/*.dll
+        rm -f "${install_dir}"/*.lib "${install_dir}"/*.a "${install_dir}"/*.bc "${install_dir}"/*.dll
 
         "${repo_root}/utils/rive-runtime/buildscripts/build_headers.sh" --prefix "${prefix}" --root "${RIVE_ROOT}"
         "${repo_root}/utils/rive-runtime/buildscripts/build_version_header.sh" "${version_header}" "${RIVE_ROOT}"
 
         echo "Libraries produced in ${runtime_out_dir}:"
-        find "${runtime_out_dir}" -maxdepth 1 -type f \( -name '*.lib' -o -name '*.a' \) | sort
+        find "${runtime_out_dir}" -maxdepth 1 -type f \( -name '*.lib' -o -name '*.a' -o -name '*.bc' \) | sort
 
         found_libs=0
-        for ext in lib a; do
+        for ext in lib a bc; do
           for src in "${runtime_out_dir}"/*.${ext}; do
             if [[ ! -f "${src}" ]]; then
               continue
@@ -480,8 +591,21 @@ runs:
           done
         done
 
+        if [[ "${INPUT_PLATFORM}" == wasm*-web ]]; then
+          wagyu_src="${runtime_wagyu_out_dir}/librive_pls_renderer.a"
+          wagyu_dst="${install_dir}/librive_renderer_wagyu.a"
+          if [[ ! -f "${wagyu_src}" ]]; then
+            echo "error: expected Wagyu renderer library is missing: ${wagyu_src}" >&2
+            echo "Contents of ${runtime_wagyu_out_dir}:" >&2
+            find "${runtime_wagyu_out_dir}" -maxdepth 1 -type f | sort >&2 || true
+            exit 1
+          fi
+          echo "Installing Wagyu renderer library to ${wagyu_dst}"
+          cp -f "${wagyu_src}" "${wagyu_dst}"
+        fi
+
         if [[ "${found_libs}" -eq 0 ]]; then
-          echo "error: no .lib or .a files found in ${runtime_out_dir}" >&2
+          echo "error: no .lib, .a, or .bc files found in ${runtime_out_dir}" >&2
           exit 1
         fi
 
