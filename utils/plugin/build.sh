@@ -98,8 +98,9 @@ EXTENDER_PLATFORM="${PLATFORM}"
 case $PLATFORM in
     "arm64-macos")
         EXTENDER_PLATFORM="arm64-osx"
-        # Apple Silicon macOS starts at 11.0, even when the requested deployment target is lower.
-        MACOS_DYLIB_MINOS="11.0"
+        # Apple Silicon macOS starts at 11.0.
+        MACOS_DEPLOYMENT_TARGET="11.0"
+        MACOS_DYLIB_MINOS="${MACOS_DEPLOYMENT_TARGET}"
         ;;
    "x86_64-macos")
         EXTENDER_PLATFORM="x86_64-osx"
@@ -154,9 +155,17 @@ CMAKE_GENERATOR_FLAGS=()
 CMAKE_COMPILER_ARGS=()
 if [ "$HOST_PLATFORM" = "x86_64-win32" ]; then
     if [[ -z "${CMAKE_GENERATOR:-}" ]]; then
-        VS_GENERATOR="$(select_visual_studio_generator)"
-        echo "Using CMake generator '${VS_GENERATOR}' for ${PLATFORM}"
-        CMAKE_GENERATOR_FLAGS+=("-G" "${VS_GENERATOR}" "-A" "x64")
+        if { command -v ninja >/dev/null 2>&1 || command -v ninja.exe >/dev/null 2>&1; } &&
+            { command -v cl >/dev/null 2>&1 || command -v cl.exe >/dev/null 2>&1; }; then
+            echo "Using CMake generator 'Ninja' with MSVC for ${PLATFORM}"
+            CMAKE_GENERATOR_FLAGS+=("-G" "Ninja")
+            CMAKE_COMPILER_ARGS+=("-DCMAKE_C_COMPILER=cl")
+            CMAKE_COMPILER_ARGS+=("-DCMAKE_CXX_COMPILER=cl")
+        else
+            VS_GENERATOR="$(select_visual_studio_generator)"
+            echo "Using CMake generator '${VS_GENERATOR}' for ${PLATFORM}"
+            CMAKE_GENERATOR_FLAGS+=("-G" "${VS_GENERATOR}" "-A" "x64")
+        fi
     else
         echo "Using user-specified CMAKE_GENERATOR='${CMAKE_GENERATOR}'"
         if [[ "${CMAKE_GENERATOR}" == "Visual Studio"* && -z "${CMAKE_GENERATOR_PLATFORM:-}" ]]; then

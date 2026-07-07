@@ -217,6 +217,61 @@ runs:
         PY
         }
 
+        inject_macos_deployment_target_flags() {
+          local build_ninja="$1/build.ninja"
+          local deployment_target="$2"
+
+          if [[ ! -f "${build_ninja}" ]]; then
+            echo "error: expected ${build_ninja} before injecting macOS deployment target flags" >&2
+            exit 1
+          fi
+
+          python3 - "${build_ninja}" "${deployment_target}" <<'PY'
+        from pathlib import Path
+        import re
+        import sys
+
+        path = Path(sys.argv[1])
+        deployment_target = sys.argv[2]
+        flag = f"-mmacosx-version-min={deployment_target}"
+        deployment_flag = re.compile(r"(?<!\S)-mmacosx-version-min=[^\s]+")
+
+        lines = path.read_text().splitlines()
+        changed = False
+        patched = []
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith(("flags =", "ldflags =", "linkflags =")):
+                prefix, separator, value = line.partition("=")
+                flags = deployment_flag.sub("", value).split()
+                if flag not in flags:
+                    flags.append(flag)
+                updated = f"{prefix}{separator} {' '.join(flags)}"
+                if updated != line:
+                    changed = True
+                line = updated
+            patched.append(line)
+
+        bad_flags = []
+        for number, line in enumerate(patched, 1):
+            for match in deployment_flag.finditer(line):
+                if match.group(0) != flag:
+                    bad_flags.append((number, match.group(0)))
+
+        if bad_flags:
+            print(f"error: {path} still contains unexpected macOS deployment target flags:", file=sys.stderr)
+            for number, bad_flag in bad_flags[:20]:
+                print(f"  line {number}: {bad_flag}", file=sys.stderr)
+            sys.exit(1)
+
+        if changed:
+            path.write_text("\n".join(patched) + "\n")
+            print(f"Injected {flag} into {path}")
+        else:
+            print(f"{path} already uses {flag}")
+        PY
+        }
+
         source_emscripten_environment() {
           if [[ "$INPUT_PLATFORM" != wasm*-web ]]; then
             return 0
@@ -464,9 +519,18 @@ runs:
 
             enable_pthread=false
             build_wagyu=false
+            macos_deployment_target=""
             case "$INPUT_PLATFORM" in
-              x86_64-linux|x86_64-macos) rive_build_tokens=(x64 release) ;;
-              arm64-linux|arm64-macos) rive_build_tokens=(arm64 release) ;;
+              x86_64-linux) rive_build_tokens=(x64 release) ;;
+              arm64-linux) rive_build_tokens=(arm64 release) ;;
+              x86_64-macos)
+                rive_build_tokens=(x64 release)
+                macos_deployment_target="10.15"
+                ;;
+              arm64-macos)
+                rive_build_tokens=(arm64 release)
+                macos_deployment_target="11.0"
+                ;;
               arm64-ios) rive_build_tokens=(ios arm64 release) ;;
               x86_64-ios) rive_build_tokens=(iossim x64 release) ;;
               wasm-web)
@@ -483,6 +547,11 @@ runs:
             if [[ "$INPUT_PLATFORM" == wasm*-web && -z "${EMSDK:-}" ]]; then
               export RIVE_EMSDK_VERSION="${RIVE_EMSDK_VERSION:-4.0.6}"
               echo "Using RIVE_EMSDK_VERSION=${RIVE_EMSDK_VERSION}"
+            fi
+
+            if [[ -n "${macos_deployment_target}" ]]; then
+              export MACOSX_DEPLOYMENT_TARGET="${macos_deployment_target}"
+              echo "Using MACOSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET}"
             fi
 
             build_args=(
@@ -506,6 +575,9 @@ runs:
 
             echo "Vanilla build command lines:"
             echo "  cd renderer"
+            if [[ -n "${macos_deployment_target}" ]]; then
+              echo "  export MACOSX_DEPLOYMENT_TARGET=${macos_deployment_target}"
+            fi
             printf '  RIVE_OUT=out/release ../build/build_rive.sh'
             for arg in "${build_args[@]}"; do
               printf ' %q' "${arg}"
@@ -515,6 +587,9 @@ runs:
             (
               cd "${RIVE_ROOT}/renderer"
               RIVE_OUT=out/release "${build_script}" "${build_args[@]}"
+              if [[ -n "${macos_deployment_target}" ]]; then
+                inject_macos_deployment_target_flags out/release "${macos_deployment_target}"
+              fi
               source_emscripten_environment
 
               if [[ "$enable_pthread" == "true" && ! " ${build_args[*]} " =~ " --with_pthread " ]]; then
