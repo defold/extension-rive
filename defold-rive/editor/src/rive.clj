@@ -12,6 +12,7 @@
             [dynamo.graph :as g]
             [editor.buffers :as buffers]
             [editor.build-target :as bt]
+            [editor.core :as core]
             [editor.defold-project :as project]
             [editor.geom :as geom]
             [editor.gl :as gl]
@@ -279,6 +280,7 @@
 
 ;; Outline nodes for artboards, state machines, and view models.
 (g/defnode RiveArtboardNode
+  (inherits core/Scope)
   (inherits outline/OutlineNode)
 
   (property name g/Str
@@ -293,7 +295,6 @@
             (dynamic visible (g/constantly false))
             (dynamic read-only? (g/constantly true)))
 
-  (input nodes g/Any :array)
   (input child-outlines g/Any :array)
 
   (output node-outline outline/OutlineData
@@ -328,6 +329,7 @@
              :read-only true})))
 
 (g/defnode RiveViewModelNode
+  (inherits core/Scope)
   (inherits outline/OutlineNode)
 
   (property name g/Str
@@ -346,7 +348,6 @@
             (dynamic visible (g/constantly false))
             (dynamic read-only? (g/constantly true)))
 
-  (input nodes g/Any :array)
   (input child-outlines g/Any :array)
 
   (output node-outline outline/OutlineData
