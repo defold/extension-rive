@@ -52,6 +52,9 @@ namespace dmRive
     rive::Renderer*              GetRiveRenderer(HRenderContext context);
     rive::Mat2D                  GetViewProjectionTransform(HRenderContext context, dmRender::HRenderContext render_context);
     void                         GetDimensions(HRenderContext context, uint32_t* width, uint32_t* height);
+    // Set before requesting the Rive factory. The graphics context must outlive this render context.
+    // Repeated calls with the same graphics context preserve the backend and its resources.
+    void                         SetGraphicsContext(HRenderContext context, dmGraphics::HContext graphics_context);
     void                         SetRenderMutex(HRenderContext context, dmMutex::HMutex mutex);
     void                         RenderBegin(HRenderContext context, dmResource::HFactory factory, const RenderBeginParams& params);
     void                         RenderEnd(HRenderContext context);

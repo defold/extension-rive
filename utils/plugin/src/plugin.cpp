@@ -455,14 +455,15 @@ static jobject JNICALL Java_Rive_GetTexture(JNIEnv* env, jclass cls, jobject riv
     DM_CHECK_JNI_ERROR();
     dmRiveCrash::ScopedSignalHandler signal_scope;
 
-    if (!PluginRiveInitialize())
-    {
-        dmLogWarning("Rive: render context was not initialized, using fallback texture");
-    }
-
     if (!CreateGraphicsContext() && !g_HeadlessMode)
     {
         dmLogError("Rive: failed to create graphics context");
+        return 0;
+    }
+
+    if (!PluginRiveInitialize())
+    {
+        dmLogError("Rive: render context was not initialized");
         return 0;
     }
 
@@ -737,6 +738,7 @@ static bool PluginRiveInitialize()
         return false;
     }
     dmRive::SetRenderMutex(g_RenderContext, g_RenderMutex);
+    dmRive::SetGraphicsContext(g_RenderContext, g_GraphicsContext);
 
     dmRiveCommands::InitParams cmd_params;
     cmd_params.m_UseThreads = false;

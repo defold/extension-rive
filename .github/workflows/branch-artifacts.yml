@@ -42,9 +42,9 @@ on:
         options: ["true", "false"]
         default: "true"
       defold_version:
-        description: "Defold SDK version (defaults to latest beta)"
+        description: "Defold SDK version (defaults to 1.13.1 stable)"
         required: false
-        default: "latest"
+        default: "1.13.1"
       target_branch:
         description: "Branch to checkout and push changes to. Leave empty for the selected workflow branch."
         required: false
@@ -91,10 +91,10 @@ on:
         type: string
         default: "true"
       defold_version:
-        description: "Defold SDK version (defaults to latest beta)"
+        description: "Defold SDK version (defaults to 1.13.1 stable)"
         required: false
         type: string
-        default: "latest"
+        default: "1.13.1"
       target_branch:
         description: "Branch to checkout and push changes to. Leave empty for the selected workflow branch."
         required: false
@@ -114,8 +114,8 @@ jobs:
     uses: defold/github-actions-common/.github/workflows/defoldsdk.yml@master
     with:
       runner: ${{ inputs.platform == 'arm64-linux' && 'ubuntu-22.04-arm' || 'ubuntu-22.04' }}
-      defold_channel: beta
-      defold_version: ${{ inputs.defold_version || 'latest' }}
+      defold_channel: stable
+      defold_version: ${{ inputs.defold_version || '1.13.1' }}
       sdk_output_path: build/defoldsdk
       bob_output_path: bob.jar
 

@@ -65,7 +65,6 @@ static dmExtension::Result InitializeRive(dmExtension::Params* params)
     dmRiveCommands::InitParams cmd_params;
     cmd_params.m_UseThreads = use_threads;
     cmd_params.m_RenderContext = g_RenderContext;
-    cmd_params.m_Factory = dmRive::GetRiveFactory(g_RenderContext);
     cmd_params.m_Mutex = g_RenderMutex;
     dmRiveCommands::Initialize(&cmd_params);
 

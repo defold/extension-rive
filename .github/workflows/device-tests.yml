@@ -20,8 +20,8 @@ jobs:
     uses: defold/github-actions-common/.github/workflows/defoldsdk.yml@master
     with:
       runner: ${{ github.event.inputs.platform == 'arm64-linux' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
-      defold_channel: beta
-      defold_version: ${{ github.event.inputs.defold_version || 'latest' }}
+      defold_channel: stable
+      defold_version: ${{ github.event.inputs.defold_version || '1.13.1' }}
       sdk_output_path: build/defoldsdk
       bob_output_path: bob.jar
 

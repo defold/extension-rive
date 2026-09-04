@@ -38,9 +38,9 @@ on:
         required: false
         default: ""
       defold_version:
-        description: "Defold SDK version (defaults to latest beta)"
+        description: "Defold SDK version (defaults to 1.13.1 stable)"
         required: false
-        default: "latest"
+        default: "1.13.1"
 
 permissions:
   contents: write

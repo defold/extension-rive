@@ -66,16 +66,16 @@ static GLADapiproc Win32GetGLProcAddress(const char* name)
 }
 #endif
 
-static void OpenGLCheckError(const char* context)
+static bool OpenGLCheckError(const char* context)
 {
     GLint err = glGetError();
     bool status_ok = err == 0;
     while (err != 0)
     {
-        dmLogInfo("%s - OpenGL Error %d", context, err);
+        dmLogError("%s - OpenGL Error %d", context, err);
         err = glGetError();
     }
-    assert(status_ok);
+    return status_ok;
 }
 
 namespace dmRive
@@ -86,48 +86,36 @@ namespace dmRive
         DefoldRiveRendererOpenGL()
         {
             m_DefoldRenderTarget = 0;
-
-        #ifdef RIVE_DESKTOP_GL
-            // Load the OpenGL API using glad.
-            bool loaded = false;
-            #if defined(DM_PLATFORM_WINDOWS)
-                loaded = gladLoadCustomLoader((GLADloadfunc)Win32GetGLProcAddress) != 0;
-            #else
-                loaded = gladLoadCustomLoader((GLADloadfunc)glfwGetProcAddress) != 0;
-            #endif
-            if (!loaded)
-            {
-                dmLogError("Failed to initialize glad");
-                return;
-            }
-        #endif
-
-            const GLubyte* renderer = glGetString(GL_RENDERER);
-            dmLogInfo("==== GL GPU: %s ====\n", renderer ? (const char*)renderer : "<unknown>");
-
-            m_RenderContext = rive::gpu::RenderContextGLImpl::MakeContext({
-                .disableFragmentShaderInterlock = false // options.disableRasterOrdering,
-            });
-
-            int glerr = (int)glGetError();
-            if (glerr != 0)
-            {
-                dmLogError("Rive OpenGL context produced a gl error: %d", glerr);
-            }
+            m_GraphicsContext    = 0;
         }
 
         rive::Factory* Factory() override
         {
+            if (!EnsureRenderContext())
+            {
+                return 0;
+            }
+
             return m_RenderContext.get();
         }
 
         rive::Renderer* MakeRenderer() override
         {
+            if (!EnsureRenderContext())
+            {
+                return 0;
+            }
+
             return new rive::RiveRenderer(m_RenderContext.get());
         }
 
         void BeginFrame(const rive::gpu::RenderContext::FrameDescriptor& frameDescriptor) override
         {
+            if (!EnsureRenderContext())
+            {
+                return;
+            }
+
             m_DefoldPipelineState = dmGraphics::GetPipelineState(m_GraphicsContext);
             m_RenderContext->static_impl_cast<rive::gpu::RenderContextGLImpl>()->invalidateGLState();
             m_RenderContext->beginFrame(frameDescriptor);
@@ -136,12 +124,16 @@ namespace dmRive
 
         void Flush() override
         {
+            if (!EnsureRenderContext())
+            {
+                return;
+            }
+
             m_RenderContext->flush({.renderTarget = m_RenderTarget.get()});
             m_RenderContext->static_impl_cast<rive::gpu::RenderContextGLImpl>()->unbindGLInternalResources();
             OpenGLCheckError("Flush After");
 
-            // TODO: We should bind the currently bound target
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            RestoreDefaultFramebuffer();
 
             // Rive messes up the state after flush it seems.
             SetDefoldGraphicsState(dmGraphics::STATE_CULL_FACE, m_DefoldPipelineState.m_CullFaceEnabled);
@@ -174,6 +166,11 @@ namespace dmRive
 
         void OnSizeChanged(uint32_t width, uint32_t height, uint32_t sample_count, bool do_final_blit) override
         {
+            if (!EnsureRenderContext())
+            {
+                return;
+            }
+
             uint32_t fbo_id = GetFrameBufferId(width, height, do_final_blit);
             uint32_t fbo_samples = do_final_blit ? 0 : sample_count;
 
@@ -195,6 +192,11 @@ namespace dmRive
 
         dmGraphics::HTexture GetBackingTexture() override
         {
+            if (m_GraphicsContext == 0 || m_DefoldRenderTarget == 0)
+            {
+                return 0;
+            }
+
             return dmGraphics::GetRenderTargetTexture(m_GraphicsContext, m_DefoldRenderTarget, dmGraphics::BUFFER_TYPE_COLOR0_BIT);
         }
 
@@ -203,6 +205,11 @@ namespace dmRive
                                                       uint32_t mipLevelCount,
                                                       const uint8_t imageDataRGBA[]) override
         {
+            if (!EnsureRenderContext())
+            {
+                return nullptr;
+            }
+
             if (mipLevelCount < 1)
                 mipLevelCount = 1;
 
@@ -226,12 +233,77 @@ namespace dmRive
 
     private:
 
+        bool EnsureRenderContext()
+        {
+            if (m_RenderContext)
+            {
+                return true;
+            }
+
+        #ifdef RIVE_DESKTOP_GL
+            // Load the OpenGL API using glad.
+            bool loaded = false;
+            #if defined(DM_PLATFORM_WINDOWS)
+                loaded = gladLoadCustomLoader((GLADloadfunc)Win32GetGLProcAddress) != 0;
+            #else
+                loaded = gladLoadCustomLoader((GLADloadfunc)glfwGetProcAddress) != 0;
+            #endif
+            if (!loaded)
+            {
+                dmLogError("Failed to initialize glad");
+                return false;
+            }
+        #endif
+
+            if (glGetString(GL_VERSION) == 0)
+            {
+                if (!m_LoggedMissingContext)
+                {
+                    dmLogWarning("Rive OpenGL context is not available yet");
+                    m_LoggedMissingContext = true;
+                }
+                return false;
+            }
+
+            const GLubyte* renderer = glGetString(GL_RENDERER);
+            dmLogInfo("==== GL GPU: %s ====\n", renderer ? (const char*)renderer : "<unknown>");
+
+            m_RenderContext = rive::gpu::RenderContextGLImpl::MakeContext({
+                .disableFragmentShaderInterlock = false // options.disableRasterOrdering,
+            });
+            if (!m_RenderContext)
+            {
+                dmLogError("Failed to initialize Rive OpenGL context");
+                return false;
+            }
+
+            int glerr = (int)glGetError();
+            if (glerr != 0)
+            {
+                dmLogError("Rive OpenGL context produced a gl error: %d", glerr);
+            }
+
+            return true;
+        }
+
         void SetDefoldGraphicsState(dmGraphics::State state, bool flag)
         {
             if (flag)
                 dmGraphics::EnableState(m_GraphicsContext, state);
             else
                 dmGraphics::DisableState(m_GraphicsContext, state);
+        }
+
+        void RestoreDefaultFramebuffer()
+        {
+            glBindFramebuffer(GL_FRAMEBUFFER, dmGraphics::OpenGLGetDefaultFramebufferId(m_GraphicsContext));
+
+        #if defined(RIVE_ANDROID)
+            const GLenum default_draw_buffer = GL_BACK;
+            glDrawBuffers(1, &default_draw_buffer);
+        #endif
+
+            OpenGLCheckError("RestoreDefaultFramebuffer After");
         }
 
         uint32_t GetFrameBufferId(uint32_t width, uint32_t height, bool do_final_blit)
@@ -303,6 +375,7 @@ namespace dmRive
         rive::rcp<rive::gpu::RenderTargetGL>      m_RenderTarget;
         dmGraphics::PipelineState                 m_DefoldPipelineState;
         dmGraphics::HRenderTarget                 m_DefoldRenderTarget;
+        bool                                      m_LoggedMissingContext = false;
     };
 
     IDefoldRiveRenderer* MakeDefoldRiveRendererOpenGL()

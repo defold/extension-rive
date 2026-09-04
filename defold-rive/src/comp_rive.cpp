@@ -187,7 +187,9 @@ namespace dmRive
         float top    = 1.0f;
 
         // Flip texture coordinates on y axis for OpenGL for the final blit:
-        if (dmGraphics::GetInstalledAdapterFamily() != dmGraphics::ADAPTER_FAMILY_OPENGL)
+        dmGraphics::AdapterFamily adapter_family = dmGraphics::GetInstalledAdapterFamily();
+        if (adapter_family != dmGraphics::ADAPTER_FAMILY_OPENGL &&
+            adapter_family != dmGraphics::ADAPTER_FAMILY_OPENGLES)
         {
             top    = 0.0f;
             bottom = 1.0f;
@@ -351,9 +353,10 @@ namespace dmRive
             component->m_StateMachine = queue->instantiateDefaultStateMachine(artboard);
         }
 
-        component->m_Enabled = component->m_StateMachine != 0;
+        component->m_Enabled = component->m_Artboard != 0;
 
-        if (component->m_StateMachine && component->m_Resource->m_DDF->m_AutoBind)
+        if (component->m_StateMachine && component->m_Resource->m_DDF->m_AutoBind &&
+            (component->m_ViewModelInstance || dmRiveCommands::ArtboardHasDefaultViewModel(CompRiveGetFile(component), artboard)))
         {
             CompRiveSetViewModelInstance(component, 0);
             BindViewModelInstance(component);
@@ -402,7 +405,6 @@ namespace dmRive
             }
         }
 
-        component->m_Enabled = component->m_ViewModelInstance != 0;
         return old_handle;
     }
 
@@ -510,6 +512,12 @@ namespace dmRive
 
             if (g_RenderBeginParams.m_DoFinalBlit)
             {
+                dmGraphics::HTexture backing_texture = GetBackingTexture(world->m_RiveRenderContext);
+                if (backing_texture == 0)
+                {
+                    return;
+                }
+
                 // Do our own resolve here
                 dmRender::RenderObject& ro = *world->m_RenderObjects.End();
                 world->m_RenderObjects.SetSize(world->m_RenderObjects.Size()+1);
@@ -520,7 +528,7 @@ namespace dmRive
                 ro.m_PrimitiveType     = dmGraphics::PRIMITIVE_TRIANGLES;
                 ro.m_VertexStart       = 0;
                 ro.m_VertexCount       = 6;
-                ro.m_Textures[0]       = GetBackingTexture(world->m_RiveRenderContext);
+                ro.m_Textures[0]       = backing_texture;
                 dmRender::AddToRender(render_context, &ro);
             }
         }
@@ -678,7 +686,10 @@ namespace dmRive
                 continue;
             }
 
-            queue->advanceStateMachine(component.m_StateMachine, dt * component.m_AnimationPlaybackRate);
+            if (component.m_StateMachine)
+            {
+                queue->advanceStateMachine(component.m_StateMachine, dt * component.m_AnimationPlaybackRate);
+            }
 
             if (component.m_ReHash || (component.m_RenderConstants && dmGameSystem::AreRenderConstantsUpdated(component.m_RenderConstants)))
             {
@@ -929,6 +940,20 @@ namespace dmRive
         rivectx->m_GraphicsContext  = *(dmGraphics::HContext*)ctx->m_Contexts.Get(dmHashString64("graphics"));
         rivectx->m_RenderContext    = *(dmRender::HRenderContext*)ctx->m_Contexts.Get(dmHashString64("render"));
         rivectx->m_MaxInstanceCount = dmConfigFile::GetInt(ctx->m_Config, "rive.max_instance_count", 128);
+        SetGraphicsContext(rivectx->m_RiveRenderContext, rivectx->m_GraphicsContext);
+        rive::Factory* rive_factory = GetRiveFactory(rivectx->m_RiveRenderContext);
+        if (rive_factory == 0)
+        {
+            delete rivectx;
+            return dmGameObject::RESULT_UNKNOWN_ERROR;
+        }
+
+        dmRiveCommands::Result command_result = dmRiveCommands::SetFactory(rive_factory);
+        if (command_result != dmRiveCommands::RESULT_OK)
+        {
+            delete rivectx;
+            return dmGameObject::RESULT_UNKNOWN_ERROR;
+        }
 
         g_RenderBeginParams.m_DoFinalBlit       = dmConfigFile::GetInt(ctx->m_Config, "rive.render_to_texture", 1);
         g_RenderBeginParams.m_BackbufferSamples = dmConfigFile::GetInt(ctx->m_Config, "display.samples", 0);

@@ -49,6 +49,7 @@ struct Context
     rive::Factory*                  m_Factory;
     rive::CommandServer*            m_CommandServer;
     rive::rcp<rive::CommandQueue>   m_CommandQueue;
+    bool                            m_UseThreads;
 };
 
 Context* g_Context = 0;
@@ -86,6 +87,11 @@ static void DestroyContext(Context* context)
 
 static void PumpMessagesLocked(Context* context)
 {
+    if (context->m_Factory == 0)
+    {
+        return;
+    }
+
     if (!context->m_Thread)
     {
         context->m_CommandServer->processCommands();
@@ -101,10 +107,15 @@ static void PumpMessages(Context* context)
 }
 
 template <typename Fn>
-static bool RunOnServerAndWait(Context* context, Fn fn)
+static bool RunOnServerAndWait(Context* context, Fn fn, bool dispatch_messages = true)
 {
     assert(context != 0);
     assert(context->m_CommandQueue);
+
+    if (context->m_Factory == 0)
+    {
+        return false;
+    }
 
     int32_atomic_t done = 0;
     context->m_CommandQueue->runOnce([&done, fn](rive::CommandServer* server) mutable {
@@ -114,7 +125,15 @@ static bool RunOnServerAndWait(Context* context, Fn fn)
 
     while (dmAtomicGet32(&done) == 0)
     {
-        PumpMessages(context);
+        if (dispatch_messages)
+        {
+            PumpMessages(context);
+        }
+        else if (!context->m_Thread)
+        {
+            DM_MUTEX_OPTIONAL_SCOPED_LOCK(context->m_Mutex);
+            context->m_CommandServer->processCommands();
+        }
         if (dmAtomicGet32(&done) != 0)
         {
             break;
@@ -124,7 +143,10 @@ static bool RunOnServerAndWait(Context* context, Fn fn)
     }
 
     // Ensure listener callbacks produced by the fenced work are delivered.
-    PumpMessages(context);
+    if (dispatch_messages)
+    {
+        PumpMessages(context);
+    }
     return true;
 }
 
@@ -198,6 +220,7 @@ static void DisposeArtboardScripts(rive::Artboard* artboard)
 static void RiveCommandThread(void* _ctx)
 {
     Context* ctx = (Context*)_ctx;
+    // Rive records the constructing thread and requires commands to run on that thread.
     ctx->m_CommandServer = new rive::CommandServer(ctx->m_CommandQueue, ctx->m_Factory);
 
     while (dmAtomicGet32(&ctx->m_Run))
@@ -224,25 +247,24 @@ Result Initialize(InitParams* params)
 
     g_Context = new Context();
     g_Context->m_Mutex = params->m_Mutex;
+    g_Context->m_Thread = 0;
+    g_Context->m_Run = 0;
+    g_Context->m_CommandServer = 0;
+    g_Context->m_UseThreads = params->m_UseThreads;
 
     g_Context->m_RenderContext = params->m_RenderContext;
-    g_Context->m_Factory = params->m_Factory;
+    g_Context->m_Factory = 0;
 
     g_Context->m_CommandQueue = rive::make_rcp<rive::CommandQueue>();
-    if (params->m_UseThreads == false)
-    {
-        g_Context->m_CommandServer = new rive::CommandServer(g_Context->m_CommandQueue, g_Context->m_Factory);
-    }
 
-    if (params->m_UseThreads)
+    if (params->m_Factory != 0)
     {
-        dmAtomicAdd32(&g_Context->m_Run, 1);
-        g_Context->m_Thread = dmThread::New(RiveCommandThread, 1 * 1024 * 1024, g_Context, "RiveCommandThread");
-        if (!g_Context->m_Thread)
+        Result result = SetFactory(params->m_Factory);
+        if (result != RESULT_OK)
         {
             DestroyContext(g_Context);
             g_Context = 0;
-            return RESULT_FAILED_CREATE_THREAD;
+            return result;
         }
     }
 
@@ -254,6 +276,44 @@ Result Finalize()
     assert(g_Context != 0);
     DestroyContext(g_Context);
     g_Context = 0;
+    return RESULT_OK;
+}
+
+Result SetFactory(rive::Factory* factory)
+{
+    assert(g_Context != 0);
+    if (factory == 0)
+    {
+        return RESULT_INVALID_FACTORY;
+    }
+
+    if (g_Context->m_Factory != 0)
+    {
+        return g_Context->m_Factory == factory ? RESULT_OK : RESULT_FACTORY_ALREADY_SET;
+    }
+
+    g_Context->m_Factory = factory;
+    if (g_Context->m_UseThreads)
+    {
+        dmAtomicStore32(&g_Context->m_Run, 1);
+        g_Context->m_Thread = dmThread::New(RiveCommandThread, 1 * 1024 * 1024, g_Context, "RiveCommandThread");
+        if (!g_Context->m_Thread)
+        {
+            g_Context->m_Factory = 0;
+            dmAtomicStore32(&g_Context->m_Run, 0);
+            return RESULT_FAILED_CREATE_THREAD;
+        }
+    }
+    else
+    {
+        g_Context->m_CommandServer = new rive::CommandServer(g_Context->m_CommandQueue, factory);
+        if (g_Context->m_CommandServer == 0)
+        {
+            g_Context->m_Factory = 0;
+            return RESULT_FAILED_CREATE_COMMAND_SERVER;
+        }
+    }
+
     return RESULT_OK;
 }
 
@@ -341,6 +401,28 @@ bool GetBounds(rive::ArtboardHandle artboard_handle, rive::AABB* out_bounds)
 
     *out_bounds = bounds;
     return true;
+}
+
+bool ArtboardHasDefaultViewModel(rive::FileHandle file_handle, rive::ArtboardHandle artboard_handle)
+{
+    if (g_Context == 0 || file_handle == RIVE_NULL_HANDLE || artboard_handle == RIVE_NULL_HANDLE)
+    {
+        return false;
+    }
+
+    bool has_view_model = false;
+    // Component creation precedes script initialization. Leave callbacks queued until scripts can register listeners.
+    bool completed = RunOnServerAndWait(g_Context, [&](rive::CommandServer* server) {
+        rive::File* file = server->getFile(file_handle);
+        rive::ArtboardInstance* artboard = server->getArtboardInstance(artboard_handle);
+        if (file != 0 && artboard != 0)
+        {
+            // Inspect the binding without creating a ViewModelRuntime or reporting an error for an unbound artboard.
+            has_view_model = artboard->viewModelId() < file->viewModelCount();
+        }
+    }, false);
+
+    return completed && has_view_model;
 }
 
 bool FileHasAssetType(rive::FileHandle file_handle, uint16_t type_key, bool* out_has_asset)
