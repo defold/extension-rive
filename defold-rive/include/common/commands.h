@@ -27,6 +27,9 @@ namespace dmRiveCommands
     {
         RESULT_OK = 0,
         RESULT_FAILED_CREATE_THREAD = -1,
+        RESULT_FAILED_CREATE_COMMAND_SERVER = -2,
+        RESULT_INVALID_FACTORY = -3,
+        RESULT_FACTORY_ALREADY_SET = -4,
     };
 
     struct InitParams
@@ -46,6 +49,8 @@ namespace dmRiveCommands
 
     Result Initialize(InitParams* params); // Once per session
     Result Finalize();   // Once per session
+    // Starts command processing after deferred graphics initialization. The factory is borrowed until Finalize().
+    Result SetFactory(rive::Factory* factory);
 
     Result ProcessMessages();
     bool WaitUntil(bool (*condition)(void*), void* user_data, uint64_t timeout);
@@ -55,6 +60,8 @@ namespace dmRiveCommands
     dmRive::HRenderContext          GetDefoldRenderContext();
     rive::rcp<rive::CommandQueue>   GetCommandQueue();
     bool                            GetBounds(rive::ArtboardHandle artboard_handle, rive::AABB* out_bounds);
+    // Resolves queued file/artboard creation before checking the artboard's view model binding.
+    bool                            ArtboardHasDefaultViewModel(rive::FileHandle file_handle, rive::ArtboardHandle artboard_handle);
     bool                            FileHasAssetType(rive::FileHandle file_handle, uint16_t type_key, bool* out_has_asset);
     bool                            DisposeArtboardScripts(rive::ArtboardHandle artboard_handle);
     bool                            DisposeFileScripts(rive::FileHandle file_handle);

@@ -20,8 +20,8 @@ jobs:
     uses: defold/github-actions-common/.github/workflows/defoldsdk.yml@master
     with:
       runner: ${{ github.event.inputs.platform == 'arm64-linux' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
-      defold_channel: beta
-      defold_version: ${{ github.event.inputs.defold_version || 'latest' }}
+      defold_channel: stable
+      defold_version: ${{ github.event.inputs.defold_version || '1.13.1' }}
       sdk_output_path: build/defoldsdk
       bob_output_path: bob.jar
 
@@ -29,6 +29,8 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     needs: [prepare-defoldsdk]
+    outputs:
+      report_available: ${{ steps.report-status.outputs.available }}
 
     steps:
       - name: Checkout repository
@@ -48,7 +50,7 @@ jobs:
           node-version: "22"
 
       - name: Setup ImageMagick
-        uses: mfinelli/setup-imagemagick@v7
+        uses: mfinelli/setup-imagemagick@v8
         with:
           cache: true
           install-libfuse2: true
@@ -108,9 +110,21 @@ jobs:
           set -euo pipefail
           ./ci/tests/html5/test.sh
 
+      - name: Check HTML5 test report
+        id: report-status
+        if: always()
+        shell: bash
+        run: |
+          if [[ -d build/render-tests/wasm-web ]] &&
+              [[ -n "$(find build/render-tests/wasm-web -type f -print -quit)" ]]; then
+            echo "available=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "available=false" >> "${GITHUB_OUTPUT}"
+          fi
+
       - name: Upload HTML5 test report
         id: upload-report
-        if: always()
+        if: always() && steps.report-status.outputs.available == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: html5-test-report-pr-${{ github.event.pull_request.number }}
@@ -119,7 +133,7 @@ jobs:
           retention-days: 30
 
   build-summary:
-    if: github.event_name == 'pull_request' && always()
+    if: github.event_name == 'pull_request' && always() && needs.test-html5.outputs.report_available == 'true'
     needs:
       - test-html5
     permissions:
@@ -196,6 +210,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       run_id: ${{ steps.find-run.outputs.run_id }}
+      report_available: ${{ steps.find-run.outputs.report_available }}
       page_url: ${{ steps.publish.outputs.page_url }}
     steps:
       - name: Find matching build run
@@ -205,6 +220,7 @@ jobs:
           script: |
             const targetSha = context.payload.pull_request.head.sha;
             const workflowName = context.workflow;
+            const artifactName = `render-test-report-pr-${context.payload.pull_request.number}`;
             const perPage = 100;
             const delayMs = 15000;
             const maxAttempts = 80;
@@ -227,6 +243,22 @@ jobs:
 
                 if (match) {
                   core.setOutput('run_id', String(match.id));
+                  const artifacts = await github.paginate(
+                    github.rest.actions.listWorkflowRunArtifacts,
+                    {
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      run_id: match.id,
+                      per_page: perPage,
+                    }
+                  );
+                  const report = artifacts.find((artifact) =>
+                    artifact.name === artifactName && !artifact.expired
+                  );
+                  core.setOutput('report_available', report ? 'true' : 'false');
+                  if (!report) {
+                    core.notice(`No ${artifactName} artifact was produced by run ${match.id}; skipping report publication.`);
+                  }
                   return;
                 }
               }
@@ -238,6 +270,7 @@ jobs:
             throw new Error(`Could not find a completed ${workflowName} run for ${targetSha}`);
 
       - name: Download combined test report artifact
+        if: steps.find-run.outputs.report_available == 'true'
         uses: actions/download-artifact@v4
         with:
           name: render-test-report-pr-${{ github.event.pull_request.number }}
@@ -247,6 +280,7 @@ jobs:
           github-token: ${{ secrets.SERVICES_GITHUB_TOKEN != '' && secrets.SERVICES_GITHUB_TOKEN || github.token }}
 
       - name: Checkout gh-pages branch
+        if: steps.find-run.outputs.report_available == 'true'
         continue-on-error: true
         uses: actions/checkout@v5
         with:
@@ -258,6 +292,7 @@ jobs:
 
       - name: Publish report history to gh-pages
         id: publish
+        if: steps.find-run.outputs.report_available == 'true'
         env:
           REPORTS_REPOSITORY: ${{ env.REPORTS_REPOSITORY }}
           REPORTS_BRANCH: ${{ env.REPORTS_BRANCH }}
@@ -308,7 +343,7 @@ jobs:
             echo "No gh-pages changes to commit"
           else
             git -C "${pages_root}" commit -m "html5 report for pr-${pr_number}"
-            git -C "${pages_root}" push origin HEAD:${REPORTS_BRANCH}
+            git -C "${pages_root}" push origin "HEAD:${REPORTS_BRANCH}"
           fi
 
           echo "page_url=${site_url}" >> "${GITHUB_OUTPUT}"
@@ -345,7 +380,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   comment-pr:
-    if: github.event_name == 'pull_request_target'
+    if: github.event_name == 'pull_request_target' && needs.publish-pages.outputs.report_available == 'true'
     needs: publish-pages
     permissions:
       actions: read

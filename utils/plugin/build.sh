@@ -8,6 +8,52 @@ REPO_ROOT=$(realpath ${SCRIPT_DIR}/../..)
 WITH_VULKAN=""
 ARGS=()
 
+select_visual_studio_generator() {
+    local cmake_help
+    cmake_help="$(cmake --help 2>/dev/null || true)"
+    local preferred_generators=()
+    local visual_studio_version="${VisualStudioVersion:-}"
+    local detected_vs_major="${visual_studio_version%%.*}"
+
+    if [[ -z "${detected_vs_major}" || "${detected_vs_major}" == "${visual_studio_version}" ]]; then
+        local vswhere_cmd=""
+        if command -v vswhere.exe >/dev/null 2>&1; then
+            vswhere_cmd="$(command -v vswhere.exe)"
+        elif command -v vswhere >/dev/null 2>&1; then
+            vswhere_cmd="$(command -v vswhere)"
+        fi
+        if [[ -n "${vswhere_cmd}" ]]; then
+            local installed_vs_version
+            installed_vs_version="$("${vswhere_cmd}" -latest -property installationVersion 2>/dev/null | tr -d '\r' || true)"
+            detected_vs_major="${installed_vs_version%%.*}"
+        fi
+    fi
+
+    case "${detected_vs_major}" in
+        18)
+            preferred_generators+=("Visual Studio 18 2026" "Visual Studio 17 2022")
+            ;;
+        17)
+            preferred_generators+=("Visual Studio 17 2022" "Visual Studio 18 2026")
+            ;;
+        *)
+            preferred_generators+=("Visual Studio 18 2026" "Visual Studio 17 2022")
+            ;;
+    esac
+
+    local generator
+    for generator in "${preferred_generators[@]}"; do
+        if grep -Fq "${generator}" <<< "${cmake_help}"; then
+            echo "${generator}"
+            return 0
+        fi
+    done
+
+    echo "Unable to find a supported Visual Studio CMake generator." >&2
+    echo "Install Visual Studio 2022/2026 build tools or set CMAKE_GENERATOR explicitly." >&2
+    exit 1
+}
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --with-vulkan|--with_vulkan)
@@ -52,8 +98,9 @@ EXTENDER_PLATFORM="${PLATFORM}"
 case $PLATFORM in
     "arm64-macos")
         EXTENDER_PLATFORM="arm64-osx"
-        # Apple Silicon macOS starts at 11.0, even when the requested deployment target is lower.
-        MACOS_DYLIB_MINOS="11.0"
+        # Apple Silicon macOS starts at 11.0.
+        MACOS_DEPLOYMENT_TARGET="11.0"
+        MACOS_DYLIB_MINOS="${MACOS_DEPLOYMENT_TARGET}"
         ;;
    "x86_64-macos")
         EXTENDER_PLATFORM="x86_64-osx"
@@ -69,9 +116,6 @@ if [ -z "${DYNAMO_HOME:-}" ]; then
     echo "DYNAMO_HOME must be set before running $0" >&2
     exit 1
 fi
-
-export CMAKE_C_COMPILER="$(which clang)"
-export CMAKE_CXX_COMPILER="$(which clang++)"
 
 DYNAMO_HOME="$(realpath "${DYNAMO_HOME}")"
 export DYNAMO_HOME
@@ -108,10 +152,31 @@ case "$(uname -s)" in
 esac
 
 CMAKE_GENERATOR_FLAGS=()
+CMAKE_COMPILER_ARGS=()
 if [ "$HOST_PLATFORM" = "x86_64-win32" ]; then
-    if [[ "${CMAKE_GENERATOR:-}" == "Visual Studio"* ]]; then
-        CMAKE_GENERATOR_FLAGS+=("-A" "x64")
+    if [[ -z "${CMAKE_GENERATOR:-}" ]]; then
+        if { command -v ninja >/dev/null 2>&1 || command -v ninja.exe >/dev/null 2>&1; } &&
+            { command -v cl >/dev/null 2>&1 || command -v cl.exe >/dev/null 2>&1; }; then
+            echo "Using CMake generator 'Ninja' with MSVC for ${PLATFORM}"
+            CMAKE_GENERATOR_FLAGS+=("-G" "Ninja")
+            CMAKE_COMPILER_ARGS+=("-DCMAKE_C_COMPILER=cl")
+            CMAKE_COMPILER_ARGS+=("-DCMAKE_CXX_COMPILER=cl")
+        else
+            VS_GENERATOR="$(select_visual_studio_generator)"
+            echo "Using CMake generator '${VS_GENERATOR}' for ${PLATFORM}"
+            CMAKE_GENERATOR_FLAGS+=("-G" "${VS_GENERATOR}" "-A" "x64")
+        fi
+    else
+        echo "Using user-specified CMAKE_GENERATOR='${CMAKE_GENERATOR}'"
+        if [[ "${CMAKE_GENERATOR}" == "Visual Studio"* && -z "${CMAKE_GENERATOR_PLATFORM:-}" ]]; then
+            CMAKE_GENERATOR_FLAGS+=("-A" "x64")
+        fi
     fi
+else
+    export CMAKE_C_COMPILER="${CMAKE_C_COMPILER:-$(which clang)}"
+    export CMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER:-$(which clang++)}"
+    CMAKE_COMPILER_ARGS+=("-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}")
+    CMAKE_COMPILER_ARGS+=("-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}")
 fi
 
 CMAKE_PROTOC_ARGS=()
@@ -149,10 +214,12 @@ CM_ARGS=(
     -DTARGET_PLATFORM="${PLATFORM}"
     -DCMAKE_BUILD_TYPE="${CONFIG}"
     -DCMAKE_VERBOSE_MAKEFILE=ON
-    -DCMAKE_C_COMPILER="${CMAKE_C_COMPILER}"
-    -DCMAKE_CXX_COMPILER="${CMAKE_CXX_COMPILER}"
     -DWITH_VULKAN="${WITH_VULKAN}"
 )
+
+if [ ${#CMAKE_COMPILER_ARGS[@]} -gt 0 ]; then
+    CM_ARGS+=("${CMAKE_COMPILER_ARGS[@]}")
+fi
 
 if [[ "$PLATFORM" == *"macos"* ]]; then
     export MACOSX_DEPLOYMENT_TARGET="${MACOS_DEPLOYMENT_TARGET}"

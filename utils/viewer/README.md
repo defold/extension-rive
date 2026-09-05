@@ -86,7 +86,7 @@ $env:DYNAMO_HOME = "C:/repos/defold/tmp/dynamo_home"
 $env:BOB = "$env:DYNAMO_HOME/share/java/bob.jar"   # optional
 
 cmake -S utils/viewer -B utils/viewer/build/x86_64-win32 `
-  -G "Visual Studio 17 2022" `
+  -G "Visual Studio 18 2026" `
   -A x64 `
   -DTARGET_PLATFORM=x86_64-win32
 
@@ -100,7 +100,7 @@ Open the solution:
 ## Windows Toolchain Note
 
 - For `x86_64-win32`, build with MSVC/Visual Studio tools (not MinGW/MSYS `g++`).
-- `./utils/viewer/build.sh x86_64-win32` now auto-selects `Visual Studio 17 2022` (`-A x64`) when `CMAKE_GENERATOR` is not explicitly set.
+- `./utils/viewer/build.sh x86_64-win32` auto-selects an installed Visual Studio CMake generator (`-A x64`) when `CMAKE_GENERATOR` is not explicitly set.
 - `Debug` config is not supported for `x86_64-win32` with current prebuilt `defold-rive` libs. Use `RelWithDebInfo` (default) or `Release`.
 - On `x86_64-win32`, CMake now auto-prefers `utils/libs_win64` when that folder exists; otherwise it falls back to `defold-rive/lib/x86_64-win32`.
 - You can override this via `-DVIEWER_WIN32_RIVE_LIB_DIR=<path>` when invoking CMake directly.

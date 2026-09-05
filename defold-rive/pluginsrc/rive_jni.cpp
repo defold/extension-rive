@@ -813,6 +813,8 @@ static bool GetTextureInternal(dmRive::RiveFile* rive_file,
     render_params.m_Width = render_width;
     render_params.m_Height = render_height;
 
+    dmRive::SetGraphicsContext(render_context, graphics_context);
+
     const float artboard_display_factor = 1.0f;
     const rive::ArtboardHandle artboard_handle = rive_file->m_Artboard;
 

@@ -17,7 +17,6 @@
 
 #include <assert.h>
 
-
 #if defined(DM_HEADLESS)
 namespace dmRive
 {
@@ -35,18 +34,70 @@ namespace dmResource
 
 namespace dmRive
 {
-    struct DefoldRiveRenderer
+    static const char* AdapterFamilyName(dmGraphics::AdapterFamily adapter_family)
+    {
+        switch (adapter_family)
+        {
+            case dmGraphics::ADAPTER_FAMILY_NONE:     return "none";
+            case dmGraphics::ADAPTER_FAMILY_NULL:     return "null";
+            case dmGraphics::ADAPTER_FAMILY_OPENGL:   return "opengl";
+            case dmGraphics::ADAPTER_FAMILY_OPENGLES: return "opengles";
+            case dmGraphics::ADAPTER_FAMILY_VULKAN:   return "vulkan";
+            case dmGraphics::ADAPTER_FAMILY_VENDOR:   return "vendor";
+            case dmGraphics::ADAPTER_FAMILY_WEBGPU:   return "webgpu";
+            case dmGraphics::ADAPTER_FAMILY_DIRECTX:  return "directx";
+            case dmGraphics::ADAPTER_FAMILY_METAL:    return "metal";
+        }
+
+        return "unknown";
+    }
+
+    static bool IsOpenGLAdapter(dmGraphics::AdapterFamily adapter_family)
+    {
+        return adapter_family == dmGraphics::ADAPTER_FAMILY_OPENGL ||
+            adapter_family == dmGraphics::ADAPTER_FAMILY_OPENGLES;
+    }
+
+    static IDefoldRiveRenderer* MakeDefoldRiveRenderer(dmGraphics::AdapterFamily adapter_family)
     {
     #if defined(DM_PLATFORM_MACOS) || defined(DM_PLATFORM_IOS)
-        IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererMetal();
+        // Share Metal textures and the command queue through Defold's MoltenVK backend.
+        if (adapter_family == dmGraphics::ADAPTER_FAMILY_VULKAN)
+        {
+            return MakeDefoldRiveRendererMetal();
+        }
+    #elif defined(DM_GRAPHICS_USE_VULKAN) && defined(RIVE_VULKAN) && defined(DM_RIVE_USE_OPENGL)
+        if (adapter_family == dmGraphics::ADAPTER_FAMILY_VULKAN)
+        {
+            return MakeDefoldRiveRendererVulkan();
+        }
+        if (IsOpenGLAdapter(adapter_family))
+        {
+            return MakeDefoldRiveRendererOpenGL();
+        }
     #elif defined(DM_GRAPHICS_USE_VULKAN) && defined(RIVE_VULKAN)
-        IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererVulkan();
+        if (adapter_family == dmGraphics::ADAPTER_FAMILY_VULKAN)
+        {
+            return MakeDefoldRiveRendererVulkan();
+        }
     #elif defined(DM_PLATFORM_HTML5) && defined(RIVE_WEBGPU)
-        IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererWebGPU();
+        if (adapter_family == dmGraphics::ADAPTER_FAMILY_WEBGPU)
+        {
+            return MakeDefoldRiveRendererWebGPU();
+        }
     #else
-        IDefoldRiveRenderer* m_RenderContext = MakeDefoldRiveRendererOpenGL();
+        if (IsOpenGLAdapter(adapter_family))
+        {
+            return MakeDefoldRiveRendererOpenGL();
+        }
     #endif
 
+        return 0;
+    }
+
+    struct DefoldRiveRenderer
+    {
+        IDefoldRiveRenderer* m_RenderContext;
         dmResource::HFactory m_Factory;
         rive::Renderer*      m_RiveRenderer;
         dmGraphics::HContext m_GraphicsContext;
@@ -56,6 +107,23 @@ namespace dmRive
         uint32_t             m_LastHeight;
         uint8_t              m_LastDoFinalBlit : 1;
         uint8_t              m_FrameBegin : 1;
+        uint8_t              m_LoggedAdapterFamily : 1;
+        uint8_t              m_LoggedUnsupportedAdapter : 1;
+
+        DefoldRiveRenderer()
+        : m_RenderContext(0)
+        , m_Factory(0)
+        , m_RiveRenderer(0)
+        , m_GraphicsContext(0)
+        , m_RenderMutex(0)
+        , m_LastWidth(0)
+        , m_LastHeight(0)
+        , m_LastDoFinalBlit(0)
+        , m_FrameBegin(0)
+        , m_LoggedAdapterFamily(0)
+        , m_LoggedUnsupportedAdapter(0)
+        {
+        }
 
         ~DefoldRiveRenderer()
         {
@@ -75,17 +143,52 @@ namespace dmRive
 
     static DefoldRiveRenderer* g_RiveRenderer = 0;
 
+    static bool CreateRendererBackend(DefoldRiveRenderer* renderer)
+    {
+        if (renderer->m_RenderContext != 0)
+        {
+            return true;
+        }
+
+        if (renderer->m_GraphicsContext == 0)
+        {
+            return false;
+        }
+
+        dmGraphics::AdapterFamily adapter_family = dmGraphics::GetInstalledAdapterFamily();
+        if (adapter_family == dmGraphics::ADAPTER_FAMILY_NONE ||
+            adapter_family == dmGraphics::ADAPTER_FAMILY_NULL)
+        {
+            return false;
+        }
+
+        if (!renderer->m_LoggedAdapterFamily)
+        {
+            dmLogInfo("Rive detected Defold graphics adapter: %s (%d)",
+                AdapterFamilyName(adapter_family), (int) adapter_family);
+            renderer->m_LoggedAdapterFamily = 1;
+        }
+
+        renderer->m_RenderContext = MakeDefoldRiveRenderer(adapter_family);
+        if (renderer->m_RenderContext == 0)
+        {
+            if (!renderer->m_LoggedUnsupportedAdapter)
+            {
+                dmLogError("Rive does not have a renderer backend for Defold graphics adapter '%s' (%d)",
+                    AdapterFamilyName(adapter_family), (int) adapter_family);
+                renderer->m_LoggedUnsupportedAdapter = 1;
+            }
+            return false;
+        }
+
+        return true;
+    }
+
     HRenderContext NewRenderContext()
     {
         if (g_RiveRenderer == 0)
         {
             g_RiveRenderer = new DefoldRiveRenderer();
-            g_RiveRenderer->m_RiveRenderer    = 0;
-            g_RiveRenderer->m_GraphicsContext = 0;
-            g_RiveRenderer->m_RenderMutex     = 0;
-            g_RiveRenderer->m_LastWidth       = 0;
-            g_RiveRenderer->m_LastHeight      = 0;
-            g_RiveRenderer->m_FrameBegin      = 0;
         }
 
         return (HRenderContext) g_RiveRenderer;
@@ -103,19 +206,11 @@ namespace dmRive
     rive::Factory* GetRiveFactory(HRenderContext context)
     {
         DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
-        if (renderer->m_GraphicsContext == 0)
+        if (renderer->m_RenderContext == 0)
         {
-            dmGraphics::AdapterFamily adapter_family = dmGraphics::GetInstalledAdapterFamily();
-            if (adapter_family != dmGraphics::ADAPTER_FAMILY_NONE &&
-                adapter_family != dmGraphics::ADAPTER_FAMILY_NULL)
-            {
-                renderer->m_GraphicsContext = dmGraphics::GetInstalledContext();
-                if (renderer->m_GraphicsContext != 0)
-                {
-                    renderer->m_RenderContext->SetGraphicsContext(renderer->m_GraphicsContext);
-                }
-            }
+            return 0;
         }
+
         return renderer->m_RenderContext->Factory();
     }
 
@@ -128,6 +223,11 @@ namespace dmRive
     dmGraphics::HTexture GetBackingTexture(HRenderContext context)
     {
         DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
+        if (renderer->m_RenderContext == 0)
+        {
+            return 0;
+        }
+
         return renderer->m_RenderContext->GetBackingTexture();
     }
 
@@ -138,9 +238,17 @@ namespace dmRive
 
         if (!renderer->m_RiveRenderer)
         {
-            renderer->m_GraphicsContext = dmGraphics::GetInstalledContext();
-            renderer->m_RenderContext->SetGraphicsContext(renderer->m_GraphicsContext);
+            if (renderer->m_RenderContext == 0 || renderer->m_RenderContext->Factory() == 0)
+            {
+                return;
+            }
+
             renderer->m_RiveRenderer = renderer->m_RenderContext->MakeRenderer();
+            if (renderer->m_RiveRenderer == 0)
+            {
+                return;
+            }
+
             renderer->m_Factory = factory;
         }
 
@@ -200,6 +308,21 @@ namespace dmRive
         renderer->m_RenderMutex = mutex;
     }
 
+    void SetGraphicsContext(HRenderContext context, dmGraphics::HContext graphics_context)
+    {
+        DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
+        if (renderer->m_GraphicsContext == graphics_context && renderer->m_RenderContext != 0)
+        {
+            return;
+        }
+
+        renderer->m_GraphicsContext = graphics_context;
+        if (CreateRendererBackend(renderer))
+        {
+            renderer->m_RenderContext->SetGraphicsContext(graphics_context);
+        }
+    }
+
     void RenderEnd(HRenderContext context)
     {
         DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
@@ -207,7 +330,10 @@ namespace dmRive
         if (renderer->m_FrameBegin)
         {
             DM_MUTEX_OPTIONAL_SCOPED_LOCK(renderer->m_RenderMutex);
-            renderer->m_RenderContext->Flush();
+            if (renderer->m_RenderContext != 0)
+            {
+                renderer->m_RenderContext->Flush();
+            }
             renderer->m_FrameBegin = 0;
         }
     }
@@ -240,9 +366,14 @@ namespace dmRive
 
     rive::rcp<rive::RenderImage> CreateRiveRenderImage(HRenderContext context, void* bytes, uint32_t byte_count)
     {
-        dmImage::HImage img          = dmImage::NewImage(bytes, byte_count, true);
         DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
+        if (renderer->m_RenderContext == 0 || renderer->m_RenderContext->Factory() == 0)
+        {
+            dmLogError("No Rive render context available for image decoding");
+            return nullptr;
+        }
 
+        dmImage::HImage img = dmImage::NewImage(bytes, byte_count, true);
         rive::rcp<rive::gpu::Texture> texture;
         if (img)
         {
@@ -311,6 +442,11 @@ namespace dmRive
     rive::rcp<rive::RenderImage> CreateRiveRenderImageASTC(HRenderContext context, void* bytes, uint32_t byte_count)
     {
         DefoldRiveRenderer* renderer = (DefoldRiveRenderer*) context;
+        if (renderer->m_RenderContext == 0 || renderer->m_RenderContext->Factory() == 0)
+        {
+            dmLogError("No Rive render context available for ASTC image decoding");
+            return nullptr;
+        }
 
         ASTCHeader header;
         if (!ParseASTCHeader((const uint8_t*)bytes, byte_count, &header))

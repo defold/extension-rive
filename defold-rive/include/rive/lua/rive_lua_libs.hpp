@@ -347,6 +347,9 @@ enum class LuaAtoms : int16_t
     writeToBuffer,
     invertAffine,
 
+    // Vector
+    writeVec4,
+
     // Gamepad
     axes,
     gamepadMapping,
@@ -1073,7 +1076,8 @@ public:
     ScriptReffedArtboard(File* file,
                          std::unique_ptr<ArtboardInstance>&& artboardInstance,
                          rcp<ViewModelInstance> viewModelInstance,
-                         rcp<DataContext> parentDataContext);
+                         rcp<DataContext> parentDataContext,
+                         ScriptingContext* scriptingContext);
 
     ~ScriptReffedArtboard();
     rive::File* file();
@@ -1086,6 +1090,7 @@ private:
     std::unique_ptr<ArtboardInstance> m_artboard;
     std::unique_ptr<StateMachineInstance> m_stateMachine;
     rcp<ViewModelInstance> m_viewModelInstance;
+    ScriptingContext* m_scriptingContext = nullptr;
 };
 
 class ScriptedArtboard
@@ -1220,6 +1225,7 @@ private:
     rcp<ViewModel> m_viewModel;
     rcp<ViewModelInstance> m_viewModelInstance;
     std::unordered_map<std::string, int> m_propertyRefs;
+    ScriptingContext* m_scriptingContext = nullptr;
 };
 
 class ScriptedPropertyViewModel : public ScriptedProperty,
@@ -1476,6 +1482,10 @@ public:
     virtual void printEndLine() = 0;
     virtual int pCall(lua_State* state, int nargs, int nresults) = 0;
 
+    // When true, the VM's owner sets up the Lua `Data` global itself (the
+    // editor builds it in Dart), so File should not call initializeLuaData.
+    virtual bool initializesDataGlobalExternally() const { return false; }
+
     // Add a module to be registered later via performRegistration()
     void addModule(ModuleDetails* moduleDetails);
     // Perform registration of all added modules, handling dependencies and
@@ -1484,6 +1494,23 @@ public:
     // Called when a module is required but not found during registration
     void recordMissingDependency(const std::string& requiringModule,
                                  const std::string& missingModule);
+
+    // Track detached view model instances (no parents, e.g. created via
+    // vm:instance()) so they can be advanced at the end of each frame — they
+    // are not reachable from the artboard's bound view model tree, so the
+    // normal DataContext advance never reaches them. Instances are keyed by
+    // owner lifetime, not by Lua-wrapper GC: every live owner (a
+    // ScriptedViewModel wrapper, a ScriptReffedArtboard) registers on
+    // construction and unregisters on destruction. The context holds a strong
+    // reference for as long as any owner is alive, so the instance survives
+    // even if the script drops its wrapper while it is still bound to a
+    // scripted artboard.
+    void trackViewModelInstance(rcp<ViewModelInstance> instance);
+    void untrackViewModelInstance(ViewModelInstance* instance);
+    // Advances every tracked instance that has no parents. Instances with
+    // parents are already advanced through the bound tree (and via their
+    // detached-root ancestor's recursion), so they are skipped.
+    void advanceDetachedViewModels();
 
     // Ore GPU context for this VM, derived from the render factory. Null when
     // there is no render context, or it is not GPU-backed. Returned as void* so
@@ -1567,6 +1594,18 @@ private:
     std::vector<ModuleDetails*> m_modulesToRegister;
     std::unordered_map<std::string, ModuleDetails*> m_moduleLookup;
     std::unordered_set<ModuleDetails*> m_pendingModules;
+
+    // Detached view model instances tracked for end-of-frame advance, keyed by
+    // instance pointer. Each entry keeps a strong reference alive and counts
+    // how many live owners registered it; the entry is erased when the count
+    // returns to zero.
+    struct TrackedViewModelInstance
+    {
+        rcp<ViewModelInstance> instance;
+        int registrations = 0;
+    };
+    std::unordered_map<ViewModelInstance*, TrackedViewModelInstance>
+        m_trackedViewModelInstances;
 
 #ifdef WITH_RIVE_TOOLS
     // Editor-only: Map from asset ID to generator function ref.
@@ -2216,6 +2255,16 @@ int lua_gpu_push_shader_by_name(lua_State* L, const char* name);
 // available, otherwise returns conservative defaults. Always returns 1.
 // Implemented in lua_scripted_context.cpp.
 int lua_push_gpu_features(lua_State* L);
+
+#ifdef WITH_RIVE_TOOLS
+// Push a ScriptedBlob copying `data`, or an empty blob when data is null or
+// size is 0. Only tooling constructs blobs from loose bytes; the runtime
+// wraps in-file assets. Implemented in lua_blob.cpp.
+int lua_push_blob(lua_State* L,
+                  const char* name,
+                  const uint8_t* data,
+                  size_t size);
+#endif
 
 #endif
 #endif

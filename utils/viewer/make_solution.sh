@@ -7,8 +7,53 @@ BUILD_CONFIG="RelWithDebInfo"
 DO_BUILD=0
 BUILD_DIR="${SCRIPT_DIR}/build/x86_64-win32"
 TARGET_PLATFORM="x86_64-win32"
-VS_GENERATOR="Visual Studio 17 2022"
 RIVE_LIB_DIR=""
+
+select_visual_studio_generator() {
+    local cmake_help
+    cmake_help="$(cmake --help 2>/dev/null || true)"
+    local preferred_generators=()
+    local visual_studio_version="${VisualStudioVersion:-}"
+    local detected_vs_major="${visual_studio_version%%.*}"
+
+    if [[ -z "${detected_vs_major}" || "${detected_vs_major}" == "${visual_studio_version}" ]]; then
+        local vswhere_cmd=""
+        if command -v vswhere.exe >/dev/null 2>&1; then
+            vswhere_cmd="$(command -v vswhere.exe)"
+        elif command -v vswhere >/dev/null 2>&1; then
+            vswhere_cmd="$(command -v vswhere)"
+        fi
+        if [[ -n "${vswhere_cmd}" ]]; then
+            local installed_vs_version
+            installed_vs_version="$("${vswhere_cmd}" -latest -property installationVersion 2>/dev/null | tr -d '\r' || true)"
+            detected_vs_major="${installed_vs_version%%.*}"
+        fi
+    fi
+
+    case "${detected_vs_major}" in
+        18)
+            preferred_generators+=("Visual Studio 18 2026" "Visual Studio 17 2022")
+            ;;
+        17)
+            preferred_generators+=("Visual Studio 17 2022" "Visual Studio 18 2026")
+            ;;
+        *)
+            preferred_generators+=("Visual Studio 18 2026" "Visual Studio 17 2022")
+            ;;
+    esac
+
+    local generator
+    for generator in "${preferred_generators[@]}"; do
+        if grep -Fq "${generator}" <<< "${cmake_help}"; then
+            echo "${generator}"
+            return 0
+        fi
+    done
+
+    echo "Unable to find a supported Visual Studio CMake generator." >&2
+    echo "Install Visual Studio 2022/2026 build tools or set CMAKE_GENERATOR explicitly." >&2
+    exit 1
+}
 
 usage() {
     echo "Usage: $0 [--config <Debug|Release|RelWithDebInfo|MinSizeRel>] [--build|--no-build] [--build-dir <dir>] [--rive-lib-dir <path>] [--use-utils-libs-win64]"
@@ -84,6 +129,14 @@ if [[ -z "${DYNAMO_HOME:-}" ]]; then
 fi
 
 mkdir -p "${BUILD_DIR}"
+
+if [[ -n "${CMAKE_GENERATOR:-}" ]]; then
+    VS_GENERATOR="${CMAKE_GENERATOR}"
+    echo "Using user-specified CMAKE_GENERATOR='${VS_GENERATOR}'"
+else
+    VS_GENERATOR="$(select_visual_studio_generator)"
+    echo "Using CMake generator '${VS_GENERATOR}' for ${TARGET_PLATFORM}"
+fi
 
 CM_ARGS=(
     -DTARGET_PLATFORM="${TARGET_PLATFORM}"

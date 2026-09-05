@@ -734,6 +734,7 @@ static void* EngineCreate(int argc, char** argv)
 
     engine->m_RenderMutex = dmMutex::New();
     dmRive::SetRenderMutex(engine->m_RenderContext, engine->m_RenderMutex);
+    dmRive::SetGraphicsContext(engine->m_RenderContext, engine->m_GraphicsContext);
 
     dmRiveCommands::InitParams cmd_params = {};
     cmd_params.m_RenderContext = engine->m_RenderContext;
