@@ -224,12 +224,33 @@ endif()
 # Libraries
 
 if(${TARGET_PLATFORM} MATCHES "win32")
+    function(find_defold_windows_library output_var)
+        find_library(${output_var}
+            NAMES ${ARGN}
+            PATHS
+                "${DYNAMO_HOME}/lib/${TARGET_PLATFORM}"
+                "${DYNAMO_HOME}/ext/lib/${TARGET_PLATFORM}"
+            NO_DEFAULT_PATH
+        )
+        if(NOT ${output_var})
+            message(FATAL_ERROR
+                "Unable to find Defold library ${output_var}. Tried names: ${ARGN}")
+        endif()
+        set(${output_var} "${${output_var}}" PARENT_SCOPE)
+    endfunction()
+
+    find_defold_windows_library(DDF_LIBRARY ddf libddf)
+    find_defold_windows_library(DLIB_LIBRARY dlib libdlib)
+    find_defold_windows_library(IMAGE_LIBRARY image libimage)
+    find_defold_windows_library(PROFILE_NULL_LIBRARY profile_null libprofile_null)
+    find_defold_windows_library(RENDER_LIBRARY render librender)
+
     set(ENGINE_LIBS
-        libddf
-        libdlib
-        libimage
-        libprofile_null
-        librender
+        ${DDF_LIBRARY}
+        ${DLIB_LIBRARY}
+        ${IMAGE_LIBRARY}
+        ${PROFILE_NULL_LIBRARY}
+        ${RENDER_LIBRARY}
     )
 else()
     set(ENGINE_LIBS
@@ -263,10 +284,14 @@ if(${TARGET_PLATFORM} MATCHES "win32")
     target_compile_definitions(viewer PRIVATE DM_PLATFORM_WINDOWS RIVE_WINDOWS)
 
     if(WITH_VULKAN)
-        list(APPEND GRAPHICS_LIBS libgraphics_vulkan platform_vulkan)
+        find_defold_windows_library(GRAPHICS_VULKAN_LIBRARY graphics_vulkan libgraphics_vulkan)
+        find_defold_windows_library(PLATFORM_VULKAN_LIBRARY platform_vulkan libplatform_vulkan)
+        list(APPEND GRAPHICS_LIBS ${GRAPHICS_VULKAN_LIBRARY} ${PLATFORM_VULKAN_LIBRARY})
         target_link_libraries(viewer PRIVATE Iphlpapi.lib libglfw3 ws2_32 bcrypt.lib vulkan-1)
     elseif(WITH_OPENGL)
-        list(APPEND GRAPHICS_LIBS libgraphics platform)
+        find_defold_windows_library(GRAPHICS_OPENGL_LIBRARY graphics libgraphics)
+        find_defold_windows_library(PLATFORM_OPENGL_LIBRARY platform libplatform)
+        list(APPEND GRAPHICS_LIBS ${GRAPHICS_OPENGL_LIBRARY} ${PLATFORM_OPENGL_LIBRARY})
         target_link_libraries(viewer PRIVATE Iphlpapi.lib libglfw3 ws2_32 bcrypt.lib opengl32)
     else()
         message(FATAL_ERROR "No Windows viewer backend selected")

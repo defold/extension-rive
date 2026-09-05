@@ -188,67 +188,82 @@ runs:
         }
 
         inject_emscripten_pthread_flags() {
-          local build_ninja="$1/build.ninja"
+          local build_dir="$1"
+          local build_ninja="${build_dir}/build.ninja"
 
           if [[ ! -f "${build_ninja}" ]]; then
             echo "error: expected ${build_ninja} before injecting pthread flags" >&2
             exit 1
           fi
 
-          python3 - "${build_ninja}" <<'PY'
+          python3 - "${build_dir}" <<'PY'
         from pathlib import Path
         import sys
 
-        path = Path(sys.argv[1])
-        lines = path.read_text().splitlines()
-        changed = False
-        patched = []
+        build_dir = Path(sys.argv[1])
+        ninja_files = sorted(build_dir.glob("*.ninja"))
         compile_flags = ["-pthread", "-matomics", "-mbulk-memory"]
-        link_flags = ["-pthread"]
+        compile_variables = {"CFLAGS", "CXXFLAGS"}
+        total_assignment_count = 0
+        changed_assignment_count = 0
+        changed_files = []
 
-        def append_missing(line, required_flags):
-            global changed
-            prefix, separator, value = line.partition("=")
-            flags = value.split()
-            for flag in required_flags:
-                if flag not in flags:
-                    flags.append(flag)
-            updated = f"{prefix}{separator} {' '.join(flags)}"
-            if updated != line:
-                changed = True
-            return updated
+        for path in ninja_files:
+            lines = path.read_text().splitlines()
+            patched = []
+            changed = False
 
-        for line in lines:
-            stripped = line.strip()
-            if stripped.startswith("flags ="):
-                line = append_missing(line, compile_flags)
-            elif stripped.startswith(("ldflags =", "linkflags =")):
-                line = append_missing(line, link_flags)
-            patched.append(line)
+            for line in lines:
+                stripped = line.strip()
+                variable = stripped.partition("=")[0].strip()
+                if variable in compile_variables:
+                    prefix, separator, value = line.partition("=")
+                    flags = value.split()
+                    for flag in compile_flags:
+                        if flag not in flags:
+                            flags.append(flag)
+                    updated = f"{prefix}{separator} {' '.join(flags)}"
+                    if updated != line:
+                        changed = True
+                        changed_assignment_count += 1
+                    line = updated
+                    total_assignment_count += 1
+                patched.append(line)
 
-        missing = []
-        for number, line in enumerate(patched, 1):
-            stripped = line.strip()
-            if stripped.startswith("flags ="):
-                for flag in compile_flags:
-                    if flag not in line.split():
-                        missing.append((number, flag))
-            elif stripped.startswith(("ldflags =", "linkflags =")):
-                for flag in link_flags:
-                    if flag not in line.split():
-                        missing.append((number, flag))
+            missing = []
+            for number, line in enumerate(patched, 1):
+                stripped = line.strip()
+                variable = stripped.partition("=")[0].strip()
+                if variable in compile_variables:
+                    for flag in compile_flags:
+                        if flag not in line.split():
+                            missing.append((number, flag))
 
-        if missing:
-            print(f"error: {path} is missing required pthread flags:", file=sys.stderr)
-            for number, flag in missing[:20]:
-                print(f"  line {number}: {flag}", file=sys.stderr)
+            if missing:
+                print(f"error: {path} is missing required pthread flags:", file=sys.stderr)
+                for number, flag in missing[:20]:
+                    print(f"  line {number}: {flag}", file=sys.stderr)
+                sys.exit(1)
+
+            if changed:
+                path.write_text("\n".join(patched) + "\n")
+                changed_files.append(path)
+
+        if total_assignment_count == 0:
+            print(f"error: no CFLAGS or CXXFLAGS assignments found in {build_dir}/*.ninja", file=sys.stderr)
             sys.exit(1)
 
-        if changed:
-            path.write_text("\n".join(patched) + "\n")
-            print(f"Injected pthread/atomics flags into {path}")
+        if changed_files:
+            print(
+                f"Injected pthread/atomics flags into {changed_assignment_count} assignments "
+                f"across {len(changed_files)} Ninja files; verified {total_assignment_count} "
+                f"assignments in {build_dir}"
+            )
         else:
-            print(f"{path} already contains pthread/atomics flags")
+            print(
+                f"Verified pthread/atomics flags in {total_assignment_count} assignments "
+                f"across {len(ninja_files)} Ninja files in {build_dir}"
+            )
         PY
         }
 
