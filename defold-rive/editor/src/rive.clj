@@ -471,18 +471,16 @@
 
 (defn- create-state-machine-node [parent-id artboard state-machine]
   (when parent-id
-    (let [parent-graph-id (g/node-id->graph-id parent-id)]
-      (g/make-nodes parent-graph-id [sm [RiveStateMachineNode :name state-machine :artboard artboard]]
-        (g/connect sm :_node-id parent-id :nodes)
-        (g/connect sm :node-outline parent-id :child-outlines)))))
+    (g/make-nodes [sm [RiveStateMachineNode :name state-machine :artboard artboard]]
+      (g/connect sm :_node-id parent-id :nodes)
+      (g/connect sm :node-outline parent-id :child-outlines))))
 
 (defn- create-artboard-node [parent-id artboard state-machines]
-  (let [parent-graph-id (g/node-id->graph-id parent-id)
-        state-machines (vec (remove nil? (or state-machines [])))
+  (let [state-machines (vec (remove nil? (or state-machines [])))
         state-machines-label (join-or state-machines none-value-text)
-        artboard-tx-data (g/make-nodes parent-graph-id [artboard-node [RiveArtboardNode :name artboard :state-machines state-machines-label]]
-                          (g/connect artboard-node :_node-id parent-id :nodes)
-                          (g/connect artboard-node :node-outline parent-id :child-outlines))
+        artboard-tx-data (g/make-nodes [artboard-node [RiveArtboardNode :name artboard :state-machines state-machines-label]]
+                           (g/connect artboard-node :_node-id parent-id :nodes)
+                           (g/connect artboard-node :node-outline parent-id :child-outlines))
         artboard-id (tx-first-created artboard-tx-data)
         state-machine-tx-data (mapcat (fn [sm] (create-state-machine-node artboard-id artboard sm)) state-machines)]
     (concat artboard-tx-data state-machine-tx-data)))
@@ -493,26 +491,24 @@
           artboards))
 
 (defn- create-view-model-property-node [parent-id view-model property]
-  (let [parent-graph-id (g/node-id->graph-id parent-id)
-        name (:name property)
+  (let [name (:name property)
         type-name (string-or (:type-name property) "unknown")
         meta-data (string-or (:meta-data property) none-value-text)
         value (string-or (:value property) unknown-value-text)]
-    (g/make-nodes parent-graph-id [prop [RiveViewModelPropertyNode :name name
-                                         :view-model view-model
-                                         :data-type type-name
-                                         :value value
-                                         :meta-data meta-data]]
+    (g/make-nodes [prop [RiveViewModelPropertyNode :name name
+                         :view-model view-model
+                         :data-type type-name
+                         :value value
+                         :meta-data meta-data]]
       (g/connect prop :_node-id parent-id :nodes)
       (g/connect prop :node-outline parent-id :child-outlines))))
 
 (defn- create-view-model-node [parent-id view-model properties instances default-instance]
-  (let [parent-graph-id (g/node-id->graph-id parent-id)
-        instances-label (join-or instances none-value-text)
+  (let [instances-label (join-or instances none-value-text)
         default-instance-label (string-or default-instance none-value-text)
-        view-model-tx-data (g/make-nodes parent-graph-id [view-model-node [RiveViewModelNode :name view-model
-                                                                           :default-instance default-instance-label
-                                                                           :instances instances-label]]
+        view-model-tx-data (g/make-nodes [view-model-node [RiveViewModelNode :name view-model
+                                                           :default-instance default-instance-label
+                                                           :instances instances-label]]
                              (g/connect view-model-node :_node-id parent-id :nodes)
                              (g/connect view-model-node :node-outline parent-id :child-outlines))
         view-model-id (tx-first-created view-model-tx-data)
