@@ -495,7 +495,8 @@
         type-name (string-or (:type-name property) "unknown")
         meta-data (string-or (:meta-data property) none-value-text)
         value (string-or (:value property) unknown-value-text)]
-    (g/make-nodes [prop [RiveViewModelPropertyNode :name name
+    (g/make-nodes [prop [RiveViewModelPropertyNode
+                         :name name
                          :view-model view-model
                          :data-type type-name
                          :value value
@@ -506,7 +507,8 @@
 (defn- create-view-model-node [parent-id view-model properties instances default-instance]
   (let [instances-label (join-or instances none-value-text)
         default-instance-label (string-or default-instance none-value-text)
-        view-model-tx-data (g/make-nodes [view-model-node [RiveViewModelNode :name view-model
+        view-model-tx-data (g/make-nodes [view-model-node [RiveViewModelNode
+                                                           :name view-model
                                                            :default-instance default-instance-label
                                                            :instances instances-label]]
                              (g/connect view-model-node :_node-id parent-id :nodes)
