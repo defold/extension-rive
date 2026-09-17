@@ -63,7 +63,7 @@
 (def editor-blit-material-proj-path "/defold-rive/editor/resources/materials/rivemodel_blit.material")
 
 ;; Used for selection in the editor Scene View.
-(def selection-material-proj-path "/defold-rive/editor/resources/materials/rivemodel_selection.material")
+(def editor-selection-material-proj-path "/defold-rive/editor/resources/materials/rivemodel_selection.material")
 
 (def rive-file-ext "riv")
 (def rive-scene-ext "rivescene")
@@ -1046,7 +1046,7 @@
     (concat
       (g/connect project :default-tex-params self :default-tex-params)
       (g/set-property self :material (resolve-resource editor-blit-material-proj-path))
-      (g/set-property self :selection-material (resolve-resource selection-material-proj-path))
+      (g/set-property self :selection-material (resolve-resource editor-selection-material-proj-path))
       (gu/set-properties-from-pb-map self rive-scene-pb-class rive-scene-desc
         rive-file (resolve-resource :scene)))))
 
@@ -1322,6 +1322,8 @@
       :ddf-type rive-scene-pb-class
       :sanitize-fn sanitize-rive-scene
       :load-fn load-rive-scene
+      :editor-dependencies [editor-blit-material-proj-path
+                            editor-selection-material-proj-path]
       :icon rive-scene-icon
       :category (localization/message "resource.category.resources")
       :view-types [:scene :text]
@@ -1334,6 +1336,7 @@
       :ddf-type rive-model-pb-class
       :sanitize-fn sanitize-rive-model
       :load-fn load-rive-model
+      :editor-dependencies [editor-blit-material-proj-path]
       :icon rive-model-icon
       :category (localization/message "resource.category.components")
       :view-types [:scene :text]
