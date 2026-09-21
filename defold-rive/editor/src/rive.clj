@@ -166,7 +166,7 @@
     nil ; We want :coordinate-system-game, which is the default for the field.
     coordinate-system))
 
-(defn- sanitize-rive-model [rive-model-desc]
+(defn- sanitize-rive-model [_read-opts _owner-resource rive-model-desc]
   {:pre [(map? rive-model-desc)]} ; Rive$RiveModelDesc in map format.
   ;; Legacy migration: Strip deprecated fields and convert deprecated values.
   (-> rive-model-desc
@@ -262,9 +262,9 @@
    :children child-outlines})
 
 ; .rivemodel
-(defn load-rive-model [project self resource rive-model-desc]
+(defn load-rive-model [{:keys [project resolve-resource-fn]} {:keys [owner-resource] self :node-id rive-model-desc :source-value}]
   {:pre [(map? rive-model-desc)]} ; Rive$RiveModelDesc in map format.
-  (let [resolve-resource #(workspace/resolve-resource resource %)]
+  (let [resolve-resource #(resolve-resource-fn owner-resource %)]
     (concat
       (g/connect project :default-tex-params self :default-tex-params)
       (g/set-property self :editor-blit-material (resolve-resource editor-blit-material-proj-path))
@@ -533,7 +533,7 @@
 
 ; Loads the .riv file
 (defn- load-rive-file
-  [project node-id resource]
+  [_load-opts {:keys [node-id resource]}]
   (try
     (let [content (resource->bytes resource)
           path (resource/resource->proj-path resource)
@@ -1036,13 +1036,13 @@
   (output aabb g/Any :cached (gu/passthrough aabb)))
 
 ; .rivescene
-(defn sanitize-rive-scene [rive-scene-desc]
+(defn sanitize-rive-scene [_read-opts _owner-resource rive-scene-desc]
   {:pre [(map? rive-scene-desc)]} ; Rive$RiveSceneDesc in map format.
   (dissoc rive-scene-desc :atlas))
 
-(defn load-rive-scene [project self resource rive-scene-desc]
+(defn load-rive-scene [{:keys [project resolve-resource-fn]} {:keys [owner-resource] self :node-id rive-scene-desc :source-value}]
   {:pre [(map? rive-scene-desc)]} ; Rive$RiveSceneDesc in map format.
-  (let [resolve-resource #(workspace/resolve-resource resource %)]
+  (let [resolve-resource #(resolve-resource-fn owner-resource %)]
     (concat
       (g/connect project :default-tex-params self :default-tex-params)
       (g/set-property self :material (resolve-resource editor-blit-material-proj-path))
