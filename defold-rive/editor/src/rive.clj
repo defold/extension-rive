@@ -566,14 +566,14 @@
                  geom/null-aabb)
 
           tx-data (concat
-                   (g/set-property node-id :content content)
-                   (g/set-property node-id :rive-handle rive-handle)
-                   (g/set-property node-id :artboards artboards)
-                   (g/set-property node-id :view-models view-models)
-                   (g/set-property node-id :view-model-properties view-model-properties)
-                   (g/set-property node-id :bounds bounds-text)
-                   (g/set-property node-id :state-machines state-machines)
-                   (g/set-property node-id :aabb aabb))
+                    (g/set-property node-id :content content)
+                    (g/set-property node-id :rive-handle rive-handle)
+                    (g/set-property node-id :artboards artboards)
+                    (g/set-property node-id :view-models view-models)
+                    (g/set-property node-id :view-model-properties view-model-properties)
+                    (g/set-property node-id :bounds bounds-text)
+                    (g/set-property node-id :state-machines state-machines)
+                    (g/set-property node-id :aabb aabb))
 
           artboard-outline-tx-data (create-artboard-nodes node-id artboards state-machines)
           view-model-outline-tx-data (create-view-model-nodes node-id view-models view-model-properties-info view-model-instances default-view-model-info)
@@ -607,7 +607,7 @@
 
 (g/defnk produce-rivescene-own-build-errors [_node-id rive-file]
   (g/package-errors _node-id
-                    (validate-rivescene-riv-file _node-id rive-file)))
+    (validate-rivescene-riv-file _node-id rive-file)))
 
 (defn- build-rive-scene [resource dep-resources user-data]
   (let [pb (:proto-msg user-data)
@@ -616,25 +616,24 @@
              pb
              (map
                (fn [[label res]]
-                   (when (not (nil? res))
-                         [label (resource/proj-path (get dep-resources res))]))
+                 (when (not (nil? res))
+                   [label (resource/proj-path (get dep-resources res))]))
                (:dep-resources user-data)))]
     {:resource resource :content (protobuf/map->bytes rive-scene-pb-class pb)}))
-
 
 (g/defnk produce-rivescene-build-targets
   [_node-id own-build-errors resource rive-scene-pb rive-file dep-build-targets]
   (g/precluding-errors own-build-errors
-                       (let [dep-build-targets (flatten dep-build-targets)
-                             deps-by-source (into {} (map #(let [res (:resource %)] [(:resource res) res]) dep-build-targets))
-                             dep-resources (map (fn [[label resource]] [label (get deps-by-source resource)]) [[:scene rive-file]])]
-                         [(bt/with-content-hash
-                            {:node-id _node-id
-                             :resource (workspace/make-build-resource resource)
-                             :build-fn build-rive-scene
-                             :user-data {:proto-msg rive-scene-pb
-                                         :dep-resources dep-resources}
-                             :deps dep-build-targets})])))
+    (let [dep-build-targets (flatten dep-build-targets)
+          deps-by-source (into {} (map #(let [res (:resource %)] [(:resource res) res]) dep-build-targets))
+          dep-resources (map (fn [[label resource]] [label (get deps-by-source resource)]) [[:scene rive-file]])]
+      [(bt/with-content-hash
+         {:node-id _node-id
+          :resource (workspace/make-build-resource resource)
+          :build-fn build-rive-scene
+          :user-data {:proto-msg rive-scene-pb
+                      :dep-resources dep-resources}
+          :deps dep-build-targets})])))
 
 (g/defnk produce-rivescene-pb [_node-id rive-file-resource]
   {:scene (resource/resource->proj-path rive-file-resource)})
@@ -646,16 +645,16 @@
   (get-in renderable [:user-data :texture-set-pb]))
 
 (vtx/defvertex vtx-textured
- (vec2 position)
- (vec2 texcoord0))
+  (vec2 position)
+  (vec2 texcoord0))
 
 (def ^:private fallback-quad-vertices
   (float-array
     [-1.0 -1.0 0.0 0.0
-      1.0 -1.0 1.0 0.0
+     1.0 -1.0 1.0 0.0
      -1.0  1.0 0.0 1.0
-      1.0 -1.0 1.0 0.0
-      1.0  1.0 1.0 1.0
+     1.0 -1.0 1.0 0.0
+     1.0  1.0 1.0 1.0
      -1.0  1.0 0.0 1.0]))
 
 (defn- aabb->quad-vertices [aabb]
@@ -867,7 +866,7 @@
 
     (gl/gl-draw-elements gl gl-prim-type GL/GL_UNSIGNED_INT start count)))
 
-  (set! *warn-on-reflection* true)
+(set! *warn-on-reflection* true)
 
 ; Borrowed from gui_clipping.clj
 (defn- setup-gl [^GL2 gl]
@@ -906,9 +905,9 @@
         renderable-transform (Matrix4d. ^Matrix4d (:world-transform renderable))
         render-args (if quad-vertices
                       (merge render-args (math/derive-render-transforms renderable-transform
-                                                                       (:view render-args)
-                                                                       (:projection render-args)
-                                                                       (:texture render-args)))
+                                                                        (:view render-args)
+                                                                        (:projection render-args)
+                                                                        (:texture render-args)))
                       render-args)
         world-view-proj (if quad-vertices (:world-view-proj render-args) identity-matrix4d)
         vertex-binding (vtx/use-with [node-id ::rive-quad] vb shader)]
@@ -938,20 +937,20 @@
           gpu-texture (or (rive-texture->gpu-texture _node-id texture default-tex-params 0)
                           texture/white-pixel)]
       (assoc {:node-id _node-id :aabb aabb}
-             :renderable {:render-fn render-rive-scenes
-                          :tags #{:rive}
-                          :batch-key material-shader
-                          :select-batch-key _node-id
-                          :user-data {:rive-scene-pb rive-scene-pb
-                                      :rive-file-handle rive-file-handle
-                                      :aabb aabb
-                                      :shader material-shader
-                                      :selection-shader selection-material-shader
-                                      :gpu-texture gpu-texture
-                                      :default-tex-params default-tex-params
-                                      :texture-set-pb texture-set-pb
-                                      :blend-mode blend-mode}
-                          :passes [pass/transparent pass/selection]}))))
+        :renderable {:render-fn render-rive-scenes
+                     :tags #{:rive}
+                     :batch-key material-shader
+                     :select-batch-key _node-id
+                     :user-data {:rive-scene-pb rive-scene-pb
+                                 :rive-file-handle rive-file-handle
+                                 :aabb aabb
+                                 :shader material-shader
+                                 :selection-shader selection-material-shader
+                                 :gpu-texture gpu-texture
+                                 :default-tex-params default-tex-params
+                                 :texture-set-pb texture-set-pb
+                                 :blend-mode blend-mode}
+                     :passes [pass/transparent pass/selection]}))))
 
 (defn- make-rive-outline-scene [_node-id aabb]
   {:aabb aabb
@@ -984,7 +983,7 @@
                                             [:build-targets :dep-build-targets])))
             (dynamic edit-type (g/constantly {:type resource/Resource :ext rive-file-ext}))
             (dynamic error (g/fnk [_node-id rive-file]
-                                  (validate-rivescene-riv-file _node-id rive-file))))
+                             (validate-rivescene-riv-file _node-id rive-file))))
 
   (property bounds g/Str
             (value (gu/passthrough rive-file-bounds))
@@ -1050,7 +1049,6 @@
       (gu/set-properties-from-pb-map self rive-scene-pb-class rive-scene-desc
         rive-file (resolve-resource :scene)))))
 
-
 ;
 ; .rivemodel (The "instance" file)
 ;
@@ -1075,12 +1073,12 @@
                           (:gpu-texture state)
                           texture/white-pixel)]
       (assoc state
-             :artboard artboard
-             :state-machine state-machine
-             :fit-int fit-int
-             :alignment-int alignment-int
-             :texture-version texture-version
-             :gpu-texture gpu-texture))
+        :artboard artboard
+        :state-machine state-machine
+        :fit-int fit-int
+        :alignment-int alignment-int
+        :texture-version texture-version
+        :gpu-texture gpu-texture))
     state))
 
 (g/defnk produce-rive-file-updatable [_node-id rive-file-handle artboard default-state-machine artboard-fit artboard-alignment default-tex-params]
@@ -1156,11 +1154,11 @@
 
 (g/defnk produce-model-own-build-errors [_node-id artboard default-state-machine blit-material rive-artboards rive-state-machines rive-scene]
   (let [state-machine-ids (state-machines-for-artboard rive-state-machines artboard rive-artboards)]
-   (g/package-errors _node-id
-                    (validate-model-blit-material _node-id blit-material)
-                    (validate-model-rive-scene _node-id rive-scene)
-                    (validate-model-artboard  _node-id rive-scene rive-artboards artboard)
-                    (validate-model-default-state-machine _node-id rive-scene state-machine-ids default-state-machine))))
+    (g/package-errors _node-id
+      (validate-model-blit-material _node-id blit-material)
+      (validate-model-rive-scene _node-id rive-scene)
+      (validate-model-artboard  _node-id rive-scene rive-artboards artboard)
+      (validate-model-default-state-machine _node-id rive-scene state-machine-ids default-state-machine))))
 
 (defn- build-rive-model [resource dep-resources user-data]
   (let [pb (:proto-msg user-data)
@@ -1169,16 +1167,16 @@
 
 (g/defnk produce-model-build-targets [_node-id own-build-errors resource save-value rive-scene-resource blit-material-resource dep-build-targets]
   (g/precluding-errors own-build-errors
-                       (let [dep-build-targets (flatten dep-build-targets)
-                             deps-by-source (into {} (map #(let [res (:resource %)] [(:resource res) res]) dep-build-targets))
-                             dep-resources (map (fn [[label resource]] [label (get deps-by-source resource)]) [[:scene rive-scene-resource] [:blit-material blit-material-resource]])]
-                         [(bt/with-content-hash
-                            {:node-id _node-id
-                             :resource (workspace/make-build-resource resource)
-                             :build-fn build-rive-model
-                             :user-data {:proto-msg save-value
-                                         :dep-resources dep-resources}
-                             :deps dep-build-targets})])))
+    (let [dep-build-targets (flatten dep-build-targets)
+          deps-by-source (into {} (map #(let [res (:resource %)] [(:resource res) res]) dep-build-targets))
+          dep-resources (map (fn [[label resource]] [label (get deps-by-source resource)]) [[:scene rive-scene-resource] [:blit-material blit-material-resource]])]
+      [(bt/with-content-hash
+         {:node-id _node-id
+          :resource (workspace/make-build-resource resource)
+          :build-fn build-rive-model
+          :user-data {:proto-msg save-value
+                      :dep-resources dep-resources}
+          :deps dep-build-targets})])))
 
 ;; Represents a .rivemodel file, loaded from a Rive$RiveModelDesc Protobuf message.
 (g/defnode RiveModelNode
@@ -1203,7 +1201,7 @@
                                             [:anim-data :anim-data])))
             (dynamic edit-type (g/constantly {:type resource/Resource :ext rive-scene-ext}))
             (dynamic error (g/fnk [_node-id rive-scene]
-                                  (validate-model-rive-scene _node-id rive-scene))))
+                             (validate-model-rive-scene _node-id rive-scene))))
   ; not visible/editable
   (property blit-material resource/Resource ; Default assigned in load-fn.
             (value (gu/passthrough blit-material-resource))
@@ -1215,7 +1213,7 @@
                                             [:build-targets :dep-build-targets])))
             (dynamic edit-type (g/constantly {:type resource/Resource :ext "material"}))
             (dynamic error (g/fnk [_node-id blit-material]
-                                  (validate-model-blit-material _node-id blit-material)))
+                             (validate-model-blit-material _node-id blit-material)))
             (dynamic visible (g/constantly false)))
 
   (property editor-blit-material resource/Resource ; Default assigned in load-fn.
@@ -1225,10 +1223,10 @@
             (dynamic visible (g/constantly false)))
 
   (property artboard g/Str (default (protobuf/default rive-model-pb-class :artboard))
-          (dynamic error (g/fnk [_node-id rive-artboards artboard rive-scene]
-                                (validate-model-artboard _node-id rive-scene rive-artboards artboard)))
-          (dynamic tooltip (g/constantly "The name of the initial artboard. If empty, uses the default artboard."))
-          (dynamic edit-type (g/fnk [rive-artboards] (properties/->choicebox (cons "" rive-artboards)))))
+            (dynamic error (g/fnk [_node-id rive-artboards artboard rive-scene]
+                             (validate-model-artboard _node-id rive-scene rive-artboards artboard)))
+            (dynamic tooltip (g/constantly "The name of the initial artboard. If empty, uses the default artboard."))
+            (dynamic edit-type (g/fnk [rive-artboards] (properties/->choicebox (cons "" rive-artboards)))))
 
   (property default-state-machine g/Str (default (protobuf/default rive-model-pb-class :default-state-machine))
             (dynamic error (g/fnk [_node-id rive-state-machines artboard rive-artboards default-state-machine rive-scene]
@@ -1269,49 +1267,48 @@
   (output state-machine-ids g/Any :cached (g/fnk [anim-data] (vec (sort (keys anim-data)))))
   (output updatable g/Any :cached produce-rive-file-updatable)
   (output scene g/Any :cached (g/fnk [_node-id rive-main-scene blit-material-resource blit-material-shader editor-blit-material-shader updatable artboard default-state-machine artboard-fit artboard-alignment default-tex-params]
-                                     (if (some? (:renderable rive-main-scene))
-                                       (let [fit-value (or artboard-fit (protobuf/default rive-model-pb-class :artboard-fit))
-                                             alignment-value (or artboard-alignment (protobuf/default rive-model-pb-class :artboard-alignment))
-                                             fit-int (pb-enum-keyword->int artboard-fit-pb-class fit-value)
-                                             alignment-int (pb-enum-keyword->int artboard-alignment-pb-class alignment-value)
-                                             rive-file-handle (get-in rive-main-scene [:renderable :user-data :rive-file-handle])
-                                             aabb (:aabb rive-main-scene)
-                                             rive-scene-node-id (:node-id rive-main-scene)
-                                             blit-material-path (when blit-material-resource (resource/resource->proj-path blit-material-resource))
-                                             use-editor-blit (or (nil? blit-material-path) (= blit-material-path default-blit-material-proj-path))
-                                             blit-shader (if use-editor-blit editor-blit-material-shader blit-material-shader)
-                                             gpu-texture (or (snapshot-rive-gpu-texture _node-id rive-file-handle artboard default-state-machine fit-int alignment-int default-tex-params)
-                                                             (get-in updatable [:initial-state :gpu-texture])
-                                                             (get-in rive-main-scene [:renderable :user-data :gpu-texture])
-                                                             texture/white-pixel)]
-                                         (-> rive-main-scene
-                                             (assoc-in [:renderable :user-data :blit-shader] blit-shader)
-                                             (assoc-in [:renderable :user-data :gpu-texture] gpu-texture)
-                                             (assoc-in [:renderable :user-data :artboard] (or artboard ""))
-                                             (assoc-in [:renderable :user-data :state-machine] (or default-state-machine ""))
-                                             (assoc-in [:renderable :user-data :fit-int] fit-int)
-                                             (assoc-in [:renderable :user-data :alignment-int] alignment-int)
-                                             (assoc :updatable updatable)
-                                             (assoc :aabb aabb)
-                                             (assoc :children [(make-rive-outline-scene rive-scene-node-id aabb)])))
+                                (if (some? (:renderable rive-main-scene))
+                                  (let [fit-value (or artboard-fit (protobuf/default rive-model-pb-class :artboard-fit))
+                                        alignment-value (or artboard-alignment (protobuf/default rive-model-pb-class :artboard-alignment))
+                                        fit-int (pb-enum-keyword->int artboard-fit-pb-class fit-value)
+                                        alignment-int (pb-enum-keyword->int artboard-alignment-pb-class alignment-value)
+                                        rive-file-handle (get-in rive-main-scene [:renderable :user-data :rive-file-handle])
+                                        aabb (:aabb rive-main-scene)
+                                        rive-scene-node-id (:node-id rive-main-scene)
+                                        blit-material-path (when blit-material-resource (resource/resource->proj-path blit-material-resource))
+                                        use-editor-blit (or (nil? blit-material-path) (= blit-material-path default-blit-material-proj-path))
+                                        blit-shader (if use-editor-blit editor-blit-material-shader blit-material-shader)
+                                        gpu-texture (or (snapshot-rive-gpu-texture _node-id rive-file-handle artboard default-state-machine fit-int alignment-int default-tex-params)
+                                                        (get-in updatable [:initial-state :gpu-texture])
+                                                        (get-in rive-main-scene [:renderable :user-data :gpu-texture])
+                                                        texture/white-pixel)]
+                                    (-> rive-main-scene
+                                        (assoc-in [:renderable :user-data :blit-shader] blit-shader)
+                                        (assoc-in [:renderable :user-data :gpu-texture] gpu-texture)
+                                        (assoc-in [:renderable :user-data :artboard] (or artboard ""))
+                                        (assoc-in [:renderable :user-data :state-machine] (or default-state-machine ""))
+                                        (assoc-in [:renderable :user-data :fit-int] fit-int)
+                                        (assoc-in [:renderable :user-data :alignment-int] alignment-int)
+                                        (assoc :updatable updatable)
+                                        (assoc :aabb aabb)
+                                        (assoc :children [(make-rive-outline-scene rive-scene-node-id aabb)])))
 
-                                       (merge {:node-id _node-id
-                                               :renderable {:passes [pass/selection]}
-                                               :aabb (if rive-main-scene (:aabb rive-main-scene) geom/null-aabb)}
-                                              rive-main-scene))))
+                                  (merge {:node-id _node-id
+                                          :renderable {:passes [pass/selection]}
+                                          :aabb (if rive-main-scene (:aabb rive-main-scene) geom/null-aabb)}
+                                         rive-main-scene))))
   (output node-outline outline/OutlineData :cached (g/fnk [_node-id own-build-errors scene]
-                                                          (cond-> {:node-id _node-id
-                                                                   :node-outline-key "Rive Model"
-                                                                   :label "Rive Model"
-                                                                   :icon rive-model-icon
-                                                                   :outline-error? (g/error-fatal? own-build-errors)}
+                                                     (cond-> {:node-id _node-id
+                                                              :node-outline-key "Rive Model"
+                                                              :label "Rive Model"
+                                                              :icon rive-model-icon
+                                                              :outline-error? (g/error-fatal? own-build-errors)}
 
-                                                            (resource/resource? scene)
-                                                            (assoc :link scene :outline-reference? false))))
+                                                       (resource/resource? scene)
+                                                       (assoc :link scene :outline-reference? false))))
   (output save-value g/Any :cached produce-rivemodel-save-value)
   (output own-build-errors g/Any produce-model-own-build-errors)
   (output build-targets g/Any :cached produce-model-build-targets))
-
 
 (defn register-resource-types [workspace]
   (concat
