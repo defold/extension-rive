@@ -17,9 +17,6 @@ on:
         type: string
         default: ""
     outputs:
-      defold_version:
-        description: "Resolved Defold release tag."
-        value: ${{ jobs.prepare.outputs.defold_version }}
       defoldsdk_cache_key:
         description: "Cache key for the Defold SDK and Bob JAR."
         value: ${{ jobs.prepare.outputs.defoldsdk_cache_key }}

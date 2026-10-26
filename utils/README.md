@@ -6,8 +6,8 @@ This folder is split into a few categories:
 
 The plugin, viewer, and runtime build workflows read the default Defold version
 from `defold_min_version` in the `[library]` section of `game.project`. Set the
-`defold_version` workflow input to override it. Use the matching released SDK,
-Bob JAR, and protoc for local builds.
+`defold_version` workflow input to override it. Use the matching released SDK
+and Bob JAR for local builds. The plugin build script selects protoc from the SDK.
 
 On macOS and iOS, Rive uses its Metal renderer with Defold's Vulkan/MoltenVK
 adapter to share textures and the graphics command queue.
