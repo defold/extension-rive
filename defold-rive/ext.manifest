@@ -29,10 +29,10 @@ platforms:
     osx:
         context:
             flags:      ["-std=c++17", "-fno-rtti"]
-            excludeLibs: [platform, graphics]
-            excludeSymbols: [GraphicsAdapterOpenGL]
-            symbols: []
-            libs: []
+            excludeLibs: [platform, graphics, graphics_metal]
+            excludeSymbols: [GraphicsAdapterOpenGL, GraphicsAdapterMetal]
+            symbols: [GraphicsAdapterVulkan]
+            libs: [platform_vulkan, graphics_vulkan, MoltenVK]
             frameworks: [Metal, IOSurface, QuartzCore]
 
     ios:

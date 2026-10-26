@@ -24,4 +24,4 @@ jobs:
     uses: defold/github-actions-common/.github/workflows/bob.yml@master
     with:
       channel: beta
-      ignored_platforms: '[{"platform": "armv7-android"}, {"platform": "x86-win32"}]'
+      ignored_platforms: '[{"platform": "armv7-android"}, {"platform": "x86_64-android"}, {"platform": "arm64_sim-ios"}, {"platform": "x86-win32"}]'
