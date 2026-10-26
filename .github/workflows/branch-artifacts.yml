@@ -730,6 +730,15 @@ jobs:
           enableCrossOsArchive: true
           fail-on-cache-miss: true
 
+      - name: Ensure SDK protoc is available
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEFOLD_VERSION: ${{ needs.prepare-defoldsdk.outputs.defold_version }}
+        run: |
+          set -euo pipefail
+          ./utils/plugin/download_defoldsdk.sh --version "${DEFOLD_VERSION}" --host-platform x86_64-win32
+
       - name: Build windows plugin
         shell: bash
         env:
