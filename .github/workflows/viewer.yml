@@ -6,13 +6,9 @@ on:
 jobs:
   prepare-defoldsdk:
     name: defoldsdk
-    uses: defold/github-actions-common/.github/workflows/defoldsdk.yml@master
+    uses: ./.github/workflows/defoldsdk.yml
     with:
       runner: ubuntu-22.04
-      defold_channel: stable
-      defold_version: ${{ github.event.inputs.defold_version || '1.13.1' }}
-      sdk_output_path: build/defoldsdk
-      bob_output_path: bob.jar
 
   build-viewer:
     name: viewer-${{ matrix.platform }}

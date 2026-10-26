@@ -42,9 +42,9 @@ on:
         options: ["true", "false"]
         default: "true"
       defold_version:
-        description: "Defold SDK version (defaults to 1.13.1 stable)"
+        description: "Defold SDK version (defaults to library.defold_min_version in game.project)"
         required: false
-        default: "1.13.1"
+        default: ""
       target_branch:
         description: "Branch to checkout and push changes to. Leave empty for the selected workflow branch."
         required: false
@@ -91,10 +91,10 @@ on:
         type: string
         default: "true"
       defold_version:
-        description: "Defold SDK version (defaults to 1.13.1 stable)"
+        description: "Defold SDK version (defaults to library.defold_min_version in game.project)"
         required: false
         type: string
-        default: "1.13.1"
+        default: ""
       target_branch:
         description: "Branch to checkout and push changes to. Leave empty for the selected workflow branch."
         required: false
@@ -111,13 +111,11 @@ concurrency:
 jobs:
   prepare-defoldsdk:
     name: defoldsdk
-    uses: defold/github-actions-common/.github/workflows/defoldsdk.yml@master
+    uses: ./.github/workflows/defoldsdk.yml
     with:
       runner: ${{ inputs.platform == 'arm64-linux' && 'ubuntu-22.04-arm' || 'ubuntu-22.04' }}
-      defold_channel: stable
-      defold_version: ${{ inputs.defold_version || '1.13.1' }}
-      sdk_output_path: build/defoldsdk
-      bob_output_path: bob.jar
+      defold_version: ${{ inputs.defold_version }}
+      ref: ${{ inputs.target_branch || github.ref }}
 
   build-linux:
     if: ${{ inputs.platform == 'x86_64-linux' || inputs.platform == 'arm64-linux' || inputs.platform == 'all' }}
@@ -507,14 +505,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PROTOBUF_VERSION="3.20.1"
+          PROTOBUF_VERSION="35.1"
           case "$(uname -m)" in
             arm64) PROTOBUF_PLATFORM="arm64-macos" ;;
             x86_64) PROTOBUF_PLATFORM="x86_64-macos" ;;
             *) echo "Unsupported macOS architecture: $(uname -m)" >&2; exit 1 ;;
           esac
           PROTOBUF_ARCHIVE="protobuf-${PROTOBUF_VERSION}-${PROTOBUF_PLATFORM}.tar.gz"
-          PROTOBUF_URL="https://github.com/defold/defold/raw/dev/packages/${PROTOBUF_ARCHIVE}"
+          PROTOBUF_URL="https://raw.githubusercontent.com/defold/defold/${{ needs.prepare-defoldsdk.outputs.defold_version }}/packages/${PROTOBUF_ARCHIVE}"
           PROTOBUF_DIR="${RUNNER_TEMP}/defold-protobuf/${PROTOBUF_PLATFORM}"
           mkdir -p "${PROTOBUF_DIR}"
           curl -L --fail -o "${RUNNER_TEMP}/${PROTOBUF_ARCHIVE}" "${PROTOBUF_URL}"
@@ -657,10 +655,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PROTOBUF_VERSION="3.20.1"
+          PROTOBUF_VERSION="35.1"
           PROTOBUF_PLATFORM="x86_64-linux"
           PROTOBUF_ARCHIVE="protobuf-${PROTOBUF_VERSION}-${PROTOBUF_PLATFORM}.tar.gz"
-          PROTOBUF_URL="https://github.com/defold/defold/raw/dev/packages/${PROTOBUF_ARCHIVE}"
+          PROTOBUF_URL="https://raw.githubusercontent.com/defold/defold/${{ needs.prepare-defoldsdk.outputs.defold_version }}/packages/${PROTOBUF_ARCHIVE}"
           PROTOBUF_DIR="${RUNNER_TEMP}/defold-protobuf/${PROTOBUF_PLATFORM}"
           mkdir -p "${PROTOBUF_DIR}"
           curl -L --fail -o "${RUNNER_TEMP}/${PROTOBUF_ARCHIVE}" "${PROTOBUF_URL}"
@@ -790,10 +788,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PROTOBUF_VERSION="3.20.1"
+          PROTOBUF_VERSION="35.1"
           PROTOBUF_PLATFORM="x86_64-win32"
           PROTOBUF_ARCHIVE="protobuf-${PROTOBUF_VERSION}-${PROTOBUF_PLATFORM}.tar.gz"
-          PROTOBUF_URL="https://github.com/defold/defold/raw/dev/packages/${PROTOBUF_ARCHIVE}"
+          PROTOBUF_URL="https://raw.githubusercontent.com/defold/defold/${{ needs.prepare-defoldsdk.outputs.defold_version }}/packages/${PROTOBUF_ARCHIVE}"
           TMP_ROOT="$(cygpath -u "${RUNNER_TEMP}" 2>/dev/null || echo "${RUNNER_TEMP}")"
           PROTOBUF_DIR="${TMP_ROOT}/defold-protobuf/${PROTOBUF_PLATFORM}"
           mkdir -p "${PROTOBUF_DIR}"

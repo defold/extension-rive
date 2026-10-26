@@ -38,9 +38,9 @@ on:
         required: false
         default: ""
       defold_version:
-        description: "Defold SDK version (defaults to 1.13.1 stable)"
+        description: "Defold SDK version (defaults to library.defold_min_version in game.project)"
         required: false
-        default: "1.13.1"
+        default: ""
 
 permissions:
   contents: write

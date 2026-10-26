@@ -151,12 +151,12 @@ if [ -z "${HOST_PLATFORM}" ]; then
     esac
 fi
 
-PROTOBUF_URL="https://raw.githubusercontent.com/defold/defold/${VERSION}/packages/protobuf-3.20.1-${HOST_PLATFORM}.tar.gz"
-PROTOBUF_ARCHIVE="${REPO_ROOT}/build/protobuf-3.20.1-${HOST_PLATFORM}.tar.gz"
+PROTOBUF_URL="https://raw.githubusercontent.com/defold/defold/${VERSION}/packages/protobuf-35.1-${HOST_PLATFORM}.tar.gz"
+PROTOBUF_ARCHIVE="${REPO_ROOT}/build/protobuf-35.1-${HOST_PLATFORM}.tar.gz"
 PROTOBUF_DEST="${REPO_ROOT}/build"
 
-if [ -d "${PROTOBUF_DEST}/protobuf-3.20.1-${HOST_PLATFORM}" ]; then
-    echo "Protobuf already extracted at ${PROTOBUF_DEST}/protobuf-3.20.1-${HOST_PLATFORM}"
+if [ -d "${PROTOBUF_DEST}/protobuf-35.1-${HOST_PLATFORM}" ]; then
+    echo "Protobuf already extracted at ${PROTOBUF_DEST}/protobuf-35.1-${HOST_PLATFORM}"
 else
     mkdir -p "${REPO_ROOT}/build"
     echo "Downloading protobuf bundle from ${PROTOBUF_URL}"

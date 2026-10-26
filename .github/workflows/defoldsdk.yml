@@ -1,0 +1,71 @@
+name: Prepare Defold SDK
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        required: true
+        type: string
+      defold_version:
+        description: "Defold SDK version (defaults to library.defold_min_version in game.project)"
+        required: false
+        type: string
+        default: ""
+      ref:
+        description: "Repository ref containing game.project. Defaults to the workflow ref."
+        required: false
+        type: string
+        default: ""
+    outputs:
+      defold_version:
+        description: "Resolved Defold release tag."
+        value: ${{ jobs.prepare.outputs.defold_version }}
+      defoldsdk_cache_key:
+        description: "Cache key for the Defold SDK and Bob JAR."
+        value: ${{ jobs.prepare.outputs.defoldsdk_cache_key }}
+
+jobs:
+  resolve-version:
+    runs-on: ${{ inputs.runner }}
+    outputs:
+      defold_version: ${{ steps.version.outputs.defold_version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          ref: ${{ inputs.ref }}
+
+      - name: Read Defold version
+        id: version
+        env:
+          DEFOLD_VERSION: ${{ inputs.defold_version }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import configparser
+          import os
+
+          version = os.environ["DEFOLD_VERSION"].strip()
+          if not version:
+              project = configparser.ConfigParser(interpolation=None)
+              with open("game.project", encoding="utf-8") as project_file:
+                  project.read_file(project_file)
+              version = project.get("library", "defold_min_version", fallback="").strip()
+          if not version:
+              raise SystemExit("game.project is missing library.defold_min_version")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"defold_version={version}\n")
+          print(f"Using Defold version: {version}")
+          PY
+
+  prepare:
+    needs: resolve-version
+    uses: defold/github-actions-common/.github/workflows/defoldsdk.yml@master
+    with:
+      runner: ${{ inputs.runner }}
+      defold_channel: stable
+      defold_version: ${{ needs.resolve-version.outputs.defold_version }}
+      sdk_output_path: build/defoldsdk
+      bob_output_path: bob.jar

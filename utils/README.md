@@ -4,10 +4,10 @@ This folder is split into a few categories:
 
 ## Defold Version
 
-The plugin, viewer, and runtime build workflows default to Defold **1.13.1 stable**.
-Use the matching released SDK and Bob JAR for local builds. The release engine
-SHA is `574678c7d44be490d874fbed2d0ae6211feec4d9`; check `java -jar "$BOB" --version`
-to distinguish it from earlier development builds also labeled 1.13.1.
+The plugin, viewer, and runtime build workflows read the default Defold version
+from `defold_min_version` in the `[library]` section of `game.project`. Set the
+`defold_version` workflow input to override it. Use the matching released SDK,
+Bob JAR, and protoc for local builds.
 
 On macOS and iOS, Rive uses its Metal renderer with Defold's Vulkan/MoltenVK
 adapter to share textures and the graphics command queue.
