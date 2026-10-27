@@ -627,7 +627,7 @@ static bool CreateGraphicsContextInternal()
 #endif
 #if defined(__linux__)
     // Rive's OpenGL renderer requires at least OpenGL 4.2.
-    window_params.m_OpenGLVersionHint = 42;
+    window_params.m_GraphicsApiVersionHint = 42;
     window_params.m_OpenGLUseCoreProfileHint = 1;
 #endif
     window_params.m_Hidden = 1;

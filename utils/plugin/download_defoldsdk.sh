@@ -151,15 +151,44 @@ if [ -z "${HOST_PLATFORM}" ]; then
     esac
 fi
 
-PROTOBUF_URL="https://raw.githubusercontent.com/defold/defold/${VERSION}/packages/protobuf-3.20.1-${HOST_PLATFORM}.tar.gz"
-PROTOBUF_ARCHIVE="${REPO_ROOT}/build/protobuf-3.20.1-${HOST_PLATFORM}.tar.gz"
-PROTOBUF_DEST="${REPO_ROOT}/build"
+PROTOC_DIR="${OUTPUT_SDK_ROOT}/defoldsdk/ext/bin/${HOST_PLATFORM}"
+if [ ! -f "${PROTOC_DIR}/protoc" ] && [ ! -f "${PROTOC_DIR}/protoc.exe" ]; then
+    PROTOBUF_URL=$(python3 - "${VERSION}" "${HOST_PLATFORM}" <<'PY'
+import json
+import os
+import sys
+from urllib.parse import quote
+from urllib.request import Request, urlopen
 
-if [ -d "${PROTOBUF_DEST}/protobuf-3.20.1-${HOST_PLATFORM}" ]; then
-    echo "Protobuf already extracted at ${PROTOBUF_DEST}/protobuf-3.20.1-${HOST_PLATFORM}"
-else
-    mkdir -p "${REPO_ROOT}/build"
-    echo "Downloading protobuf bundle from ${PROTOBUF_URL}"
+version, platform = sys.argv[1:]
+url = f"https://api.github.com/repos/defold/defold/contents/packages?ref={quote(version, safe='')}"
+headers = {"Accept": "application/vnd.github+json", "User-Agent": "extension-rive"}
+token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+if token:
+    headers["Authorization"] = f"Bearer {token}"
+with urlopen(Request(url, headers=headers), timeout=30) as response:
+    packages = json.load(response)
+matches = [package["download_url"] for package in packages
+           if package["name"].startswith("protobuf-")
+           and package["name"].endswith(f"-{platform}.tar.gz")]
+if len(matches) != 1:
+    raise SystemExit(f"Expected one protobuf package for Defold {version} / {platform}, found {len(matches)}")
+print(matches[0])
+PY
+)
+    PROTOBUF_ARCHIVE="${REPO_ROOT}/build/${PROTOBUF_URL##*/}"
+    PROTOBUF_DIR="${REPO_ROOT}/build/protobuf-${VERSION}-${HOST_PLATFORM}"
+    mkdir -p "${PROTOBUF_DIR}" "${PROTOC_DIR}"
+    echo "Downloading matching protoc from ${PROTOBUF_URL}"
     curl -fSL -o "${PROTOBUF_ARCHIVE}" "${PROTOBUF_URL}"
-    tar -xzf "${PROTOBUF_ARCHIVE}" -C "${PROTOBUF_DEST}"
+    tar -xzf "${PROTOBUF_ARCHIVE}" -C "${PROTOBUF_DIR}"
+    PROTOC_BIN=$(find "${PROTOBUF_DIR}" -type f \( -name protoc -o -name protoc.exe \) -print -quit)
+    if [ -z "${PROTOC_BIN}" ]; then
+        echo "Protoc not found in ${PROTOBUF_ARCHIVE}" >&2
+        exit 1
+    fi
+    cp "${PROTOC_BIN}" "${PROTOC_DIR}/"
+    chmod +x "${PROTOC_DIR}/${PROTOC_BIN##*/}"
 fi
+
+echo "Defold protoc is available in ${PROTOC_DIR}"

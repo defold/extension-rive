@@ -17,13 +17,9 @@ jobs:
   prepare-defoldsdk:
     if: github.event_name == 'pull_request'
     name: defoldsdk
-    uses: defold/github-actions-common/.github/workflows/defoldsdk.yml@master
+    uses: ./.github/workflows/defoldsdk.yml
     with:
       runner: ${{ github.event.inputs.platform == 'arm64-linux' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
-      defold_channel: stable
-      defold_version: ${{ github.event.inputs.defold_version || '1.13.1' }}
-      sdk_output_path: build/defoldsdk
-      bob_output_path: bob.jar
 
   test-html5:
     if: github.event_name == 'pull_request'
@@ -221,6 +217,16 @@ jobs:
             const targetSha = context.payload.pull_request.head.sha;
             const workflowName = context.workflow;
             const artifactName = `render-test-report-pr-${context.payload.pull_request.number}`;
+            const { data: headCommit } = await github.rest.repos.getCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: targetSha,
+            });
+            if (headCommit.commit.message.includes('[skip ci]')) {
+              core.notice('The PR head commit skips CI; no render test report is expected.');
+              core.setOutput('report_available', 'false');
+              return;
+            }
             const perPage = 100;
             const delayMs = 15000;
             const maxAttempts = 80;
